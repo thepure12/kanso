@@ -98,7 +98,8 @@
     "shortcuts": "Keyboard shortcuts",
     "signOut": "Sign out",
     "search": "Search",
-    "install": "Install app"
+    "install": "Install app",
+    "myWork": "My work"
   },
   "shortcuts": {
     "title": "Keyboard shortcuts",
@@ -112,7 +113,8 @@
     "newCard": "Add a card to the first column",
     "undo": "Undo your last change",
     "redo": "Redo",
-    "escape": "Close the dialog or cancel editing"
+    "escape": "Close the dialog or cancel editing",
+    "myWork": "Go to my work"
   },
   "mail": {
     "linkExpiry": "The link expires in {expiry}. If the button does not work, paste this link into your browser:",
@@ -950,7 +952,8 @@
     "cards": "Cards",
     "columns": "Columns",
     "boards": "Boards",
-    "actions": "Actions"
+    "actions": "Actions",
+    "myWork": "My work"
   },
   "webhooks": {
     "title": "Webhooks",
@@ -1128,5 +1131,26 @@
     "updateTitle": "Update available",
     "updateDescription": "A new version of Kanso is ready.",
     "reload": "Reload"
+  },
+  "myWork": {
+    "title": "My work",
+    "description": "Cards assigned to you or that you watch, on all your boards.",
+    "all": "All",
+    "assigned": "Assigned",
+    "watching": "Watching",
+    "showDone": "Show done",
+    "empty": "Nothing here. Cards assigned to you or that you watch show up here.",
+    "loadFailed": "Could not load your cards",
+    "count": "{count} card | {count} cards",
+    "assignedToYou": "Assigned to you",
+    "youWatch": "You watch this card",
+    "buckets": {
+      "overdue": "Overdue",
+      "today": "Today",
+      "soon": "Next 7 days",
+      "later": "Later",
+      "none": "No due date"
+    },
+    "refresh": "Refresh"
   }
 }

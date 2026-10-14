@@ -81,9 +81,9 @@ export default defineNuxtConfig({
           options: { cacheName: 'kanso-pages', networkTimeoutSeconds: 3, cacheableResponse: { statuses: [200] }, expiration: { maxEntries: 50 } },
         },
         {
-          // GET /api/me, /api/boards, /api/boards/:id, /api/cards/:id (not their sub-routes or event streams).
+          // GET /api/me, /api/my-work, /api/boards, /api/boards/:id, /api/cards/:id (not their sub-routes or event streams).
           urlPattern: ({ url, sameOrigin }) => sameOrigin
-            && /^\/api\/(?:me|boards|boards\/[0-9a-f-]{36}|cards\/[0-9a-f-]{36})$/.test(url.pathname),
+            && /^\/api\/(?:me|my-work|boards|boards\/[0-9a-f-]{36}|cards\/[0-9a-f-]{36})$/.test(url.pathname),
           handler: 'NetworkFirst',
           method: 'GET',
           options: { cacheName: 'kanso-api', networkTimeoutSeconds: 3, cacheableResponse: { statuses: [200] }, expiration: { maxEntries: 200 } },

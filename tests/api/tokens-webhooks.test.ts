@@ -108,6 +108,7 @@ describe('api tokens', () => {
     expect(res.data.name).toBe('Token board')
     expect(res.headers.getSetCookie()).toEqual([])
     expect((await call('/api/search?q=Token', { token: t.token })).status).toBe(200)
+    expect((await call('/api/my-work', { token: t.token })).status).toBe(200)
   })
 
   it('read scope allows only GET; write scope allows changes', async () => {

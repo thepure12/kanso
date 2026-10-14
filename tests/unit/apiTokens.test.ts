@@ -20,7 +20,7 @@ describe('api tokens', () => {
   })
 
   it('allows board routes and refuses account, auth, admin and webhook routes', () => {
-    for (const r of ['/api/boards', '/api/boards/:id', '/api/cards/:id/move', '/api/search', '/api/me', '/api/notifications', '/api/teams/:id/members']) {
+    for (const r of ['/api/boards', '/api/boards/:id', '/api/cards/:id/move', '/api/search', '/api/me', '/api/my-work', '/api/notifications', '/api/teams/:id/members']) {
       expect(tokenRouteAllowed(r), r).toBe(true)
     }
     for (const r of [

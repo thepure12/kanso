@@ -60,6 +60,8 @@ Shared kanban boards. Nuxt 4, Nuxt UI, Postgres with row-level security, Drizzle
   Sessions from before this feature carry no session id and must sign in again.
 - **Audit log** (Admin page): promotions, demotions, the admin bootstrap, account removals and self-deletions, and sign-up
   setting changes, with names kept after accounts are deleted. Admins only.
+- **My work** (header, `g m`): the cards assigned to you or that you watch on all your boards, grouped by due date
+  (overdue, today, next 7 days, later, no date). Cards in a board's last column count as done and are hidden unless you ask.
 - Mention people in comments with `@`; they get a notification even when they are not assigned.
 - **Watch** a card (eye button in the card dialog) to get the same notifications as its assignees. You watch cards you
   create or comment on automatically; the board marks watched cards with an eye.
@@ -81,6 +83,8 @@ Shared kanban boards. Nuxt 4, Nuxt UI, Postgres with row-level security, Drizzle
   messages of webhooks you create.
 - Login, sign-up and password reset attempts are rate limited per IP (and email for login), stored in Postgres so limits hold across restarts and instances.
 - Postgres enforces all access rules. The app holds no permission logic of its own.
+
+Planned features: [docs/ROADMAP.md](docs/ROADMAP.md).
 
 ## Setup
 

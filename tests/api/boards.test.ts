@@ -10,6 +10,7 @@ import type { Inbox } from '#shared/types/notifications'
 import type { AdminUser, AuditLogPage, InstanceSettings } from '#shared/types/admin'
 import type { Account, AccountSession } from '#shared/types/account'
 import type { SearchResults } from '#shared/types/search'
+import type { MyWork } from '#shared/types/myWork'
 import { signEmailToken } from '../../server/utils/emailToken'
 import { base32Decode, totpCode, totpStep } from '../../server/utils/totp'
 
@@ -1348,6 +1349,50 @@ describe('admin audit log', () => {
     const mine = page.entries.filter(e => e.data.actor_email === adminEmail)
     expect(mine.map(e => e.action)).toContain('settings.update')
     expect(mine.map(e => e.action)).toContain('admin.bootstrap')
+  })
+})
+
+describe('my work', () => {
+  it('lists cards the caller is assigned to or watches, across boards', async () => {
+    const { data: { id } } = await alice.req<{ id: string }>('/api/boards', { method: 'POST', body: { name: 'My work', template: 'basic' } })
+    extraBoards.push(id)
+    await alice.req(`/api/boards/${id}/members`, { method: 'POST', body: { email: bob.email, role: 'editor' } })
+    const detail = (await alice.req<BoardDetail>(`/api/boards/${id}`)).data
+    const [todo, , done] = detail.columns
+    const bobId = detail.members.find(m => m.name === 'Bob')!.userId
+    const add = async (title: string, columnId = todo!.id, patch: Record<string, unknown> = { assigneeIds: [bobId] }) => {
+      const card = (await alice.req<Card>(`/api/boards/${id}/cards`, { method: 'POST', body: { columnId, title } })).data
+      await alice.req(`/api/cards/${card.id}`, { method: 'PATCH', body: patch })
+      return card
+    }
+    const assigned = await add('Assigned', todo!.id, { assigneeIds: [bobId], dueDate: '2026-01-02', priority: 'high' })
+    const watched = await add('Watched', todo!.id, {})
+    await bob.req(`/api/cards/${watched.id}/watch`, { method: 'PUT' })
+    const finished = await add('Finished', done!.id)
+    await add('Archived', todo!.id, { assigneeIds: [bobId], archived: true })
+    await add('Not mine', todo!.id, {})
+    await alice.req(`/api/cards/${assigned.id}/template`, { method: 'POST', body: { withAssignees: true } })
+
+    const mine = async (u: typeof bob) => {
+      const res = await u.req<MyWork>('/api/my-work')
+      expect(res.status).toBe(200)
+      return res.data.cards.filter(c => c.boardId === id)
+    }
+    const cards = await mine(bob)
+    expect(cards.map(c => c.title)).toEqual(['Assigned', 'Watched', 'Finished'])
+    expect(cards[0]).toEqual({
+      id: assigned.id, title: 'Assigned', boardId: id, boardName: 'My work', columnId: todo!.id, columnTitle: 'To do',
+      startDate: null, dueDate: '2026-01-02', priority: 'high', estimate: null, assigned: true, watching: false, done: false,
+    })
+    expect(cards.find(c => c.id === finished.id)).toMatchObject({ done: true, columnTitle: 'Done' })
+    expect(cards.find(c => c.id === watched.id)).toMatchObject({ assigned: false, watching: true })
+    // Alice watches the cards she created; the outsider sees nothing of the board.
+    expect((await mine(alice)).map(c => c.title).sort()).toEqual(['Assigned', 'Finished', 'Not mine', 'Watched'])
+    expect(await mine(outsider)).toEqual([])
+
+    // Archived boards drop out.
+    await alice.req(`/api/boards/${id}/archive`, { method: 'PUT' })
+    expect(await mine(bob)).toEqual([])
   })
 })
 

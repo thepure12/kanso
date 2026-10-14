@@ -42,6 +42,7 @@ defineShortcuts(computed(() => loggedIn.value
       meta_k: { usingInput: true, handler: () => { paletteOpen.value = !paletteOpen.value } },
       '?': () => { if (!dialogOpen()) shortcutsOpen.value = true },
       'g-h': () => { if (!dialogOpen()) navigateTo('/') },
+      'g-m': () => { if (!dialogOpen()) navigateTo('/my-work') },
     }
   : {}))
 </script>
@@ -59,6 +60,9 @@ defineShortcuts(computed(() => loggedIn.value
             <UKbd value="meta" />
             <UKbd value="k" />
           </span>
+        </UButton>
+        <UButton v-if="loggedIn" to="/my-work" color="neutral" variant="ghost" icon="i-lucide-list-checks" :aria-label="t('nav.myWork')">
+          <span class="hidden md:inline">{{ t('nav.myWork') }}</span>
         </UButton>
         <UColorModeButton />
         <NotificationBell v-if="loggedIn && user" />

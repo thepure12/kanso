@@ -13,6 +13,7 @@ export const shortcutGroups: { label: string, items: ShortcutHelp[] }[] = [
       { kbds: ['meta', 'k'], description: 'shortcuts.search' },
       { kbds: ['?'], description: 'shortcuts.help' },
       { kbds: ['g', 'h'], sequence: true, description: 'shortcuts.home' },
+      { kbds: ['g', 'm'], sequence: true, description: 'shortcuts.myWork' },
     ],
   },
   {

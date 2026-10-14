@@ -98,7 +98,8 @@
     "shortcuts": "Tastenkürzel",
     "signOut": "Abmelden",
     "search": "Suchen",
-    "install": "App installieren"
+    "install": "App installieren",
+    "myWork": "Meine Arbeit"
   },
   "shortcuts": {
     "title": "Tastenkürzel",
@@ -112,7 +113,8 @@
     "newCard": "Karte in der ersten Spalte anlegen",
     "undo": "Letzte Änderung rückgängig machen",
     "redo": "Wiederherstellen",
-    "escape": "Dialog schließen oder Bearbeitung abbrechen"
+    "escape": "Dialog schließen oder Bearbeitung abbrechen",
+    "myWork": "Zu meiner Arbeit"
   },
   "mail": {
     "linkExpiry": "Der Link ist {expiry} gültig. Falls der Button nicht funktioniert, kopiere diesen Link in deinen Browser:",
@@ -950,7 +952,8 @@
     "cards": "Karten",
     "columns": "Spalten",
     "boards": "Boards",
-    "actions": "Aktionen"
+    "actions": "Aktionen",
+    "myWork": "Meine Arbeit"
   },
   "webhooks": {
     "title": "Webhooks",
@@ -1128,5 +1131,26 @@
     "updateTitle": "Update verfügbar",
     "updateDescription": "Eine neue Version von Kanso ist bereit.",
     "reload": "Neu laden"
+  },
+  "myWork": {
+    "title": "Meine Arbeit",
+    "description": "Karten, die dir zugewiesen sind oder die du beobachtest, auf allen deinen Boards.",
+    "all": "Alle",
+    "assigned": "Zugewiesen",
+    "watching": "Beobachtet",
+    "showDone": "Erledigte anzeigen",
+    "empty": "Nichts zu tun. Karten, die dir zugewiesen sind oder die du beobachtest, erscheinen hier.",
+    "loadFailed": "Deine Karten konnten nicht geladen werden",
+    "count": "{count} Karte | {count} Karten",
+    "assignedToYou": "Dir zugewiesen",
+    "youWatch": "Du beobachtest diese Karte",
+    "buckets": {
+      "overdue": "Überfällig",
+      "today": "Heute",
+      "soon": "Nächste 7 Tage",
+      "later": "Später",
+      "none": "Ohne Fälligkeit"
+    },
+    "refresh": "Aktualisieren"
   }
 }

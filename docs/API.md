@@ -56,6 +56,7 @@ Errors come back as JSON with `statusCode` and `statusMessage`: `400` invalid in
 | GET | `/api/teams`, `/api/teams/:id` | Teams and a team's boards and members |
 | GET | `/api/search?q=` | Search cards, comments, boards and columns |
 | GET | `/api/notifications` | Your notifications |
+| GET | `/api/my-work` | Cards assigned to you or that you watch, on all boards (`assigned`, `watching`, `done` flags) |
 
 Dates are `YYYY-MM-DD`; timestamps are ISO 8601. The types of responses live in `shared/types/`.
 
