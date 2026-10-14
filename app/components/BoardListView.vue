@@ -46,6 +46,8 @@ function sortHeader(label: string, key: CardSortKey) {
 
 const shownFields = computed(() => props.fields.filter(f => f.showOnCard))
 
+// Empty cells return null, not '': an empty string renders no text node on the
+// server, so the cell's fragment fails to hydrate.
 const tableColumns = computed<TableColumn<Card>[]>(() => [
   ...(props.canEdit ? [{ id: 'select' }] : []),
   { id: 'title', header: sortHeader(t('listView.title'), 'title') },
@@ -53,14 +55,14 @@ const tableColumns = computed<TableColumn<Card>[]>(() => [
   { id: 'assignees', header: sortHeader(t('listView.assignees'), 'assignees') },
   { id: 'tags', header: sortHeader(t('listView.tags'), 'tags') },
   { id: 'priority', header: sortHeader(t('listView.priority'), 'priority') },
-  { id: 'start', header: sortHeader(t('listView.start'), 'start'), cell: ({ row }) => row.original.startDate ? formatDate(row.original.startDate, locale.value) : '' },
+  { id: 'start', header: sortHeader(t('listView.start'), 'start'), cell: ({ row }) => row.original.startDate ? formatDate(row.original.startDate, locale.value) : null },
   { id: 'due', header: sortHeader(t('listView.due'), 'due') },
-  { id: 'estimate', header: sortHeader(t('listView.estimate'), 'estimate'), cell: ({ row }) => row.original.estimate === null ? '' : row.original.estimate.toLocaleString(locale.value, { maximumFractionDigits: 2 }) },
-  { id: 'time', header: sortHeader(t('listView.time'), 'time'), cell: ({ row }) => row.original.timeMinutes ? formatDuration(row.original.timeMinutes, t) : '' },
+  { id: 'estimate', header: sortHeader(t('listView.estimate'), 'estimate'), cell: ({ row }) => row.original.estimate === null ? null : row.original.estimate.toLocaleString(locale.value, { maximumFractionDigits: 2 }) },
+  { id: 'time', header: sortHeader(t('listView.time'), 'time'), cell: ({ row }) => row.original.timeMinutes ? formatDuration(row.original.timeMinutes, t) : null },
   ...shownFields.value.map((f): TableColumn<Card> => ({
     id: `field:${f.id}`,
     header: sortHeader(f.name, `field:${f.id}`),
-    cell: ({ row }) => formatFieldValue(f, row.original.fields[f.id], i18n) ?? '',
+    cell: ({ row }) => formatFieldValue(f, row.original.fields[f.id], i18n) ?? null,
   })),
 ])
 
