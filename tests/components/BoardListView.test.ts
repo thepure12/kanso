@@ -21,9 +21,10 @@ const cards = [
   card('b', { priority: 'low', estimate: 2, timeMinutes: 90, assigneeIds: ['u1'], fields: { f1: 'Acme', f2: 'hidden' } }),
   card('a', { priority: 'urgent', columnId: 'c2', dueDate: '2026-10-01' }),
 ]
-const mount = (canEdit = true) =>
-  mountSuspended(BoardListView, { props: { cards, columns, members, tags: [], fields, canEdit, today: '2026-10-14' } })
-const titles = (w: Awaited<ReturnType<typeof mount>>) => w.findAll('tbody tr').map(r => r.find('td').text())
+const mount = (canEdit = true, selectedIds = new Set<string>()) =>
+  mountSuspended(BoardListView, { props: { cards, columns, members, tags: [], fields, canEdit, today: '2026-10-14', selectedIds } })
+// Editors get a selection checkbox before the title.
+const titles = (w: Awaited<ReturnType<typeof mount>>) => w.findAll('tbody tr').map(r => r.findAll('td')[w.props('canEdit') ? 1 : 0]!.text())
 
 describe('BoardListView', () => {
   it('shows a row per card with its details and custom fields on cards', async () => {
@@ -63,5 +64,14 @@ describe('BoardListView', () => {
     const viewer = await mount(false)
     expect(viewer.find('[aria-label="Status of Card b"]').exists()).toBe(false)
     expect(viewer.text()).toContain('Done')
+  })
+
+  it('selects single cards and whole groups for bulk actions, editors only', async () => {
+    const w = await mount(true, new Set(['a']))
+    expect(w.find('[aria-label="Select Card a"]').attributes('data-state')).toBe('checked')
+    await w.find('[aria-label="Select Card b"]').trigger('click')
+    await w.find('[aria-label="Select all cards in this group"]').trigger('click')
+    expect(w.emitted('select')).toEqual([[['b'], true], [['b', 'a'], true]])
+    expect((await mount(false)).find('[aria-label="Select Card b"]').exists()).toBe(false)
   })
 })

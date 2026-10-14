@@ -113,8 +113,9 @@
     "newCard": "Add a card to the first column",
     "undo": "Undo your last change",
     "redo": "Redo",
-    "escape": "Close the dialog or cancel editing",
-    "myWork": "Go to my work"
+    "escape": "Close the dialog, cancel editing or clear the selection",
+    "myWork": "Go to my work",
+    "selectCard": "Select a card for bulk changes"
   },
   "mail": {
     "linkExpiry": "The link expires in {expiry}. If the button does not work, paste this link into your browser:",
@@ -530,7 +531,33 @@
       "deleteField": "Could not delete field",
       "saveFieldValue": "Could not save {field}",
       "archiveBoard": "Could not archive board",
-      "unarchiveBoard": "Could not unarchive board"
+      "unarchiveBoard": "Could not unarchive board",
+      "bulk": "Couldn't change the selected cards"
+    },
+    "bulk": {
+      "toolbar": "Bulk actions",
+      "selected": "{n} card selected | {n} cards selected",
+      "move": "Move",
+      "tags": "Tags",
+      "assignees": "Assignees",
+      "priority": "Priority",
+      "noPriority": "No priority",
+      "dueDate": "Due date",
+      "set": "Set",
+      "clearDue": "Clear",
+      "archive": "Archive",
+      "clear": "Clear selection",
+      "add": "Add",
+      "remove": "Remove",
+      "done": {
+        "moved": "Moved {n} card | Moved {n} cards",
+        "archived": "Archived {n} card | Archived {n} cards",
+        "restored": "Restored {n} card | Restored {n} cards",
+        "tags": "Changed tags of {n} card | Changed tags of {n} cards",
+        "assignees": "Changed assignees of {n} card | Changed assignees of {n} cards",
+        "priority": "Changed priority of {n} card | Changed priority of {n} cards",
+        "dueDate": "Changed due date of {n} card | Changed due date of {n} cards"
+      }
     }
   },
   "archive": {
@@ -1024,7 +1051,9 @@
     "estimate": "Estimate {points}",
     "watching": "You are watching this card",
     "hasDescription": "Has description",
-    "timeLogged": "{time} logged"
+    "timeLogged": "{time} logged",
+    "select": "Select card",
+    "deselect": "Deselect card"
   },
   "listView": {
     "sortBy": "Sort by {column}",
@@ -1043,7 +1072,9 @@
     "cardCount": "{n} card | {n} cards",
     "noCards": "No cards",
     "statusOf": "Status of {title}",
-    "empty": "No cards to show."
+    "empty": "No cards to show.",
+    "select": "Select {title}",
+    "selectAll": "Select all cards in this group"
   },
   "swimlanes": {
     "none": "No grouping",

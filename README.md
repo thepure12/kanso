@@ -62,6 +62,8 @@ Shared kanban boards. Nuxt 4, Nuxt UI, Postgres with row-level security, Drizzle
   setting changes, with names kept after accounts are deleted. Admins only.
 - **My work** (header, `g m`): the cards assigned to you or that you watch on all your boards, grouped by due date
   (overdue, today, next 7 days, later, no date). Cards in a board's last column count as done and are hidden unless you ask.
+- **Bulk actions**: Shift/Ctrl/Cmd+click cards (or tick them in the list view) to move, tag, assign, prioritise, date or
+  archive them together; one undo reverts the whole change.
 - Mention people in comments with `@`; they get a notification even when they are not assigned.
 - **Watch** a card (eye button in the card dialog) to get the same notifications as its assignees. You watch cards you
   create or comment on automatically; the board marks watched cards with an eye.

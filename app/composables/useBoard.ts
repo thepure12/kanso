@@ -1,4 +1,4 @@
-import type { BoardDetail, BoardField, Card, CardLink, CardPatch, CardRecurrence, Column, ColumnRule, FieldValue, NewColumnRule, RecurrenceInput, Tag } from '#shared/types/board'
+import type { BoardDetail, BoardField, BulkCardAction, Card, CardLink, CardPatch, CardRecurrence, Column, ColumnRule, FieldValue, NewColumnRule, RecurrenceInput, Tag } from '#shared/types/board'
 
 /** Card fields kept in step with the card dialog's details. */
 export type CardCounts = Pick<Card, 'checklist' | 'commentCount' | 'attachmentCount' | 'timeMinutes' | 'coverAttachmentId' | 'watching'>
@@ -307,6 +307,32 @@ export async function useBoard(id: string) {
     if (!archived) await refresh()
   }
 
+  /**
+   * Sends one bulk change and applies the server's copies of the cards: changed
+   * in place, moved or restored ones placed by position, archived ones removed.
+   */
+  async function sendBulk(cardIds: string[], action: BulkCardAction) {
+    const res = await api<{ cards: Card[] }>(`/api/boards/${id}/cards/bulk`, { method: 'POST', body: { cardIds, ...action } })
+    const updated = new Map(res.cards.map(c => [c.id, c]))
+    const touched = new Set<string>()
+    for (const [columnId, list] of Object.entries(lists.value)) {
+      lists.value[columnId] = list.filter((card) => {
+        if (!cardIds.includes(card.id)) return true
+        const next = updated.get(card.id)
+        if (next?.columnId !== columnId) return false
+        Object.assign(card, next)
+        updated.delete(card.id)
+        return true
+      })
+    }
+    for (const card of updated.values()) {
+      if (!lists.value[card.columnId]) continue
+      lists.value[card.columnId]!.push(card)
+      touched.add(card.columnId)
+    }
+    for (const columnId of touched) lists.value[columnId]!.sort((a, b) => a.position - b.position)
+  }
+
   async function putFieldValue(cardId: string, fieldId: string, value: FieldValue | null) {
     const card = findCard(cardId)
     if (value === null) delete card.fields[fieldId]
@@ -523,6 +549,26 @@ export async function useBoard(id: string) {
         record(t('board.undo.changedField', { field: field.name }), () => putFieldValue(card.id, field.id, before), () => putFieldValue(card.id, field.id, value))
       }
     }, t('board.errors.saveFieldValue', { field: field.name })),
+
+    /**
+     * Applies one change to several cards at once (all or none) as one undo step.
+     * Undo puts moved cards back next to their old neighbours, one by one.
+     */
+    bulkUpdate: (cardIds: string[], action: BulkCardAction) => run(async () => {
+      const order = listIds()
+      const before = cardIds.map(cardId => structuredClone(toRaw(findCard(cardId))))
+      await sendBulk(cardIds, action)
+      const inverse = bulkInverse(before, action)
+      const moved = action.columnId
+        ? columns.value.flatMap(c => order[c.id] ?? []).filter(cardId => cardIds.includes(cardId))
+            .map(cardId => [cardId, placementIn(order, cardId)!] as const)
+        : []
+      record(t(bulkLabel(action), { n: cardIds.length }, cardIds.length), async () => {
+        if (action.archived !== undefined) await sendBulk(cardIds, { archived: !action.archived })
+        for (const { cardIds, ...undo } of inverse) await sendBulk(cardIds, undo)
+        for (const [cardId, from] of moved) await placeCard(cardId, from)
+      }, () => sendBulk(cardIds, action))
+    }, t('board.errors.bulk')),
 
     /** Persists a card's new place after a drag (lists already updated). */
     cardMoved,

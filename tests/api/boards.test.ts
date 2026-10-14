@@ -247,6 +247,71 @@ describe('cards', () => {
   })
 })
 
+describe('bulk card actions', () => {
+  let bulkBoard: BoardDetail
+  const bulk = (who: typeof alice, body: object) =>
+    who.req<{ cards: Card[] }>(`/api/boards/${bulkBoard.id}/cards/bulk`, { method: 'POST', body })
+  const add = async (title: string, column = 0) =>
+    (await alice.req<Card>(`/api/boards/${bulkBoard.id}/cards`, { method: 'POST', body: { columnId: bulkBoard.columns[column]!.id, title } })).data
+
+  beforeAll(async () => {
+    const id = (await alice.req<{ id: string }>('/api/boards', { method: 'POST', body: { name: 'Bulk' } })).data.id
+    extraBoards.push(id)
+    await alice.req(`/api/boards/${id}/members`, { method: 'POST', body: { email: bob.email, role: 'editor' } })
+    await alice.req(`/api/boards/${id}/members`, { method: 'POST', body: { email: outsider.email, role: 'viewer' } })
+    await alice.req(`/api/boards/${id}/tags`, { method: 'POST', body: { name: 'one', color: '#ff0000' } })
+    await alice.req(`/api/boards/${id}/tags`, { method: 'POST', body: { name: 'two', color: '#00ff00' } })
+    bulkBoard = (await alice.req<BoardDetail>(`/api/boards/${id}`)).data
+  })
+
+  it('moves cards to the end of a column in board order', async () => {
+    const [a, b, c] = [await add('A'), await add('B'), await add('C', 1)]
+    const target = bulkBoard.columns.at(-1)!.id
+    const { status, data } = await bulk(bob, { cardIds: [c.id, b.id, a.id], columnId: target })
+    expect(status).toBe(200)
+    expect(data.cards.every(card => card.columnId === target)).toBe(true)
+    const after = (await alice.req<BoardDetail>(`/api/boards/${bulkBoard.id}`)).data
+    expect(after.cards.filter(card => card.columnId === target).map(card => card.title)).toEqual(['A', 'B', 'C'])
+  })
+
+  it('adds and removes tags and assignees, sets priority and due date', async () => {
+    const [one, two] = ['one', 'two'].map(name => bulkBoard.tags.find(t => t.name === name))
+    const bobId = bulkBoard.members.find(m => m.name === 'Bob')!.userId
+    const x = await add('X')
+    const y = await add('Y')
+    await alice.req(`/api/cards/${y.id}`, { method: 'PATCH', body: { tagIds: [two!.id] } })
+    const { data } = await bulk(alice, {
+      cardIds: [x.id, y.id], addTagIds: [one!.id], removeTagIds: [two!.id], addAssigneeIds: [bobId], priority: 'high', dueDate: '2026-11-30',
+    })
+    expect(data.cards.map(card => [card.tagIds, card.assigneeIds, card.priority, card.dueDate])).toEqual([
+      [[one!.id], [bobId], 'high', '2026-11-30'],
+      [[one!.id], [bobId], 'high', '2026-11-30'],
+    ])
+    const cleared = await bulk(alice, { cardIds: [x.id, y.id], removeAssigneeIds: [bobId], priority: null, dueDate: null })
+    expect(cleared.data.cards.map(card => [card.assigneeIds, card.priority, card.dueDate])).toEqual([[[], null, null], [[], null, null]])
+  })
+
+  it('archives and restores together', async () => {
+    const [p, q] = [await add('P'), await add('Q')]
+    expect((await bulk(alice, { cardIds: [p.id, q.id], archived: true })).data.cards).toEqual([])
+    const archived = (await alice.req<{ id: string }[]>(`/api/boards/${bulkBoard.id}/archived`)).data.map(a => a.id)
+    expect(archived).toEqual(expect.arrayContaining([p.id, q.id]))
+    expect((await bulk(alice, { cardIds: [p.id, q.id], archived: false })).data.cards.map(card => card.id).sort()).toEqual([p.id, q.id].sort())
+  })
+
+  it('changes all cards or none', async () => {
+    const card = await add('Mine')
+    const foreign = await newCard('Other board')
+    expect((await bulk(alice, { cardIds: [card.id, foreign.id], priority: 'low' })).status).toBe(404)
+    expect((await bulk(outsider, { cardIds: [card.id], priority: 'low' })).status).toBe(404)
+    expect((await bulk(alice, { cardIds: [card.id] })).status).toBe(400)
+    expect((await bulk(alice, { cardIds: [card.id], addTagIds: [] })).status).toBe(400)
+    // A tag from another board fails the whole request.
+    expect((await bulk(alice, { cardIds: [card.id], priority: 'low', addTagIds: [board.tags[0]!.id] })).status).toBe(400)
+    expect((await alice.req<BoardDetail>(`/api/boards/${bulkBoard.id}`)).data.cards.find(c => c.id === card.id)!.priority).toBeNull()
+  })
+})
+
 describe('column rules', () => {
   it('assign_to (several), set_due and remove_tag run on move', async () => {
     const review = col('Review').id

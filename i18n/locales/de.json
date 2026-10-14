@@ -113,8 +113,9 @@
     "newCard": "Karte in der ersten Spalte anlegen",
     "undo": "Letzte Änderung rückgängig machen",
     "redo": "Wiederherstellen",
-    "escape": "Dialog schließen oder Bearbeitung abbrechen",
-    "myWork": "Zu meiner Arbeit"
+    "escape": "Dialog schließen, Bearbeitung abbrechen oder Auswahl aufheben",
+    "myWork": "Zu meiner Arbeit",
+    "selectCard": "Karte für Sammeländerungen auswählen"
   },
   "mail": {
     "linkExpiry": "Der Link ist {expiry} gültig. Falls der Button nicht funktioniert, kopiere diesen Link in deinen Browser:",
@@ -530,7 +531,33 @@
       "deleteField": "Feld konnte nicht gelöscht werden",
       "saveFieldValue": "{field} konnte nicht gespeichert werden",
       "archiveBoard": "Board konnte nicht archiviert werden",
-      "unarchiveBoard": "Board konnte nicht aus dem Archiv geholt werden"
+      "unarchiveBoard": "Board konnte nicht aus dem Archiv geholt werden",
+      "bulk": "Die ausgewählten Karten konnten nicht geändert werden"
+    },
+    "bulk": {
+      "toolbar": "Sammelaktionen",
+      "selected": "{n} Karte ausgewählt | {n} Karten ausgewählt",
+      "move": "Verschieben",
+      "tags": "Tags",
+      "assignees": "Zuständige",
+      "priority": "Priorität",
+      "noPriority": "Keine Priorität",
+      "dueDate": "Fälligkeit",
+      "set": "Setzen",
+      "clearDue": "Entfernen",
+      "archive": "Archivieren",
+      "clear": "Auswahl aufheben",
+      "add": "Hinzufügen",
+      "remove": "Entfernen",
+      "done": {
+        "moved": "{n} Karte verschoben | {n} Karten verschoben",
+        "archived": "{n} Karte archiviert | {n} Karten archiviert",
+        "restored": "{n} Karte wiederhergestellt | {n} Karten wiederhergestellt",
+        "tags": "Tags von {n} Karte geändert | Tags von {n} Karten geändert",
+        "assignees": "Zuständige von {n} Karte geändert | Zuständige von {n} Karten geändert",
+        "priority": "Priorität von {n} Karte geändert | Priorität von {n} Karten geändert",
+        "dueDate": "Fälligkeit von {n} Karte geändert | Fälligkeit von {n} Karten geändert"
+      }
     }
   },
   "archive": {
@@ -1024,7 +1051,9 @@
     "estimate": "Schätzung: {points}",
     "watching": "Du beobachtest diese Karte",
     "hasDescription": "Hat eine Beschreibung",
-    "timeLogged": "{time} erfasst"
+    "timeLogged": "{time} erfasst",
+    "select": "Karte auswählen",
+    "deselect": "Karte abwählen"
   },
   "listView": {
     "sortBy": "Nach {column} sortieren",
@@ -1043,7 +1072,9 @@
     "cardCount": "{n} Karte | {n} Karten",
     "noCards": "Keine Karten",
     "statusOf": "Status von {title}",
-    "empty": "Keine Karten anzuzeigen."
+    "empty": "Keine Karten anzuzeigen.",
+    "select": "{title} auswählen",
+    "selectAll": "Alle Karten dieser Gruppe auswählen"
   },
   "swimlanes": {
     "none": "Keine Gruppierung",

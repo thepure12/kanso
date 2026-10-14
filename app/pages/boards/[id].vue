@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { VueDraggable, type SortableEvent } from 'vue-draggable-plus'
-import type { Card, Column } from '#shared/types/board'
+import type { BulkCardAction, Card, Column } from '#shared/types/board'
 
 const route = useRoute()
 const id = route.params.id as string
@@ -10,7 +10,7 @@ const {
   addColumnRule, deleteColumnRule, addCard, updateCard, setCardCounts, cardLinkChanged, archiveCard, restoreCard, deleteCard,
   deleteArchivedCard, cardMoved, moveCard, addTag, updateTag, deleteTag,
   addField, updateField, fieldMoved, deleteField, setFieldValue,
-  addCardFromTemplate, saveAsTemplate, deleteTemplate, setRecurrence, deleteRecurrence, undo, redo, undoGroup,
+  addCardFromTemplate, saveAsTemplate, deleteTemplate, setRecurrence, deleteRecurrence, bulkUpdate, undo, redo, undoGroup,
 } = await useBoard(id)
 const { t } = useI18n()
 const i18n = useI18nContext()
@@ -140,6 +140,33 @@ watch(fields, (list) => {
   if (!isValidGroupBy(groupBy.value, list)) groupBy.value = 'none'
 }, { deep: true })
 
+// Cards picked for a bulk action (board view without swimlanes, list view).
+// Only shown cards stay selected, so an action never touches hidden ones.
+const selected = ref(new Set<string>())
+const selecting = computed(() => selected.value.size > 0)
+function select(cardIds: string[], value: boolean) {
+  const next = new Set(selected.value)
+  for (const cardId of cardIds) {
+    if (value) next.add(cardId)
+    else next.delete(cardId)
+  }
+  selected.value = next
+}
+const toggleSelected = (cardId: string) => select([cardId], !selected.value.has(cardId))
+const clearSelection = () => { selected.value = new Set() }
+watch([visibleIds, canEdit], () => {
+  if (!canEdit.value) return clearSelection()
+  if ([...selected.value].some(cardId => !visibleIds.value.has(cardId))) {
+    selected.value = new Set([...selected.value].filter(cardId => visibleIds.value.has(cardId)))
+  }
+})
+watch([view, groupBy], clearSelection)
+async function applyBulk(action: BulkCardAction) {
+  const cardIds = [...selected.value]
+  await bulkUpdate(cardIds, action)
+  if (action.archived) clearSelection()
+}
+
 /**
  * A card dragged into another swimlane takes that lane's value. Only priority
  * and select lanes allow it (assignee and tag lanes drag within the lane).
@@ -168,6 +195,7 @@ defineShortcuts({
   // Not while typing, so text fields keep their own undo; works in dialogs too.
   'meta_z': () => { undo() },
   'meta_shift_z': () => { redo() },
+  'escape': () => { if (selecting.value && !dialogOpen()) clearSelection() },
 })
 
 function wipState(col: Column) {
@@ -315,8 +343,10 @@ const boardMenu = computed(() => [
         :fields="fields"
         :can-edit="canEdit"
         :today="today"
+        :selected-ids="selected"
         @open="cardId => editingCardId = cardId"
         @move="(card, columnId) => moveCard(card, columnId)"
+        @select="select"
       />
     </div>
     <div v-else-if="view === 'calendar'" class="flex-1 overflow-auto p-4 sm:p-6">
@@ -421,8 +451,11 @@ const boardMenu = computed(() => [
                 :can-edit="canEdit"
                 :today="today"
                 :blocked="blockedIds.has(card.id)"
+                :selected="selected.has(card.id)"
+                :selecting="selecting"
                 @open="editingCardId = card.id"
                 @delete="deletingCard = card"
+                @select="toggleSelected(card.id)"
               />
             </VueDraggable>
 
@@ -443,6 +476,15 @@ const boardMenu = computed(() => [
       </div>
     </div>
 
+    <BulkActionsBar
+      v-if="selecting"
+      :count="selected.size"
+      :columns="columns"
+      :tags="tags"
+      :members="board.members"
+      @apply="applyBulk"
+      @clear="clearSelection"
+    />
     <CardModal
       v-if="editingCard"
       v-model:open="cardOpen"

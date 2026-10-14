@@ -2,11 +2,6 @@
 
 Candidate features, roughly in priority order. None of these are started.
 
-## Bulk card actions
-Select several cards on the board or list view and move, archive, tag, assign, or set the due date or priority of all of
-them at once. One route (e.g. `POST /api/boards/:id/cards/bulk`) that applies the change in a single transaction under
-RLS, and one undo step on the client (`useUndo.group()`). Drag and drop stays single-card.
-
 ## Board insights
 Cycle time, throughput, cumulative flow and a burndown by `estimate`, computed from `card_activity` (`created`, `moved`,
 `archived`). Read only: a slideover or page per board with charts. Needs a query that rebuilds each card's column

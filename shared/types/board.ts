@@ -114,6 +114,22 @@ export interface Card {
 /** Fields a card PATCH may change. archived moves the card to or from the archive. */
 export type CardPatch = Partial<Pick<Card, 'title' | 'description' | 'assigneeIds' | 'tagIds' | 'startDate' | 'dueDate' | 'priority' | 'estimate' | 'coverAttachmentId'> & { archived: boolean }>
 
+/**
+ * One change applied to several cards at once (POST /api/boards/:id/cards/bulk).
+ * columnId moves them to the end of that column, in board order; tags and
+ * assignees are added or removed, not replaced.
+ */
+export interface BulkCardAction {
+  columnId?: string
+  archived?: boolean
+  priority?: Priority | null
+  dueDate?: string | null
+  addTagIds?: string[]
+  removeTagIds?: string[]
+  addAssigneeIds?: string[]
+  removeAssigneeIds?: string[]
+}
+
 export const recurrenceRules = ['daily', 'weekly', 'monthly'] as const
 export type RecurrenceRule = (typeof recurrenceRules)[number]
 

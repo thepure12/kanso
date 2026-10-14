@@ -11,8 +11,10 @@ const props = defineProps<{
   fields: BoardField[]
   canEdit: boolean
   today: string
+  /** Cards picked for a bulk action. */
+  selectedIds: Set<string>
 }>()
-const emit = defineEmits<{ open: [cardId: string], move: [card: Card, columnId: string] }>()
+const emit = defineEmits<{ open: [cardId: string], move: [card: Card, columnId: string], select: [cardIds: string[], selected: boolean] }>()
 
 const UButton = resolveComponent('UButton')
 const { t, locale } = useI18n()
@@ -45,6 +47,7 @@ function sortHeader(label: string, key: CardSortKey) {
 const shownFields = computed(() => props.fields.filter(f => f.showOnCard))
 
 const tableColumns = computed<TableColumn<Card>[]>(() => [
+  ...(props.canEdit ? [{ id: 'select' }] : []),
   { id: 'title', header: sortHeader(t('listView.title'), 'title') },
   { id: 'column', header: sortHeader(t('listView.status'), 'column') },
   { id: 'assignees', header: sortHeader(t('listView.assignees'), 'assignees') },
@@ -86,6 +89,12 @@ const groups = computed(() => {
     .filter(g => g.cards.length)
 })
 
+/** Header checkbox of a group: all, some (indeterminate) or none of its cards selected. */
+function groupSelected(cards: Card[]) {
+  const n = cards.filter(c => props.selectedIds.has(c.id)).length
+  return n === 0 ? false : n === cards.length ? true : 'indeterminate'
+}
+
 const columnItems = computed(() => props.columns.map(c => ({ label: c.title, value: c.id })))
 const columnTitle = (id: string) => props.columns.find(c => c.id === id)?.title ?? ''
 const cardTags = (card: Card) => props.tags.filter(t => card.tagIds.includes(t.id))
@@ -107,6 +116,20 @@ const dueClass = (card: Card) => {
         {{ g.label }} <span class="text-muted font-normal">· {{ g.cards.length }}</span>
       </h3>
       <UTable :data="g.cards" :columns="tableColumns" :empty="t('listView.noCards')" :ui="{ td: 'py-2' }">
+        <template #select-header>
+          <UCheckbox
+            :model-value="groupSelected(g.cards)"
+            :aria-label="t('listView.selectAll')"
+            @update:model-value="v => emit('select', g.cards.map(c => c.id), v === true)"
+          />
+        </template>
+        <template #select-cell="{ row }">
+          <UCheckbox
+            :model-value="props.selectedIds.has(row.original.id)"
+            :aria-label="t('listView.select', { title: row.original.title })"
+            @update:model-value="v => emit('select', [row.original.id], v === true)"
+          />
+        </template>
         <template #title-cell="{ row }">
           <button type="button" class="text-left font-medium hover:underline focus-visible:underline max-w-80 truncate block" @click="emit('open', row.original.id)">
             {{ row.original.title }}

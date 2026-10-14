@@ -11,8 +11,12 @@ const props = withDefaults(defineProps<{
   today: string
   /** Some card that blocks this one is still open (see blockedCardIds). */
   blocked?: boolean
+  /** Picked for a bulk action. */
+  selected?: boolean
+  /** Some card is selected: a click toggles selection instead of opening the card. */
+  selecting?: boolean
 }>(), { fields: () => [] })
-const emit = defineEmits<{ open: [], delete: [] }>()
+const emit = defineEmits<{ open: [], delete: [], select: [] }>()
 const { t, locale } = useI18n()
 const i18n = useI18nContext()
 
@@ -35,6 +39,11 @@ const fieldChips = computed(() => props.fields.flatMap((f) => {
   const color = f.kind === 'select' ? f.options.find(o => o.id === value)?.color : undefined
   return [{ id: f.id, kind: f.kind, name: f.name, text, color }]
 }))
+/** Ctrl/Cmd/Shift+click (or any click while selecting) toggles selection; editors only. */
+function onClick(e: MouseEvent | KeyboardEvent) {
+  if (props.canEdit && (props.selecting || e.ctrlKey || e.metaKey || e.shiftKey)) emit('select')
+  else emit('open')
+}
 const dateLabel = computed(() => formatDateRange(props.card.startDate, props.card.dueDate, i18n))
 const dueAriaLabel = computed(() => {
   const c = props.card
@@ -49,10 +58,23 @@ const dueAriaLabel = computed(() => {
   <UCard
     :ui="{ body: 'p-3 sm:p-3' }"
     class="group relative cursor-pointer hover:ring-primary/50 transition"
+    :class="props.selected && 'ring-2 ring-primary bg-primary/5'"
     tabindex="0"
-    @click="emit('open')"
-    @keydown.enter="emit('open')"
+    @click="onClick"
+    @keydown.enter="onClick"
   >
+    <UButton
+      v-if="props.canEdit"
+      :icon="props.selected ? 'i-lucide-square-check' : 'i-lucide-square'"
+      size="xs"
+      color="neutral"
+      variant="ghost"
+      :aria-label="t(props.selected ? 'boardCard.deselect' : 'boardCard.select')"
+      :aria-pressed="props.selected"
+      class="absolute z-10 top-1 right-7 transition"
+      :class="props.selected || props.selecting ? 'opacity-100' : 'opacity-0 group-hover:opacity-100 focus-visible:opacity-100'"
+      @click.stop="emit('select')"
+    />
     <UButton
       v-if="props.canEdit"
       icon="i-lucide-x"
@@ -70,10 +92,10 @@ const dueAriaLabel = computed(() => {
       loading="lazy"
       class="-mx-3 -mt-3 mb-2 h-32 w-[calc(100%+1.5rem)] max-w-none object-cover rounded-t-lg"
     >
-    <div v-if="cardTags.length" class="flex flex-wrap gap-1 mb-2" :class="props.canEdit && 'pe-5'">
+    <div v-if="cardTags.length" class="flex flex-wrap gap-1 mb-2" :class="props.canEdit && 'pe-12'">
       <TagChip v-for="t in cardTags" :key="t.id" :tag="t" />
     </div>
-    <p class="text-sm font-medium break-words" :class="props.canEdit && 'pe-5'">
+    <p class="text-sm font-medium break-words" :class="props.canEdit && 'pe-12'">
       {{ props.card.title }}
     </p>
     <div v-if="fieldChips.length" class="flex flex-wrap gap-1 mt-2">
