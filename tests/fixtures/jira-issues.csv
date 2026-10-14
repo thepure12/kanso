@@ -1,0 +1,7 @@
+﻿Summary,Issue key,Issue id,Issue Type,Status,Priority,Assignee,Reporter,Labels,Labels,Labels,Due date,Description,Custom field (Story Points),Created
+Fix login timeout,KAN-1,10001,Bug,In Progress,Highest,Alice,Bob,backend,urgent,,20/Nov/26 12:00 AM,"Users get logged out.
+Steps: ""open"", wait",5,01/Oct/26 9:15 AM
+Add dark mode,KAN-2,10002,Story,To Do,Low,Zed Unknown,Bob,frontend,,,,"Theme, colours",3,02/Oct/26 9:15 AM
+Write release notes,KAN-3,10003,Task,Done,Medium,,Bob,,,,,,,03/Oct/26 9:15 AM
+Investigate crash,KAN-4,10004,Bug,To Do,Weird,,Bob,backend,,,not a date,,x,04/Oct/26 9:15 AM
+,KAN-5,10005,Task,To Do,Low,,Bob,,,,,,,05/Oct/26 9:15 AM

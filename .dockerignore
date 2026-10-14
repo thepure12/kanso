@@ -1,0 +1,12 @@
+node_modules
+.nuxt
+.output
+.data
+.github
+.env
+.env.*
+!.env.example
+tests
+*.log
+Dockerfile
+docker-compose.yml

@@ -1,0 +1,1376 @@
+// HTTP API tests: builds the app, starts it, and talks to it as two signed-in
+// users. Needs the migrated database, like the db tests.
+import { randomUUID } from 'node:crypto'
+import { readFileSync } from 'node:fs'
+import { setup, url } from '@nuxt/test-utils/e2e'
+import postgres from 'postgres'
+import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import type { Attachment, BoardActivityPage, BoardDetail, BoardField, BoardSummary, Card, CardDetail, CardLink, CardRecurrence, ColumnRule, Comment, TeamDetail, TimeEntry } from '#shared/types/board'
+import type { Inbox } from '#shared/types/notifications'
+import type { AdminUser, AuditLogPage, InstanceSettings } from '#shared/types/admin'
+import type { Account, AccountSession } from '#shared/types/account'
+import type { SearchResults } from '#shared/types/search'
+import { signEmailToken } from '../../server/utils/emailToken'
+import { base32Decode, totpCode, totpStep } from '../../server/utils/totp'
+
+// A fresh admin opens sign-up for the run (settings restored afterwards);
+// confirmation links go to the log instead of SMTP.
+const adminEmail = `admin-${randomUUID()}@api.test`
+await setup({ server: true, browser: false, env: { NUXT_ADMIN_EMAIL: adminEmail, NUXT_MAIL_SMTP_URL: '', NUXT_MAIL_LOG_LINKS: 'true' } })
+
+// test-utils sets its context per test only, so nested beforeAll hooks cannot use
+// its fetch(); capture the server URL once and use the global fetch.
+let base = ''
+beforeAll(() => { base = url('/').replace(/\/$/, '') })
+const fetch = (path: string, init?: RequestInit) => globalThis.fetch(base + path, init)
+// Looks up user ids to mint confirmation tokens, as the kanban_auth role.
+const authDb = postgres(process.env.NUXT_AUTH_DATABASE_URL!, { onnotice: () => {} })
+// Removes the run's admin afterwards, so it does not linger in the dev database.
+const ownerDb = postgres(process.env.MIGRATION_DATABASE_URL!, { onnotice: () => {} })
+
+interface Res<T> { status: number, data: T, headers: Headers }
+
+/**
+ * Cookie jar update: Set-Cookie values replace cookies of the same name and
+ * keep the rest (page responses also set the i18n locale cookie).
+ */
+function mergeCookies(jar: string, set: string[]): string {
+  const cookies = new Map(jar ? jar.split('; ').map(c => [c.slice(0, c.indexOf('=')), c] as const) : [])
+  for (const c of set) {
+    const pair = c.split(';')[0]!
+    const name = pair.slice(0, pair.indexOf('='))
+    if (pair.endsWith('=')) cookies.delete(name)
+    else cookies.set(name, pair)
+  }
+  return [...cookies.values()].join('; ')
+}
+
+/** A signed-in user. Each gets its own forwarded IP so the login rate limit does not trip. */
+async function signUp(name: string, email = `${name.toLowerCase()}-${randomUUID()}@api.test`) {
+  const ip = `10.${[0, 0, 0].map(() => Math.floor(Math.random() * 250)).join('.')}`
+  const clientId = `${name}-tab`
+  let cookie = ''
+
+  async function req<T = unknown>(path: string, init: { method?: string, body?: unknown, redirect?: RequestRedirect } = {}): Promise<Res<T>> {
+    const isForm = init.body instanceof FormData
+    const res = await fetch(path, {
+      method: init.method ?? 'GET',
+      redirect: init.redirect,
+      headers: {
+        'cookie': cookie,
+        'x-forwarded-for': ip,
+        'x-client-id': clientId,
+        ...(init.body !== undefined && !isForm && { 'content-type': 'application/json' }),
+      },
+      body: init.body === undefined ? undefined : isForm ? init.body as FormData : JSON.stringify(init.body),
+    })
+    cookie = mergeCookies(cookie, res.headers.getSetCookie())
+    const type = res.headers.get('content-type') ?? ''
+    const data = type.includes('json') ? await res.json() : type.startsWith('text') ? await res.text() : Buffer.from(await res.arrayBuffer())
+    return { status: res.status, data: data as T, headers: res.headers }
+  }
+
+  const reg = await req('/api/auth/register', { method: 'POST', body: { name, email, password: 'password123' } })
+  expect(reg.status).toBe(200)
+  expect(cookie).toBe('')
+  // Open the confirmation link the server would have mailed.
+  const verify = await req(`/auth/verify?token=${await tokenFor(email)}`, { redirect: 'manual' })
+  expect(verify.headers.get('location')).toBe('/')
+  return { req, email, clientId, cookie: () => cookie }
+}
+
+async function tokenFor(email: string) {
+  const [u] = await authDb`select id from users where email = ${email}`
+  return signEmailToken(u!.id, email, process.env.NUXT_SESSION_PASSWORD!)
+}
+
+/** The link the server would mail for a password reset or an email change (to `email`). */
+async function linkToken(purpose: 'password-reset' | 'email-change', current: string, email = current) {
+  const [u] = await authDb`select id, session_version from users where email = ${current}`
+  return encodeURIComponent(signEmailToken(u!.id, email, process.env.NUXT_SESSION_PASSWORD!, 60_000, purpose, u!.session_version))
+}
+
+/** A plain HTTP client with its own forwarded IP and cookie jar, for auth flows. */
+function anon() {
+  const ip = `10.${[0, 0, 0].map(() => Math.floor(Math.random() * 250)).join('.')}`
+  let cookie = ''
+  return async <T = any>(path: string, body?: unknown) => {
+    const res = await fetch(path, {
+      method: body === undefined ? 'GET' : 'POST',
+      redirect: 'manual',
+      headers: { 'cookie': cookie, 'x-forwarded-for': ip, 'content-type': 'application/json' },
+      body: body === undefined ? undefined : JSON.stringify(body),
+    })
+    cookie = mergeCookies(cookie, res.headers.getSetCookie())
+    const data = (res.headers.get('content-type') ?? '').includes('json') ? await res.json() as T : undefined
+    return { status: res.status, location: res.headers.get('location'), cookie: () => cookie, data }
+  }
+}
+
+/**
+ * The TOTP code `offset` steps from now. Waits out the last second of a step,
+ * so the server sees the same step. Each code works once per account, so
+ * tests use increasing offsets (the server accepts -1..+1).
+ */
+async function totp(secret: string, offset = 0) {
+  if (Date.now() % 30_000 > 28_500) await new Promise(r => setTimeout(r, 1_600))
+  return totpCode(base32Decode(secret), totpStep() + offset)
+}
+
+/** Collects server-sent event names from an event stream. */
+async function listen(path: string, cookie: string) {
+  const events: string[] = []
+  const ctl = new AbortController()
+  const res = await fetch(path, { headers: { cookie }, signal: ctl.signal })
+  expect(res.status).toBe(200)
+  ;(async () => {
+    const dec = new TextDecoder()
+    try {
+      for await (const chunk of res.body as unknown as AsyncIterable<Uint8Array>) {
+        for (const m of dec.decode(chunk).matchAll(/event: (\w+)/g)) events.push(m[1]!)
+      }
+    }
+    catch { /* aborted */ }
+  })()
+  return { events, stop: () => ctl.abort() }
+}
+
+const sleep = (ms: number) => new Promise(r => setTimeout(r, ms))
+
+let admin: Awaited<ReturnType<typeof signUp>>
+let savedSettings: InstanceSettings
+let alice: Awaited<ReturnType<typeof signUp>>
+let bob: Awaited<ReturnType<typeof signUp>>
+let outsider: Awaited<ReturnType<typeof signUp>>
+let boardId: string
+let board: BoardDetail
+const extraBoards: string[] = []
+
+beforeAll(async () => {
+  // The admin email passes the sign-up gate whatever the settings say.
+  admin = await signUp('Admin', adminEmail)
+  savedSettings = (await admin.req<InstanceSettings>('/api/admin/settings')).data
+  expect((await admin.req('/api/admin/settings', { method: 'PUT', body: { ...savedSettings, signupMode: 'open' } })).status).toBe(200)
+  ;[alice, bob, outsider] = await Promise.all([signUp('Alice'), signUp('Bob'), signUp('Eve')])
+  const created = await alice.req<{ id: string }>('/api/boards', { method: 'POST', body: { name: 'API test', template: 'scrum' } })
+  boardId = created.data.id
+  expect((await alice.req(`/api/boards/${boardId}/members`, { method: 'POST', body: { email: bob.email, role: 'editor' } })).status).toBe(200)
+  board = (await alice.req<BoardDetail>(`/api/boards/${boardId}`)).data
+})
+
+afterAll(async () => {
+  await alice?.req(`/api/boards/${boardId}`, { method: 'DELETE' })
+  for (const id of extraBoards) await alice?.req(`/api/boards/${id}`, { method: 'DELETE' })
+  await admin?.req('/api/admin/settings', { method: 'PUT', body: savedSettings })
+  await ownerDb`delete from admin_audit_log where data->>'actor_email' like '%@api.test' or data->>'target_email' like '%@api.test'`
+  await ownerDb`delete from users where email = ${adminEmail}`
+  await Promise.all([authDb.end(), ownerDb.end()])
+})
+
+const col = (title: string) => board.columns.find(c => c.title === title)!
+const userId = (name: string) => board.members.find(m => m.name === name)!.userId
+const newCard = async (title: string, column = 'Backlog') =>
+  (await alice.req<Card>(`/api/boards/${boardId}/cards`, { method: 'POST', body: { columnId: col(column).id, title } })).data
+
+describe('boards', () => {
+  it('creates a board from a template', () => {
+    expect(board.columns.map(c => c.title)).toEqual(['Backlog', 'Sprint', 'In progress', 'Review', 'Done'])
+    expect(col('In progress').wipLimit).toBe(5)
+    expect(board.tags.map(t => t.name)).toEqual(['bug', 'chore', 'story'])
+  })
+
+  it('rejects an unknown template and hides boards from outsiders', async () => {
+    expect((await alice.req('/api/boards', { method: 'POST', body: { name: 'x', template: 'nope' } })).status).toBe(400)
+    expect((await outsider.req(`/api/boards/${boardId}`)).status).toBe(404)
+  })
+
+  it('invites unknown emails; they join on sign-up; owners revoke', async () => {
+    const email = `invitee-${randomUUID()}@api.test`
+    const add = await alice.req(`/api/boards/${boardId}/members`, { method: 'POST', body: { email, role: 'viewer' } })
+    expect(add.data).toEqual({ invited: true, email, role: 'viewer' })
+    const invites = (await bob.req<BoardDetail>(`/api/boards/${boardId}`)).data.invites
+    expect(invites.map(i => [i.email, i.role])).toEqual([[email, 'viewer']])
+    expect((await bob.req(`/api/boards/${boardId}/invites/${invites[0]!.id}`, { method: 'DELETE' })).status).toBe(404)
+
+    const invitee = await signUp('Invitee', email)
+    const seen = await invitee.req<BoardDetail>(`/api/boards/${boardId}`)
+    expect(seen.data.role).toBe('viewer')
+    expect(seen.data.invites).toEqual([])
+
+    const other = `revoked-${randomUUID()}@api.test`
+    await alice.req(`/api/boards/${boardId}/members`, { method: 'POST', body: { email: other, role: 'editor' } })
+    const [inv] = (await alice.req<BoardDetail>(`/api/boards/${boardId}`)).data.invites
+    expect((await alice.req(`/api/boards/${boardId}/invites/${inv!.id}`, { method: 'DELETE' })).status).toBe(200)
+    expect((await alice.req<BoardDetail>(`/api/boards/${boardId}`)).data.invites).toEqual([])
+  })
+
+  it('sets and validates a WIP limit', async () => {
+    const id = col('Sprint').id
+    expect((await alice.req(`/api/columns/${id}`, { method: 'PATCH', body: { wipLimit: 2 } })).data).toMatchObject({ wipLimit: 2 })
+    expect((await alice.req(`/api/columns/${id}`, { method: 'PATCH', body: { wipLimit: 1000 } })).status).toBe(400)
+    expect((await alice.req(`/api/columns/${id}`, { method: 'PATCH', body: { wipLimit: null } })).data).toMatchObject({ wipLimit: null })
+  })
+})
+
+describe('cards', () => {
+  it('updates due date, priority, tags and several assignees', async () => {
+    const card = await newCard('Fields')
+    const tag = board.tags[0]!.id
+    const { data } = await alice.req<Card>(`/api/cards/${card.id}`, {
+      method: 'PATCH',
+      body: { dueDate: '2026-12-24', priority: 'urgent', tagIds: [tag], assigneeIds: [userId('Alice'), userId('Bob')] },
+    })
+    expect(data).toMatchObject({ dueDate: '2026-12-24', priority: 'urgent', tagIds: [tag] })
+    expect([...data.assigneeIds].sort()).toEqual([userId('Alice'), userId('Bob')].sort())
+    expect((await alice.req(`/api/cards/${card.id}`, { method: 'PATCH', body: { dueDate: '24.12.2026' } })).status).toBe(400)
+    expect((await alice.req(`/api/cards/${card.id}`, { method: 'PATCH', body: { priority: 'meh' } })).status).toBe(400)
+  })
+
+  it('cannot assign someone without access', async () => {
+    const card = await newCard('No outsiders')
+    const eve = (await outsider.req<{ id: string }>('/api/boards', { method: 'POST', body: { name: 'Eve board' } })).data
+    const eveId = (await outsider.req<BoardDetail>(`/api/boards/${eve.id}`)).data.members[0]!.userId
+    expect((await alice.req(`/api/cards/${card.id}`, { method: 'PATCH', body: { assigneeIds: [eveId] } })).status).toBe(403)
+    await outsider.req(`/api/boards/${eve.id}`, { method: 'DELETE' })
+  })
+
+  it('archives and restores', async () => {
+    const card = await newCard('Archive me')
+    await alice.req(`/api/cards/${card.id}`, { method: 'PATCH', body: { archived: true } })
+    const after = (await alice.req<BoardDetail>(`/api/boards/${boardId}`)).data
+    expect(after.cards.some(c => c.id === card.id)).toBe(false)
+    const archived = (await bob.req<{ id: string }[]>(`/api/boards/${boardId}/archived`)).data
+    expect(archived.map(a => a.id)).toContain(card.id)
+    await alice.req(`/api/cards/${card.id}`, { method: 'PATCH', body: { archived: false } })
+    expect((await alice.req<BoardDetail>(`/api/boards/${boardId}`)).data.cards.some(c => c.id === card.id)).toBe(true)
+  })
+})
+
+describe('column rules', () => {
+  it('assign_to (several), set_due and remove_tag run on move', async () => {
+    const review = col('Review').id
+    const story = board.tags.find(t => t.name === 'story')!.id
+    for (const body of [
+      { kind: 'assign_to', userId: userId('Bob') },
+      { kind: 'assign_to', userId: userId('Alice') },
+      { kind: 'set_due', dueDays: 0 },
+      { kind: 'remove_tag', tagId: story },
+    ]) {
+      const { status, data } = await alice.req<ColumnRule>(`/api/columns/${review}/rules`, { method: 'POST', body })
+      expect(status).toBe(200)
+      expect(data.kind).toBe(body.kind)
+    }
+    expect((await alice.req(`/api/columns/${review}/rules`, { method: 'POST', body: { kind: 'set_due', dueDays: 9 } })).status).toBe(409)
+    expect((await alice.req(`/api/columns/${review}/rules`, { method: 'POST', body: { kind: 'set_due', dueDays: -1 } })).status).toBe(400)
+
+    const card = await newCard('Rules')
+    await alice.req(`/api/cards/${card.id}`, { method: 'PATCH', body: { tagIds: [story] } })
+    const { data: moved } = await alice.req<Card>(`/api/cards/${card.id}/move`, { method: 'POST', body: { columnId: review, aboveId: null, belowId: null } })
+    expect(moved.tagIds).toEqual([])
+    expect(moved.assigneeIds).toHaveLength(2)
+    expect(moved.dueDate).toMatch(/^\d{4}-\d{2}-\d{2}$/)
+  })
+})
+
+describe('card details', () => {
+  let cardId: string
+  beforeAll(async () => { cardId = (await newCard('Details')).id })
+
+  it('checklist: add, tick, reorder, delete', async () => {
+    const add = (text: string) => alice.req<{ id: string }>(`/api/cards/${cardId}/checklist`, { method: 'POST', body: { text } })
+    const a = (await add('one')).data
+    const b = (await add('two')).data
+    await alice.req(`/api/checklist-items/${a.id}`, { method: 'PATCH', body: { done: true } })
+    await alice.req(`/api/checklist-items/${b.id}`, { method: 'PATCH', body: { aboveId: null, belowId: a.id } })
+    expect((await bob.req(`/api/checklist-items/${a.id}`, { method: 'PATCH', body: {} })).status).toBe(400)
+
+    const detail = (await bob.req<CardDetail>(`/api/cards/${cardId}`)).data
+    expect(detail.checklist.map(i => [i.text, i.done])).toEqual([['two', false], ['one', true]])
+    const summary = (await bob.req<BoardDetail>(`/api/boards/${boardId}`)).data.cards.find(c => c.id === cardId)!
+    expect(summary.checklist).toEqual({ done: 1, total: 2 })
+
+    expect((await outsider.req(`/api/checklist-items/${a.id}`, { method: 'DELETE' })).status).toBe(404)
+    expect((await alice.req(`/api/checklist-items/${a.id}`, { method: 'DELETE' })).status).toBe(200)
+  })
+
+  it('comments: authors edit their own; owners delete any', async () => {
+    const { data: c } = await bob.req<Comment>(`/api/cards/${cardId}/comments`, { method: 'POST', body: { body: 'Hi **all**' } })
+    expect(c.authorName).toBe('Bob')
+    expect((await alice.req(`/api/comments/${c.id}`, { method: 'PATCH', body: { body: 'edit' } })).status).toBe(404)
+    expect((await bob.req(`/api/comments/${c.id}`, { method: 'PATCH', body: { body: 'edited' } })).status).toBe(200)
+    expect((await bob.req(`/api/cards/${cardId}/comments`, { method: 'POST', body: { body: '   ' } })).status).toBe(400)
+    expect((await outsider.req(`/api/cards/${cardId}/comments`, { method: 'POST', body: { body: 'x' } })).status).toBe(404)
+    expect((await alice.req(`/api/comments/${c.id}`, { method: 'DELETE' })).status).toBe(200)
+  })
+
+  it('attachments: upload, safe download headers, size limit, delete', async () => {
+    const form = new FormData()
+    form.append('file', new Blob(['<script>alert(1)</script>'], { type: 'text/html' }), 'evil.html')
+    form.append('file', new Blob([Buffer.from('89504e470d0a1a0a', 'hex')], { type: 'image/png' }), 'pic.png')
+    const { data: files } = await alice.req<Attachment[]>(`/api/cards/${cardId}/attachments`, { method: 'POST', body: form })
+    expect(files.map(f => f.name)).toEqual(['evil.html', 'pic.png'])
+
+    const html = await bob.req(`/api/attachments/${files[0]!.id}`)
+    expect(html.headers.get('content-type')).toBe('application/octet-stream')
+    expect(html.headers.get('content-disposition')).toMatch(/^attachment;/)
+    expect(html.headers.get('x-content-type-options')).toBe('nosniff')
+    const png = await bob.req(`/api/attachments/${files[1]!.id}`)
+    expect(png.headers.get('content-type')).toBe('image/png')
+    expect(png.headers.get('content-disposition')).toMatch(/^inline;/)
+    expect((await bob.req(`/api/attachments/${files[1]!.id}?download`)).headers.get('content-disposition')).toMatch(/^attachment;/)
+    expect((await outsider.req(`/api/attachments/${files[0]!.id}`)).status).toBe(404)
+
+    const big = new FormData()
+    big.append('file', new Blob([new Uint8Array(10 * 1024 * 1024 + 1)]), 'big.bin')
+    expect((await alice.req(`/api/cards/${cardId}/attachments`, { method: 'POST', body: big })).status).toBe(413)
+
+    expect((await alice.req(`/api/attachments/${files[0]!.id}`, { method: 'DELETE' })).status).toBe(200)
+  })
+
+  it('activity lists what happened, newest first', async () => {
+    const { data } = await bob.req<CardDetail>(`/api/cards/${cardId}`)
+    expect(data.activity.map(a => a.kind).reverse()).toEqual(['created', 'commented', 'attached', 'attached', 'detached'])
+    expect(data.activity.at(-1)!.actorName).toBe('Alice')
+  })
+})
+
+describe('watchers and links', () => {
+  it('watch and unwatch; creators and commenters watch automatically', async () => {
+    const card = await newCard('Watched')
+    expect(card.watching).toBe(true)
+    const watch = (u: typeof bob, method: string) => u.req<{ watching: boolean }>(`/api/cards/${card.id}/watch`, { method })
+    expect((await watch(bob, 'PUT')).data).toEqual({ watching: true })
+    expect((await watch(bob, 'PUT')).status).toBe(200)
+    expect((await watch(outsider, 'PUT')).status).toBe(404)
+
+    let detail = (await alice.req<CardDetail>(`/api/cards/${card.id}`)).data
+    expect(detail.watching).toBe(true)
+    expect(detail.watchers.map(w => w.name)).toEqual(['Alice', 'Bob'])
+    expect((await bob.req<BoardDetail>(`/api/boards/${boardId}`)).data.cards.find(c => c.id === card.id)!.watching).toBe(true)
+
+    expect((await watch(bob, 'DELETE')).data).toEqual({ watching: false })
+    detail = (await bob.req<CardDetail>(`/api/cards/${card.id}`)).data
+    expect(detail.watching).toBe(false)
+    expect(detail.watchers.map(w => w.name)).toEqual(['Alice'])
+
+    await bob.req(`/api/cards/${card.id}/comments`, { method: 'POST', body: { body: 'following' } })
+    expect((await bob.req<CardDetail>(`/api/cards/${card.id}`)).data.watching).toBe(true)
+  })
+
+  it('links cards of the same board; viewers read, editors add and remove', async () => {
+    const [a, b, c] = [await newCard('Blocker'), await newCard('Blocked'), await newCard('Related')]
+    const addLink = (u: typeof bob, from: string, toCardId: string, kind = 'blocks') =>
+      u.req<CardLink>(`/api/cards/${from}/links`, { method: 'POST', body: { toCardId, kind } })
+
+    const created = await addLink(bob, a.id, b.id)
+    expect(created.status).toBe(200)
+    expect(created.data).toMatchObject({ kind: 'blocks', direction: 'out', card: { id: b.id, title: 'Blocked', columnTitle: 'Backlog', archived: false } })
+    expect((await addLink(bob, a.id, b.id)).status).toBe(409)
+    expect((await addLink(bob, b.id, a.id)).status).toBe(409)
+    expect((await addLink(bob, a.id, a.id)).status).toBe(400)
+    expect((await addLink(bob, a.id, b.id, 'nope')).status).toBe(400)
+    expect((await addLink(outsider, a.id, b.id, 'relates')).status).toBe(404)
+    expect((await addLink(alice, c.id, a.id, 'relates')).status).toBe(200)
+
+    const other = (await alice.req<{ id: string }>('/api/boards', { method: 'POST', body: { name: 'Other', template: 'basic' } })).data.id
+    extraBoards.push(other)
+    const otherBoard = (await alice.req<BoardDetail>(`/api/boards/${other}`)).data
+    const foreign = (await alice.req<Card>(`/api/boards/${other}/cards`, { method: 'POST', body: { columnId: otherBoard.columns[0]!.id, title: 'Foreign' } })).data
+    expect((await addLink(alice, a.id, foreign.id)).status).toBe(400)
+
+    const vic = await signUp('Vic')
+    await alice.req(`/api/boards/${boardId}/members`, { method: 'POST', body: { email: vic.email, role: 'viewer' } })
+    expect((await addLink(vic, c.id, b.id, 'relates')).status).toBe(403)
+    const detail = (await vic.req<CardDetail>(`/api/cards/${a.id}`)).data
+    expect(detail.links.map(l => [l.kind, l.direction, l.card.title])).toEqual([['blocks', 'out', 'Blocked'], ['relates', 'in', 'Related']])
+    const onBoard = (await vic.req<BoardDetail>(`/api/boards/${boardId}`)).data.cards.find(x => x.id === b.id)!
+    expect(onBoard.blockerIds).toEqual([a.id])
+    expect((await vic.req(`/api/card-links/${created.data.id}`, { method: 'DELETE' })).status).toBe(404)
+    expect((await bob.req(`/api/card-links/${created.data.id}`, { method: 'DELETE' })).status).toBe(200)
+    expect((await alice.req<CardDetail>(`/api/cards/${b.id}`)).data.links).toEqual([])
+    expect((await alice.req<CardDetail>(`/api/cards/${b.id}`)).data.activity.map(x => x.kind).slice(0, 2)).toEqual(['unlinked', 'linked'])
+  })
+
+  it('exports links by card index and imports them', async () => {
+    const [a, b] = [await newCard('Export blocker'), await newCard('Export blocked')]
+    await alice.req(`/api/cards/${a.id}/links`, { method: 'POST', body: { toCardId: b.id, kind: 'blocks' } })
+    const exported = (await alice.req<string | Record<string, unknown>>(`/api/boards/${boardId}/export?format=json`)).data
+    const data = typeof exported === 'string' ? JSON.parse(exported) : exported
+    const titles = (data.cards as { title: string }[]).map(c => c.title)
+    expect(data.links).toContainEqual({ from: titles.indexOf('Export blocker'), to: titles.indexOf('Export blocked'), kind: 'blocks' })
+
+    // A reversed copy of the link would close a cycle and is skipped, as are bad indexes.
+    const extra = [{ from: titles.indexOf('Export blocked'), to: titles.indexOf('Export blocker'), kind: 'blocks' }, { from: 0, to: 99999, kind: 'relates' }]
+    const res = await alice.req<{ id: string, skipped: { links: number } }>('/api/boards/import', { method: 'POST', body: { name: 'Imported links', data: { ...data, links: [...data.links, ...extra] } } })
+    expect(res.status).toBe(200)
+    extraBoards.push(res.data.id)
+    expect(res.data.skipped.links).toBe(2)
+    const copy = (await alice.req<BoardDetail>(`/api/boards/${res.data.id}`)).data
+    const blocker = copy.cards.find(c => c.title === 'Export blocker')!
+    expect(copy.cards.find(c => c.title === 'Export blocked')!.blockerIds).toEqual([blocker.id])
+  })
+})
+
+describe('custom fields', () => {
+  it('editors define fields and set values; viewers read; values are validated', async () => {
+    const { data: { id: fb } } = await alice.req<{ id: string }>('/api/boards', { method: 'POST', body: { name: 'Fields', template: 'basic' } })
+    extraBoards.push(fb)
+    const val = await signUp('Val')
+    await alice.req(`/api/boards/${fb}/members`, { method: 'POST', body: { email: val.email, role: 'viewer' } })
+    await alice.req(`/api/boards/${fb}/members`, { method: 'POST', body: { email: bob.email, role: 'editor' } })
+    const column = (await alice.req<BoardDetail>(`/api/boards/${fb}`)).data.columns[0]!
+    const { data: card } = await alice.req<Card>(`/api/boards/${fb}/cards`, { method: 'POST', body: { columnId: column.id, title: 'Deal' } })
+    expect(card.fields).toEqual({})
+
+    const add = (who: typeof alice, body: unknown) => who.req<BoardField>(`/api/boards/${fb}/fields`, { method: 'POST', body })
+    const size = (await add(alice, { name: 'Size', kind: 'select', options: [{ label: 'S', color: '#22C55E' }, { label: 'L', color: '#ef4444' }], showOnCard: true })).data
+    expect(size.options.map(o => [o.label, o.color])).toEqual([['S', '#22c55e'], ['L', '#ef4444']])
+    expect(size.options.every(o => o.id)).toBe(true)
+    const amount = (await add(bob, { name: 'Amount', kind: 'number' })).data
+    const site = (await add(bob, { name: 'Site', kind: 'url' })).data
+    expect((await add(alice, { name: 'size', kind: 'text' })).status).toBe(409)
+    expect((await add(alice, { name: 'Bad', kind: 'colour' })).status).toBe(400)
+    expect((await add(val, { name: 'Nope', kind: 'text' })).status).toBe(403)
+
+    const put = (who: typeof alice, field: BoardField, value: unknown) =>
+      who.req<{ value: unknown }>(`/api/cards/${card.id}/fields/${field.id}`, { method: 'PUT', body: { value } })
+    expect((await put(bob, size, size.options[1]!.id)).data).toEqual({ value: size.options[1]!.id })
+    expect((await put(bob, amount, 1200.5)).status).toBe(200)
+    expect((await put(bob, amount, 'lots')).status).toBe(400)
+    expect((await put(bob, size, 'nope')).status).toBe(400)
+    expect((await put(bob, site, 'javascript:alert(1)')).status).toBe(400)
+    expect((await put(bob, site, { x: 1 })).status).toBe(400)
+    expect((await put(val, amount, 3)).status).toBe(403)
+    expect((await put(val, amount, null)).status).toBe(403)
+    expect((await put(outsider, amount, 3)).status).toBe(404)
+
+    const board = (await val.req<BoardDetail>(`/api/boards/${fb}`)).data
+    expect(board.fields.map(f => f.name)).toEqual(['Size', 'Amount', 'Site'])
+    expect(board.cards[0]!.fields).toEqual({ [size.id]: size.options[1]!.id, [amount.id]: 1200.5 })
+    const detail = (await val.req<CardDetail>(`/api/cards/${card.id}`)).data
+    expect(detail.fields).toEqual(board.cards[0]!.fields)
+    expect(detail.activity.filter(a => a.kind === 'field').map(a => a.data)).toEqual([
+      { field: 'Amount', kind: 'number', from: null, to: '1200.5' },
+      { field: 'Size', kind: 'select', from: null, to: 'L' },
+    ])
+
+    // Reorder: Site first. Removing option L clears the card's Size.
+    expect((await bob.req<BoardField>(`/api/fields/${site.id}`, { method: 'PATCH', body: { aboveId: null, belowId: size.id } })).status).toBe(200)
+    expect((await val.req(`/api/fields/${site.id}`, { method: 'PATCH', body: { name: 'x' } })).status).toBe(404)
+    const patched = await alice.req<BoardField>(`/api/fields/${size.id}`, { method: 'PATCH', body: { options: [size.options[0]], name: 'T-shirt' } })
+    expect(patched.data).toMatchObject({ name: 'T-shirt', options: [size.options[0]] })
+    expect((await alice.req(`/api/fields/${amount.id}`, { method: 'PATCH', body: { options: [{ label: 'x', color: '#000000' }] } })).status).toBe(400)
+    const after = (await alice.req<BoardDetail>(`/api/boards/${fb}`)).data
+    expect(after.fields.map(f => f.name)).toEqual(['Site', 'T-shirt', 'Amount'])
+    expect(after.cards[0]!.fields).toEqual({ [amount.id]: 1200.5 })
+
+    expect((await put(bob, amount, null)).data).toEqual({ value: null })
+    expect((await put(bob, amount, 7)).status).toBe(200)
+    expect((await val.req(`/api/fields/${amount.id}`, { method: 'DELETE' })).status).toBe(404)
+    expect((await bob.req(`/api/fields/${amount.id}`, { method: 'DELETE' })).status).toBe(200)
+    expect((await alice.req<BoardDetail>(`/api/boards/${fb}`)).data.cards[0]!.fields).toEqual({})
+  })
+
+  it('exports, imports and copies fields and values', async () => {
+    const { data: { id: fb } } = await alice.req<{ id: string }>('/api/boards', { method: 'POST', body: { name: 'Fields export', template: 'basic' } })
+    extraBoards.push(fb)
+    const column = (await alice.req<BoardDetail>(`/api/boards/${fb}`)).data.columns[0]!
+    const { data: card } = await alice.req<Card>(`/api/boards/${fb}/cards`, { method: 'POST', body: { columnId: column.id, title: 'Valued' } })
+    const size = (await alice.req<BoardField>(`/api/boards/${fb}/fields`, { method: 'POST', body: { name: 'Size', kind: 'select', options: [{ label: 'L', color: '#ef4444' }] } })).data
+    const done = (await alice.req<BoardField>(`/api/boards/${fb}/fields`, { method: 'POST', body: { name: 'Done', kind: 'checkbox', showOnCard: true } })).data
+    await alice.req(`/api/cards/${card.id}/fields/${size.id}`, { method: 'PUT', body: { value: size.options[0]!.id } })
+    await alice.req(`/api/cards/${card.id}/fields/${done.id}`, { method: 'PUT', body: { value: true } })
+
+    const exported = (await alice.req<string | Record<string, unknown>>(`/api/boards/${fb}/export?format=json`)).data
+    const data = typeof exported === 'string' ? JSON.parse(exported) : exported
+    expect(data.fields).toEqual([
+      { name: 'Size', kind: 'select', options: [{ label: 'L', color: '#ef4444' }], showOnCard: false },
+      { name: 'Done', kind: 'checkbox', options: [], showOnCard: true },
+    ])
+    expect(data.cards[0].fieldValues).toEqual({ Size: 'L', Done: true })
+    const csv = (await alice.req<string>(`/api/boards/${fb}/export?format=csv`)).data
+    expect(csv.split('\r\n')[0]).toMatch(/"Size","Done"$/)
+    expect(csv.split('\r\n')[1]).toMatch(/"L","yes"$/)
+
+    data.cards[0].fieldValues = { ...data.cards[0].fieldValues, Missing: 1, done: 'not a boolean' }
+    const res = await alice.req<{ id: string, skipped: { fieldValues: number } }>('/api/boards/import', { method: 'POST', body: { name: 'Imported fields', data } })
+    expect(res.status).toBe(200)
+    extraBoards.push(res.data.id)
+    expect(res.data.skipped.fieldValues).toBe(2)
+    const imported = (await alice.req<BoardDetail>(`/api/boards/${res.data.id}`)).data
+    const [iSize, iDone] = imported.fields
+    expect(iSize).toMatchObject({ name: 'Size', kind: 'select', options: [{ label: 'L', color: '#ef4444' }] })
+    expect(iSize!.id).not.toBe(size.id)
+    expect(imported.cards[0]!.fields).toEqual({ [iSize!.id]: iSize!.options[0]!.id, [iDone!.id]: true })
+
+    const { data: copy } = await alice.req<{ id: string }>(`/api/boards/${fb}/copy`, { method: 'POST', body: { name: 'Fields copy' } })
+    extraBoards.push(copy.id)
+    const copied = (await alice.req<BoardDetail>(`/api/boards/${copy.id}`)).data
+    expect(copied.fields.map(f => f.name)).toEqual(['Size', 'Done'])
+    expect(Object.values(copied.cards[0]!.fields)).toEqual(expect.arrayContaining([size.options[0]!.id, true]))
+  })
+})
+
+describe('scheduling, time and cover', () => {
+  it('start date, estimate: saved, validated, shown on the board', async () => {
+    const card = await newCard('Scheduled')
+    const { data } = await alice.req<Card>(`/api/cards/${card.id}`, { method: 'PATCH', body: { startDate: '2026-11-01', dueDate: '2026-11-03', estimate: 2.5 } })
+    expect(data).toMatchObject({ startDate: '2026-11-01', dueDate: '2026-11-03', estimate: 2.5 })
+    const late = await alice.req<{ statusMessage?: string, message?: string }>(`/api/cards/${card.id}`, { method: 'PATCH', body: { startDate: '2026-11-04' } })
+    expect(late.status).toBe(400)
+    expect(JSON.stringify(late.data)).toContain('start date')
+    expect((await alice.req(`/api/cards/${card.id}`, { method: 'PATCH', body: { estimate: -1 } })).status).toBe(400)
+    const onBoard = (await bob.req<BoardDetail>(`/api/boards/${boardId}`)).data.cards.find(c => c.id === card.id)!
+    expect(onBoard).toMatchObject({ startDate: '2026-11-01', estimate: 2.5, timeMinutes: 0, coverAttachmentId: null })
+    const kinds = (await bob.req<CardDetail>(`/api/cards/${card.id}`)).data.activity.map(a => a.kind)
+    expect(kinds).toEqual(expect.arrayContaining(['start', 'due', 'estimate']))
+  })
+
+  it('time entries: log, edit own, delete; totals on the card and board', async () => {
+    const card = await newCard('Timed')
+    const log = (who: typeof alice, body: unknown) => who.req<TimeEntry>(`/api/cards/${card.id}/time`, { method: 'POST', body })
+    const { status, data: a } = await log(alice, { minutes: 90, spentOn: '2026-10-01', note: 'pairing' })
+    expect(status).toBe(200)
+    expect(a).toMatchObject({ minutes: 90, spentOn: '2026-10-01', note: 'pairing', userName: 'Alice' })
+    const { data: b } = await log(bob, { minutes: 30 })
+    expect(b.spentOn).toMatch(/^\d{4}-\d{2}-\d{2}$/)
+    expect((await log(alice, { minutes: 0 })).status).toBe(400)
+    expect((await log(outsider, { minutes: 5 })).status).toBe(404)
+
+    expect((await alice.req(`/api/time-entries/${b.id}`, { method: 'PATCH', body: { minutes: 10 } })).status).toBe(404)
+    const edited = await bob.req<TimeEntry>(`/api/time-entries/${b.id}`, { method: 'PATCH', body: { minutes: 45, note: 'review' } })
+    expect(edited.data).toMatchObject({ minutes: 45, note: 'review', userName: 'Bob' })
+    expect((await bob.req(`/api/time-entries/${b.id}`, { method: 'PATCH', body: {} })).status).toBe(400)
+
+    const detail = (await bob.req<CardDetail>(`/api/cards/${card.id}`)).data
+    expect(detail.timeTotal).toBe(135)
+    expect(detail.timeEntries.map(e => e.minutes)).toEqual([45, 90])
+    const onBoard = (await bob.req<BoardDetail>(`/api/boards/${boardId}`)).data.cards.find(c => c.id === card.id)!
+    expect(onBoard.timeMinutes).toBe(135)
+
+    // Bob cannot delete Alice's entry; Alice owns the board and can delete Bob's.
+    expect((await bob.req(`/api/time-entries/${a.id}`, { method: 'DELETE' })).status).toBe(404)
+    expect((await alice.req(`/api/time-entries/${b.id}`, { method: 'DELETE' })).status).toBe(200)
+    expect((await bob.req<CardDetail>(`/api/cards/${card.id}`)).data.timeTotal).toBe(90)
+  })
+
+  it('cover: only an image of the same card; cleared when the image is deleted', async () => {
+    const card = await newCard('Covered')
+    const other = await newCard('Other')
+    const upload = async (cardId: string, name: string, type: string) => {
+      const form = new FormData()
+      form.append('file', new Blob([Buffer.from('89504e470d0a1a0a', 'hex')], { type }), name)
+      return (await alice.req<Attachment[]>(`/api/cards/${cardId}/attachments`, { method: 'POST', body: form })).data[0]!
+    }
+    const png = await upload(card.id, 'pic.png', 'image/png')
+    const txt = await upload(card.id, 'notes.txt', 'text/plain')
+    const elsewhere = await upload(other.id, 'other.png', 'image/png')
+    const setCover = (id: string | null) => bob.req<Card>(`/api/cards/${card.id}`, { method: 'PATCH', body: { coverAttachmentId: id } })
+
+    expect((await setCover(txt.id)).status).toBe(400)
+    expect((await setCover(elsewhere.id)).status).toBe(400)
+    expect((await setCover(png.id)).data.coverAttachmentId).toBe(png.id)
+    expect((await alice.req<BoardDetail>(`/api/boards/${boardId}`)).data.cards.find(c => c.id === card.id)!.coverAttachmentId).toBe(png.id)
+
+    await alice.req(`/api/attachments/${png.id}`, { method: 'DELETE' })
+    expect((await alice.req<BoardDetail>(`/api/boards/${boardId}`)).data.cards.find(c => c.id === card.id)!.coverAttachmentId).toBeNull()
+  })
+})
+
+describe('copy and export', () => {
+  it('copies a board with cards into a new personal board', async () => {
+    const { data } = await bob.req<{ id: string }>(`/api/boards/${boardId}/copy`, { method: 'POST', body: { name: 'Bob copy', withCards: true } })
+    extraBoards.push(data.id)
+    const copy = (await bob.req<BoardDetail>(`/api/boards/${data.id}`)).data
+    expect(copy.role).toBe('owner')
+    expect(copy.columns.map(c => c.title)).toEqual(board.columns.map(c => c.title))
+    expect(copy.cards.length).toBeGreaterThan(0)
+    // Alice has no access to Bob's copy, so she is dropped from assignees and rules.
+    expect(copy.cards.flatMap(c => c.assigneeIds)).not.toContain(userId('Alice'))
+    expect(copy.columns.flatMap(c => c.rules).filter(r => r.kind === 'assign_to')).toHaveLength(1)
+    await bob.req(`/api/boards/${data.id}/members`, { method: 'POST', body: { email: alice.email, role: 'owner' } })
+  })
+
+  it('outsiders cannot copy', async () => {
+    expect((await outsider.req(`/api/boards/${boardId}/copy`, { method: 'POST', body: { name: 'Steal' } })).status).toBe(403)
+  })
+
+  it('exports JSON and CSV', async () => {
+    const json = await bob.req<string>(`/api/boards/${boardId}/export?format=json`)
+    expect(json.headers.get('content-disposition')).toContain('API-test.json')
+    const parsed = typeof json.data === 'string' ? JSON.parse(json.data) : json.data
+    expect(parsed.name).toBe('API test')
+    expect(parsed.cards.find((c: { title: string }) => c.title === 'Details').checklist).toEqual([{ text: 'two', done: false }])
+
+    await alice.req(`/api/boards/${boardId}/cards`, { method: 'POST', body: { columnId: col('Backlog').id, title: '=HYPERLINK("x")' } })
+    const csv = await bob.req<string>(`/api/boards/${boardId}/export?format=csv`)
+    expect(csv.headers.get('content-type')).toContain('text/csv')
+    expect(csv.data).toContain('"Column","Title"')
+    // Formula injection is neutralised.
+    expect(csv.data).toContain(`"'=HYPERLINK(""x"")"`)
+    expect((await outsider.req(`/api/boards/${boardId}/export`)).status).toBe(404)
+  })
+})
+
+describe('notifications', () => {
+  it('notifies the assignee live, links to the card and marks read', async () => {
+    const stream = await listen('/api/notifications/events', bob.cookie())
+    await sleep(300)
+    const card = await newCard('Notify me')
+    await alice.req(`/api/cards/${card.id}`, { method: 'PATCH', body: { assigneeIds: [userId('Bob')] } })
+    await alice.req(`/api/cards/${card.id}/comments`, { method: 'POST', body: { body: 'over to you' } })
+    await sleep(800)
+    stream.stop()
+    expect(stream.events).toContain('change')
+
+    const inbox = (await bob.req<Inbox>('/api/notifications')).data
+    const mine = inbox.items.filter(n => n.cardId === card.id)
+    expect(mine.map(n => n.activity.kind)).toEqual(['commented', 'assigned'])
+    expect(mine[0]).toMatchObject({ boardId, cardTitle: 'Notify me', readAt: null, activity: { actorName: 'Alice' } })
+    expect(inbox.unread).toBeGreaterThanOrEqual(2)
+    expect((await alice.req<Inbox>('/api/notifications')).data.items.some(n => n.cardId === card.id)).toBe(false)
+
+    expect((await alice.req(`/api/notifications/${mine[0]!.id}`, { method: 'PATCH', body: { read: true } })).status).toBe(404)
+    expect((await bob.req(`/api/notifications/${mine[0]!.id}`, { method: 'PATCH', body: { read: true } })).status).toBe(200)
+    expect((await bob.req('/api/notifications/read-all', { method: 'POST' })).status).toBe(200)
+    expect((await bob.req<Inbox>('/api/notifications')).data.unread).toBe(0)
+  })
+
+  it('lists assigned cards due by tomorrow', async () => {
+    const card = await newCard('Due soon')
+    const today = new Date().toISOString().slice(0, 10)
+    await alice.req(`/api/cards/${card.id}`, { method: 'PATCH', body: { dueDate: today, assigneeIds: [userId('Bob')] } })
+    expect((await bob.req<Inbox>('/api/notifications')).data.dueSoon).toContainEqual(
+      { boardId, boardName: 'API test', cardId: card.id, cardTitle: 'Due soon', dueDate: today })
+  })
+
+  it('needs a session', async () => {
+    expect((await fetch('/api/notifications')).status).toBe(401)
+    expect((await fetch('/api/notifications/events')).status).toBe(401)
+  })
+})
+
+describe('realtime', () => {
+  it('streams changes by others, skips the own tab, and ends when access is lost', async () => {
+    const stream = await listen(`/api/boards/${boardId}/events?client=${bob.clientId}`, bob.cookie())
+    await sleep(300)
+    await newCard('Ping')
+    await sleep(800)
+    expect(stream.events).toContain('change')
+
+    stream.events.length = 0
+    await bob.req(`/api/boards/${boardId}/cards`, { method: 'POST', body: { columnId: col('Backlog').id, title: 'Own' } })
+    await sleep(800)
+    expect(stream.events).not.toContain('change')
+
+    await alice.req(`/api/boards/${boardId}/members/${userId('Bob')}`, { method: 'DELETE' })
+    await sleep(800)
+    expect(stream.events).toContain('gone')
+    stream.stop()
+  })
+
+  it('refuses the stream without access', async () => {
+    expect((await fetch(`/api/boards/${boardId}/events`, { headers: { cookie: outsider.cookie() } })).status).toBe(404)
+    expect((await fetch(`/api/boards/${boardId}/events`)).status).toBe(401)
+  })
+})
+
+describe('email verification', () => {
+  it('signs in only after the confirmation link is opened', async () => {
+    const http = anon()
+    const email = `verify-${randomUUID()}@api.test`
+    expect((await http('/api/auth/register', { name: 'V', email, password: 'password123' })).status).toBe(200)
+    expect((await http('/api/auth/login', { email, password: 'password123' })).status).toBe(403)
+    expect((await http('/api/auth/resend-verification', { email })).status).toBe(204)
+    expect((await http('/api/boards')).status).toBe(401)
+
+    const verify = await http(`/auth/verify?token=${await tokenFor(email)}`)
+    expect(verify.location).toBe('/')
+    expect((await http('/api/boards')).status).toBe(200)
+    expect((await http('/api/auth/login', { email, password: 'password123' })).status).toBe(200)
+    // Verified accounts cannot be registered over.
+    expect((await anon()('/api/auth/register', { name: 'X', email, password: 'password456' })).status).toBe(409)
+  })
+
+  it('registering over an unverified email replaces its password', async () => {
+    const email = `squat-${randomUUID()}@api.test`
+    await anon()('/api/auth/register', { name: 'Squatter', email, password: 'squatter123' })
+    const owner = anon()
+    expect((await owner('/api/auth/register', { name: 'Owner', email, password: 'owner12345' })).status).toBe(200)
+    await owner(`/auth/verify?token=${await tokenFor(email)}`)
+    expect((await anon()('/api/auth/login', { email, password: 'squatter123' })).status).toBe(401)
+    expect((await anon()('/api/auth/login', { email, password: 'owner12345' })).status).toBe(200)
+  })
+
+  it('rejects a forged or expired link', async () => {
+    const email = `forged-${randomUUID()}@api.test`
+    const http = anon()
+    await http('/api/auth/register', { name: 'F', email, password: 'password123' })
+    const [u] = await authDb`select id from users where email = ${email}`
+    for (const token of ['nope', signEmailToken(u!.id, email, 'wrong-secret'), signEmailToken(u!.id, email, process.env.NUXT_SESSION_PASSWORD!, -1)]) {
+      const res = await http(`/auth/verify?token=${token}`)
+      expect(res.location).toMatch(/^\/login\?error=/)
+    }
+    expect((await http('/api/boards')).status).toBe(401)
+  })
+})
+
+describe('rate limit', () => {
+  it('refuses the 11th login attempt per IP and email', async () => {
+    const http = anon()
+    const email = `nobody-${randomUUID()}@api.test`
+    for (let i = 0; i < 10; i++) {
+      expect((await http('/api/auth/login', { email, password: 'wrong-password' })).status).toBe(401)
+    }
+    expect((await http('/api/auth/login', { email, password: 'wrong-password' })).status).toBe(429)
+    // Another IP is counted separately.
+    expect((await anon()('/api/auth/login', { email, password: 'wrong-password' })).status).toBe(401)
+  })
+})
+
+describe('admin', () => {
+  it('the admin email becomes admin; others get 403', async () => {
+    expect((await admin.req<{ isAdmin: boolean }>('/api/me')).data).toEqual({ isAdmin: true, locale: null })
+    expect((await alice.req<{ isAdmin: boolean }>('/api/me')).data).toEqual({ isAdmin: false, locale: null })
+    expect((await alice.req('/api/admin/settings')).status).toBe(403)
+    expect((await alice.req('/api/admin/settings', { method: 'PUT', body: savedSettings })).status).toBe(403)
+    expect((await alice.req('/api/admin/users')).status).toBe(403)
+    expect((await alice.req(`/api/admin/users/${bob.email}`, { method: 'DELETE' })).status).toBe(400)
+  })
+
+  it('restricts sign-up and invites by domain', async () => {
+    const domain = `${randomUUID().slice(0, 8)}.test`
+    const put = (body: Partial<InstanceSettings>) => admin.req<InstanceSettings>('/api/admin/settings', {
+      method: 'PUT',
+      body: { signupMode: 'restricted', allowedDomains: [], allowedEmails: [], allowExternalInvites: false, ...body },
+    })
+    try {
+      expect((await put({ allowedDomains: ['not a domain'] })).status).toBe(400)
+      const saved = await put({ allowedDomains: [`@${domain.toUpperCase()}`] })
+      expect(saved.data.allowedDomains).toEqual([domain])
+      expect((await admin.req<{ mode: string }>('/api/auth/signup')).data).toEqual({ mode: 'restricted' })
+
+      const http = anon()
+      const register = (email: string) => http('/api/auth/register', { name: 'X', email, password: 'password123' })
+      expect((await register(`a-${randomUUID()}@${domain}`)).status).toBe(200)
+      expect((await register(`b-${randomUUID()}@elsewhere.test`)).status).toBe(403)
+
+      // Owners cannot invite outside the domain until external invites are on.
+      const invite = (email: string) => alice.req(`/api/boards/${boardId}/members`, { method: 'POST', body: { email, role: 'viewer' } })
+      const outside = `c-${randomUUID()}@elsewhere.test`
+      const denied = await invite(outside)
+      expect(denied.status).toBe(403)
+      expect((denied.data as { statusMessage: string }).statusMessage).toMatch(/allowed email/)
+      expect((await put({ allowedDomains: [domain], allowExternalInvites: true })).status).toBe(200)
+      expect((await invite(outside)).status).toBe(200)
+      expect((await register(outside)).status).toBe(200)
+    }
+    finally {
+      await put({ signupMode: 'open' })
+    }
+  })
+
+  it('promotes, demotes and removes users; a removed session stops working', async () => {
+    const carol = await signUp('Carol')
+    const users = (await admin.req<AdminUser[]>('/api/admin/users')).data
+    const carolId = users.find(u => u.email === carol.email)!.id
+    expect(users.find(u => u.email === adminEmail)).toMatchObject({ isAdmin: true, verified: true })
+
+    expect((await admin.req(`/api/admin/users/${carolId}`, { method: 'PATCH', body: { admin: true } })).status).toBe(200)
+    expect((await carol.req<{ isAdmin: boolean }>('/api/me')).data.isAdmin).toBe(true)
+    expect((await carol.req('/api/admin/settings')).status).toBe(200)
+    expect((await admin.req(`/api/admin/users/${carolId}`, { method: 'PATCH', body: { admin: false } })).status).toBe(200)
+    expect((await carol.req('/api/admin/settings')).status).toBe(403)
+
+    const kept = await carol.req<{ id: string }>('/api/boards', { method: 'POST', body: { name: 'Carol board' } })
+    expect((await carol.req(`/api/boards/${kept.data.id}/members`, { method: 'POST', body: { email: bob.email, role: 'viewer' } })).status).toBe(200)
+
+    expect((await admin.req(`/api/admin/users/${carolId}`, { method: 'DELETE' })).status).toBe(200)
+    expect((await carol.req('/api/boards')).status).toBe(401)
+    // Bob inherits Carol's board as its only remaining member.
+    const inherited = await bob.req<BoardDetail>(`/api/boards/${kept.data.id}`)
+    expect(inherited.data.role).toBe('owner')
+    await bob.req(`/api/boards/${kept.data.id}`, { method: 'DELETE' })
+  })
+})
+
+describe('password reset', () => {
+  it('resets once, signs out other sessions and rejects other token kinds', async () => {
+    const user = await signUp('Resetter')
+    const other = anon()
+    expect((await other('/api/auth/login', { email: user.email, password: 'password123' })).status).toBe(200)
+    expect((await other('/api/boards')).status).toBe(200)
+
+    expect((await anon()('/api/auth/forgot-password', { email: user.email })).status).toBe(204)
+    expect((await anon()('/api/auth/forgot-password', { email: `nobody-${randomUUID()}@api.test` })).status).toBe(204)
+
+    const http = anon()
+    const verifyToken = await tokenFor(user.email)
+    expect((await http('/api/auth/reset-password', { token: verifyToken, password: 'newpass123' })).status).toBe(400)
+    const token = decodeURIComponent(await linkToken('password-reset', user.email))
+    expect((await http('/api/auth/reset-password', { token, password: 'newpass123' })).status).toBe(200)
+    expect((await http('/api/boards')).status).toBe(200)
+    // Single use, and the other session and the old password are gone.
+    expect((await anon()('/api/auth/reset-password', { token, password: 'again12345' })).status).toBe(400)
+    expect((await other('/api/boards')).status).toBe(401)
+    expect((await user.req('/api/boards')).status).toBe(401)
+    expect((await anon()('/api/auth/login', { email: user.email, password: 'password123' })).status).toBe(401)
+    expect((await anon()('/api/auth/login', { email: user.email, password: 'newpass123' })).status).toBe(200)
+  })
+})
+
+describe('account', () => {
+  it('shows and edits the profile and digest setting', async () => {
+    const user = await signUp('Profile')
+    const acc = await user.req<Account>('/api/account')
+    expect(acc.data).toEqual({ name: 'Profile', email: user.email, hasPassword: true, providers: [], digestEnabled: false, locale: null, twoFactorEnabled: false, recoveryCodesLeft: 0 })
+    expect((await user.req('/api/account', { method: 'PATCH', body: { name: 'Renamed', digestEnabled: true } })).status).toBe(200)
+    expect((await user.req<Account>('/api/account')).data).toMatchObject({ name: 'Renamed', digestEnabled: true })
+    expect((await user.req('/api/account', { method: 'PATCH', body: {} })).status).toBe(400)
+    // Off again: a dev server's scheduled digest would otherwise mail this address.
+    await user.req('/api/account', { method: 'PATCH', body: { digestEnabled: false } })
+  })
+
+  it('saves the language, shown by /api/me', async () => {
+    const user = await signUp('Sprache')
+    expect((await user.req('/api/account', { method: 'PATCH', body: { locale: 'de' } })).status).toBe(200)
+    expect((await user.req<{ locale: string | null }>('/api/me')).data.locale).toBe('de')
+    expect((await user.req<Account>('/api/account')).data.locale).toBe('de')
+    expect((await user.req('/api/account', { method: 'PATCH', body: { locale: 'fr' } })).status).toBe(400)
+    expect((await user.req('/api/account', { method: 'PATCH', body: { locale: null } })).status).toBe(200)
+    expect((await user.req<{ locale: string | null }>('/api/me')).data.locale).toBeNull()
+  })
+
+  it('changes the password with the current one and keeps this session', async () => {
+    const user = await signUp('Passworder')
+    const other = anon()
+    await other('/api/auth/login', { email: user.email, password: 'password123' })
+    const change = (body: unknown) => user.req('/api/account/password', { method: 'POST', body })
+    expect((await change({ currentPassword: 'wrong', newPassword: 'newpass123' })).status).toBe(400)
+    expect((await change({ newPassword: 'newpass123' })).status).toBe(400)
+    expect((await change({ currentPassword: 'password123', newPassword: 'newpass123' })).status).toBe(200)
+    expect((await user.req('/api/boards')).status).toBe(200)
+    expect((await other('/api/boards')).status).toBe(401)
+  })
+
+  it('changes the email only once the link to the new address is opened', async () => {
+    const user = await signUp('Mover')
+    const newEmail = `moved-${randomUUID()}@api.test`
+    expect((await user.req('/api/account/email', { method: 'POST', body: { email: newEmail } })).status).toBe(400)
+    expect((await user.req('/api/account/email', { method: 'POST', body: { email: alice.email, password: 'password123' } })).status).toBe(409)
+    expect((await user.req('/api/account/email', { method: 'POST', body: { email: newEmail, password: 'password123' } })).data).toEqual({ sentTo: newEmail })
+    expect((await user.req<Account>('/api/account')).data.email).toBe(user.email)
+
+    const token = await linkToken('email-change', user.email, newEmail)
+    const confirm = await user.req(`/auth/confirm-email?token=${token}`, { redirect: 'manual' })
+    expect(confirm.headers.get('location')).toBe('/account?emailChanged=1')
+    expect((await user.req<Account>('/api/account')).data.email).toBe(newEmail)
+    const again = await user.req(`/auth/confirm-email?token=${token}`, { redirect: 'manual' })
+    expect(again.headers.get('location')).toMatch(/^\/account\?error=/)
+    expect((await anon()('/api/auth/login', { email: newEmail, password: 'password123' })).status).toBe(200)
+  })
+
+  it('deletes the account after confirmation', async () => {
+    const user = await signUp('Leaver')
+    expect((await user.req('/api/account', { method: 'DELETE', body: { confirm: 'nope' } })).status).toBe(400)
+    expect((await user.req('/api/account', { method: 'DELETE', body: { confirm: user.email.toUpperCase() } })).status).toBe(200)
+    expect((await user.req('/api/boards')).status).toBe(401)
+    expect((await anon()('/api/auth/login', { email: user.email, password: 'password123' })).status).toBe(401)
+  })
+})
+
+describe('board import', () => {
+  it('round-trips an export and skips people without access', async () => {
+    const carol = await signUp('Carol')
+    const added = await alice.req<{ userId: string }>(`/api/boards/${boardId}/members`, { method: 'POST', body: { email: carol.email, role: 'editor' } })
+    expect(added.status).toBe(200)
+    const members = (await alice.req<BoardDetail>(`/api/boards/${boardId}`)).data.members
+    const card = await newCard('Imported card')
+    const patched = await alice.req(`/api/cards/${card.id}`, { method: 'PATCH', body: { assigneeIds: [members.find(m => m.email === carol.email)!.userId], priority: 'high', startDate: '2026-11-01', dueDate: '2026-11-02', estimate: 3 } })
+    expect(patched.status).toBe(200)
+    await alice.req(`/api/cards/${card.id}/checklist`, { method: 'POST', body: { text: 'Step one' } })
+    const exported = (await alice.req<Record<string, unknown>>(`/api/boards/${boardId}/export?format=json`)).data
+    const data = typeof exported === 'string' ? JSON.parse(exported) : exported
+    expect(data.version).toBe(1)
+
+    const res = await alice.req<{ id: string, skipped: { assignees: number, rules: number } }>('/api/boards/import', { method: 'POST', body: { name: 'Imported', data } })
+    expect(res.status).toBe(200)
+    extraBoards.push(res.data.id)
+    // A personal board starts with only Alice: Carol's assignment is skipped.
+    expect(res.data.skipped.assignees).toBeGreaterThan(0)
+
+    const copy = (await alice.req<BoardDetail>(`/api/boards/${res.data.id}`)).data
+    const original = (await alice.req<BoardDetail>(`/api/boards/${boardId}`)).data
+    expect(copy.columns.map(c => c.title)).toEqual(original.columns.map(c => c.title))
+    expect(copy.tags.map(t => t.name).sort()).toEqual(original.tags.map(t => t.name).sort())
+    expect(copy.cards.map(c => c.title).sort()).toEqual(original.cards.map(c => c.title).sort())
+    const imported = copy.cards.find(c => c.title === 'Imported card')!
+    expect(imported).toMatchObject({ priority: 'high', assigneeIds: [], checklist: { done: 0, total: 1 }, startDate: '2026-11-01', estimate: 3 })
+
+    const bad = await alice.req('/api/boards/import', { method: 'POST', body: { name: 'Bad', data: { ...data, cards: [{ column: 'Nope', title: 'x' }] } } })
+    expect(bad.status).toBe(400)
+  })
+
+  interface ImportResult { id: string | null, skipped: Record<string, number>, unmatched: string[], ignoredColumns: string[], counts: { columns: number, cards: number, tags: number } }
+  const fixture = (name: string) => readFileSync(new URL(`../fixtures/${name}`, import.meta.url), 'utf8')
+
+  it('imports a Trello export, matching members by name, after a dry run that leaves nothing behind', async () => {
+    const trello = JSON.parse(fixture('trello-board.json'))
+    const before = (await alice.req<BoardSummary[]>('/api/boards')).data.length
+    const preview = await alice.req<ImportResult>('/api/boards/import', { method: 'POST', body: { name: 'Trello', data: trello, dryRun: true } })
+    expect(preview.status).toBe(200)
+    expect(preview.data).toMatchObject({ id: null, counts: { columns: 3, cards: 3, tags: 3 }, unmatched: ['Zed Unknown'] })
+    expect((await alice.req<BoardSummary[]>('/api/boards')).data.length).toBe(before)
+
+    const res = await alice.req<ImportResult>('/api/boards/import', { method: 'POST', body: { name: 'Trello', format: 'trello', data: trello } })
+    expect(res.status).toBe(200)
+    extraBoards.push(res.data.id!)
+    expect(res.data.skipped).toMatchObject({ assignees: 1, cards: 1, comments: 2, attachments: 3, fields: 1, invalidValues: 1 })
+
+    const b = (await alice.req<BoardDetail>(`/api/boards/${res.data.id}`)).data
+    expect(b.columns.map(c => c.title)).toEqual(['To Do', 'Doing', 'Done'])
+    // The archived card is left out of the board.
+    expect(b.cards.map(c => c.title)).toEqual(['Fix the login', 'Second task'])
+    const card = b.cards[0]!
+    const aliceId = b.members.find(m => m.email === alice.email)!.userId
+    expect(card).toMatchObject({ assigneeIds: [aliceId], startDate: '2026-11-01', dueDate: '2026-11-20', checklist: { done: 1, total: 3 } })
+    expect(card.tagIds.map(t => b.tags.find(x => x.id === t)!.name).sort()).toEqual(['Bug', 'Green dark'])
+    const size = b.fields.find(f => f.name === 'Size')!
+    expect(card.fields[size.id]).toBe(size.options.find(o => o.label === 'Large')!.id)
+    expect(Object.keys(card.fields)).toHaveLength(5)
+    const archived = (await alice.req<Card[]>(`/api/boards/${res.data.id}/archived`)).data
+    expect(archived.map(c => c.title)).toEqual(['Ship it'])
+  })
+
+  it('imports a Jira CSV with issue keys, and rejects files it cannot read', async () => {
+    const csv = fixture('jira-issues.csv')
+    const res = await alice.req<ImportResult>('/api/boards/import', { method: 'POST', body: { name: 'Jira', data: csv, issueKeys: true } })
+    expect(res.status).toBe(200)
+    extraBoards.push(res.data.id!)
+    expect(res.data).toMatchObject({ skipped: { cards: 1, invalidValues: 3, assignees: 1 }, unmatched: ['Zed Unknown'], ignoredColumns: ['Issue id', 'Issue Type', 'Reporter', 'Created'] })
+    const b = (await alice.req<BoardDetail>(`/api/boards/${res.data.id}`)).data
+    expect(b.columns.map(c => c.title)).toEqual(['In Progress', 'To Do', 'Done'])
+    expect(b.tags.map(t => t.name).sort()).toEqual(['backend', 'frontend', 'urgent'])
+    const first = b.cards.find(c => c.title === 'KAN-1 Fix login timeout')!
+    expect(first).toMatchObject({ priority: 'urgent', estimate: 5, dueDate: '2026-11-20', description: 'Users get logged out.\nSteps: "open", wait' })
+    expect(first.assigneeIds).toEqual([b.members.find(m => m.email === alice.email)!.userId])
+    expect(b.cards).toHaveLength(4)
+
+    expect((await alice.req('/api/boards/import', { method: 'POST', body: { name: 'x', data: 'Status\nDone' } })).status).toBe(400)
+    expect((await alice.req('/api/boards/import', { method: 'POST', body: { name: 'x', format: 'trello', data: { name: 'x' } } })).status).toBe(400)
+  })
+
+  it('round-trips our CSV export', async () => {
+    const card = await newCard('CSV round trip')
+    // Someone else on the board (Carol, added above), who has no access to the copy.
+    const other = (await alice.req<BoardDetail>(`/api/boards/${boardId}`)).data.members.find(m => m.email !== alice.email)!
+    expect((await alice.req(`/api/cards/${card.id}`, { method: 'PATCH', body: { priority: 'low', dueDate: '2026-12-24', estimate: 2, assigneeIds: [other.userId] } })).status).toBe(200)
+    const csv = (await alice.req<string>(`/api/boards/${boardId}/export?format=csv`)).data
+    const res = await alice.req<ImportResult>('/api/boards/import', { method: 'POST', body: { name: 'CSV copy', teamId: null, data: csv } })
+    expect(res.status).toBe(200)
+    extraBoards.push(res.data.id!)
+    const copy = (await alice.req<BoardDetail>(`/api/boards/${res.data.id}`)).data
+    const original = (await alice.req<BoardDetail>(`/api/boards/${boardId}`)).data
+    // Only columns holding cards appear in a CSV, in board order.
+    const titles = copy.columns.map(c => c.title)
+    expect(original.columns.map(c => c.title).filter(t => titles.includes(t))).toEqual(titles)
+    expect(copy.cards.map(c => c.title).sort()).toEqual(original.cards.map(c => c.title).sort())
+    expect(copy.cards.find(c => c.title === 'CSV round trip')).toMatchObject({ priority: 'low', dueDate: '2026-12-24', estimate: 2, assigneeIds: [] })
+    expect(res.data.unmatched).toContain(other.email)
+  })
+})
+
+describe('search', () => {
+  it('finds cards by prefix in title, description and comments, only on reachable boards', async () => {
+    const word = `wombat${randomUUID().slice(0, 6)}`
+    const titled = await newCard(`Feed the ${word}`)
+    const described = await newCard('Described card')
+    await alice.req(`/api/cards/${described.id}`, { method: 'PATCH', body: { description: `Notes about the ${word} habitat` } })
+    const commented = await newCard('Commented card', 'Sprint')
+    await alice.req(`/api/cards/${commented.id}/comments`, { method: 'POST', body: { body: `Ask the ${word} keeper` } })
+    const archived = await newCard(`Old ${word}`)
+    await alice.req(`/api/cards/${archived.id}`, { method: 'PATCH', body: { archived: true } })
+
+    const res = await alice.req<SearchResults>(`/api/search?q=${word.slice(0, 8)}`)
+    expect(res.status).toBe(200)
+    expect(res.data.cards.map(c => c.id).sort()).toEqual([titled.id, described.id, commented.id].sort())
+    // Title matches outrank description and comment matches.
+    expect(res.data.cards[0]!.id).toBe(titled.id)
+    expect(res.data.cards.find(c => c.id === described.id)).toMatchObject({
+      boardId, boardName: 'API test', columnName: 'Backlog', inComment: false, archived: false, snippet: `Notes about the ${word} habitat`,
+    })
+    expect(res.data.cards.find(c => c.id === commented.id)).toMatchObject({ inComment: true, columnName: 'Sprint', snippet: `Ask the ${word} keeper` })
+
+    const withArchived = await alice.req<SearchResults>(`/api/search?q=${word}&archived=1`)
+    expect(withArchived.data.cards.find(c => c.id === archived.id)?.archived).toBe(true)
+
+    expect((await outsider.req<SearchResults>(`/api/search?q=${word}`)).data.cards).toEqual([])
+  })
+
+  it('finds boards and columns, and ignores queries without words', async () => {
+    const res = await alice.req<SearchResults>('/api/search?q=api%20tes')
+    expect(res.data.boards.map(b => b.id)).toContain(boardId)
+    const cols = await alice.req<SearchResults>('/api/search?q=in%20prog')
+    expect(cols.data.columns.find(c => c.boardId === boardId)).toMatchObject({ title: 'In progress', boardName: 'API test' })
+    expect((await outsider.req<SearchResults>('/api/search?q=api%20tes')).data.boards.map(b => b.id)).not.toContain(boardId)
+    expect((await alice.req<SearchResults>('/api/search?q=%20%21%3F')).data).toEqual({ cards: [], boards: [], columns: [] })
+    expect((await alice.req(`/api/search?q=${'x'.repeat(201)}`)).status).toBe(400)
+  })
+})
+
+describe('stars, archive, activity and teams', () => {
+  // The realtime tests removed Bob from the main board.
+  beforeAll(async () => {
+    expect((await alice.req(`/api/boards/${boardId}/members`, { method: 'POST', body: { email: bob.email, role: 'editor' } })).status).toBe(200)
+  })
+
+  it('stars and unstars a board for the caller only', async () => {
+    expect((await bob.req(`/api/boards/${boardId}/star`, { method: 'PUT' })).status).toBe(200)
+    expect((await bob.req(`/api/boards/${boardId}/star`, { method: 'PUT' })).status).toBe(200)
+    expect((await bob.req<BoardSummary[]>('/api/boards')).data.find(b => b.id === boardId)?.starred).toBe(true)
+    expect((await bob.req<BoardDetail>(`/api/boards/${boardId}`)).data.starred).toBe(true)
+    expect((await alice.req<BoardSummary[]>('/api/boards')).data.find(b => b.id === boardId)?.starred).toBe(false)
+    expect((await outsider.req(`/api/boards/${boardId}/star`, { method: 'PUT' })).status).toBe(404)
+    expect((await bob.req(`/api/boards/${boardId}/star`, { method: 'DELETE' })).status).toBe(200)
+    expect((await bob.req<BoardSummary[]>('/api/boards')).data.find(b => b.id === boardId)?.starred).toBe(false)
+  })
+
+  it('archives a board read-only; only owners archive and unarchive', async () => {
+    const { data: { id } } = await alice.req<{ id: string }>('/api/boards', { method: 'POST', body: { name: 'To archive', template: 'basic' } })
+    extraBoards.push(id)
+    await alice.req(`/api/boards/${id}/members`, { method: 'POST', body: { email: bob.email, role: 'editor' } })
+    const columnId = (await alice.req<BoardDetail>(`/api/boards/${id}`)).data.columns[0]!.id
+
+    expect((await bob.req(`/api/boards/${id}/archive`, { method: 'PUT' })).status).toBe(403)
+    expect((await outsider.req(`/api/boards/${id}/archive`, { method: 'PUT' })).status).toBe(404)
+    const archived = await alice.req<{ archivedAt: string }>(`/api/boards/${id}/archive`, { method: 'PUT' })
+    expect(archived.status).toBe(200)
+    expect(archived.data.archivedAt).toBeTruthy()
+    expect((await bob.req<BoardDetail>(`/api/boards/${id}`)).data.archivedAt).toBe(archived.data.archivedAt)
+    expect((await bob.req<BoardSummary[]>('/api/boards')).data.find(b => b.id === id)?.archivedAt).toBe(archived.data.archivedAt)
+
+    for (const u of [alice, bob]) {
+      expect((await u.req(`/api/boards/${id}/cards`, { method: 'POST', body: { columnId, title: 'Nope' } })).status).toBe(403)
+    }
+    expect((await alice.req(`/api/boards/${id}`, { method: 'PATCH', body: { name: 'Renamed' } })).status).toBe(404)
+
+    expect((await bob.req(`/api/boards/${id}/archive`, { method: 'DELETE' })).status).toBe(403)
+    expect((await alice.req(`/api/boards/${id}/archive`, { method: 'DELETE' })).data).toEqual({ archivedAt: null })
+    expect((await bob.req(`/api/boards/${id}/cards`, { method: 'POST', body: { columnId, title: 'Yes' } })).status).toBe(200)
+  })
+
+  it('search leaves out cards of archived boards unless archived=1', async () => {
+    const word = `okapi${randomUUID().slice(0, 8)}`
+    const { data: { id } } = await alice.req<{ id: string }>('/api/boards', { method: 'POST', body: { name: 'Archived search', template: 'basic' } })
+    extraBoards.push(id)
+    const columnId = (await alice.req<BoardDetail>(`/api/boards/${id}`)).data.columns[0]!.id
+    const card = (await alice.req<Card>(`/api/boards/${id}/cards`, { method: 'POST', body: { columnId, title: `Find ${word}` } })).data
+    await alice.req(`/api/boards/${id}/archive`, { method: 'PUT' })
+    expect((await alice.req<SearchResults>(`/api/search?q=${word}`)).data.cards).toEqual([])
+    const all = await alice.req<SearchResults>(`/api/search?q=${word}&archived=1`)
+    expect(all.data.cards.find(c => c.id === card.id)?.archived).toBe(true)
+  })
+
+  it('pages through the board activity feed', async () => {
+    const card = await newCard('Feed card')
+    for (const title of ['Feed 1', 'Feed 2', 'Feed 3']) {
+      await alice.req(`/api/cards/${card.id}`, { method: 'PATCH', body: { title } })
+    }
+    const seen: string[] = []
+    let cursor: string | null = null
+    let pages = 0
+    do {
+      const res: Res<BoardActivityPage> = await bob.req<BoardActivityPage>(`/api/boards/${boardId}/activity?limit=2${cursor ? `&before=${cursor}` : ''}`)
+      expect(res.status).toBe(200)
+      expect(res.data.items.length).toBeLessThanOrEqual(2)
+      seen.push(...res.data.items.map(a => a.id))
+      if (pages === 0) {
+        expect(res.data.items[0]).toMatchObject({ cardId: card.id, cardTitle: 'Feed 3', kind: 'renamed', actorName: 'Alice' })
+      }
+      cursor = res.data.nextCursor
+      pages++
+    } while (cursor && pages < 3)
+    expect(pages).toBe(3)
+    expect(new Set(seen).size).toBe(seen.length)
+    // Same order as one big page.
+    const all = (await bob.req<BoardActivityPage>(`/api/boards/${boardId}/activity?limit=6`)).data.items.map(a => a.id)
+    expect(seen).toEqual(all)
+
+    expect((await outsider.req(`/api/boards/${boardId}/activity`)).status).toBe(404)
+    expect((await bob.req(`/api/boards/${boardId}/activity?before=nonsense`)).status).toBe(400)
+  })
+
+  it('gets a team with members and boards', async () => {
+    const { data: team } = await alice.req<{ id: string }>('/api/teams', { method: 'POST', body: { name: 'Team page' } })
+    await alice.req(`/api/teams/${team.id}/members`, { method: 'POST', body: { email: bob.email, role: 'viewer' } })
+    const { data: b } = await alice.req<{ id: string }>('/api/boards', { method: 'POST', body: { name: 'Team board', teamId: team.id } })
+
+    const res = await bob.req<TeamDetail>(`/api/teams/${team.id}`)
+    expect(res.status).toBe(200)
+    expect(res.data).toMatchObject({ id: team.id, name: 'Team page', role: 'viewer', invites: [] })
+    expect(res.data.members.map(m => [m.name, m.role])).toEqual([['Alice', 'owner'], ['Bob', 'viewer']])
+    expect(res.data.boards).toMatchObject([{ id: b.id, name: 'Team board', role: 'viewer', starred: false, archivedAt: null }])
+
+    expect((await outsider.req(`/api/teams/${team.id}`)).status).toBe(404)
+    expect((await alice.req(`/api/teams/${team.id}`, { method: 'DELETE' })).status).toBe(200)
+    expect((await bob.req(`/api/teams/${team.id}`)).status).toBe(404)
+  })
+})
+
+describe('card templates and recurring cards', () => {
+  it('saves a card as a template that stays off the board, search and due soon', async () => {
+    const word = `tmpl${randomUUID().slice(0, 8)}`
+    const card = await newCard(`Report ${word}`)
+    const tag = board.tags[0]!.id
+    await alice.req(`/api/cards/${card.id}`, { method: 'PATCH', body: { tagIds: [tag], assigneeIds: [userId('Bob')], estimate: 2 } })
+    await alice.req(`/api/cards/${card.id}/checklist`, { method: 'POST', body: { text: 'Step' } })
+    const { status, data: tpl } = await alice.req<Card>(`/api/cards/${card.id}/template`, { method: 'POST', body: { withAssignees: true } })
+    expect(status).toBe(200)
+    expect(tpl).toMatchObject({ title: `Report ${word}`, tagIds: [tag], assigneeIds: [userId('Bob')], estimate: 2, checklist: { done: 0, total: 1 } })
+    // Without a body the assignees are left out.
+    const bare = (await alice.req<Card>(`/api/cards/${card.id}/template`, { method: 'POST' })).data
+    expect(bare.assigneeIds).toEqual([])
+
+    const detail = (await bob.req<BoardDetail>(`/api/boards/${boardId}`)).data
+    expect(detail.templates.map(t => t.id)).toEqual(expect.arrayContaining([tpl.id, bare.id]))
+    expect(detail.cards.some(c => c.id === tpl.id)).toBe(false)
+    const hits = (await alice.req<SearchResults>(`/api/search?q=${word}`)).data.cards.map(c => c.id)
+    expect(hits).toEqual([card.id])
+
+    // Templates are edited through the card routes; a due date on one is not "due soon".
+    const today = new Date().toISOString().slice(0, 10)
+    const patched = await alice.req<Card>(`/api/cards/${tpl.id}`, { method: 'PATCH', body: { title: 'Weekly report', dueDate: today } })
+    expect(patched.data.title).toBe('Weekly report')
+    const inbox = (await bob.req<Inbox>('/api/notifications')).data
+    expect(inbox.dueSoon.some(d => d.cardId === tpl.id)).toBe(false)
+    expect(inbox.items.some(n => n.cardId === tpl.id)).toBe(false)
+    await alice.req(`/api/cards/${bare.id}`, { method: 'DELETE' })
+  })
+
+  it('creates cards from a template; only templates of the board', async () => {
+    const src = await newCard('Checklist source')
+    await alice.req(`/api/cards/${src.id}/checklist`, { method: 'POST', body: { text: 'One' } })
+    const tpl = (await alice.req<Card>(`/api/cards/${src.id}/template`, { method: 'POST', body: {} })).data
+    const target = board.columns[1]!
+    const { status, data: card } = await bob.req<Card>(`/api/boards/${boardId}/cards`, { method: 'POST', body: { columnId: target.id, templateId: tpl.id } })
+    expect(status).toBe(200)
+    expect(card).toMatchObject({ title: 'Checklist source', columnId: target.id, checklist: { done: 0, total: 1 } })
+    const named = await bob.req<Card>(`/api/boards/${boardId}/cards`, { method: 'POST', body: { columnId: target.id, templateId: tpl.id, title: 'Renamed' } })
+    expect(named.data.title).toBe('Renamed')
+    expect((await bob.req<BoardDetail>(`/api/boards/${boardId}`)).data.cards.map(c => c.id)).toEqual(expect.arrayContaining([card.id, named.data.id]))
+    // Normal cards are not templates; outsiders cannot use them; a title or template is required.
+    expect((await bob.req(`/api/boards/${boardId}/cards`, { method: 'POST', body: { columnId: target.id, templateId: src.id } })).status).toBe(400)
+    expect((await outsider.req(`/api/boards/${boardId}/cards`, { method: 'POST', body: { columnId: target.id, templateId: tpl.id } })).status).toBe(404)
+    expect((await bob.req(`/api/boards/${boardId}/cards`, { method: 'POST', body: { columnId: target.id } })).status).toBe(400)
+  })
+
+  it('schedules a template; editors manage, outsiders cannot', async () => {
+    const tpl = (await alice.req<Card>(`/api/cards/${(await newCard('Standup notes')).id}/template`, { method: 'POST', body: {} })).data
+    const target = board.columns[0]!
+    const body = { columnId: target.id, rule: 'weekly', interval: 1, weekdays: [5, 1, 1], dueInDays: 1 }
+    const { status, data: rec } = await bob.req<CardRecurrence>(`/api/cards/${tpl.id}/recurrence`, { method: 'PUT', body })
+    expect(status).toBe(200)
+    expect(rec).toMatchObject({ templateId: tpl.id, columnId: target.id, rule: 'weekly', weekdays: [1, 5], dayOfMonth: null, dueInDays: 1, active: true })
+    expect(Date.parse(rec.nextRunAt)).toBeGreaterThan(Date.now() - 8 * 86_400_000)
+    expect((await alice.req<BoardDetail>(`/api/boards/${boardId}`)).data.recurrences.find(r => r.templateId === tpl.id)?.id).toBe(rec.id)
+
+    // Replacing keeps one schedule per template.
+    const monthly = await alice.req<CardRecurrence>(`/api/cards/${tpl.id}/recurrence`, { method: 'PUT', body: { columnId: target.id, rule: 'monthly', dayOfMonth: 31 } })
+    expect(monthly.data).toMatchObject({ id: rec.id, rule: 'monthly', dayOfMonth: 31, weekdays: null })
+    expect((await alice.req(`/api/cards/${tpl.id}/recurrence`, { method: 'PUT', body: { columnId: target.id, rule: 'weekly' } })).status).toBe(400)
+    expect((await outsider.req(`/api/cards/${tpl.id}/recurrence`, { method: 'PUT', body })).status).toBe(404)
+    // Normal cards cannot repeat.
+    const plain = await newCard('Not a template')
+    expect((await alice.req(`/api/cards/${plain.id}/recurrence`, { method: 'PUT', body })).status).toBe(400)
+
+    expect((await bob.req(`/api/cards/${tpl.id}/recurrence`, { method: 'DELETE' })).status).toBe(200)
+    expect((await bob.req(`/api/cards/${tpl.id}/recurrence`, { method: 'DELETE' })).status).toBe(404)
+    expect((await alice.req(`/api/cards/${tpl.id}`, { method: 'DELETE' })).status).toBe(200)
+    expect((await alice.req<BoardDetail>(`/api/boards/${boardId}`)).data.templates.some(t => t.id === tpl.id)).toBe(false)
+  })
+})
+
+describe('board views', () => {
+  it('renders the board page in each view (server-side)', async () => {
+    const card = await newCard('Viewed card')
+    // Dated today, so the calendar's current month shows it.
+    const d = new Date()
+    const today = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+    await alice.req(`/api/cards/${card.id}`, { method: 'PATCH', body: { startDate: today, dueDate: today, priority: 'high' } })
+    for (const view of ['board', 'list', 'calendar', 'timeline']) {
+      const { status, data } = await bob.req<string>(`/boards/${boardId}?view=${view}`)
+      expect(status, view).toBe(200)
+      expect(data, view).toContain('Viewed card')
+    }
+  })
+})
+
+describe('two-factor authentication', () => {
+  async function enable(user: Awaited<ReturnType<typeof signUp>>) {
+    const setup = await user.req<{ secret: string, qr: string, uri: string }>('/api/account/two-factor/setup', { method: 'POST' })
+    expect(setup.status).toBe(200)
+    expect(setup.data.qr).toMatch(/^data:image\/svg\+xml;base64,/)
+    expect(setup.data.uri).toContain(`secret=${setup.data.secret}`)
+    // Nothing is on until a code confirms it.
+    expect((await user.req<Account>('/api/account')).data.twoFactorEnabled).toBe(false)
+    return setup.data.secret
+  }
+
+  it('asks for a code after the password; codes and recovery codes work once; reset and links do not skip it', async () => {
+    const user = await signUp('Twofa')
+    const other = anon()
+    expect((await other('/api/auth/login', { email: user.email, password: 'password123' })).status).toBe(200)
+    const secret = await enable(user)
+    const on = await user.req<{ recoveryCodes: string[] }>('/api/account/two-factor/enable', { method: 'POST', body: { code: await totp(secret, -1) } })
+    expect(on.status).toBe(200)
+    const codes = on.data.recoveryCodes
+    expect(codes).toHaveLength(10)
+    // This session is renewed; the other one, which never passed two-factor, is signed out.
+    expect((await user.req('/api/boards')).status).toBe(200)
+    expect((await other('/api/boards')).status).toBe(401)
+    expect((await user.req<Account>('/api/account')).data).toMatchObject({ twoFactorEnabled: true, recoveryCodesLeft: 10 })
+    expect((await user.req('/api/account/two-factor/setup', { method: 'POST' })).status).toBe(409)
+
+    const http = anon()
+    const login = await http('/api/auth/login', { email: user.email, password: 'password123' })
+    expect(login.data).toEqual({ twoFactor: true })
+    expect((await http('/api/boards')).status).toBe(401)
+    expect((await http('/api/auth/two-factor')).data).toEqual({ pending: true })
+    expect((await http('/api/auth/two-factor', { code: 'nope' })).status).toBe(400)
+    const code = await totp(secret)
+    const done = await http('/api/auth/two-factor', { code })
+    expect(done.status).toBe(200)
+    expect(done.data.user.email).toBe(user.email)
+    expect((await http('/api/boards')).status).toBe(200)
+
+    // The same code is refused in another sign-in; a recovery code works, once.
+    const second = anon()
+    await second('/api/auth/login', { email: user.email, password: 'password123' })
+    expect((await second('/api/auth/two-factor', { code })).status).toBe(400)
+    const recovered = await second('/api/auth/two-factor', { code: codes[0]!.toUpperCase() })
+    expect(recovered.status).toBe(200)
+    expect(recovered.data.recoveryCodesLeft).toBe(9)
+    const third = anon()
+    await third('/api/auth/login', { email: user.email, password: 'password123' })
+    expect((await third('/api/auth/two-factor', { code: codes[0] })).status).toBe(400)
+    // Without a pending sign-in there is nothing to finish.
+    const fresh = anon()
+    expect((await fresh('/api/auth/two-factor')).data).toEqual({ pending: false })
+    expect((await fresh('/api/auth/two-factor', { code: codes[1] })).status).toBe(401)
+
+    // An emailed sign-in link still asks for the second factor.
+    const link = anon()
+    expect((await link(`/auth/verify?token=${await tokenFor(user.email)}`)).location).toBe('/login/2fa')
+    expect((await link('/api/boards')).status).toBe(401)
+
+    // So does a password reset.
+    const reset = anon()
+    const token = decodeURIComponent(await linkToken('password-reset', user.email))
+    const res = await reset('/api/auth/reset-password', { token, password: 'newpass123' })
+    expect(res.data).toEqual({ twoFactor: true })
+    expect((await reset('/api/boards')).status).toBe(401)
+    expect((await reset('/api/auth/two-factor', { code: codes[1] })).status).toBe(200)
+    expect((await reset('/api/boards')).status).toBe(200)
+  })
+
+  it('regenerates recovery codes with a code from the app and turns off with the password', async () => {
+    const user = await signUp('Twofa2')
+    const secret = await enable(user)
+    expect((await user.req('/api/account/two-factor/enable', { method: 'POST', body: { code: 'abcdef' } })).status).toBe(400)
+    const { recoveryCodes: old } = (await user.req<{ recoveryCodes: string[] }>('/api/account/two-factor/enable', { method: 'POST', body: { code: await totp(secret, -1) } })).data
+
+    const regen = (code: string) => user.req<{ recoveryCodes: string[] }>('/api/account/two-factor/recovery-codes', { method: 'POST', body: { code } })
+    expect((await regen(old[0]!)).status).toBe(400)
+    const fresh = await regen(await totp(secret))
+    expect(fresh.status).toBe(200)
+    expect(fresh.data.recoveryCodes).not.toContain(old[1])
+    const http = anon()
+    await http('/api/auth/login', { email: user.email, password: 'password123' })
+    expect((await http('/api/auth/two-factor', { code: old[1] })).status).toBe(400)
+
+    const disable = (body: unknown) => user.req('/api/account/two-factor/disable', { method: 'POST', body })
+    expect((await disable({ password: 'wrong-password' })).status).toBe(400)
+    expect((await disable({ password: 'password123' })).status).toBe(200)
+    expect((await user.req<Account>('/api/account')).data).toMatchObject({ twoFactorEnabled: false, recoveryCodesLeft: 0 })
+    const login = await anon()('/api/auth/login', { email: user.email, password: 'password123' })
+    expect(login.data.email).toBe(user.email)
+  })
+})
+
+describe('sessions', () => {
+  it('lists sessions, revokes one, the others, or this one', async () => {
+    const user = await signUp('Sessions')
+    const phone = anon()
+    await phone('/api/auth/login', { email: user.email, password: 'password123' })
+    const list = (await user.req<AccountSession[]>('/api/account/sessions')).data
+    expect(list).toHaveLength(2)
+    expect(list.filter(s => s.current)).toHaveLength(1)
+    expect(list.every(s => s.ip?.startsWith('10.'))).toBe(true)
+    const phoneId = list.find(s => !s.current)!.id
+
+    // Not someone else's.
+    expect((await alice.req(`/api/account/sessions/${phoneId}`, { method: 'DELETE' })).status).toBe(404)
+    expect((await user.req(`/api/account/sessions/${phoneId}`, { method: 'DELETE' })).data).toEqual({ current: false })
+    expect((await phone('/api/boards')).status).toBe(401)
+    expect((await user.req(`/api/account/sessions/${phoneId}`, { method: 'DELETE' })).status).toBe(404)
+
+    const [laptop, tablet] = [anon(), anon()]
+    await laptop('/api/auth/login', { email: user.email, password: 'password123' })
+    await tablet('/api/auth/login', { email: user.email, password: 'password123' })
+    expect((await user.req('/api/account/sessions/revoke-others', { method: 'POST' })).data).toEqual({ revoked: 2 })
+    expect((await laptop('/api/boards')).status).toBe(401)
+    expect((await tablet('/api/account')).status).toBe(401)
+    expect((await user.req('/api/boards')).status).toBe(200)
+
+    const mine = (await user.req<AccountSession[]>('/api/account/sessions')).data
+    expect(mine).toHaveLength(1)
+    expect((await user.req(`/api/account/sessions/${mine[0]!.id}`, { method: 'DELETE' })).data).toEqual({ current: true })
+    expect((await user.req('/api/boards')).status).toBe(401)
+  })
+
+  it('signing out revokes the session row', async () => {
+    const user = await signUp('Logout')
+    const live = async () => (await authDb`select count(*)::int as n from user_sessions s join users u on u.id = s.user_id
+      where u.email = ${user.email} and s.revoked_at is null`)[0]!.n
+    expect(await live()).toBe(1)
+    expect((await user.req('/api/auth/logout', { method: 'POST' })).status).toBe(200)
+    expect(await live()).toBe(0)
+  })
+})
+
+describe('admin audit log', () => {
+  it('admins page through it; others get 403', async () => {
+    expect((await alice.req('/api/admin/audit-log')).status).toBe(403)
+    expect((await admin.req('/api/admin/audit-log?page=0')).status).toBe(400)
+    const page = (await admin.req<AuditLogPage>('/api/admin/audit-log')).data
+    expect(page.pageSize).toBe(50)
+    expect(page.total).toBeGreaterThan(0)
+    const mine = page.entries.filter(e => e.data.actor_email === adminEmail)
+    expect(mine.map(e => e.action)).toContain('settings.update')
+    expect(mine.map(e => e.action)).toContain('admin.bootstrap')
+  })
+})
+
+describe('pwa', () => {
+  it('serves the web app manifest, the service worker and links them', async () => {
+    const manifest = await fetch('/manifest.webmanifest')
+    expect(manifest.status).toBe(200)
+    expect(manifest.headers.get('content-type')).toContain('manifest+json')
+    const m = await manifest.json() as { name: string, display: string, start_url: string, icons: { src: string, purpose?: string }[] }
+    expect(m).toMatchObject({ name: 'Kanso', display: 'standalone', start_url: '/' })
+    expect(m.icons.some(i => i.purpose === 'maskable')).toBe(true)
+    for (const icon of m.icons) expect((await fetch(icon.src)).status).toBe(200)
+
+    const sw = await fetch('/sw.js')
+    expect(sw.status).toBe(200)
+    const source = await sw.text()
+    // Per-user runtime caches (cleared by app/plugins/cacheOwner.client.ts); no SSE or auth routes.
+    expect(source).toContain('kanso-api')
+    expect(source).toContain('kanso-pages')
+    expect(source).not.toContain('events')
+
+    const page = await (await fetch('/login')).text()
+    expect(page).toContain('rel="manifest" href="/manifest.webmanifest"')
+    expect(page).toContain('apple-touch-icon')
+  })
+})
