@@ -1,5 +1,5 @@
 export default defineOAuthDiscordEventHandler({
-  config: { emailRequired: true },
+  config: { emailRequired: true, redirectURL: oauthRedirectURL('discord') },
   async onSuccess(event, { user }) {
     const u = await upsertOAuthUser({
       provider: 'discord',
@@ -10,7 +10,7 @@ export default defineOAuthDiscordEventHandler({
       avatarUrl: user.avatar ? `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png` : null,
     })
     const { twoFactor } = await startSession(event, u)
-    return sendRedirect(event, twoFactor ? '/login/2fa' : '/')
+    return sendRedirect(event, appPath(twoFactor ? '/login/2fa' : '/'))
   },
   onError: oauthError,
 })

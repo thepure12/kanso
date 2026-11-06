@@ -1,4 +1,5 @@
 export default defineOAuthGoogleEventHandler({
+  config: { redirectURL: oauthRedirectURL('google') },
   async onSuccess(event, { user }) {
     const u = await upsertOAuthUser({
       provider: 'google',
@@ -9,7 +10,7 @@ export default defineOAuthGoogleEventHandler({
       avatarUrl: user.picture ?? null,
     })
     const { twoFactor } = await startSession(event, u)
-    return sendRedirect(event, twoFactor ? '/login/2fa' : '/')
+    return sendRedirect(event, appPath(twoFactor ? '/login/2fa' : '/'))
   },
   onError: oauthError,
 })

@@ -8,7 +8,7 @@ import { pgCode } from '../../utils/errors'
  * version, so it works once.
  */
 export default defineEventHandler(async (event) => {
-  const back = (message: string) => sendRedirect(event, `/account?error=${encodeURIComponent(message)}`)
+  const back = (message: string) => sendRedirect(event, appPath(`/account?error=${encodeURIComponent(message)}`))
   const token = getQuery(event).token
   const claims = typeof token === 'string' ? verifyEmailToken(token, useRuntimeConfig().session.password, 'email-change') : null
   if (!claims || claims.version === undefined) return back('This confirmation link is invalid or has expired.')
@@ -27,5 +27,5 @@ export default defineEventHandler(async (event) => {
   }
   if (!user) return back('This confirmation link is no longer valid.')
   const { twoFactor } = await startSession(event, user)
-  return sendRedirect(event, twoFactor ? '/login/2fa' : '/account?emailChanged=1')
+  return sendRedirect(event, appPath(twoFactor ? '/login/2fa' : '/account?emailChanged=1'))
 })

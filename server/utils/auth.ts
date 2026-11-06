@@ -117,7 +117,7 @@ export async function upsertOAuthUser(p: OAuthProfile): Promise<UserRow> {
 /** Shared OAuth error handler: back to the login page with a message. */
 export function oauthError(event: H3Event, error: { message?: string, statusMessage?: string }) {
   const message = error.statusMessage || error.message || 'Sign-in failed'
-  return sendRedirect(event, `/login?error=${encodeURIComponent(message)}`)
+  return sendRedirect(event, appPath(`/login?error=${encodeURIComponent(message)}`))
 }
 
 /**

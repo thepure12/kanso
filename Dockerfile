@@ -14,6 +14,9 @@ FROM base AS build
 COPY pnpm-lock.yaml pnpm-workspace.yaml ./
 RUN pnpm fetch
 COPY . .
+# Sub-path deployments (https://host/kanso/): --build-arg NUXT_APP_BASE_URL=/kanso/
+ARG NUXT_APP_BASE_URL=/
+ENV NUXT_APP_BASE_URL=$NUXT_APP_BASE_URL
 RUN pnpm install --frozen-lockfile --offline && pnpm build
 
 # ---------------------------------------------------------------- migrate

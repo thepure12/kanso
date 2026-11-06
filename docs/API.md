@@ -15,6 +15,8 @@ export TOKEN=kb_...
 curl -H "Authorization: Bearer $TOKEN" $KANSO/api/boards
 ```
 
+When the instance runs under a sub-path, include it in the base URL (`KANSO=https://example.org/kanso`).
+
 - **Scopes**: *Read only* tokens may only send `GET` and `HEAD` (anything else is `403`). *Read and write* tokens may
   call every allowed route.
 - **Allowed routes**: boards, cards, columns, tags, comments, checklist items, column rules, attachments, card links,

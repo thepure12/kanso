@@ -4,6 +4,7 @@ import type { Inbox, Notification } from '#shared/types/notifications'
 export function useNotifications() {
   const showError = useApiError()
   const inbox = ref<Inbox | null>(null)
+  const base = basePath()
   const unread = computed(() => inbox.value?.unread ?? 0)
 
   async function refresh() {
@@ -17,7 +18,7 @@ export function useNotifications() {
   onMounted(() => {
     refresh()
     let failed = false
-    events = new EventSource('/api/notifications/events')
+    events = new EventSource(`${base}/api/notifications/events`)
     events.addEventListener('change', () => refresh())
     // EventSource reconnects by itself; notifications sent while it was down are unknown.
     events.addEventListener('error', () => { failed = true })

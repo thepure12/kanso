@@ -181,7 +181,7 @@ function requestSiteUrl(event: H3Event, logged: boolean): string {
   const configured = useRuntimeConfig().public.siteUrl
   if (configured) return configured.replace(/\/+$/, '')
   if (!logged) throw new Error('NUXT_PUBLIC_SITE_URL is not configured')
-  return getRequestURL(event, { xForwardedHost: true, xForwardedProto: true }).origin
+  return getRequestURL(event, { xForwardedHost: true, xForwardedProto: true }).origin + appPath('')
 }
 
 /** Base URL without a request (scheduled task): NUXT_PUBLIC_SITE_URL, or localhost when only logging. */

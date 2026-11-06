@@ -6,11 +6,12 @@ const META = {
 
 /** Buttons for OAuth providers that have credentials configured on the server. */
 export async function useProviders() {
+  const base = basePath()
   const { data } = await useFetch('/api/auth/providers', { default: () => [] })
   return computed(() => data.value.map(p => ({
     ...META[p],
     color: 'neutral' as const,
     variant: 'subtle' as const,
-    onClick: () => { window.location.href = `/auth/${p}` },
+    onClick: () => { window.location.href = `${base}/auth/${p}` },
   })))
 }

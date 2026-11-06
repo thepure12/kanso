@@ -1,0 +1,8 @@
+# TLS termination for docker-compose.prod.yml. Caddy gets a certificate for
+# KANBAN_DOMAIN automatically (ports 80 and 443 must reach this host).
+# It replaces any client-sent X-Forwarded-For with the real client address,
+# which the app's rate limits rely on. SSE responses are flushed immediately.
+{$KANBAN_DOMAIN} {
+	encode zstd gzip
+	reverse_proxy app:3000
+}

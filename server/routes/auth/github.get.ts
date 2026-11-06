@@ -1,5 +1,5 @@
 export default defineOAuthGitHubEventHandler({
-  config: { emailRequired: true },
+  config: { emailRequired: true, redirectURL: oauthRedirectURL('github') },
   async onSuccess(event, { user }) {
     const u = await upsertOAuthUser({
       provider: 'github',
@@ -11,7 +11,7 @@ export default defineOAuthGitHubEventHandler({
       avatarUrl: user.avatar_url ?? null,
     })
     const { twoFactor } = await startSession(event, u)
-    return sendRedirect(event, twoFactor ? '/login/2fa' : '/')
+    return sendRedirect(event, appPath(twoFactor ? '/login/2fa' : '/'))
   },
   onError: oauthError,
 })

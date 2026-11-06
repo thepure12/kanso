@@ -20,7 +20,7 @@ export default defineEventHandler(async (event) => {
     }
     // The link stays valid for a day, so it must not skip two-factor.
     const { twoFactor } = await startSession(event, user)
-    return sendRedirect(event, twoFactor ? '/login/2fa' : '/')
+    return sendRedirect(event, appPath(twoFactor ? '/login/2fa' : '/'))
   }
   catch (error) {
     return oauthError(event, error as { message?: string, statusMessage?: string })

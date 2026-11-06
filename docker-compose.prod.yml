@@ -1,0 +1,77 @@
+# Production stack: Postgres, one-off migrations, the app and Caddy for HTTPS.
+#
+#   docker compose -f docker-compose.prod.yml up -d --build
+#
+# Needs in .env (next to this file; also read by compose for ${...}):
+#   KANBAN_DOMAIN                 public host name, e.g. kanban.example.com
+#   POSTGRES_PASSWORD             superuser password
+#   KANBAN_OWNER_PASSWORD, KANBAN_APP_PASSWORD, KANBAN_AUTH_PASSWORD
+#                                 role passwords; used in URLs, so hex only
+#                                 (openssl rand -hex 32)
+# plus the app settings from .env.example (NUXT_SESSION_PASSWORD, mail, ...).
+# Role passwords are applied only when the database volume is first created.
+# Only Caddy publishes ports; Postgres and the app stay on the internal network.
+
+services:
+  db:
+    image: postgres:17
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: kanban
+      KANBAN_OWNER_PASSWORD: ${KANBAN_OWNER_PASSWORD:?set KANBAN_OWNER_PASSWORD in .env}
+      KANBAN_APP_PASSWORD: ${KANBAN_APP_PASSWORD:?set KANBAN_APP_PASSWORD in .env}
+      KANBAN_AUTH_PASSWORD: ${KANBAN_AUTH_PASSWORD:?set KANBAN_AUTH_PASSWORD in .env}
+    volumes:
+      - ./docker/init.sql:/docker/init.sql:ro
+      - ./docker/init-prod.sh:/docker-entrypoint-initdb.d/01-init.sh:ro
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d kanban"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  migrate:
+    build: { context: ., target: migrate, args: { NUXT_APP_BASE_URL: "${NUXT_APP_BASE_URL:-/}" } }
+    env_file: .env
+    environment:
+      MIGRATION_DATABASE_URL: postgres://kanban_owner:${KANBAN_OWNER_PASSWORD}@db:5432/kanban
+    depends_on:
+      db: { condition: service_healthy }
+
+  app:
+    build: { context: ., target: runtime, args: { NUXT_APP_BASE_URL: "${NUXT_APP_BASE_URL:-/}" } }
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      NUXT_DATABASE_URL: postgres://kanban_app:${KANBAN_APP_PASSWORD}@db:5432/kanban
+      NUXT_AUTH_DATABASE_URL: postgres://kanban_auth:${KANBAN_AUTH_PASSWORD}@db:5432/kanban
+      NUXT_PUBLIC_SITE_URL: https://${KANBAN_DOMAIN:?set KANBAN_DOMAIN in .env}${NUXT_APP_BASE_URL:-}
+    expose:
+      - "3000"
+    depends_on:
+      db: { condition: service_healthy }
+      migrate: { condition: service_completed_successfully }
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    environment:
+      KANBAN_DOMAIN: ${KANBAN_DOMAIN}
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./docker/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - app
+
+volumes:
+  pgdata:
+  caddy_data:
+  caddy_config:

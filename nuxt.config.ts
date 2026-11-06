@@ -1,11 +1,17 @@
+// Sub-path deployments (https://host/kanso/): set NUXT_APP_BASE_URL=/kanso/ at build
+// time (in .env, or as the Docker build arg). Nuxt routes, $fetch and assets follow it;
+// app/utils/basePath.ts and server/utils/basePath.ts cover the hand-built URLs.
+const baseURL = `/${(process.env.NUXT_APP_BASE_URL ?? '').replace(/^\/+|\/+$/g, '')}/`.replace('//', '/')
+
 export default defineNuxtConfig({
   compatibilityDate: '2026-10-01',
   modules: ['@nuxt/ui', 'nuxt-auth-utils', '@nuxtjs/i18n', '@vite-pwa/nuxt'],
   app: {
+    baseURL,
     head: {
       link: [
-        { rel: 'icon', type: 'image/svg+xml', href: '/favicon.svg' },
-        { rel: 'apple-touch-icon', href: '/apple-touch-icon-180x180.png' },
+        { rel: 'icon', type: 'image/svg+xml', href: `${baseURL}favicon.svg` },
+        { rel: 'apple-touch-icon', href: `${baseURL}apple-touch-icon-180x180.png` },
       ],
       meta: [
         { name: 'theme-color', media: '(prefers-color-scheme: light)', content: '#ffffff' },
@@ -54,16 +60,16 @@ export default defineNuxtConfig({
       short_name: 'Kanso',
       description: 'Shared kanban boards',
       lang: 'en',
-      start_url: '/',
-      scope: '/',
+      start_url: baseURL,
+      scope: baseURL,
       display: 'standalone',
       theme_color: '#ffffff',
       background_color: '#ffffff',
       icons: [
-        { src: '/pwa-192x192.png', sizes: '192x192', type: 'image/png' },
-        { src: '/pwa-512x512.png', sizes: '512x512', type: 'image/png' },
-        { src: '/maskable-icon-192x192.png', sizes: '192x192', type: 'image/png', purpose: 'maskable' },
-        { src: '/maskable-icon-512x512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+        { src: `${baseURL}pwa-192x192.png`, sizes: '192x192', type: 'image/png' },
+        { src: `${baseURL}pwa-512x512.png`, sizes: '512x512', type: 'image/png' },
+        { src: `${baseURL}maskable-icon-192x192.png`, sizes: '192x192', type: 'image/png', purpose: 'maskable' },
+        { src: `${baseURL}maskable-icon-512x512.png`, sizes: '512x512', type: 'image/png', purpose: 'maskable' },
       ],
     },
     workbox: {
@@ -71,26 +77,31 @@ export default defineNuxtConfig({
       navigateFallback: null,
       globPatterns: ['**/*.{js,css,svg,png,ico,woff,woff2}'],
       cleanupOutdatedCaches: true,
-      // Cache names must match app/utils/pwaCache.ts (userCacheNames).
+      // Cache names must match app/utils/pwaCache.ts (userCacheNames). The patterns are
+      // serialised into sw.js and cannot see baseURL: they match the path below the
+      // service worker's scope (the base path), so they work at the root and under it.
       runtimeCaching: [
         {
           // Page loads, except sign-in/sign-up/reset pages and /auth/* (OAuth, email links).
           urlPattern: ({ request, url, sameOrigin }) => sameOrigin && request.mode === 'navigate'
-            && !/^\/(?:auth|api|login|register|forgot-password|reset-password)(?:\/|$)/.test(url.pathname),
+            && !/^\/(?:auth|api|login|register|forgot-password|reset-password)(?:\/|$)/
+              .test(url.pathname.slice(new URL((self as unknown as { registration: { scope: string } }).registration.scope).pathname.length - 1)),
           handler: 'NetworkFirst',
           options: { cacheName: 'kanso-pages', networkTimeoutSeconds: 3, cacheableResponse: { statuses: [200] }, expiration: { maxEntries: 50 } },
         },
         {
           // GET /api/me, /api/my-work, /api/boards, /api/boards/:id, /api/cards/:id (not their sub-routes or event streams).
           urlPattern: ({ url, sameOrigin }) => sameOrigin
-            && /^\/api\/(?:me|my-work|boards|boards\/[0-9a-f-]{36}|cards\/[0-9a-f-]{36})$/.test(url.pathname),
+            && /^\/api\/(?:me|my-work|boards|boards\/[0-9a-f-]{36}|cards\/[0-9a-f-]{36})$/
+              .test(url.pathname.slice(new URL((self as unknown as { registration: { scope: string } }).registration.scope).pathname.length - 1)),
           handler: 'NetworkFirst',
           method: 'GET',
           options: { cacheName: 'kanso-api', networkTimeoutSeconds: 3, cacheableResponse: { statuses: [200] }, expiration: { maxEntries: 200 } },
         },
         {
           // Icons served by @nuxt/icon (same for every user).
-          urlPattern: ({ url, sameOrigin }) => sameOrigin && url.pathname.startsWith('/api/_nuxt_icon/'),
+          urlPattern: ({ url, sameOrigin }) => sameOrigin
+            && url.pathname.slice(new URL((self as unknown as { registration: { scope: string } }).registration.scope).pathname.length - 1).startsWith('/api/_nuxt_icon/'),
           handler: 'StaleWhileRevalidate',
           options: { cacheName: 'kanso-icons', cacheableResponse: { statuses: [200] }, expiration: { maxEntries: 50 } },
         },
@@ -118,6 +129,11 @@ export default defineNuxtConfig({
       siteUrl: '',
     },
     // Browsers drop Secure cookies over plain http on hosts other than localhost (LAN dev access).
-    session: { cookie: { secure: process.env.NODE_ENV === 'production' } },
+    // Under a base path the cookie is scoped to it and renamed, so another Nuxt app on
+    // the same host (default name nuxt-session) neither sees nor overwrites it.
+    session: {
+      ...(baseURL === '/' ? {} : { name: 'kanso-session' }),
+      cookie: { secure: process.env.NODE_ENV === 'production', path: baseURL.replace(/(.)\/$/, '$1') },
+    },
   },
 })
