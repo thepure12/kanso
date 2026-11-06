@@ -13,6 +13,7 @@ const props = defineProps<{
 const open = defineModel<boolean>('open', { required: true })
 const showError = useApiError()
 const { t, locale } = useI18n()
+const confirm = useConfirm()
 
 const cards = ref<ArchivedCard[] | null>(null)
 async function load() {
@@ -29,7 +30,7 @@ async function restore(c: ArchivedCard) {
 }
 
 async function remove(c: ArchivedCard) {
-  if (!confirm(t('archive.deleteConfirm', { title: c.title }))) return
+  if (!await confirm({ title: t('archive.deleteConfirm', { title: c.title }), confirmLabel: t('common.delete') })) return
   cards.value = cards.value?.filter(x => x.id !== c.id) ?? null
   await props.remove(c.id)
 }

@@ -472,6 +472,7 @@
       "exportCsv": "Export CSV",
       "webhooks": "Webhooks",
       "unarchive": "Unarchive board",
+      "background": "Background and accent",
       "rename": "Rename board",
       "namePrompt": "Board name",
       "archive": "Archive board",
@@ -499,7 +500,9 @@
       "changedTags": "Changed tags",
       "changedAssignees": "Changed assignees",
       "changedCover": "Changed cover",
-      "editedCard": "Edited card"
+      "editedCard": "Edited card",
+      "changedBackground": "Changed background",
+      "changedAccent": "Changed accent colour"
     },
     "errors": {
       "moveCard": "Could not move card",
@@ -532,7 +535,10 @@
       "saveFieldValue": "Could not save {field}",
       "archiveBoard": "Could not archive board",
       "unarchiveBoard": "Could not unarchive board",
-      "bulk": "Couldn't change the selected cards"
+      "bulk": "Couldn't change the selected cards",
+      "background": "Could not change background",
+      "backgroundUpload": "Could not upload background image",
+      "accent": "Could not change accent colour"
     },
     "bulk": {
       "toolbar": "Bulk actions",
@@ -577,6 +583,9 @@
     "loadFailed": "Could not load activity"
   },
   "filters": {
+    "button": "Filters",
+    "any": "Any",
+    "dueLabel": "Due date",
     "search": "Search cards",
     "tags": "Tags",
     "assignees": "Assignees",
@@ -620,6 +629,8 @@
   },
   "card": {
     "keepAssigneesOnTemplate": "Keep the assignees on the template? Cards made from it will be assigned to them too.",
+    "keepAssignees": "Keep assignees",
+    "dropAssignees": "Leave them off",
     "comments": "Comments",
     "commentsCount": "Comments ({count})",
     "activity": "Activity",
@@ -860,7 +871,7 @@
     "deleteTitle": "Delete {team}?",
     "deleteDescription": "All boards in this team will be deleted for every member.",
     "import": {
-      "label": "Import from file",
+      "label": "Import board",
       "description": "A Kanso or Trello JSON export, or a CSV (Jira, spreadsheets, Kanso). Comments and attachments are not imported.",
       "detect": "Detect from the file",
       "invalidJson": "This file is not valid JSON.",
@@ -1140,6 +1151,63 @@
     "dueInDays": "Due in days",
     "daysUntilDue": "Days until due",
     "dueRuleExists": "Delete the due date rule to change it."
+  },
+  "boardBackground": {
+    "title": "Background and accent",
+    "description": "Everyone on the board sees them.",
+    "photos": "Photos",
+    "gradients": "Gradients",
+    "colours": "Colours",
+    "upload": "Upload",
+    "uploading": "Uploading…",
+    "uploaded": "Uploaded image",
+    "uploadHint": "PNG, JPEG, WebP or GIF, up to 5 MB.",
+    "wrongType": "Use a PNG, JPEG, WebP or GIF image",
+    "tooLarge": "The image is larger than 5 MB",
+    "customColour": "Custom colour",
+    "remove": "Remove background",
+    "photo": {
+      "alps": "Mountains above the clouds",
+      "beach": "Beach at sunrise",
+      "forest": "Forest path",
+      "highlands": "Green highlands",
+      "lake": "Mountain lake",
+      "night": "Starry night over mountains",
+      "city": "City skyline",
+      "desert": "Desert road"
+    },
+    "gradient": {
+      "ocean": "Ocean",
+      "sunset": "Sunset",
+      "forest": "Forest",
+      "peach": "Peach",
+      "aurora": "Aurora",
+      "berry": "Berry",
+      "slate": "Slate",
+      "dawn": "Dawn"
+    },
+    "accent": "Accent colour",
+    "accentHint": "Buttons, links and highlights while the board is open.",
+    "accentDefault": "Default",
+    "accentColour": {
+      "red": "Red",
+      "orange": "Orange",
+      "amber": "Amber",
+      "yellow": "Yellow",
+      "lime": "Lime",
+      "green": "Green",
+      "emerald": "Emerald",
+      "teal": "Teal",
+      "cyan": "Cyan",
+      "sky": "Sky",
+      "blue": "Blue",
+      "indigo": "Indigo",
+      "violet": "Violet",
+      "purple": "Purple",
+      "fuchsia": "Fuchsia",
+      "pink": "Pink",
+      "rose": "Rose"
+    }
   },
   "columnColor": {
     "title": "Column colour",

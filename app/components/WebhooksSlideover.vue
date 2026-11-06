@@ -8,6 +8,7 @@ const open = defineModel<boolean>('open', { required: true })
 const showError = useApiError()
 const toast = useToast()
 const { t, locale } = useI18n()
+const confirm = useConfirm()
 
 const hooks = ref<BoardWebhook[] | null>(null)
 
@@ -92,7 +93,7 @@ async function setActive(h: BoardWebhook, active: boolean) {
 }
 
 async function remove(h: BoardWebhook) {
-  if (!confirm(t('webhooks.deleteConfirm', { url: h.url }))) return
+  if (!await confirm({ title: t('webhooks.deleteConfirm', { url: h.url }), confirmLabel: t('common.delete') })) return
   hooks.value = hooks.value?.filter(x => x.id !== h.id) ?? null
   try {
     await api(`/api/webhooks/${h.id}`, { method: 'DELETE' })

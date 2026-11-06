@@ -472,6 +472,7 @@
       "exportCsv": "Als CSV exportieren",
       "webhooks": "Webhooks",
       "unarchive": "Board aus Archiv holen",
+      "background": "Hintergrund und Akzent",
       "rename": "Board umbenennen",
       "namePrompt": "Name des Boards",
       "archive": "Board archivieren",
@@ -499,7 +500,9 @@
       "changedTags": "Tags geändert",
       "changedAssignees": "Zuständige geändert",
       "changedCover": "Titelbild geändert",
-      "editedCard": "Karte bearbeitet"
+      "editedCard": "Karte bearbeitet",
+      "changedBackground": "Hintergrund geändert",
+      "changedAccent": "Akzentfarbe geändert"
     },
     "errors": {
       "moveCard": "Karte konnte nicht verschoben werden",
@@ -532,7 +535,10 @@
       "saveFieldValue": "{field} konnte nicht gespeichert werden",
       "archiveBoard": "Board konnte nicht archiviert werden",
       "unarchiveBoard": "Board konnte nicht aus dem Archiv geholt werden",
-      "bulk": "Die ausgewählten Karten konnten nicht geändert werden"
+      "bulk": "Die ausgewählten Karten konnten nicht geändert werden",
+      "background": "Hintergrund konnte nicht geändert werden",
+      "backgroundUpload": "Hintergrundbild konnte nicht hochgeladen werden",
+      "accent": "Akzentfarbe konnte nicht geändert werden"
     },
     "bulk": {
       "toolbar": "Sammelaktionen",
@@ -577,6 +583,9 @@
     "loadFailed": "Aktivität konnte nicht geladen werden"
   },
   "filters": {
+    "button": "Filter",
+    "any": "Alle",
+    "dueLabel": "Fälligkeit",
     "search": "Karten durchsuchen",
     "tags": "Tags",
     "assignees": "Zuständige",
@@ -620,6 +629,8 @@
   },
   "card": {
     "keepAssigneesOnTemplate": "Sollen die zugewiesenen Personen in der Vorlage bleiben? Karten aus dieser Vorlage werden ihnen dann ebenfalls zugewiesen.",
+    "keepAssignees": "Zuweisungen behalten",
+    "dropAssignees": "Weglassen",
     "comments": "Kommentare",
     "commentsCount": "Kommentare ({count})",
     "activity": "Verlauf",
@@ -860,7 +871,7 @@
     "deleteTitle": "{team} löschen?",
     "deleteDescription": "Alle Boards dieses Teams werden für alle Mitglieder gelöscht.",
     "import": {
-      "label": "Aus Datei importieren",
+      "label": "Board importieren",
       "description": "Ein JSON-Export aus Kanso oder Trello oder eine CSV-Datei (Jira, Tabellen, Kanso). Kommentare und Anhänge werden nicht importiert.",
       "detect": "Anhand der Datei erkennen",
       "invalidJson": "Diese Datei ist kein gültiges JSON.",
@@ -1140,6 +1151,63 @@
     "dueInDays": "Fällig in Tagen",
     "daysUntilDue": "Tage bis zur Fälligkeit",
     "dueRuleExists": "Lösch die Fälligkeitsregel, um sie zu ändern."
+  },
+  "boardBackground": {
+    "title": "Hintergrund und Akzent",
+    "description": "Alle auf dem Board sehen sie.",
+    "photos": "Fotos",
+    "gradients": "Verläufe",
+    "colours": "Farben",
+    "upload": "Hochladen",
+    "uploading": "Wird hochgeladen…",
+    "uploaded": "Hochgeladenes Bild",
+    "uploadHint": "PNG, JPEG, WebP oder GIF, bis 5 MB.",
+    "wrongType": "Bitte ein PNG-, JPEG-, WebP- oder GIF-Bild verwenden",
+    "tooLarge": "Das Bild ist größer als 5 MB",
+    "customColour": "Eigene Farbe",
+    "remove": "Hintergrund entfernen",
+    "photo": {
+      "alps": "Berge über den Wolken",
+      "beach": "Strand bei Sonnenaufgang",
+      "forest": "Waldweg",
+      "highlands": "Grünes Hochland",
+      "lake": "Bergsee",
+      "night": "Sternennacht über den Bergen",
+      "city": "Skyline",
+      "desert": "Wüstenstraße"
+    },
+    "gradient": {
+      "ocean": "Ozean",
+      "sunset": "Sonnenuntergang",
+      "forest": "Wald",
+      "peach": "Pfirsich",
+      "aurora": "Polarlicht",
+      "berry": "Beere",
+      "slate": "Schiefer",
+      "dawn": "Morgenröte"
+    },
+    "accent": "Akzentfarbe",
+    "accentHint": "Schaltflächen, Links und Hervorhebungen, solange das Board offen ist.",
+    "accentDefault": "Standard",
+    "accentColour": {
+      "red": "Rot",
+      "orange": "Orange",
+      "amber": "Bernstein",
+      "yellow": "Gelb",
+      "lime": "Limette",
+      "green": "Grün",
+      "emerald": "Smaragd",
+      "teal": "Petrol",
+      "cyan": "Cyan",
+      "sky": "Himmelblau",
+      "blue": "Blau",
+      "indigo": "Indigo",
+      "violet": "Violett",
+      "purple": "Lila",
+      "fuchsia": "Fuchsia",
+      "pink": "Pink",
+      "rose": "Rosé"
+    }
   },
   "columnColor": {
     "title": "Spaltenfarbe",

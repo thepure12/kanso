@@ -3,6 +3,8 @@ import type { TeamDetail } from '#shared/types/board'
 
 const route = useRoute()
 const { t } = useI18n()
+const confirm = useConfirm()
+const ask = usePrompt()
 const id = route.params.id as string
 const { data: team, error, refresh } = await useFetch<TeamDetail>(`/api/teams/${id}`)
 if (error.value) throw createError({ statusCode: error.value.statusCode ?? 404, statusMessage: t('teams.notFound'), fatal: true })
@@ -22,7 +24,7 @@ const archivedBoards = computed(() => team.value?.boards.filter(b => b.archivedA
 const showArchived = ref(false)
 
 async function rename() {
-  const name = prompt(t('teams.namePrompt'), team.value?.name)?.trim()
+  const name = (await ask({ title: t('teams.rename'), label: t('teams.namePrompt'), initial: team.value?.name }))?.trim()
   if (!name) return
   try {
     await $fetch(`/api/teams/${id}`, { method: 'PATCH', body: { name } })
@@ -32,7 +34,7 @@ async function rename() {
 }
 
 async function leave() {
-  if (!confirm(t('teams.leaveConfirm', { team: team.value?.name }))) return
+  if (!await confirm({ title: t('teams.leaveConfirm', { team: team.value?.name }), confirmLabel: t('teams.leave') })) return
   try {
     await $fetch(`/api/teams/${id}/members/${user.value!.id}`, { method: 'DELETE' })
     await navigateTo('/')

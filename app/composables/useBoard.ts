@@ -1,3 +1,5 @@
+import type { BoardAccent } from '#shared/boardAccents'
+import type { BoardBackground } from '#shared/boardBackgrounds'
 import type { BoardDetail, BoardField, BulkCardAction, Card, CardLink, CardPatch, CardRecurrence, Column, ColumnRule, FieldValue, NewColumnRule, RecurrenceInput, Tag } from '#shared/types/board'
 
 /** Card fields kept in step with the card dialog's details. */
@@ -90,10 +92,11 @@ export async function useBoard(id: string) {
 
   // Registered before the first await, while the component instance is known.
   const offline = useOffline()
+  const base = basePath()
   let events: EventSource | undefined
   function listen() {
     let failed = false
-    events = new EventSource(`/api/boards/${id}/events?client=${encodeURIComponent(clientId)}`)
+    events = new EventSource(`${base}/api/boards/${id}/events?client=${encodeURIComponent(clientId)}`)
     events.addEventListener('change', () => remoteChanged())
     events.addEventListener('gone', () => {
       events?.close()
@@ -124,7 +127,9 @@ export async function useBoard(id: string) {
     dismissUndoToast()
   })
 
-  const { data: board, error, refresh } = await useFetch<BoardDetail>(`/api/boards/${id}`)
+  // deep: mutations write board.value.name, archivedAt, background, starred directly. Watchers on
+  // `board` still fire only when a reload replaces the object.
+  const { data: board, error, refresh } = await useFetch<BoardDetail>(`/api/boards/${id}`, { deep: true })
 
   // Archived boards are read-only for everyone (enforced by app.can_edit); owners can unarchive.
   // Offline, the board shows the service worker's cached copy and is read-only too.
@@ -293,6 +298,20 @@ export async function useBoard(id: string) {
     }, failure)
   }
 
+  /** Undo/redo of a background change. Uploaded images cannot come back once replaced. */
+  async function putBackground(bg: BoardBackground | null) {
+    if (bg?.kind === 'upload') throw new Error('The uploaded image is gone')
+    board.value!.background = bg
+    await (bg
+      ? api(`/api/boards/${id}/background`, { method: 'PUT', body: bg })
+      : api(`/api/boards/${id}/background`, { method: 'DELETE' }))
+  }
+
+  async function putAccent(accent: BoardAccent | null) {
+    board.value!.accent = accent
+    await api(`/api/boards/${id}/accent`, { method: 'PUT', body: { accent } })
+  }
+
   /** Undo/redo of a card edit: PATCHes the given values. */
   async function patchCard(cardId: string, patch: CardPatch) {
     const card = findCard(cardId)
@@ -358,6 +377,30 @@ export async function useBoard(id: string) {
       const res = await api<{ archivedAt: string | null }>(`/api/boards/${id}/archive`, { method: value ? 'PUT' : 'DELETE' })
       board.value!.archivedAt = res.archivedAt
     }, t(value ? 'board.errors.archiveBoard' : 'board.errors.unarchiveBoard')),
+
+    /** Sets a preset colour, gradient or photo, or clears the background (owners). */
+    setBackground: (bg: BoardBackground | null) => run(async () => {
+      const before = board.value!.background
+      await putBackground(bg)
+      if (!same(before, bg) && before?.kind !== 'upload') {
+        record(t('board.undo.changedBackground'), () => putBackground(before), () => putBackground(bg))
+      }
+    }, t('board.errors.background')),
+
+    /** Sets the board's accent colour, or null for the app default (owners). */
+    setAccent: (accent: BoardAccent | null) => run(async () => {
+      const before = board.value!.accent
+      await putAccent(accent)
+      if (before !== accent) record(t('board.undo.changedAccent'), () => putAccent(before), () => putAccent(accent))
+    }, t('board.errors.accent')),
+
+    /** Uploads an image and makes it the background (owners). */
+    uploadBackground: (file: File) => run(async () => {
+      const form = new FormData()
+      form.append('file', file)
+      const res = await api<{ background: BoardBackground }>(`/api/boards/${id}/background`, { method: 'POST', body: form })
+      board.value!.background = res.background
+    }, t('board.errors.backgroundUpload')),
 
     deleteBoard: () => run(async () => {
       await api(`/api/boards/${id}`, { method: 'DELETE' })

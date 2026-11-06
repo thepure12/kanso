@@ -1,3 +1,6 @@
+import type { BoardAccent } from '../boardAccents'
+import type { BoardBackground } from '../boardBackgrounds'
+
 export type BoardRole = 'owner' | 'editor' | 'viewer'
 
 export interface Person {
@@ -267,6 +270,9 @@ export interface CardDetail {
 export interface BoardDetail {
   id: string
   name: string
+  background: BoardBackground | null
+  /** Palette name replacing the primary colour on the board; null = app default. */
+  accent: BoardAccent | null
   role: BoardRole
   /** Set while the board is archived: read-only for everyone until an owner unarchives it. */
   archivedAt: string | null
@@ -296,6 +302,8 @@ export interface BoardSummary {
   /** Whether the current user starred the board. */
   starred: boolean
   archivedAt: string | null
+  background: BoardBackground | null
+  accent: BoardAccent | null
 }
 
 export interface TeamSummary {

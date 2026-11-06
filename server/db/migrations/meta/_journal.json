@@ -309,6 +309,34 @@
       "when": 1791986095078,
       "tag": "0043_user_locale_rls",
       "breakpoints": true
+    },
+    {
+      "idx": 44,
+      "version": "7",
+      "when": 1793979858745,
+      "tag": "0044_board_backgrounds",
+      "breakpoints": true
+    },
+    {
+      "idx": 45,
+      "version": "7",
+      "when": 1793979871868,
+      "tag": "0045_board_backgrounds_rls",
+      "breakpoints": true
+    },
+    {
+      "idx": 46,
+      "version": "7",
+      "when": 1793992457179,
+      "tag": "0046_board_accent",
+      "breakpoints": true
+    },
+    {
+      "idx": 47,
+      "version": "7",
+      "when": 1793992461618,
+      "tag": "0047_board_accent_rls",
+      "breakpoints": true
     }
   ]
 }

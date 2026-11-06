@@ -12,5 +12,23 @@ export default defineUserHandler(async (event, tx) => {
   const { name, teamId, withCards } = await readValidated(event, body)
   // Reads the source and writes the copy through RLS; see app.copy_board.
   const [board] = await tx.execute<{ id: string, name: string }>(sql`select id, name from app.copy_board(${id}, ${name}, ${teamId}, ${withCards})`)
+  await copyAppearance(tx, id, board!.id)
   return board
 })
+
+/** Gives the copy the source's accent and background (and uploaded image) when the caller owns the copy. */
+async function copyAppearance(tx: Tx, src: string, dest: string) {
+  const [row] = await tx.execute<{ kind: string | null, accent: string | null, owner: boolean }>(sql`
+    select background->>'kind' as kind, accent, app.board_role(${dest}) = 'owner' as owner from boards where id = ${src}`)
+  if (!row?.owner) return
+  if (row.accent) await tx.execute(sql`update boards set accent = ${row.accent} where id = ${dest}`)
+  if (!row.kind) return
+  if (row.kind === 'upload') {
+    const image = await tx.execute(sql`
+      insert into board_backgrounds (board_id, content_type, size, data)
+      select ${dest}, content_type, size, data from board_backgrounds where board_id = ${src}
+      returning 1`)
+    if (!image.length) return
+  }
+  await tx.execute(sql`update boards set background = (select background from boards where id = ${src}) where id = ${dest}`)
+}

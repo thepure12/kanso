@@ -9,6 +9,7 @@ const emit = defineEmits<{
 }>()
 const open = defineModel<boolean>('open', { required: true })
 const { t } = useI18n()
+const confirm = useConfirm()
 
 const randomPreset = () => colorPresets[Math.floor(Math.random() * colorPresets.length)]!
 const draft = reactive({ name: '', color: randomPreset() })
@@ -46,8 +47,8 @@ function create() {
   Object.assign(draft, { name: '', color: randomPreset() })
 }
 
-function remove(tag: Tag) {
-  if (confirm(t('tags.confirmDelete', { name: tag.name }))) emit('delete', tag)
+async function remove(tag: Tag) {
+  if (await confirm({ title: t('tags.confirmDelete', { name: tag.name }), confirmLabel: t('common.delete') })) emit('delete', tag)
 }
 </script>
 

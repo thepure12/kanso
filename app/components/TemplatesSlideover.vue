@@ -13,13 +13,14 @@ const emit = defineEmits<{
 }>()
 const open = defineModel<boolean>('open', { required: true })
 const { t } = useI18n()
+const confirm = useConfirm()
 const i18n = useI18nContext()
 
 const columnTitle = (id: string) => props.columns.find(c => c.id === id)?.title ?? ''
 const recurrenceOf = (tpl: Card) => props.recurrences.find(r => r.templateId === tpl.id)
 
-function remove(tpl: Card) {
-  if (confirm(t(recurrenceOf(tpl) ? 'templates.deleteConfirmRepeating' : 'templates.deleteConfirm', { title: tpl.title }))) emit('delete', tpl)
+async function remove(tpl: Card) {
+  if (await confirm({ title: t(recurrenceOf(tpl) ? 'templates.deleteConfirmRepeating' : 'templates.deleteConfirm', { title: tpl.title }), confirmLabel: t('common.delete') })) emit('delete', tpl)
 }
 </script>
 

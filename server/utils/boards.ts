@@ -9,7 +9,9 @@ export async function loadBoardSummaries(tx: Tx, where: SQL = sql`true`): Promis
            app.board_role(b.id) as role,
            (select count(*)::int from app.board_people(b.id)) as "memberCount",
            exists(select 1 from board_stars s where s.board_id = b.id and s.user_id = app.current_user_id()) as starred,
-           b.archived_at as "archivedAt"
+           b.archived_at as "archivedAt",
+           b.background,
+           b.accent
     from boards b
     where ${where}
     order by b.created_at

@@ -6,9 +6,31 @@ const filter = defineModel<CardFilter>({ required: true })
 const { t } = useI18n()
 
 const active = computed(() => isFilterActive(filter.value))
+// Filters set in the panel (the search box sits outside it).
+const panelCount = computed(() => {
+  const f = filter.value
+  return [f.tagIds.length, f.assigneeIds.length, f.priorities.length, f.due !== 'any', ...Object.values(f.fields).map(v => v.length)]
+    .filter(Boolean).length
+})
 
+// The search box stays collapsed to an icon until opened (click or `/`), and
+// collapses again when it loses focus while empty.
 const search = useTemplateRef<{ inputRef: HTMLInputElement | null }>('search')
-defineExpose({ focus: () => search.value?.inputRef?.focus() })
+const searchOpen = ref(!!filter.value.text)
+async function openSearch() {
+  searchOpen.value = true
+  await nextTick()
+  search.value?.inputRef?.focus()
+}
+function closeSearchIfEmpty() {
+  if (!filter.value.text.trim()) searchOpen.value = false
+}
+function onSearchEscape() {
+  filter.value.text = ''
+  searchOpen.value = false
+}
+watch(() => filter.value.text, v => { if (v) searchOpen.value = true })
+defineExpose({ focus: openSearch })
 
 const memberItems = computed(() => [
   { label: t('filters.unassigned'), value: 'none', icon: 'i-lucide-user-x' },
@@ -35,50 +57,72 @@ const dueItems = computed(() => (['any', 'overdue', 'today', 'week', 'none', 'st
 
 <template>
   <div class="flex flex-wrap items-center gap-2">
+    <UPopover :content="{ align: 'start' }">
+      <UButton icon="i-lucide-list-filter" color="neutral" :variant="panelCount ? 'soft' : 'outline'" :label="t('filters.button')">
+        <template v-if="panelCount" #trailing>
+          <UBadge :label="String(panelCount)" size="sm" variant="solid" />
+        </template>
+      </UButton>
+      <template #content>
+        <div class="p-4 w-72 flex flex-col gap-3">
+          <UFormField :label="t('filters.tags')">
+            <USelectMenu
+              v-model="filter.tagIds"
+              :items="props.tags"
+              value-key="id"
+              label-key="name"
+              multiple
+              :placeholder="t('filters.any')"
+              icon="i-lucide-tag"
+              class="w-full"
+              :search-input="false"
+            >
+              <template #item-leading="{ item }">
+                <span class="size-3 rounded-full shrink-0" :style="{ backgroundColor: item.color }" />
+              </template>
+            </USelectMenu>
+          </UFormField>
+          <UFormField :label="t('filters.assignees')">
+            <USelectMenu v-model="filter.assigneeIds" :items="memberItems" value-key="value" multiple :placeholder="t('filters.any')" icon="i-lucide-user" class="w-full" />
+          </UFormField>
+          <UFormField :label="t('filters.priority')">
+            <USelectMenu v-model="filter.priorities" :items="priorityItems" value-key="value" multiple :placeholder="t('filters.any')" icon="i-lucide-flag" class="w-full" :search-input="false" />
+          </UFormField>
+          <UFormField :label="t('filters.dueLabel')">
+            <USelect v-model="filter.due" :items="dueItems" icon="i-lucide-calendar" class="w-full" />
+          </UFormField>
+          <UFormField v-for="{ field, items } in fieldFilters" :key="field.id" :label="field.name">
+            <USelectMenu
+              :model-value="filter.fields[field.id] ?? []"
+              :items="items"
+              value-key="value"
+              multiple
+              :placeholder="t('filters.any')"
+              :icon="fieldKindMeta[field.kind].icon"
+              class="w-full"
+              :search-input="false"
+              @update:model-value="(keys: string[]) => setFieldFilter(field.id, keys)"
+            >
+              <template #item-leading="{ item }">
+                <span v-if="item.color" class="size-3 rounded-full shrink-0" :style="{ backgroundColor: item.color }" />
+              </template>
+            </USelectMenu>
+          </UFormField>
+        </div>
+      </template>
+    </UPopover>
     <UInput
+      v-if="searchOpen"
       ref="search"
       v-model="filter.text"
       icon="i-lucide-search"
       :placeholder="t('filters.search')"
       class="w-48"
       :aria-label="t('filters.search')"
-      @keydown.esc="filter.text = ''"
+      @blur="closeSearchIfEmpty"
+      @keydown.esc="onSearchEscape"
     />
-    <USelectMenu
-      v-model="filter.tagIds"
-      :items="props.tags"
-      value-key="id"
-      label-key="name"
-      multiple
-      :placeholder="t('filters.tags')"
-      icon="i-lucide-tag"
-      class="w-40"
-      :search-input="false"
-    >
-      <template #item-leading="{ item }">
-        <span class="size-3 rounded-full shrink-0" :style="{ backgroundColor: item.color }" />
-      </template>
-    </USelectMenu>
-    <USelectMenu v-model="filter.assigneeIds" :items="memberItems" value-key="value" multiple :placeholder="t('filters.assignees')" icon="i-lucide-user" class="w-40" />
-    <USelectMenu v-model="filter.priorities" :items="priorityItems" value-key="value" multiple :placeholder="t('filters.priority')" icon="i-lucide-flag" class="w-36" :search-input="false" />
-    <USelect v-model="filter.due" :items="dueItems" icon="i-lucide-calendar" class="w-40" />
-    <USelectMenu
-      v-for="{ field, items } in fieldFilters"
-      :key="field.id"
-      :model-value="filter.fields[field.id] ?? []"
-      :items="items"
-      value-key="value"
-      multiple
-      :placeholder="field.name"
-      :icon="fieldKindMeta[field.kind].icon"
-      class="w-40"
-      :search-input="false"
-      @update:model-value="(keys: string[]) => setFieldFilter(field.id, keys)"
-    >
-      <template #item-leading="{ item }">
-        <span v-if="item.color" class="size-3 rounded-full shrink-0" :style="{ backgroundColor: item.color }" />
-      </template>
-    </USelectMenu>
+    <UButton v-else icon="i-lucide-search" color="neutral" variant="ghost" :aria-label="t('filters.search')" @click="openSearch" />
     <template v-if="active">
       <span class="text-sm text-muted">{{ t('filters.shown', { shown: props.shown, total: props.total }, props.total) }}</span>
       <UButton size="sm" color="neutral" variant="ghost" icon="i-lucide-x" :label="t('common.clear')" @click="filter = emptyFilter()" />

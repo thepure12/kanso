@@ -40,6 +40,7 @@ const emit = defineEmits<{
 }>()
 const open = defineModel<boolean>('open', { required: true })
 const { t } = useI18n()
+const choose = useChoice()
 
 const form = reactive({
   title: '',
@@ -88,8 +89,13 @@ watch(() => cd.detail.value, (d) => {
   })
 }, { deep: true })
 
-function saveTemplate() {
-  const withAssignees = props.card.assigneeIds.length > 0 && confirm(t('card.keepAssigneesOnTemplate'))
+async function saveTemplate() {
+  let withAssignees = false
+  if (props.card.assigneeIds.length > 0) {
+    const answer = await choose({ title: t('card.keepAssigneesOnTemplate'), confirmLabel: t('card.keepAssignees'), cancelLabel: t('card.dropAssignees'), color: 'primary' })
+    if (answer === null) return
+    withAssignees = answer
+  }
   emit('saveTemplate', withAssignees)
 }
 

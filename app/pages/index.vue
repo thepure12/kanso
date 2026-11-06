@@ -10,6 +10,7 @@ const [{ data: boards, refresh: refreshBoards }, { data: teams, refresh: refresh
 const refresh = () => Promise.all([refreshBoards(), refreshTeams()])
 const showError = useApiError()
 const { t } = useI18n()
+const ask = usePrompt()
 
 // Archived boards are listed only in their own section (toggle).
 const activeBoards = computed(() => boards.value.filter(b => !b.archivedAt))
@@ -26,11 +27,9 @@ const boardOpen = ref(false)
 const boardName = ref('')
 const boardTeamId = ref<string | null>(null)
 const boardTemplate = ref('basic')
-const IMPORT = 'import'
-const templateItems = computed(() => [
-  ...boardTemplates.map(b => ({ label: t(`boardTemplates.${b.key}.label`), value: b.key, description: t(`boardTemplates.${b.key}.description`) })),
-  { label: t('home.import.label'), value: IMPORT, description: t('home.import.description') },
-])
+// The same dialog creates a board from a template or imports one from a file.
+const importMode = ref(false)
+const templateItems = computed(() => boardTemplates.map(b => ({ label: t(`boardTemplates.${b.key}.label`), value: b.key, description: t(`boardTemplates.${b.key}.description`) })))
 const creatingBoard = ref(false)
 const toast = useToast()
 
@@ -122,8 +121,9 @@ const teamItems = computed(() => [
   ...teams.value.filter(canCreateIn).map(team => ({ label: team.name, value: team.id })),
 ])
 
-function newBoard(teamId: string | null = null) {
+function newBoard(teamId: string | null = null, importing = false) {
   boardTeamId.value = teamId
+  importMode.value = importing
   boardOpen.value = true
 }
 
@@ -142,7 +142,7 @@ watch(() => route.query.new, openNewFromQuery)
 
 async function createBoard() {
   if (!boardName.value.trim()) return
-  const importing = boardTemplate.value === IMPORT
+  const importing = importMode.value
   if (importing && !importPreview.value) return
   creatingBoard.value = true
   try {
@@ -207,7 +207,7 @@ const deleteOpen = computed({
 function teamMenu(team: TeamSummary) {
   return [[
     { label: t('home.renameTeam'), icon: 'i-lucide-pencil', onSelect: async () => {
-      const name = prompt(t('home.teamNamePrompt'), team.name)?.trim()
+      const name = (await ask({ title: t('home.renameTeam'), label: t('home.teamNamePrompt'), initial: team.name }))?.trim()
       if (!name) return
       try {
         await $fetch(`/api/teams/${team.id}`, { method: 'PATCH', body: { name } })
@@ -243,13 +243,14 @@ async function onLeftTeam() {
       </h1>
       <div class="flex gap-2">
         <UButton icon="i-lucide-users" color="neutral" variant="outline" :label="t('home.newTeam')" @click="teamOpen = true" />
+        <UButton icon="i-lucide-upload" color="neutral" variant="outline" :label="t('home.import.label')" @click="newBoard(null, true)" />
         <UButton icon="i-lucide-plus" :label="t('home.newBoard')" @click="newBoard()" />
       </div>
     </div>
 
     <section v-if="starredBoards.length">
       <h2 class="text-lg font-semibold mb-4 flex items-center gap-2">
-        <UIcon name="i-lucide-star" class="size-5 text-warning" />
+        <UIcon name="i-lucide-star" mode="svg" class="size-5 text-warning [&_*]:fill-current" />
         {{ t('home.starred') }}
       </h2>
       <BoardGrid :boards="starredBoards" @star="toggleStar" />
@@ -301,7 +302,7 @@ async function onLeftTeam() {
       <BoardGrid v-if="showArchived" :boards="archivedBoards" class="mt-4" @star="toggleStar" />
     </section>
 
-    <UModal v-model:open="boardOpen" :title="t('home.newBoard')">
+    <UModal v-model:open="boardOpen" :title="importMode ? t('home.import.label') : t('home.newBoard')" :description="importMode ? t('home.import.description') : undefined">
       <template #body>
         <form class="space-y-4" @submit.prevent="createBoard">
           <UFormField :label="t('home.form.name')">
@@ -310,10 +311,10 @@ async function onLeftTeam() {
           <UFormField :label="t('home.form.team')" :description="boardTeamId ? t('home.form.teamAccess') : t('home.form.personalAccess')">
             <USelect v-model="boardTeamId" :items="teamItems" class="w-full" />
           </UFormField>
-          <UFormField :label="t('home.form.template')" :description="templateItems.find(i => i.value === boardTemplate)?.description">
+          <UFormField v-if="!importMode" :label="t('home.form.template')" :description="templateItems.find(i => i.value === boardTemplate)?.description">
             <USelect v-model="boardTemplate" :items="templateItems" class="w-full" />
           </UFormField>
-          <template v-if="boardTemplate === IMPORT">
+          <template v-else>
             <UFormField :label="t('home.form.format')" :description="importFormat === 'auto' && detectedFormat ? t('home.form.detected', { format: formatLabels[detectedFormat] }) : undefined">
               <USelect v-model="importFormat" :items="importFormatItems" class="w-full" />
             </UFormField>
@@ -338,7 +339,7 @@ async function onLeftTeam() {
             </div>
           </template>
           <div class="flex justify-end">
-            <UButton type="submit" :label="boardTemplate === IMPORT ? t('home.form.import') : t('home.form.create')" :loading="creatingBoard" :disabled="boardTemplate === IMPORT && (!importPreview || previewing)" />
+            <UButton type="submit" :label="importMode ? t('home.form.import') : t('home.form.create')" :loading="creatingBoard" :disabled="importMode && (!importPreview || previewing)" />
           </div>
         </form>
       </template>

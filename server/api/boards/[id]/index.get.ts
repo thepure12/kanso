@@ -6,7 +6,7 @@ export default defineUserHandler(async (event, tx): Promise<BoardDetail> => {
   const { boards, columns, columnRules, invites, tags, teams } = schema
 
   const [board] = await tx.select({
-    id: boards.id, name: boards.name, teamId: boards.teamId, teamName: teams.name, archivedAt: boards.archivedAt,
+    id: boards.id, name: boards.name, teamId: boards.teamId, teamName: teams.name, archivedAt: boards.archivedAt, background: boards.background, accent: boards.accent,
     starred: sql<boolean>`exists(select 1 from board_stars s where s.board_id = ${boards.id} and s.user_id = app.current_user_id())`,
   })
     .from(boards).leftJoin(teams, eq(teams.id, boards.teamId)).where(eq(boards.id, id))
@@ -43,6 +43,8 @@ export default defineUserHandler(async (event, tx): Promise<BoardDetail> => {
     role: me!.role,
     archivedAt: board.archivedAt?.toISOString() ?? null,
     starred: board.starred,
+    background: board.background ?? null,
+    accent: board.accent ?? null,
     team: board.teamId ? { id: board.teamId, name: board.teamName! } : null,
     columns: cols.map(c => ({ ...c, rules: (rulesByColumn.get(c.id) ?? []).map(toColumnRule) })),
     cards: cardRows,

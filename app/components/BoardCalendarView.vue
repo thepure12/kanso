@@ -51,8 +51,8 @@ const dayLabel = (date: string) => new Date(`${date}T00:00`).toLocaleDateString(
 </script>
 
 <template>
-  <div class="flex flex-col lg:flex-row gap-4 items-start">
-    <div class="flex-1 min-w-0 w-full">
+  <div class="flex flex-col lg:flex-row gap-4 lg:items-stretch lg:min-h-full">
+    <div class="flex-1 min-w-0 w-full flex flex-col">
       <div class="flex flex-wrap items-center gap-2 mb-3">
         <UButton icon="i-lucide-chevron-left" color="neutral" variant="ghost" :aria-label="t('calendar.previous')" @click="month = shiftMonth(month, -1)" />
         <UButton icon="i-lucide-chevron-right" color="neutral" variant="ghost" :aria-label="t('calendar.next')" @click="month = shiftMonth(month, 1)" />
@@ -62,7 +62,12 @@ const dayLabel = (date: string) => new Date(`${date}T00:00`).toLocaleDateString(
         </h2>
         <USelect v-model="mode" :items="modeItems" icon="i-lucide-calendar" class="w-36 ms-auto" :aria-label="t('calendar.placeBy')" />
       </div>
-      <div class="grid grid-cols-7 rounded-lg ring ring-default overflow-hidden" role="grid" :aria-label="monthTitle(month, locale)">
+      <div
+        class="flex-1 grid grid-cols-7 rounded-lg ring ring-default overflow-hidden"
+        :style="{ gridTemplateRows: `auto repeat(${weeks.length}, minmax(7rem, 1fr))` }"
+        role="grid"
+        :aria-label="monthTitle(month, locale)"
+      >
         <div v-for="name in weekdays" :key="name" class="px-2 py-1 text-xs font-medium text-muted bg-elevated/60 border-b border-default" role="columnheader">
           {{ name }}
         </div>
@@ -73,7 +78,7 @@ const dayLabel = (date: string) => new Date(`${date}T00:00`).toLocaleDateString(
             role="gridcell"
             :data-date="date"
             :aria-label="dayLabel(date)"
-            class="min-h-28 p-1 border-b border-e border-default flex flex-col gap-1 min-w-0"
+            class="p-1 border-b border-e border-default flex flex-col gap-1 min-w-0"
             :class="[
               monthOf(date) !== month && 'bg-elevated/30 text-dimmed',
               overDate === date && 'bg-primary/10',
@@ -105,36 +110,41 @@ const dayLabel = (date: string) => new Date(`${date}T00:00`).toLocaleDateString(
         </template>
       </div>
     </div>
-    <aside
-      class="w-full lg:w-64 shrink-0 rounded-lg ring ring-default p-3 flex flex-col gap-2"
-      :class="overDate === null && 'bg-primary/10'"
-      data-date="none"
-      :aria-label="t('calendar.undatedLabel')"
-      @dragover="dragOver(null, $event)"
-      @drop.prevent="drop(null)"
-    >
-      <h3 class="text-sm font-medium">
-        {{ t(mode === 'due' ? 'calendar.noDue' : 'calendar.noStart') }} <span class="text-muted font-normal">· {{ undated.length }}</span>
-      </h3>
-      <button
-        v-for="card in undated"
-        :key="card.id"
-        type="button"
-        :draggable="props.canEdit"
-        :data-card="card.id"
-        class="text-left text-sm rounded px-2 py-1 bg-default ring ring-default hover:ring-primary/50 truncate border-s-4"
-        :class="[draggingId === card.id && 'opacity-40', props.canEdit && 'cursor-grab']"
-        :style="{ borderInlineStartColor: tagColor(card) ?? 'var(--ui-border-accented)' }"
-        :title="card.title"
-        @click="emit('open', card.id)"
-        @dragstart="dragStart(card, $event)"
-        @dragend="dragEnd"
+    <!-- On wide screens the tray takes the view's height and scrolls, instead of stretching it. -->
+    <div class="w-full lg:w-64 shrink-0 lg:relative">
+      <aside
+        class="w-full lg:absolute lg:inset-0 rounded-lg ring ring-default p-3 flex flex-col gap-2"
+        :class="overDate === null && 'bg-primary/10'"
+        data-date="none"
+        :aria-label="t('calendar.undatedLabel')"
+        @dragover="dragOver(null, $event)"
+        @drop.prevent="drop(null)"
       >
-        {{ card.title }}
-      </button>
-      <p v-if="props.canEdit" class="text-xs text-dimmed">
-        {{ t('calendar.dragHint') }}
-      </p>
-    </aside>
+        <h3 class="text-sm font-medium">
+          {{ t(mode === 'due' ? 'calendar.noDue' : 'calendar.noStart') }} <span class="text-muted font-normal">· {{ undated.length }}</span>
+        </h3>
+        <div class="flex flex-col gap-2 overflow-y-auto max-h-80 lg:max-h-none lg:flex-1 lg:min-h-0 -mx-1 px-1 py-0.5">
+          <button
+            v-for="card in undated"
+            :key="card.id"
+            type="button"
+            :draggable="props.canEdit"
+            :data-card="card.id"
+            class="shrink-0 text-left text-sm rounded px-2 py-1 bg-default ring ring-default hover:ring-primary/50 truncate border-s-4"
+            :class="[draggingId === card.id && 'opacity-40', props.canEdit && 'cursor-grab']"
+            :style="{ borderInlineStartColor: tagColor(card) ?? 'var(--ui-border-accented)' }"
+            :title="card.title"
+            @click="emit('open', card.id)"
+            @dragstart="dragStart(card, $event)"
+            @dragend="dragEnd"
+          >
+            {{ card.title }}
+          </button>
+        </div>
+        <p v-if="props.canEdit" class="text-xs text-dimmed">
+          {{ t('calendar.dragHint') }}
+        </p>
+      </aside>
+    </div>
   </div>
 </template>

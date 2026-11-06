@@ -5,6 +5,9 @@ const citext = customType<{ data: string }>({ dataType: () => 'citext' })
 const bytea = customType<{ data: Buffer }>({ dataType: () => 'bytea' })
 const tsvector = customType<{ data: string }>({ dataType: () => 'tsvector' })
 
+import type { BoardBackground } from '../../shared/boardBackgrounds'
+import { type BoardAccent, boardAccents } from '../../shared/boardAccents'
+
 const createdAt = () => timestamp('created_at', { withTimezone: true }).notNull().defaultNow()
 
 export const boardRole = pgEnum('board_role', ['owner', 'editor', 'viewer'])
@@ -140,8 +143,31 @@ export const boards = pgTable('boards', {
   // Archived boards are read-only for everyone (app.can_edit is false). Set by
   // owners through app.set_board_archived only (see 0035_board_stars_archive_rls.sql).
   archivedAt: timestamp('archived_at', { withTimezone: true }),
+  // Colour, gradient, stock photo or uploaded image (board_backgrounds); null = plain.
+  // Owners change it (column grant); see 0045_board_backgrounds_rls.sql.
+  background: jsonb('background').$type<BoardBackground>(),
+  // Palette name that replaces the primary colour on the board; null = app default.
+  // Owners change it (column grant); see shared/boardAccents.ts.
+  accent: text('accent').$type<BoardAccent>(),
   createdAt: createdAt(),
-})
+}, t => [
+  check('boards_background_shape', sql`${t.background} is null
+    or (${t.background}->>'kind' = 'color' and ${t.background}->>'value' ~ '^#[0-9a-f]{6}$')
+    or (${t.background}->>'kind' in ('gradient', 'photo', 'upload') and ${t.background}->>'value' ~ '^[a-z0-9-]{1,40}$')`),
+  check('boards_accent_known', sql`${t.accent} is null or ${t.accent} in (${sql.raw(boardAccents.map(a => `'${a}'`).join(', '))})`),
+])
+
+// The uploaded image of a board whose background kind is 'upload'. One per board.
+export const boardBackgrounds = pgTable('board_backgrounds', {
+  boardId: uuid('board_id').primaryKey().references(() => boards.id, { onDelete: 'cascade' }),
+  contentType: text('content_type').notNull(),
+  size: integer('size').notNull(),
+  data: bytea('data').notNull(),
+  createdAt: createdAt(),
+}, t => [
+  check('board_backgrounds_type', sql`${t.contentType} in ('image/png', 'image/jpeg', 'image/webp', 'image/gif')`),
+  check('board_backgrounds_size', sql`${t.size} between 1 and 5242880 and octet_length(${t.data}) = ${t.size}`),
+])
 
 // Boards a user starred; listed first on the home page and in the command palette.
 // Personal: each user sees and changes only their own rows.

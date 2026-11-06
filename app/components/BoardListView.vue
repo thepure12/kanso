@@ -108,77 +108,92 @@ const dueClass = (card: Card) => {
 </script>
 
 <template>
-  <div class="flex flex-col gap-4">
+  <div class="flex flex-col gap-4 max-h-full">
     <div class="flex items-center gap-2">
       <USelect v-model="groupBy" :items="groupItems" icon="i-lucide-rows-3" class="w-44" :aria-label="t('listView.groupBy')" />
       <span class="text-sm text-muted">{{ t('listView.cardCount', { n: props.cards.length }, props.cards.length) }}</span>
     </div>
-    <section v-for="g in groups" :key="g.key" class="rounded-lg ring ring-default overflow-hidden">
-      <h3 v-if="g.label" class="px-4 py-2 text-sm font-medium bg-elevated/60 border-b border-default">
-        {{ g.label }} <span class="text-muted font-normal">· {{ g.cards.length }}</span>
-      </h3>
-      <UTable :data="g.cards" :columns="tableColumns" :empty="t('listView.noCards')" :ui="{ td: 'py-2' }">
-        <template #select-header>
-          <UCheckbox
-            :model-value="groupSelected(g.cards)"
-            :aria-label="t('listView.selectAll')"
-            @update:model-value="v => emit('select', g.cards.map(c => c.id), v === true)"
-          />
-        </template>
-        <template #select-cell="{ row }">
-          <UCheckbox
-            :model-value="props.selectedIds.has(row.original.id)"
-            :aria-label="t('listView.select', { title: row.original.title })"
-            @update:model-value="v => emit('select', [row.original.id], v === true)"
-          />
-        </template>
-        <template #title-cell="{ row }">
-          <button type="button" class="text-left font-medium hover:underline focus-visible:underline max-w-80 truncate block" @click="emit('open', row.original.id)">
-            {{ row.original.title }}
-          </button>
-        </template>
-        <template #column-cell="{ row }">
-          <USelect
-            v-if="props.canEdit"
-            :model-value="row.original.columnId"
-            :items="columnItems"
-            size="xs"
-            class="w-36"
-            :aria-label="t('listView.statusOf', { title: row.original.title })"
-            @update:model-value="(v: string) => v !== row.original.columnId && emit('move', row.original, v)"
-          />
-          <span v-else>{{ columnTitle(row.original.columnId) }}</span>
-        </template>
-        <template #assignees-cell="{ row }">
-          <div v-if="assignees(row.original).length" class="flex items-center gap-1.5">
-            <UAvatarGroup :max="3" size="2xs">
-              <UAvatar v-for="m in assignees(row.original)" :key="m.userId" :src="m.avatarUrl ?? undefined" :alt="m.name" />
-            </UAvatarGroup>
-            <span class="truncate max-w-40">{{ assignees(row.original).map(m => m.name).join(', ') }}</span>
-          </div>
-        </template>
-        <template #tags-cell="{ row }">
-          <div class="flex flex-wrap gap-1 max-w-56">
-            <TagChip v-for="t in cardTags(row.original)" :key="t.id" :tag="t" />
-          </div>
-        </template>
-        <template #priority-cell="{ row }">
-          <UBadge
-            v-if="row.original.priority"
-            :color="priorityMeta[row.original.priority].color"
-            variant="subtle"
-            size="sm"
-            :icon="priorityMeta[row.original.priority].icon"
-            :label="t(`priority.${row.original.priority}`)"
-          />
-        </template>
-        <template #due-cell="{ row }">
-          <span v-if="row.original.dueDate" :class="dueClass(row.original)">{{ formatDate(row.original.dueDate, locale) }}</span>
-        </template>
-      </UTable>
-    </section>
-    <p v-if="!groups.length" class="text-sm text-muted text-center py-8">
-      {{ t('listView.empty') }}
-    </p>
+    <!-- Grows with the cards up to the window height, then scrolls; a single table scrolls itself so its header stays visible. -->
+    <div class="min-h-0 overflow-y-auto flex flex-col gap-4">
+      <section
+        v-for="g in groups"
+        :key="g.key"
+        class="rounded-lg ring ring-default overflow-hidden flex flex-col"
+        :class="groups.length === 1 ? 'min-h-0' : 'shrink-0'"
+      >
+        <h3 v-if="g.label" class="px-4 py-2 text-sm font-medium bg-elevated/60 border-b border-default">
+          {{ g.label }} <span class="text-muted font-normal">· {{ g.cards.length }}</span>
+        </h3>
+        <UTable
+          :data="g.cards"
+          :columns="tableColumns"
+          :empty="t('listView.noCards')"
+          sticky="header"
+          class="min-h-0"
+          :ui="{ td: 'py-2' }"
+        >
+          <template #select-header>
+            <UCheckbox
+              :model-value="groupSelected(g.cards)"
+              :aria-label="t('listView.selectAll')"
+              @update:model-value="v => emit('select', g.cards.map(c => c.id), v === true)"
+            />
+          </template>
+          <template #select-cell="{ row }">
+            <UCheckbox
+              :model-value="props.selectedIds.has(row.original.id)"
+              :aria-label="t('listView.select', { title: row.original.title })"
+              @update:model-value="v => emit('select', [row.original.id], v === true)"
+            />
+          </template>
+          <template #title-cell="{ row }">
+            <button type="button" class="text-left font-medium hover:underline focus-visible:underline max-w-80 truncate block" @click="emit('open', row.original.id)">
+              {{ row.original.title }}
+            </button>
+          </template>
+          <template #column-cell="{ row }">
+            <USelect
+              v-if="props.canEdit"
+              :model-value="row.original.columnId"
+              :items="columnItems"
+              size="xs"
+              class="w-36"
+              :aria-label="t('listView.statusOf', { title: row.original.title })"
+              @update:model-value="(v: string) => v !== row.original.columnId && emit('move', row.original, v)"
+            />
+            <span v-else>{{ columnTitle(row.original.columnId) }}</span>
+          </template>
+          <template #assignees-cell="{ row }">
+            <div v-if="assignees(row.original).length" class="flex items-center gap-1.5">
+              <UAvatarGroup :max="3" size="2xs">
+                <UAvatar v-for="m in assignees(row.original)" :key="m.userId" :src="m.avatarUrl ?? undefined" :alt="m.name" />
+              </UAvatarGroup>
+              <span class="truncate max-w-40">{{ assignees(row.original).map(m => m.name).join(', ') }}</span>
+            </div>
+          </template>
+          <template #tags-cell="{ row }">
+            <div class="flex flex-wrap gap-1 max-w-56">
+              <TagChip v-for="t in cardTags(row.original)" :key="t.id" :tag="t" />
+            </div>
+          </template>
+          <template #priority-cell="{ row }">
+            <UBadge
+              v-if="row.original.priority"
+              :color="priorityMeta[row.original.priority].color"
+              variant="subtle"
+              size="sm"
+              :icon="priorityMeta[row.original.priority].icon"
+              :label="t(`priority.${row.original.priority}`)"
+            />
+          </template>
+          <template #due-cell="{ row }">
+            <span v-if="row.original.dueDate" :class="dueClass(row.original)">{{ formatDate(row.original.dueDate, locale) }}</span>
+          </template>
+        </UTable>
+      </section>
+      <p v-if="!groups.length" class="text-sm text-muted text-center py-8">
+        {{ t('listView.empty') }}
+      </p>
+    </div>
   </div>
 </template>

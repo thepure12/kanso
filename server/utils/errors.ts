@@ -44,6 +44,8 @@ export function toHttpError(err: unknown): never {
       throw createError({ statusCode: 400, statusMessage: 'A card cannot become a template or stop being one' })
     case 'KB008':
       throw createError({ statusCode: 400, statusMessage: 'That card is not a template' })
+    case 'KB009':
+      throw createError({ statusCode: 400, statusMessage: 'Upload a background image first' })
     case '23503':
     case '22P02':
       throw createError({ statusCode: 400, statusMessage: 'Invalid reference' })

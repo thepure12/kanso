@@ -12,6 +12,7 @@ const emit = defineEmits<{
 }>()
 const open = defineModel<boolean>('open', { required: true })
 const { t } = useI18n()
+const confirm = useConfirm()
 const kindLabel = (k: FieldKind) => t(`cardFields.kind.${k}`)
 // The board's fields, also the v-model for drag and drop.
 const list = defineModel<BoardField[]>('fields', { required: true })
@@ -36,8 +37,8 @@ function rename(field: BoardField, e: Event) {
   else if (name !== field.name) emit('update', field, { name })
 }
 
-function remove(field: BoardField) {
-  if (confirm(t('boardFields.confirmDelete', { name: field.name }))) emit('delete', field)
+async function remove(field: BoardField) {
+  if (await confirm({ title: t('boardFields.confirmDelete', { name: field.name }), confirmLabel: t('common.delete') })) emit('delete', field)
 }
 
 const randomPreset = () => colorPresets[Math.floor(Math.random() * colorPresets.length)]!
@@ -54,8 +55,8 @@ function renameOption(field: BoardField, option: FieldOption, e: Event) {
   else if (label !== option.label) setOptions(field, field.options.map(o => o.id === option.id ? { ...o, label } : o))
 }
 
-function removeOption(field: BoardField, option: FieldOption) {
-  if (confirm(t('boardFields.confirmRemoveOption', { label: option.label }))) {
+async function removeOption(field: BoardField, option: FieldOption) {
+  if (await confirm({ title: t('boardFields.confirmRemoveOption', { label: option.label }), confirmLabel: t('common.remove') })) {
     setOptions(field, field.options.filter(o => o.id !== option.id))
   }
 }

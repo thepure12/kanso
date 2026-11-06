@@ -49,7 +49,7 @@ defineShortcuts(computed(() => loggedIn.value
 
 <template>
   <div class="min-h-screen flex flex-col">
-    <UHeader :toggle="false">
+    <UHeader :toggle="false" :ui="{ container: 'max-w-none' }">
       <template #title>
         <AppLogo />
       </template>

@@ -1,0 +1,2 @@
+ALTER TABLE "boards" ADD COLUMN "accent" text;--> statement-breakpoint
+ALTER TABLE "boards" ADD CONSTRAINT "boards_accent_known" CHECK ("boards"."accent" is null or "boards"."accent" in ('red', 'orange', 'amber', 'yellow', 'lime', 'green', 'emerald', 'teal', 'cyan', 'sky', 'blue', 'indigo', 'violet', 'purple', 'fuchsia', 'pink', 'rose'));

@@ -57,7 +57,7 @@ const dueAriaLabel = computed(() => {
 <template>
   <UCard
     :ui="{ body: 'p-3 sm:p-3' }"
-    class="group relative cursor-pointer hover:ring-primary/50 transition"
+    class="group relative shrink-0 cursor-pointer hover:ring-primary/50 transition"
     :class="props.selected && 'ring-2 ring-primary bg-primary/5'"
     tabindex="0"
     @click="onClick"
@@ -87,7 +87,7 @@ const dueAriaLabel = computed(() => {
     />
     <img
       v-if="props.card.coverAttachmentId"
-      :src="`/api/attachments/${props.card.coverAttachmentId}`"
+      :src="appUrl(`/api/attachments/${props.card.coverAttachmentId}`)"
       alt=""
       loading="lazy"
       class="-mx-3 -mt-3 mb-2 h-32 w-[calc(100%+1.5rem)] max-w-none object-cover rounded-t-lg"

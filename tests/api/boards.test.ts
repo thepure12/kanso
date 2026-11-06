@@ -678,6 +678,65 @@ describe('copy and export', () => {
   })
 })
 
+describe('board background', () => {
+  const upload = (who: typeof alice, bytes: Buffer, name = 'bg.png') => {
+    const form = new FormData()
+    form.append('file', new Blob([bytes], { type: 'image/png' }), name)
+    return who.req<{ background: BoardDetail['background'] }>(`/api/boards/${boardId}/background`, { method: 'POST', body: form })
+  }
+  const png = Buffer.from('89504e470d0a1a0a0000000d49484452', 'hex')
+
+  it('owners set presets; unknown presets and editors are refused', async () => {
+    const put = (who: typeof alice, body: unknown) => who.req(`/api/boards/${boardId}/background`, { method: 'PUT', body })
+    expect((await put(alice, { kind: 'gradient', value: 'sunset' })).status).toBe(200)
+    expect((await put(alice, { kind: 'gradient', value: 'nope' })).status).toBe(400)
+    expect((await put(alice, { kind: 'upload', value: 'abc' })).status).toBe(400)
+    expect((await put(bob, { kind: 'color', value: '#123456' })).status).toBe(404)
+    expect((await bob.req<BoardDetail>(`/api/boards/${boardId}`)).data.background).toEqual({ kind: 'gradient', value: 'sunset' })
+    const tiles = (await bob.req<BoardSummary[]>('/api/boards')).data
+    expect(tiles.find(b => b.id === boardId)!.background).toEqual({ kind: 'gradient', value: 'sunset' })
+  })
+
+  it('uploads an image, serves it to members, and copies it', async () => {
+    expect((await upload(alice, Buffer.from('<html><script>alert(1)</script>'), 'x.png')).status).toBe(400)
+    expect((await upload(bob, png)).status).toBe(403)
+    const { data } = await upload(alice, png)
+    expect(data.background).toMatchObject({ kind: 'upload' })
+    const image = await bob.req<Buffer>(`/api/boards/${boardId}/background`)
+    expect(image.headers.get('content-type')).toBe('image/png')
+    expect(image.headers.get('x-content-type-options')).toBe('nosniff')
+    expect(Buffer.compare(image.data, png)).toBe(0)
+    expect((await outsider.req(`/api/boards/${boardId}/background`)).status).toBe(404)
+
+    const copy = await alice.req<{ id: string }>(`/api/boards/${boardId}/copy`, { method: 'POST', body: { name: 'Background copy', withCards: false } })
+    extraBoards.push(copy.data.id)
+    expect((await alice.req<BoardDetail>(`/api/boards/${copy.data.id}`)).data.background).toEqual(data.background)
+    expect((await alice.req(`/api/boards/${copy.data.id}/background`)).status).toBe(200)
+
+    expect((await alice.req(`/api/boards/${boardId}/background`, { method: 'DELETE' })).status).toBe(200)
+    expect((await bob.req(`/api/boards/${boardId}/background`)).status).toBe(404)
+    expect((await bob.req<BoardDetail>(`/api/boards/${boardId}`)).data.background).toBeNull()
+  })
+})
+
+describe('board accent', () => {
+  it('owners set and clear it; members see it; copies keep it', async () => {
+    const put = (who: typeof alice, accent: unknown) => who.req(`/api/boards/${boardId}/accent`, { method: 'PUT', body: { accent } })
+    expect((await put(alice, 'teal')).status).toBe(200)
+    expect((await put(alice, 'chartreuse')).status).toBe(400)
+    expect((await put(bob, 'rose')).status).toBe(404)
+    expect((await bob.req<BoardDetail>(`/api/boards/${boardId}`)).data.accent).toBe('teal')
+    expect((await bob.req<BoardSummary[]>('/api/boards')).data.find(b => b.id === boardId)!.accent).toBe('teal')
+
+    const copy = await alice.req<{ id: string }>(`/api/boards/${boardId}/copy`, { method: 'POST', body: { name: 'Accent copy', withCards: false } })
+    extraBoards.push(copy.data.id)
+    expect((await alice.req<BoardDetail>(`/api/boards/${copy.data.id}`)).data.accent).toBe('teal')
+
+    expect((await put(alice, null)).status).toBe(200)
+    expect((await bob.req<BoardDetail>(`/api/boards/${boardId}`)).data.accent).toBeNull()
+  })
+})
+
 describe('notifications', () => {
   it('notifies the assignee live, links to the card and marks read', async () => {
     const stream = await listen('/api/notifications/events', bob.cookie())

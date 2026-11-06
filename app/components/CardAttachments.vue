@@ -6,6 +6,7 @@ const props = defineProps<{ items: Attachment[] | null, canEdit: boolean, cd: Ca
 const emit = defineEmits<{ cover: [attachmentId: string | null] }>()
 const toast = useToast()
 const { t, locale } = useI18n()
+const confirm = useConfirm()
 
 const MAX_BYTES = 10 * 1024 * 1024
 const input = ref<HTMLInputElement>()
@@ -40,8 +41,8 @@ function onDrop(e: DragEvent) {
   if (props.canEdit) upload([...e.dataTransfer?.files ?? []])
 }
 
-function remove(a: Attachment) {
-  if (confirm(t('attachments.confirmDelete', { name: a.name }))) props.cd.deleteAttachment(a)
+async function remove(a: Attachment) {
+  if (await confirm({ title: t('attachments.confirmDelete', { name: a.name }), confirmLabel: t('common.delete') })) props.cd.deleteAttachment(a)
 }
 </script>
 
@@ -77,9 +78,9 @@ function remove(a: Attachment) {
     </p>
     <ul class="space-y-1">
       <li v-for="a in props.items" :key="a.id" class="group flex items-center gap-2 text-sm">
-        <img v-if="isImage(a)" :src="`/api/attachments/${a.id}`" alt="" class="size-8 rounded object-cover shrink-0" loading="lazy">
+        <img v-if="isImage(a)" :src="appUrl(`/api/attachments/${a.id}`)" alt="" class="size-8 rounded object-cover shrink-0" loading="lazy">
         <UIcon v-else name="i-lucide-file" class="size-8 p-1.5 text-dimmed shrink-0" />
-        <a :href="`/api/attachments/${a.id}`" target="_blank" rel="noopener" class="truncate hover:underline">{{ a.name }}</a>
+        <a :href="appUrl(`/api/attachments/${a.id}`)" target="_blank" rel="noopener" class="truncate hover:underline">{{ a.name }}</a>
         <span class="text-xs text-muted shrink-0">{{ formatBytes(a.size, locale) }}</span>
         <UBadge v-if="a.id === props.coverId" color="neutral" variant="subtle" size="sm" :label="t('attachments.cover')" class="shrink-0" />
         <UButton
@@ -94,7 +95,7 @@ function remove(a: Attachment) {
           @click="emit('cover', a.id === props.coverId ? null : a.id)"
         />
         <UButton
-          :to="`/api/attachments/${a.id}?download`"
+          :to="appUrl(`/api/attachments/${a.id}?download`)"
           external
           download
           icon="i-lucide-download"

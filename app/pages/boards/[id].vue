@@ -1,18 +1,21 @@
 <script setup lang="ts">
 import { VueDraggable, type SortableEvent } from 'vue-draggable-plus'
 import type { BulkCardAction, Card, Column } from '#shared/types/board'
+import { backgroundStyle } from '#shared/boardBackgrounds'
 
 const route = useRoute()
 const id = route.params.id as string
 const {
   board, error, refresh, columns, lists, tags, fields, templates, recurrences, archived, offline, canEdit, isOwner, dragging, remoteVersion,
-  renameBoard, setArchived, deleteBoard, addColumn, renameColumn, setColumnColor, setColumnWipLimit, deleteColumn, columnMoved,
+  renameBoard, setArchived, setBackground, setAccent, uploadBackground, deleteBoard, addColumn, renameColumn, setColumnColor, setColumnWipLimit, deleteColumn, columnMoved,
   addColumnRule, deleteColumnRule, addCard, updateCard, setCardCounts, cardLinkChanged, archiveCard, restoreCard, deleteCard,
   deleteArchivedCard, cardMoved, moveCard, addTag, updateTag, deleteTag,
   addField, updateField, fieldMoved, deleteField, setFieldValue,
   addCardFromTemplate, saveAsTemplate, deleteTemplate, setRecurrence, deleteRecurrence, bulkUpdate, undo, redo, undoGroup,
 } = await useBoard(id)
 const { t } = useI18n()
+const confirm = useConfirm()
+const ask = usePrompt()
 const i18n = useI18nContext()
 
 if (error.value) throw createError({ statusCode: error.value.statusCode ?? 404, statusMessage: t('board.notFound'), fatal: true })
@@ -20,6 +23,15 @@ if (error.value) throw createError({ statusCode: error.value.statusCode ?? 404, 
 useHead({ title: () => board.value?.name ?? t('board.title') })
 
 const toggleStar = useBoardStar()
+
+const backgroundOpen = ref(false)
+const base = basePath()
+const bgStyle = computed(() => backgroundStyle(board.value?.background, id, false, base))
+// Over a background, bars and panels get an opaque-ish backing to stay readable.
+const backed = computed(() => !!bgStyle.value)
+const panel = computed(() => backed.value ? 'bg-default/95 rounded-lg p-2 sm:p-3' : undefined)
+
+useBoardAccent(() => board.value?.accent)
 
 const membersOpen = ref(false)
 const panelMembers = computed(() => (board.value?.members ?? []).map(m => ({
@@ -220,21 +232,27 @@ function onColumnDrop(e: SortableEvent) {
 
 function columnMenu(col: Column) {
   return [[
-    { label: t('board.column.rename'), icon: 'i-lucide-pencil', onSelect: () => {
-      const title = prompt(t('board.column.titlePrompt'), col.title)?.trim()
+    { label: t('board.column.rename'), icon: 'i-lucide-pencil', onSelect: async () => {
+      const title = (await ask({ title: t('board.column.rename'), label: t('board.column.titlePrompt'), initial: col.title }))?.trim()
       if (title) renameColumn(col, title)
     } },
     { label: t('board.column.colour'), icon: 'i-lucide-palette', onSelect: () => { colouringColumn.value = col } },
-    { label: t('board.column.wipLimit'), icon: 'i-lucide-gauge', onSelect: () => {
-      const input = prompt(t('board.column.wipPrompt'), col.wipLimit?.toString() ?? '')
+    { label: t('board.column.wipLimit'), icon: 'i-lucide-gauge', onSelect: async () => {
+      const parse = (input: string) => input.trim() ? Number(input) : null
+      const valid = (value: number | null) => value === null || (Number.isInteger(value) && value >= 1 && value <= 999)
+      const input = await ask({
+        title: t('board.column.wipLimit'),
+        description: t('board.column.wipPrompt'),
+        initial: col.wipLimit?.toString() ?? '',
+        validate: v => valid(parse(v)) ? undefined : t('board.column.wipInvalid'),
+      })
       if (input === null) return
-      const value = input.trim() ? Number(input) : null
-      if (value !== null && !(Number.isInteger(value) && value >= 1 && value <= 999)) return alert(t('board.column.wipInvalid'))
+      const value = parse(input)
       setColumnWipLimit(col, value)
     } },
     { label: t('board.column.rules'), icon: 'i-lucide-zap', onSelect: () => { rulesColumn.value = col } },
-    { label: t('common.delete'), icon: 'i-lucide-trash', color: 'error' as const, onSelect: () => {
-      if (confirm(t('board.column.deleteConfirm', { title: col.title }))) deleteColumn(col)
+    { label: t('common.delete'), icon: 'i-lucide-trash', color: 'error' as const, onSelect: async () => {
+      if (await confirm({ title: t('board.column.deleteConfirm', { title: col.title }), confirmLabel: t('common.delete') })) deleteColumn(col)
     } },
   ]]
 }
@@ -246,8 +264,8 @@ const boardMenu = computed(() => [
     { label: t('board.menu.archived'), icon: 'i-lucide-archive', onSelect: () => { archiveOpen.value = true } },
     { label: t('board.menu.templates'), icon: 'i-lucide-file-stack', onSelect: () => { templatesOpen.value = true } },
     { label: t('board.menu.copy'), icon: 'i-lucide-copy', onSelect: () => { copyOpen.value = true } },
-    { label: t('board.menu.exportJson'), icon: 'i-lucide-file-json', to: `/api/boards/${id}/export?format=json`, external: true, download: true },
-    { label: t('board.menu.exportCsv'), icon: 'i-lucide-file-spreadsheet', to: `/api/boards/${id}/export?format=csv`, external: true, download: true },
+    { label: t('board.menu.exportJson'), icon: 'i-lucide-file-json', to: `${base}/api/boards/${id}/export?format=json`, external: true, download: true },
+    { label: t('board.menu.exportCsv'), icon: 'i-lucide-file-spreadsheet', to: `${base}/api/boards/${id}/export?format=csv`, external: true, download: true },
   ],
   ...(isOwner.value
     ? [[
@@ -255,12 +273,13 @@ const boardMenu = computed(() => [
         ...(archived.value
           ? [{ label: t('board.menu.unarchive'), icon: 'i-lucide-archive-restore', onSelect: () => setArchived(false) }]
           : [
-              { label: t('board.menu.rename'), icon: 'i-lucide-pencil', onSelect: () => {
-                const name = prompt(t('board.menu.namePrompt'), board.value?.name)?.trim()
+              { label: t('board.menu.background'), icon: 'i-lucide-image', onSelect: () => { backgroundOpen.value = true } },
+              { label: t('board.menu.rename'), icon: 'i-lucide-pencil', onSelect: async () => {
+                const name = (await ask({ title: t('board.menu.rename'), label: t('board.menu.namePrompt'), initial: board.value?.name }))?.trim()
                 if (name) renameBoard(name)
               } },
-              { label: t('board.menu.archive'), icon: 'i-lucide-archive', onSelect: () => {
-                if (confirm(t('board.menu.archiveConfirm'))) setArchived(true)
+              { label: t('board.menu.archive'), icon: 'i-lucide-archive', onSelect: async () => {
+                if (await confirm({ title: t('board.menu.archiveConfirm'), confirmLabel: t('board.menu.archive'), color: 'primary' })) setArchived(true)
               } },
             ]),
         { label: t('board.menu.delete'), icon: 'i-lucide-trash', color: 'error' as const, onSelect: () => { confirmDelete.value = true } },
@@ -270,72 +289,86 @@ const boardMenu = computed(() => [
 </script>
 
 <template>
-  <div v-if="board" class="flex-1 flex flex-col min-h-0">
-    <div class="flex flex-wrap items-center gap-3 px-4 sm:px-6 py-4 border-b border-default">
-      <UButton to="/" icon="i-lucide-arrow-left" color="neutral" variant="ghost" :aria-label="t('board.allBoards')" />
-      <div class="min-w-0">
-        <ULink v-if="board.team" :to="`/teams/${board.team.id}`" class="block text-xs text-muted hover:underline truncate">
-          {{ board.team.name }}
-        </ULink>
-        <h1 class="text-xl font-semibold truncate">
-          {{ board.name }}
-        </h1>
+  <!-- Calendar, list and timeline views fit the window below the site header and scroll inside it. -->
+  <div
+    v-if="board"
+    class="flex flex-col min-h-0"
+    :class="view === 'calendar' || view === 'list' || view === 'timeline' ? 'flex-none h-[calc(100dvh-var(--ui-header-height))]' : 'flex-1'"
+    :style="bgStyle"
+  >
+    <div :class="backed && 'bg-default/85 backdrop-blur-sm'">
+      <div class="flex flex-wrap items-center gap-3 px-4 sm:px-6 py-2.5 border-b border-default">
+        <UButton to="/" icon="i-lucide-arrow-left" color="neutral" variant="ghost" :aria-label="t('board.allBoards')" />
+        <div class="min-w-0 flex items-center gap-1.5 text-lg">
+          <template v-if="board.team">
+            <ULink :to="`/teams/${board.team.id}`" class="text-muted hover:underline truncate shrink-[2]">
+              {{ board.team.name }}
+            </ULink>
+            <span class="text-dimmed" aria-hidden="true">/</span>
+          </template>
+          <h1 class="font-semibold truncate">
+            {{ board.name }}
+          </h1>
+        </div>
+        <UButton
+          color="neutral"
+          variant="ghost"
+          :class="board.starred ? 'text-warning' : 'text-dimmed'"
+          :aria-label="board.starred ? t('board.unstar') : t('board.star')"
+          :aria-pressed="board.starred"
+          @click="toggleStar(board)"
+        >
+          <template #leading>
+            <UIcon name="i-lucide-star" mode="svg" class="size-5" :class="board.starred && '[&_*]:fill-current'" />
+          </template>
+        </UButton>
+        <UBadge v-if="archived" color="warning" variant="subtle" icon="i-lucide-archive" :label="t('board.archivedBadge')" />
+        <UTooltip v-else-if="offline" :text="t('pwa.readOnlyHint')">
+          <UBadge color="warning" variant="subtle" icon="i-lucide-wifi-off" :label="t('pwa.readOnly')" />
+        </UTooltip>
+        <UBadge v-else-if="!canEdit" color="neutral" variant="subtle" icon="i-lucide-eye" :label="t('board.viewOnly')" />
+        <div class="order-last basis-full 2xl:order-none 2xl:basis-0 2xl:flex-1 min-w-0 flex flex-wrap items-center gap-2">
+          <USeparator orientation="vertical" class="h-6 mx-1 hidden 2xl:block" />
+          <UTabs v-model="view" :items="viewItems" :content="false" size="sm" :aria-label="t('board.viewLabel')" />
+          <USelect
+            v-if="view === 'board'"
+            v-model="groupBy"
+            :items="groupByItems(fields, t)"
+            icon="i-lucide-rows-3"
+            class="w-40"
+            :aria-label="t('board.swimlanes')"
+          />
+          <USeparator orientation="vertical" class="h-6 mx-1 hidden sm:block" />
+          <BoardFilters ref="filters" v-model="filter" class="flex-1 min-w-0" :tags="tags" :fields="fields" :members="board.members" :shown="visibleIds.size" :total="allCards.length" />
+          <USeparator orientation="vertical" class="h-6 mx-1 hidden 2xl:block" />
+        </div>
+        <div class="ms-auto flex items-center gap-2">
+          <UAvatarGroup :max="4" size="sm">
+            <UAvatar v-for="m in board.members" :key="m.userId" :src="m.avatarUrl ?? undefined" :alt="m.name" />
+          </UAvatarGroup>
+          <UButton v-if="canEdit" icon="i-lucide-tags" color="neutral" variant="outline" :label="t('board.tags')" @click="tagsOpen = true" />
+          <UButton icon="i-lucide-users" color="neutral" variant="outline" :label="t('board.members')" @click="membersOpen = true" />
+          <UDropdownMenu :items="boardMenu">
+            <UButton icon="i-lucide-ellipsis" color="neutral" variant="ghost" :aria-label="t('board.actions')" />
+          </UDropdownMenu>
+        </div>
       </div>
-      <UButton
-        icon="i-lucide-star"
-        color="neutral"
-        variant="ghost"
-        :class="board.starred ? 'text-warning' : 'text-dimmed'"
-        :aria-label="board.starred ? t('board.unstar') : t('board.star')"
-        :aria-pressed="board.starred"
-        @click="toggleStar(board)"
-      />
-      <UBadge v-if="archived" color="warning" variant="subtle" icon="i-lucide-archive" :label="t('board.archivedBadge')" />
-      <UTooltip v-else-if="offline" :text="t('pwa.readOnlyHint')">
-        <UBadge color="warning" variant="subtle" icon="i-lucide-wifi-off" :label="t('pwa.readOnly')" />
-      </UTooltip>
-      <UBadge v-else-if="!canEdit" color="neutral" variant="subtle" icon="i-lucide-eye" :label="t('board.viewOnly')" />
-      <div class="ms-auto flex items-center gap-2">
-        <UAvatarGroup :max="4" size="sm">
-          <UAvatar v-for="m in board.members" :key="m.userId" :src="m.avatarUrl ?? undefined" :alt="m.name" />
-        </UAvatarGroup>
-        <UButton v-if="canEdit" icon="i-lucide-tags" color="neutral" variant="outline" :label="t('board.tags')" @click="tagsOpen = true" />
-        <UButton icon="i-lucide-users" color="neutral" variant="outline" :label="t('board.members')" @click="membersOpen = true" />
-        <UDropdownMenu :items="boardMenu">
-          <UButton icon="i-lucide-ellipsis" color="neutral" variant="ghost" :aria-label="t('board.actions')" />
-        </UDropdownMenu>
-      </div>
-    </div>
 
-    <UAlert
-      v-if="archived"
-      color="warning"
-      variant="subtle"
-      icon="i-lucide-archive"
-      :title="t('board.archivedTitle')"
-      :description="isOwner ? t('board.archivedOwner') : t('board.archivedMember')"
-      :actions="isOwner ? [{ label: t('board.unarchive'), icon: 'i-lucide-archive-restore', color: 'warning', variant: 'solid', onClick: () => setArchived(false) }] : []"
-      class="mx-4 sm:mx-6 mt-3 w-auto"
-    />
-
-    <div class="px-4 sm:px-6 pt-3 flex flex-wrap items-center gap-2">
-      <UTabs v-model="view" :items="viewItems" :content="false" size="sm" :aria-label="t('board.viewLabel')" />
-      <USelect
-        v-if="view === 'board'"
-        v-model="groupBy"
-        :items="groupByItems(fields, t)"
-        icon="i-lucide-rows-3"
-        size="sm"
-        class="w-40"
-        :aria-label="t('board.swimlanes')"
+      <UAlert
+        v-if="archived"
+        color="warning"
+        variant="subtle"
+        icon="i-lucide-archive"
+        :title="t('board.archivedTitle')"
+        :description="isOwner ? t('board.archivedOwner') : t('board.archivedMember')"
+        :actions="isOwner ? [{ label: t('board.unarchive'), icon: 'i-lucide-archive-restore', color: 'warning', variant: 'solid', onClick: () => setArchived(false) }] : []"
+        class="mx-4 sm:mx-6 my-3 w-auto"
       />
     </div>
-    <div class="px-4 sm:px-6 pt-3">
-      <BoardFilters ref="filters" v-model="filter" :tags="tags" :fields="fields" :members="board.members" :shown="visibleIds.size" :total="allCards.length" />
-    </div>
 
-    <div v-if="view === 'list'" class="flex-1 overflow-auto p-4 sm:p-6">
+    <div v-if="view === 'list'" class="flex-1 min-h-0 overflow-auto p-4 sm:p-6">
       <BoardListView
+        :class="panel"
         :cards="visibleCards"
         :columns="columns"
         :members="board.members"
@@ -349,8 +382,9 @@ const boardMenu = computed(() => [
         @select="select"
       />
     </div>
-    <div v-else-if="view === 'calendar'" class="flex-1 overflow-auto p-4 sm:p-6">
+    <div v-else-if="view === 'calendar'" class="flex-1 min-h-0 overflow-auto p-4 sm:p-6">
       <BoardCalendarView
+        :class="panel"
         :cards="visibleCards"
         :tags="tags"
         :can-edit="canEdit"
@@ -361,10 +395,11 @@ const boardMenu = computed(() => [
       />
     </div>
     <div v-else-if="view === 'timeline'" class="flex-1 min-h-0 overflow-auto p-4 sm:p-6">
-      <BoardTimelineView :cards="visibleCards" :columns="columns" :today="today" @open="cardId => editingCardId = cardId" />
+      <BoardTimelineView :class="panel" :cards="visibleCards" :columns="columns" :today="today" @open="cardId => editingCardId = cardId" />
     </div>
     <div v-else-if="groupBy !== 'none'" class="flex-1 overflow-auto">
       <BoardSwimlanes
+        :class="panel"
         :group-by="groupBy"
         :columns="columns"
         :lists="lists"
@@ -383,7 +418,7 @@ const boardMenu = computed(() => [
       />
     </div>
     <div v-else class="flex-1 overflow-x-auto">
-      <div class="flex items-start gap-4 p-4 sm:p-6 min-h-full">
+      <div class="flex items-start gap-4 p-4 sm:p-6 min-h-full w-max min-w-full">
         <VueDraggable
           v-model="columns"
           :disabled="!canEdit"
@@ -397,8 +432,8 @@ const boardMenu = computed(() => [
           <section
             v-for="col in columns"
             :key="col.id"
-            class="w-72 shrink-0 rounded-lg bg-elevated/60 ring flex flex-col max-h-[calc(100vh-14rem)]"
-            :class="wipState(col) === 'over' ? 'ring-error' : 'ring-default'"
+            class="w-72 shrink-0 rounded-lg ring flex flex-col max-h-[calc(100vh-14rem)]"
+            :class="[wipState(col) === 'over' ? 'ring-error' : 'ring-default', backed ? 'bg-elevated/95 shadow-lg' : 'bg-elevated/60']"
           >
             <header
               class="flex items-center gap-2 px-3 py-2 rounded-t-lg"
@@ -470,7 +505,7 @@ const boardMenu = computed(() => [
           </section>
         </VueDraggable>
 
-        <div v-if="canEdit" class="w-72 shrink-0">
+        <div v-if="canEdit" class="w-72 shrink-0" :class="backed && 'bg-default/85 backdrop-blur-sm rounded-lg p-1'">
           <InlineAdd :label="t('board.addColumn')" :placeholder="t('board.columnTitle')" @add="addColumn" />
         </div>
       </div>
@@ -562,6 +597,16 @@ const boardMenu = computed(() => [
       @delete="deleteTemplate"
     />
     <BoardActivitySlideover v-model:open="activityOpen" :board-id="board.id" :version="remoteVersion" />
+    <BoardBackgroundModal
+      v-if="isOwner"
+      v-model:open="backgroundOpen"
+      :board-id="board.id"
+      :background="board.background"
+      :accent="board.accent"
+      :upload="uploadBackground"
+      @set="setBackground"
+      @set-accent="setAccent"
+    />
     <WebhooksSlideover v-if="isOwner" v-model:open="webhooksOpen" :board-id="board.id" />
     <CopyBoardModal v-model:open="copyOpen" :board-id="board.id" :board-name="board.name" :team-id="board.team?.id ?? null" />
     <MembersSlideover

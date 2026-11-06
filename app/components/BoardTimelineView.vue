@@ -37,7 +37,7 @@ const isWeekend = (date: string) => [0, 6].includes(new Date(`${date}T00:00`).ge
 </script>
 
 <template>
-  <div class="flex flex-col gap-3">
+  <div class="flex flex-col gap-3 max-h-full">
     <div class="flex flex-wrap items-center gap-2">
       <USelect v-model="zoom" :items="zoomItems" icon="i-lucide-zoom-in" class="w-32" :aria-label="t('timeline.zoom')" />
       <UButton color="neutral" variant="outline" :label="t('views.today')" @click="scrollToToday" />
@@ -45,7 +45,8 @@ const isWeekend = (date: string) => [0, 6].includes(new Date(`${date}T00:00`).ge
         {{ t('timeline.scheduled', { scheduled: scheduled.length, total: props.cards.length }, props.cards.length) }}
       </span>
     </div>
-    <div v-if="groups.length" ref="scroller" class="overflow-x-auto rounded-lg ring ring-default">
+    <!-- Grows with the rows up to the window height, then scrolls; the date header stays on top. -->
+    <div v-if="groups.length" ref="scroller" class="min-h-0 overflow-auto rounded-lg ring ring-default">
       <div class="relative" :style="{ width: `calc(14rem + ${width}px)` }">
         <!-- Header: months, then days (week zoom) or week starts (month zoom). -->
         <div class="flex sticky top-0 z-10 bg-default border-b border-default">

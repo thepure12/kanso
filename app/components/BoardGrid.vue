@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { BoardSummary } from '#shared/types/board'
+import { backgroundStyle } from '#shared/boardBackgrounds'
 
 defineProps<{ boards: BoardSummary[] }>()
 const emit = defineEmits<{ star: [board: BoardSummary] }>()
@@ -11,7 +12,10 @@ const { t } = useI18n()
 <template>
   <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
     <NuxtLink v-for="b in boards" :key="b.id" :to="`/boards/${b.id}`">
-      <UCard class="hover:ring-primary transition" :class="b.archivedAt && 'opacity-75'">
+      <UCard class="hover:ring-primary transition overflow-hidden" :class="b.archivedAt && 'opacity-75'" :ui="{ header: 'p-0 sm:px-0 h-14' }">
+        <template v-if="b.background" #header>
+          <div class="size-full" :style="backgroundStyle(b.background, b.id, true, basePath())" />
+        </template>
         <div class="flex items-start justify-between gap-2">
           <h3 class="font-medium truncate">
             {{ b.name }}
@@ -23,12 +27,15 @@ const { t } = useI18n()
               size="xs"
               color="neutral"
               variant="ghost"
-              icon="i-lucide-star"
               :class="b.starred ? 'text-warning' : 'text-dimmed'"
               :aria-label="b.starred ? t('board.unstar') : t('board.star')"
               :aria-pressed="b.starred"
               @click.prevent.stop="emit('star', b)"
-            />
+            >
+              <template #leading>
+                <UIcon name="i-lucide-star" mode="svg" class="size-4" :class="b.starred && '[&_*]:fill-current'" />
+              </template>
+            </UButton>
           </div>
         </div>
         <p class="text-sm text-muted mt-2 flex items-center gap-1">
