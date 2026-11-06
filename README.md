@@ -1,326 +1,192 @@
+<div align="center">
+
+<img src="public/favicon.svg" alt="Kanso logo" width="72" height="72">
+
 # Kanso
 
-By PureApps.
+**Shared kanban boards where the database enforces every access rule.**
 
-Shared kanban boards. Nuxt 4, Nuxt UI, Postgres with row-level security, Drizzle ORM.
+[![CI](https://github.com/thepure12/kanso/actions/workflows/ci.yml/badge.svg)](https://github.com/thepure12/kanso/actions/workflows/ci.yml)
+![Nuxt 4](https://img.shields.io/badge/Nuxt-4-00DC82?logo=nuxt&logoColor=white)
+![Postgres 17](https://img.shields.io/badge/Postgres-17-4169E1?logo=postgresql&logoColor=white)
+![PWA](https://img.shields.io/badge/PWA-installable-5A0FC8?logo=pwa&logoColor=white)
+
+[Features](#features) · [Quick start](#quick-start) · [Deployment](docs/DEPLOYMENT.md) · [Architecture](docs/ARCHITECTURE.md) · [API](docs/API.md) · [Roadmap](docs/ROADMAP.md)
+
+<sub>By PureApps</sub>
+
+</div>
+
+---
+
+Kanso is a self-hosted kanban app for teams: boards, cards, calendars and timelines, live updates, webhooks and an
+API, in English and German. It is built with Nuxt 4, Nuxt UI and Drizzle ORM on Postgres 17, and all permission logic
+lives in Postgres row-level security policies. The app holds none of its own.
+
+## Highlights
+
+- 🔐 **Postgres owns authorization.** Three database roles, RLS on every table, identity set per transaction.
+- ⚡ **Live collaboration.** Changes by others appear without a reload; undo with Ctrl/Cmd+Z.
+- 🗂️ **Four views.** Board (with swimlanes), sortable list, month calendar and timeline.
+- 🤖 **Automation.** Column rules, card templates, recurring cards, webhooks to Slack, Discord or any URL.
+- 📱 **Installable.** A PWA with read-only offline access to the boards you opened.
+- 🛡️ **Account security.** Two-factor auth, session management, email verification, rate limits, admin audit log.
 
 ## Features
 
-- Sign in with email + password, Discord, GitHub or Google (`nuxt-auth-utils`).
-- Boards with columns and cards. Drag and drop for cards and columns.
+<details open>
+<summary><b>Boards and teams</b></summary>
+
 - Share a board by email with a role:
   - **owner**: full control, manages members, renames and deletes the board
   - **editor**: creates, edits, moves and deletes columns and cards
   - **viewer**: read only
-- **Teams** group people and boards. A team member's role (owner / editor / viewer) applies to every board in the team.
-  Team owners manage members and can rename or delete the team (which deletes its boards). Team owners and editors can create team boards.
-  You can also add guests to a single team board. A person's effective role is the stronger of their team role and their board role.
+- **Teams** group people and boards. A team member's role applies to every board in the team. Team owners manage
+  members and can rename or delete the team (which deletes its boards); team owners and editors create team boards.
+  Guests can join a single team board. A person's effective role is the stronger of their team role and board role.
 - Boards outside a team are personal: only people added to the board have access.
-- Each team has a page (click its name on the home page or above a board's name) with its boards and members:
-  owners rename or delete the team and manage members and invites; anyone can leave.
-- **Star** boards (star on a board tile or in the board header): starred boards come first on the home page and in the command palette.
-- Owners can **archive** a board (board menu): it becomes read-only for everyone, moves to **Archived boards** on the home page,
-  drops out of search (unless archived results are asked for), notifications and the digest. Owners unarchive it from the board's banner.
-- The board menu's **Activity** shows every card change on the board, newest first, each linking to its card.
-- Cards have a Markdown description, tags, several assignees, a start and due date, a priority, an estimate
-  (story points, summed in the column header), a checklist, comments, file attachments (up to 10 MB each,
-  stored in Postgres; an image can be the card's cover), time tracking (log time as `1h30m`, `45m` or `1:30`)
-  and an activity log.
-  Archive a card to hide it from the board; restore it from **Archived cards**.
-- **Card templates**: "Save as template" in a card's dialog keeps a copy (description, tags, checklist, estimate, priority,
-  field values and optionally assignees) off the board. Add cards from it with a column's template button; manage
-  templates from the board menu (**Templates**). A template can **repeat** daily, weekly (chosen weekdays) or monthly,
-  every N days/weeks/months: a new card appears in the chosen column, optionally with a due date a few days later.
-- **Custom fields** per board (board menu, **Fields**): text, number, date, select (options with colours), checkbox and link.
-  Set values in the card dialog; fields marked "show on cards" appear as chips on the board. Editors manage fields.
-- Search and filter a board by text, tag, assignee, priority, due date, start date and select/checkbox field values.
-- Board views (`?view=`, last choice remembered per board): Board, sortable/groupable List (inline status change), month Calendar (drag a card to another day to change its due or start date) and a read-only Timeline (start to due bars, week/month zoom). Swimlanes in the Board view group cards by assignee, priority, tag or a select field.
-- Search across all your boards (cards, comments, board and column names) from the command palette:
-  **Ctrl/Cmd+K** or the header search button. It also jumps to boards and runs actions. Press **?** for keyboard shortcuts.
-- Live updates: changes by other people appear without a reload.
-- **Installable app** (PWA): install Kanso from the browser (or the user menu's **Install app**). Boards and cards you
-  opened stay viewable offline, read-only, with an offline banner; the board reloads when you are back online. A toast
-  offers **Reload** when a new version is deployed. The offline copy belongs to the signed-in user and is deleted on
-  sign-out or when someone else signs in on the device; still, sign out on shared devices. Only in production builds
-  (`pnpm build`), and service workers need HTTPS (or localhost).
-- **Undo** your recent board changes (moves, archiving, card and column edits, field values, deleted checklist items)
-  from the toast or with **Ctrl/Cmd+Z** (**Ctrl/Cmd+Shift+Z** redoes). Deleting a card asks first and offers to archive instead.
-- Columns can have a colour, a soft WIP limit (the column turns red when over it) and rules that run
-  when a card enters the column: apply a tag, remove a tag, add an assignee, set the due date.
-- New boards start from a template (Basic, Scrum, Bug tracking, Empty). Copy a board, with or without
-  its cards. Export a board as JSON or its cards as CSV.
-- Forgot your password? Reset it by email. The **Account** page changes your name, email (confirmed by a link to the new address)
-  and password, turns on a daily email digest of unread notifications, and deletes your account.
-- **Two-factor authentication** (Account page): TOTP from any authenticator app (QR code or key), plus ten one-time
-  recovery codes shown once. It is asked for after the password and also after OAuth sign-ins, emailed sign-in links
-  and password resets. New recovery codes need a code from the app; turning it off needs the password or a code.
-  Secrets are encrypted at rest (AES-256-GCM) with `NUXT_TOTP_KEY`, or a key derived from `NUXT_SESSION_PASSWORD`;
-  changing that key makes existing secrets unreadable (users sign in with a recovery code and set it up again).
-- **Sessions** (Account page): every signed-in device with browser, IP and last activity; sign one out, or all the others.
-  Sessions from before this feature carry no session id and must sign in again.
-- **Audit log** (Admin page): promotions, demotions, the admin bootstrap, account removals and self-deletions, and sign-up
-  setting changes, with names kept after accounts are deleted. Admins only.
-- **My work** (header, `g m`): the cards assigned to you or that you watch on all your boards, grouped by due date
-  (overdue, today, next 7 days, later, no date). Cards in a board's last column count as done and are hidden unless you ask.
-- **Bulk actions**: Shift/Ctrl/Cmd+click cards (or tick them in the list view) to move, tag, assign, prioritise, date or
-  archive them together; one undo reverts the whole change.
-- Mention people in comments with `@`; they get a notification even when they are not assigned.
-- **Watch** a card (eye button in the card dialog) to get the same notifications as its assignees. You watch cards you
-  create or comment on automatically; the board marks watched cards with an eye.
-- **Link** cards on the same board: *blocks*, *relates to*, *duplicates*. A card shows a **Blocked** badge while a card
-  that blocks it is still open, meaning not archived and not in the board's last column (the last column counts as "done").
-  Blocking links cannot form a cycle.
-- Import a board (new-board dialog, template "Import from file") from a Kanso JSON export, a Trello board JSON export,
-  or a CSV with a header row (Jira exports, spreadsheets, Kanso's own CSV export). A preview shows the counts and the
-  people who were not found before anything is created. Comments and attachments are not imported; assignees are kept
-  only when they can access the new board (matched by email, or by name for Trello and CSV).
-- **API tokens** (Account page): personal access tokens (`Authorization: Bearer kb_...`), read only or read and write,
-  with an optional expiry. They work on board, card and team routes but never on account, sign-in or admin routes.
-  See [docs/API.md](docs/API.md) for the routes and examples.
-- **Webhooks** (board menu, owners): send a board's card activity to a URL as signed JSON, or as Slack or Discord
-  messages, optionally only some kinds of activity. Retried with backoff, turned off after 20 failures in a row, test
-  button, last status shown. Only public addresses are reachable (see [docs/API.md](docs/API.md#webhooks)).
-- **English and German.** The UI follows the browser's language (remembered in a cookie) until you pick one on the
-  Account page; that choice is saved on the account and also sets the language of your emails and of the Slack/Discord
-  messages of webhooks you create.
-- Login, sign-up and password reset attempts are rate limited per IP (and email for login), stored in Postgres so limits hold across restarts and instances.
-- Postgres enforces all access rules. The app holds no permission logic of its own.
+- Each team has a page with its boards and members: owners rename or delete the team and manage members and invites;
+  anyone can leave.
+- New boards start from a template (Basic, Scrum, Bug tracking, Empty). Copy a board with or without its cards.
+- **Star** boards to put them first on the home page and in the command palette.
+- **Archive** a board (owners): it becomes read-only for everyone and drops out of search, notifications and the digest.
+- **Backgrounds and accent colours**: colours, gradients, stock photos or your own image, plus a per-board accent.
+- The board's **Activity** feed shows every card change, newest first.
 
-Planned features: [docs/ROADMAP.md](docs/ROADMAP.md).
+</details>
 
-## Setup
+<details>
+<summary><b>Cards</b></summary>
+
+- Markdown description, tags, several assignees, start and due date, priority, and an estimate in story points
+  (summed in the column header).
+- Checklists, comments with `@mentions`, file attachments up to 10 MB (stored in Postgres; an image can be the cover),
+  time tracking (`1h30m`, `45m` or `1:30`) and an activity log.
+- **Custom fields** per board: text, number, date, select (with colours), checkbox and link. Fields marked
+  "show on cards" appear as chips on the board.
+- **Link** cards: *blocks*, *relates to*, *duplicates*. A card shows **Blocked** while a blocker is still open
+  (not archived and not in the last column). Blocking links cannot form a cycle.
+- **Watch** a card to get the same notifications as its assignees. You watch cards you create or comment on.
+- **Archive** cards to hide them; restore them from **Archived cards**.
+
+</details>
+
+<details>
+<summary><b>Views, search and productivity</b></summary>
+
+- **Views** (`?view=`, remembered per board): Board, sortable/groupable List with inline status change, month
+  Calendar (drag a card to another day) and a read-only Timeline (week/month zoom).
+- **Swimlanes** group the Board view by assignee, priority, tag or a select field.
+- **Filter** a board by text, tag, assignee, priority, due date, start date and select/checkbox field values.
+- **Command palette** (Ctrl/Cmd+K): search cards, comments, boards and columns across all your boards, jump to boards
+  and run actions. Press **?** for keyboard shortcuts.
+- **My work** (`g m`): the cards assigned to you or that you watch, grouped by due date.
+- **Bulk actions**: Shift/Ctrl/Cmd+click cards to move, tag, assign, prioritise, date or archive them together.
+- **Undo** moves, archiving, card and column edits, field values and deleted checklist items from the toast or with
+  Ctrl/Cmd+Z (Ctrl/Cmd+Shift+Z redoes). Deleting a card asks first and offers to archive instead.
+
+</details>
+
+<details>
+<summary><b>Automation and integrations</b></summary>
+
+- **Column rules** run when a card enters a column: apply a tag, remove a tag, add an assignee, set the due date.
+  Columns also have a colour and a soft WIP limit.
+- **Card templates**: "Save as template" keeps a copy (description, tags, checklist, estimate, priority, field values,
+  optionally assignees). A template can **repeat** daily, weekly (chosen weekdays) or monthly, optionally with a due date.
+- **Webhooks** (owners): send card activity as signed JSON, or as Slack or Discord messages. Retried with backoff,
+  turned off after 20 failures in a row; only public addresses are reachable.
+- **API tokens**: personal access tokens (`Authorization: Bearer kb_...`), read only or read and write, with an
+  optional expiry. See [docs/API.md](docs/API.md).
+- **Import** from a Kanso JSON export, a Trello board export or a CSV (Jira, spreadsheets), with a preview first.
+  **Export** a board as JSON or its cards as CSV.
+- **Notifications** in the app (live), plus an optional daily email digest.
+
+</details>
+
+<details>
+<summary><b>Accounts, security and administration</b></summary>
+
+- Sign in with email and password, Discord, GitHub or Google. Password sign-ups confirm their email.
+- **Two-factor authentication**: TOTP from any authenticator app plus ten one-time recovery codes. Secrets are
+  encrypted at rest (AES-256-GCM) with `NUXT_TOTP_KEY`, or a key derived from `NUXT_SESSION_PASSWORD`; changing that
+  key makes existing secrets unreadable.
+- **Sessions**: see every signed-in device and sign out one or all the others.
+- Password reset by email; change name, email (confirmed by a link) and password; delete your account.
+- Login, sign-up and password reset attempts are rate limited in Postgres, so limits hold across restarts and instances.
+- **Admin page**: sign-up rules (open or restricted, allowed domains and emails, outside invites), admin promotion,
+  user removal and an **audit log** of admin actions.
+- **English and German**, following the browser until you pick one; the choice also sets the language of your emails
+  and webhook messages.
+- **Installable app (PWA)**: boards and cards you opened stay viewable offline, read-only. The offline copy is deleted
+  on sign-out or when someone else signs in. Production builds only; service workers need HTTPS (or localhost).
+
+</details>
+
+## Quick start
+
+Requires Node 22, pnpm and Docker (for Postgres).
 
 ```bash
 pnpm install
-cp .env.example .env          # set NUXT_SESSION_PASSWORD (32+ chars) and OAuth keys
+cp .env.example .env          # set NUXT_SESSION_PASSWORD (32+ chars); OAuth keys optional
 pnpm db:up                    # Postgres 17; docker/init.sql creates the roles
 pnpm db:migrate               # runs as kanban_owner
-pnpm dev
+pnpm dev                      # http://localhost:3000
 ```
 
-Run the tests against the migrated database:
+Set `NUXT_ADMIN_EMAIL` to your email: a fresh install only lets that address (and invited people) sign up. Without
+SMTP settings, the dev server logs email verification links to the console.
+
+### Tests
 
 ```bash
-pnpm test                          # everything
-pnpm vitest run --project db       # RLS, triggers, SQL functions
-pnpm vitest run --project unit     # frontend helpers
-pnpm vitest run --project components
-pnpm vitest run --project api      # builds the app and calls its HTTP API (about 1.5 minutes)
+pnpm test                               # everything
+pnpm vitest run --project db            # RLS, triggers, SQL functions (needs the migrated database)
+pnpm vitest run --project unit          # frontend helpers
+pnpm vitest run --project components    # Vue components
+pnpm vitest run --project api           # builds the app and calls its HTTP API (about 1.5 minutes)
+pnpm typecheck
 ```
 
-CI (`.github/workflows/ci.yml`) runs the migrations, the type check and all test projects against a Postgres 17 service.
+CI (`.github/workflows/ci.yml`) runs the migrations, the type check and all test projects against Postgres 17.
 
-### Docker
+## Deployment
 
-The `Dockerfile` builds the app and runs `.output/server/index.mjs` as a non-root user. To run everything in containers:
-
-```bash
-cp .env.example .env          # set NUXT_SESSION_PASSWORD, NUXT_PUBLIC_SITE_URL, mail settings
-docker compose --profile app up -d --build
-```
-
-This starts Postgres, runs the migrations once (`migrate` service) and then the app on port 3000.
-Inside compose the database URLs point at host `db` (set in `docker-compose.yml`, overriding `.env`), using the
-development passwords from `docker/init.sql`; change both for a real deployment. To migrate again after an update:
-`docker compose --profile app run --rm migrate`. The container runs with `NODE_ENV=production`, so session cookies
-are `Secure`: serve it over HTTPS (or on `localhost`).
-
-For a server, use `docker-compose.prod.yml` instead. It takes the role passwords from `.env`, keeps Postgres and
-the app off the host's ports and puts Caddy in front for HTTPS (automatic certificates). Add to `.env`:
-
-```bash
-KANBAN_DOMAIN=kanban.example.com    # DNS points here; ports 80 and 443 open
-POSTGRES_PASSWORD=...               # openssl rand -hex 32 for each password
-KANBAN_OWNER_PASSWORD=...           # hex only: they go into connection URLs
-KANBAN_APP_PASSWORD=...
-KANBAN_AUTH_PASSWORD=...
-```
-
-plus `NUXT_SESSION_PASSWORD`, `NUXT_ADMIN_EMAIL` and the mail settings, then:
-
-```bash
-docker compose -f docker-compose.prod.yml up -d --build   # also after each update; migrations run first
-```
-
-`NUXT_PUBLIC_SITE_URL` is set to `https://$KANBAN_DOMAIN`. The role passwords are applied only when the `pgdata`
-volume is created; to change them later use `ALTER ROLE ... PASSWORD` and update `.env`. OAuth callback URLs become
-`https://<domain>/auth/<provider>`.
-
-### systemd (no Docker)
-
-The build output (`.output/`) is self-contained: no `node_modules`, no native modules, and the app writes nothing to
-disk (data and uploads live in Postgres). The server needs only a Node 22 binary (the official tarball is enough) and
-access to a Postgres 17 database. You can build and migrate from another machine.
-
-The commands below use shell variables; set them to suit the server:
-
-```bash
-APP_DIR=...          # where .output and .env live on the server (may be root-owned and read-only)
-NODE_BIN=...         # the node binary, e.g. "$(command -v node)"
-SERVICE=kanso        # systemd unit name, also used as the service user
-PORT=3000            # local port the reverse proxy forwards to
-SERVER=...           # SSH host of the server
-```
-
-**Database (once).** As a Postgres superuser, create the database and run `docker/init.sql` with real role passwords
-(hex only: they go into connection URLs). Without the variables it falls back to the development passwords.
-
-```bash
-createdb kanban
-psql -v ON_ERROR_STOP=1 -d kanban \
-  -v owner_pw="$(openssl rand -hex 32)" -v app_pw="$(openssl rand -hex 32)" -v auth_pw="$(openssl rand -hex 32)" \
-  -f docker/init.sql          # note the three passwords for .env
-```
-
-**Configuration (once).** On the server, write `$APP_DIR/.env` from `.env.example`: the three database URLs with the
-new passwords, `NUXT_SESSION_PASSWORD`, `NUXT_ADMIN_EMAIL`, `NUXT_PUBLIC_SITE_URL` and the mail settings (plus
-`NUXT_APP_BASE_URL` for a [sub-path](#sub-path)). Keep it readable by the service user only:
-
-```bash
-sudo useradd -r -s /usr/sbin/nologin "$SERVICE"
-sudo mkdir -p "$APP_DIR"
-# write "$APP_DIR/.env" now, then:
-sudo chown root:"$SERVICE" "$APP_DIR/.env" && sudo chmod 640 "$APP_DIR/.env"
-```
-
-**Service (once).**
-
-```bash
-sudo tee "/etc/systemd/system/$SERVICE.service" >/dev/null <<EOF
-[Unit]
-Description=Kanso
-After=network.target postgresql.service
-
-[Service]
-User=$SERVICE
-WorkingDirectory=$APP_DIR
-EnvironmentFile=$APP_DIR/.env
-Environment=NODE_ENV=production HOST=127.0.0.1 PORT=$PORT
-ExecStart=$NODE_BIN .output/server/index.mjs
-Restart=on-failure
-NoNewPrivileges=true
-ProtectSystem=strict
-ProtectHome=true
-PrivateTmp=true
-
-[Install]
-WantedBy=multi-user.target
-EOF
-sudo systemctl daemon-reload && sudo systemctl enable "$SERVICE"
-```
-
-**Each release.** Build on any machine with the repository (set `NUXT_APP_BASE_URL` here, it is fixed at build
-time), migrate before starting the new code, then swap `.output` and restart:
-
-```bash
-# build machine
-pnpm build && tar -czf kanso.tgz .output
-ssh -fN -L 5433:localhost:5432 "$SERVER"      # tunnel to the server's Postgres, if it only listens locally
-MIGRATION_DATABASE_URL=postgres://kanban_owner:<owner password>@localhost:5433/kanban pnpm db:migrate
-scp kanso.tgz "$SERVER":
-
-# server
-sudo rm -rf "$APP_DIR/.output" && sudo tar -xzf ~/kanso.tgz -C "$APP_DIR" && rm ~/kanso.tgz
-sudo systemctl restart "$SERVICE"
-journalctl -u "$SERVICE" -f
-```
-
-**Reverse proxy.** Put HTTPS in front of `127.0.0.1:$PORT` (the cookies are `Secure`). The proxy must:
-
-- replace any client-sent `X-Forwarded-For` with the real client address (login rate limits use its first entry);
-  in Apache, `RequestHeader unset X-Forwarded-For` before `ProxyPass`;
-- not buffer or compress the event streams `/api/boards/:id/events` and `/api/notifications/events`, and allow them
-  to stay open (Apache: `flushpackets=on timeout=3600` on `ProxyPass`, `SetEnv no-gzip 1` for those paths;
-  nginx: `proxy_buffering off`, a long `proxy_read_timeout`);
-- accept request bodies up to about 12 MB (attachments are limited to 10 MB).
-
-The Nitro scheduled tasks (email digest, recurring cards, webhook retries) run inside the service; no cron is needed.
-Back up the database (`pg_dump -Fc kanban`): it holds attachments and uploaded images too.
-
-### Sub-path
-
-To serve the app under a path such as `https://example.org/kanso/`, set in `.env` before building:
-
-```bash
-NUXT_APP_BASE_URL=/kanso/
-NUXT_PUBLIC_SITE_URL=https://example.org/kanso
-```
-
-The base path is fixed at build time (`pnpm build`; for Docker the `NUXT_APP_BASE_URL` build arg, which
-`docker-compose.prod.yml` takes from `.env`), so rebuild after changing it. The reverse proxy forwards the path
-unchanged (`/kanso/...` to `http://127.0.0.1:3000/kanso/...`). Under a sub-path the session cookie is named
-`kanso-session` and scoped to the path, so other apps on the same host do not see it. OAuth callback URLs become
-`https://example.org/kanso/auth/<provider>`.
-
-### OAuth
-
-Set the client ID and secret in `.env`. The login page shows only providers that have credentials set.
-Callback URLs:
-
-| Provider | Callback URL |
+| Option | Best for |
 | --- | --- |
-| Discord | `http://localhost:3000/auth/discord` |
-| GitHub | `http://localhost:3000/auth/github` |
-| Google | `http://localhost:3000/auth/google` |
+| [`docker compose --profile app up -d --build`](docs/DEPLOYMENT.md#docker-compose-local) | Trying it out locally |
+| [`docker-compose.prod.yml`](docs/DEPLOYMENT.md#docker-compose-server) | A server with automatic HTTPS (Caddy) |
+| [systemd, no Docker](docs/DEPLOYMENT.md#systemd-no-docker) | Your own Node 22, Postgres and reverse proxy |
 
-An OAuth login links to an existing account with the same email only when the provider reports the email as verified.
+The app can also run [under a sub-path](docs/DEPLOYMENT.md#sub-path) such as `https://example.org/kanso/`.
+See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for the full guide, OAuth callback URLs and reverse proxy requirements.
 
-## How RLS works
+## How it works
 
-Three database roles, created in `docker/init.sql`:
+```
+browser ──▶ Nuxt route handler ──▶ BEGIN; set_config('app.user_id', …, true)
+                                    │
+                                    ▼
+                       Postgres (role kanban_app, NOBYPASSRLS)
+                       RLS policies · SECURITY DEFINER helpers · triggers
+                                    │
+                    NOTIFY board_changes ──▶ SSE ──▶ other tabs refetch
+```
 
-| Role | Used by | Notes |
-| --- | --- | --- |
-| `kanban_owner` | migrations | Owns all tables and the `app` helper functions. |
-| `kanban_app` | every board / card / member request | Not owner, `NOBYPASSRLS`. Cannot read `password_hash` or `oauth_accounts`. |
-| `kanban_auth` | login, register, OAuth callbacks | Reads and writes `users` and `oauth_accounts` only. |
+| Role | Used by |
+| --- | --- |
+| `kanban_owner` | Migrations. Owns tables and `app.*` functions. |
+| `kanban_app` | Every board, card and team request. Cannot bypass RLS or read credentials. |
+| `kanban_auth` | Sign-in, registration, OAuth callbacks and scheduled tasks. |
 
-Each request runs in a transaction that sets `app.user_id` with `set_config(..., true)`.
-The setting is transaction-local, so pooled connections never carry an identity to the next request.
-See `withUser` in `server/utils/db.ts`.
+Each request runs in a transaction that sets the user id locally, so pooled connections never carry an identity to
+the next request. See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the policies, live updates, translations and
+schema changes.
 
-Policies live in `server/db/migrations/0001_rls.sql` and `0003_teams_rls.sql`. Highlights:
+## Documentation
 
-- `app.board_role(board_id)` returns the caller's effective role: the stronger of the direct board role and the team role. It is `SECURITY DEFINER` so policies on `board_members` do not recurse.
-- New boards go through `app.create_board(name)`, which inserts the board and the owner membership together.
-- `app.add_board_member(board_id, email, role)` checks that the caller is an owner, then looks up the email. Callers cannot read users who do not share a board with them.
-- Teams are created through `app.create_team(name)` and members are added with `app.add_team_member(team_id, email, role)`.
-- A board's team is set at creation and cannot change (column-level `UPDATE` grant on `boards.name` only).
-- Triggers keep at least one owner on each team and on each personal board.
-- `cards (column_id, board_id)` has a composite foreign key to `columns (id, board_id)`, so a card cannot move into another board's column.
-- Card data in other tables (tags, assignees, checklist items, comments, attachments, time entries, watchers, links, activity) carries `board_id` with a composite foreign key to `cards (id, board_id)`, so it cannot point at another board's card.
-- Comments and time entries: editors and owners write them as themselves; authors edit their own; authors and board owners delete them.
-- A card's cover must be an image attachment of the same card (trigger); deleting the image clears it.
-- Watchers: anyone who can see the board watches and unwatches for themselves only. Card links: viewers read, editors add and remove; a trigger rejects blocking cycles.
-- Custom fields: viewers read definitions and values, editors manage both. Triggers check each value against its field's type (a select value must be one of its options) and clear values when their select option is removed.
-- The activity log is written by triggers only; `kanban_app` can read it but not write it.
-- Archived boards: `app.can_edit` is false while `boards.archived_at` is set, so every content write policy blocks owners and editors alike. Only owners archive and unarchive, through `app.set_board_archived`.
-- Stars (`board_stars`) are personal: each user reads, adds and removes only their own, on boards they can see.
-- `app.copy_board(...)` runs as the caller, so the copy reads and writes through the normal policies.
-- Two-factor secrets and recovery codes (`user_totp`, `user_recovery_codes`) are readable by `kanban_auth` only. Users read and revoke (never un-revoke) their own `user_sessions`; `app.check_session` checks the session row and version on each request. `admin_audit_log` is written only by `SECURITY DEFINER` triggers and admin functions and read only by admins.
-- API tokens (`api_tokens`): users create, list and revoke their own; `kanban_app` cannot read `token_hash`. Requests resolve a token through `app.resolve_api_token(sha256)` (only `kanban_auth`). Webhooks (`board_webhooks`): owners only; the secret can be written but not read back. The outbox (`webhook_deliveries`) has no grants: a trigger on `card_activity` fills it and `kanban_auth` functions claim and finish deliveries.
-- Card templates are cards with `is_template` set (fixed at creation); `app.copy_card(...)` copies cards to and from templates as the caller. Recurring schedules (`card_recurrences`): viewers read, editors manage; `app.run_due_recurrences()` (only `kanban_auth`) creates the cards as the schedule's last editor and switches the schedule off once they can no longer edit the board.
-
-Policies for these live in `0012_card_features_rls.sql`, `0014_board_notify_copy.sql`, `0029_card_schedule_time_rls.sql`, `0031_watchers_links_rls.sql`, `0033_board_fields_rls.sql`, `0035_board_stars_archive_rls.sql`, `0037_card_templates_recurring_rls.sql`, `0039_two_factor_sessions_audit_rls.sql` and `0041_api_tokens_webhooks_rls.sql`.
-
-### Live updates
-
-Triggers on every board table send `NOTIFY board_changes` with the board id and the browser tab's id
-(`x-client-id` header, stored in the transaction setting `app.client_id`). The payload holds no board data.
-`GET /api/boards/:id/events` is a server-sent event stream: it sends `change` when someone else changed the
-board, and the page refetches the board through RLS. Access is checked again before each event; the stream
-sends `gone` and closes once the user loses access.
-
-## Translations
-
-UI text lives in `i18n/locales/<code>.json` (`@nuxtjs/i18n`, lazy-loaded, no URL prefixes). Components use
-`useI18n().t('key')`; never hard-code UI text. To add a string, add the key to every locale file
-(`tests/unit/i18n.test.ts` checks that all locales have the same keys and placeholders and that messages compile).
-To add a locale, add its file, its entry in `nuxt.config.ts` (`i18n.locales`), `shared/i18n.ts` (`locales`), the
-`users_locale_check` constraint and the Nuxt UI locale in `app/app.vue`. Emails and webhook messages are rendered on
-the server from the same files (`server/utils/i18n.ts`).
-
-## Schema changes
-
-Edit `server/db/schema.ts`, then `pnpm db:generate` and `pnpm db:migrate`.
-Add policies and grants for new tables in a custom migration (`pnpm drizzle-kit generate --custom`).
+- [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md): Docker, systemd, reverse proxy, sub-path, OAuth
+- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md): database roles, RLS policies, live updates, translations
+- [docs/API.md](docs/API.md): API tokens, routes and webhooks
+- [docs/ROADMAP.md](docs/ROADMAP.md): planned features
