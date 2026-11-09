@@ -156,7 +156,7 @@ CI (`.github/workflows/ci.yml`) runs the migrations, the type check and all test
 | Option | Best for |
 | --- | --- |
 | [`docker compose --profile app up -d --build`](docs/DEPLOYMENT.md#docker-compose-local) | Trying it out locally |
-| [`docker-compose.prod.yml`](docs/DEPLOYMENT.md#docker-compose-server) | A server with automatic HTTPS (Caddy) |
+| [`docker-compose.prod.yml`](docs/DEPLOYMENT.md#docker-compose-server) | A server, with optional Caddy for automatic HTTPS |
 | [systemd, no Docker](docs/DEPLOYMENT.md#systemd-no-docker) | Your own Node 22, Postgres and reverse proxy |
 
 The app can also run [under a sub-path](docs/DEPLOYMENT.md#sub-path) such as `https://example.org/kanso/`.

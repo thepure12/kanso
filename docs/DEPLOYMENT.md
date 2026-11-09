@@ -3,7 +3,7 @@
 Three ways to run Kanso outside development:
 
 - [Docker Compose (local)](#docker-compose-local): everything in containers on one machine, for trying it out.
-- [Docker Compose (server)](#docker-compose-server): Postgres, the app and Caddy with automatic HTTPS.
+- [Docker Compose (server)](#docker-compose-server): Postgres and the app, optionally with Caddy for automatic HTTPS.
 - [systemd (no Docker)](#systemd-no-docker): the self-contained build behind your own reverse proxy.
 
 Also: [serving under a sub-path](#sub-path), [OAuth callback URLs](#oauth) and [backups](#backups).
@@ -17,7 +17,8 @@ cp .env.example .env          # set NUXT_SESSION_PASSWORD, NUXT_PUBLIC_SITE_URL,
 docker compose --profile app up -d --build
 ```
 
-This starts Postgres, runs the migrations once (`migrate` service) and then the app on port 3000.
+This starts Postgres, sets up the database schema (`migrate` service: creates the tables, policies and functions on the
+first start, applies new migrations after an update) and then the app on port 3000.
 
 - Inside compose the database URLs point at host `db` (set in `docker-compose.yml`, overriding `.env`), using the
   development passwords from `docker/init.sql`. Change both for a real deployment.
@@ -26,11 +27,17 @@ This starts Postgres, runs the migrations once (`migrate` service) and then the 
 
 ## Docker Compose (server)
 
-`docker-compose.prod.yml` takes the role passwords from `.env`, keeps Postgres and the app off the host's ports and puts
-Caddy in front for HTTPS (automatic certificates). Add to `.env`:
+`docker-compose.prod.yml` takes the role passwords from `.env` and keeps Postgres off the host's ports. Before the app
+starts, the `migrate` service sets up the database schema: on the first start it creates all tables, row-level security
+policies and functions (an empty database has only the roles); after an update it applies any new migrations; otherwise
+it does nothing and exits. Caddy, for HTTPS with automatic certificates on ports 80 and 443, is optional (compose
+profile `caddy`).
+
+Add to `.env`:
 
 ```bash
-KANBAN_DOMAIN=kanban.example.com    # DNS points here; ports 80 and 443 open
+COMPOSE_PROFILES=caddy              # leave out to use your own reverse proxy
+KANBAN_DOMAIN=kanban.example.com    # DNS points here; with Caddy, ports 80 and 443 open
 POSTGRES_PASSWORD=...               # openssl rand -hex 32 for each password
 KANBAN_OWNER_PASSWORD=...           # hex only: they go into connection URLs
 KANBAN_APP_PASSWORD=...
@@ -42,6 +49,65 @@ plus `NUXT_SESSION_PASSWORD`, `NUXT_ADMIN_EMAIL` and the mail settings, then:
 ```bash
 docker compose -f docker-compose.prod.yml up -d --build   # also after each update; migrations run first
 ```
+
+### Your own reverse proxy
+
+Without Caddy, put your own reverse proxy (Apache, nginx, Traefik, ...) in front of the app:
+
+- The app is published on `KANBAN_APP_PORT`, default `127.0.0.1:3000` (reachable from the host only). Point your proxy
+  there, or set e.g. `KANBAN_APP_PORT=3000` to listen on all interfaces.
+- The proxy must terminate HTTPS: session cookies are `Secure`.
+- The proxy must **replace** the client's `X-Forwarded-For` header with the real client address, not append to it.
+  The app takes the first address in that header as the client's, and the login and sign-up rate limits are keyed on
+  it. A proxy that keeps a client-sent value lets anyone get around them with a new fake address per request.
+- Live updates (`/api/boards/:id/events`, `/api/notifications/events`) are Server-Sent Events: the proxy must pass them
+  on unbuffered and uncompressed. The app sends a ping every 25 s, so the default idle timeouts (60 s) are enough.
+- The proxy must accept request bodies up to about 12 MB (attachments are limited to 10 MB).
+
+To check: sign in and open Account → Sessions. The session must show your real IP address, not the proxy's (such as
+`127.0.0.1`).
+
+**Apache** (`a2enmod proxy proxy_http headers ssl`; certificate e.g. from `certbot --apache`):
+
+```apache
+<VirtualHost *:443>
+    ServerName kanban.example.com
+
+    SSLEngine on
+    SSLCertificateFile    /etc/letsencrypt/live/kanban.example.com/fullchain.pem
+    SSLCertificateKeyFile /etc/letsencrypt/live/kanban.example.com/privkey.pem
+
+    ProxyPreserveHost On
+
+    # mod_proxy appends the client address to X-Forwarded-For; drop any value the
+    # client sent first, so the header holds only the real address.
+    RequestHeader unset X-Forwarded-For
+    RequestHeader set X-Forwarded-Proto "https"
+
+    # Server-Sent Events: no compression, pass each message on at once
+    SetEnvIf Request_URI "/events$" no-gzip=1
+    ProxyPass        / http://127.0.0.1:3000/ flushpackets=on
+    ProxyPassReverse / http://127.0.0.1:3000/
+</VirtualHost>
+```
+
+**nginx** (inside the `server` block with your TLS settings):
+
+```nginx
+location / {
+    proxy_pass http://127.0.0.1:3000;
+    proxy_set_header Host $host;
+    proxy_set_header X-Forwarded-For $remote_addr;   # not $proxy_add_x_forwarded_for, which appends
+    proxy_set_header X-Forwarded-Proto https;
+    proxy_buffering off;                             # Server-Sent Events
+    client_max_body_size 12m;                        # attachments; the default is 1m
+}
+```
+
+If the proxy runs in a container rather than on the host, `127.0.0.1` is the container itself: publish the app on an
+address the container can reach instead, or put both on one Docker network.
+
+### Notes
 
 - `NUXT_PUBLIC_SITE_URL` is set to `https://$KANBAN_DOMAIN`.
 - The role passwords are applied only when the `pgdata` volume is created. To change them later, use
@@ -135,14 +201,8 @@ journalctl -u "$SERVICE" -f
 
 ### 5. Reverse proxy
 
-Put HTTPS in front of `127.0.0.1:$PORT` (the cookies are `Secure`). The proxy must:
-
-- **Replace any client-sent `X-Forwarded-For`** with the real client address (login rate limits use its first entry).
-  In Apache, `RequestHeader unset X-Forwarded-For` before `ProxyPass`.
-- **Not buffer or compress the event streams** `/api/boards/:id/events` and `/api/notifications/events`, and allow
-  them to stay open. Apache: `flushpackets=on timeout=3600` on `ProxyPass`, `SetEnv no-gzip 1` for those paths.
-  nginx: `proxy_buffering off`, a long `proxy_read_timeout`.
-- **Accept request bodies up to about 12 MB** (attachments are limited to 10 MB).
+Put HTTPS in front of `127.0.0.1:$PORT` (the cookies are `Secure`). The requirements and the Apache and nginx examples
+are in [Your own reverse proxy](#your-own-reverse-proxy); use `$PORT` instead of `3000`.
 
 The Nitro scheduled tasks (email digest, recurring cards, webhook retries) run inside the service; no cron is needed.
 
