@@ -1,10 +1,12 @@
 # Deploying Kanso
 
-Three ways to run Kanso outside development:
+Four ways to run Kanso outside development:
 
 - [Docker Compose (local)](#docker-compose-local): everything in containers on one machine, for trying it out.
 - [Docker Compose (server)](#docker-compose-server): Postgres and the app, optionally with Caddy for automatic HTTPS.
 - [systemd (no Docker)](#systemd-no-docker): the self-contained build behind your own reverse proxy.
+- [systemd without a Postgres install](#systemd-without-a-postgres-install): as above, with Postgres from an npm
+  package, for servers that have neither Docker nor Postgres.
 
 Also: [serving under a sub-path](#sub-path), [OAuth callback URLs](#oauth) and [backups](#backups).
 
@@ -205,6 +207,124 @@ Put HTTPS in front of `127.0.0.1:$PORT` (the cookies are `Secure`). The requirem
 are in [Your own reverse proxy](#your-own-reverse-proxy); use `$PORT` instead of `3000`.
 
 The Nitro scheduled tasks (email digest, recurring cards, webhook retries) run inside the service; no cron is needed.
+
+## systemd without a Postgres install
+
+When the server has neither Docker nor a system Postgres (and no hosted one), `deploy/embedded-pg/` runs Postgres 17
+from the [`embedded-postgres`](https://github.com/leinelissen/embedded-postgres) npm package: npm downloads the
+Postgres binaries into `node_modules`, so nothing is installed system-wide and no root is needed to run it. A small
+Node script (`start.mjs`) starts it as a second systemd service next to the app.
+
+`start.mjs` listens on `127.0.0.1` only (no Unix socket) and, on every start, creates the database `kanban`, the three
+roles and the schema settings from `docker/init.sql` when they are missing, and sets the role passwords from its
+environment. Changing a role password is therefore: edit both `.env` files, restart both services.
+
+Limits:
+
+- `embedded-postgres` publishes Postgres 17 only as beta versions; `package.json` pins one exactly.
+- The package ships `postgres`, `initdb` and `pg_ctl`, not `pg_dump` or `psql`. See [backups](#backups-embedded) below.
+- Postgres refuses to run as root: the service needs its own user.
+- Upgrading to a new Postgres major version needs a dump and restore, which needs `pg_dump` from somewhere.
+
+Follow [systemd (no Docker)](#systemd-no-docker) with these changes; the extra variables:
+
+```bash
+PG_DIR=/opt/kanso-pg     # start.mjs, package.json and node_modules (root-owned, read-only)
+PG_SERVICE=kanso-pg      # systemd unit name and service user; data goes to /var/lib/$PG_SERVICE
+PG_PORT=5432             # port on 127.0.0.1
+NPM_BIN=...              # the npm binary next to $NODE_BIN
+```
+
+### 1. Database (once, replaces step 1)
+
+Copy `deploy/embedded-pg/` to the server and install it there (the binaries are platform specific: install on the
+server, not on the build machine):
+
+```bash
+scp -r deploy/embedded-pg "$SERVER":kanso-pg
+# server
+sudo mv ~/kanso-pg "$PG_DIR" && sudo chown -R root:root "$PG_DIR"
+cd "$PG_DIR" && sudo "$NPM_BIN" ci --omit=dev
+sudo useradd -r -s /usr/sbin/nologin "$PG_SERVICE"
+```
+
+Write `$PG_DIR/.env` with four new passwords (letters and digits only, at least 16; the same role passwords go into
+the app's database URLs in step 2):
+
+```bash
+sudo tee "$PG_DIR/.env" >/dev/null <<EOF
+PG_PORT=$PG_PORT
+POSTGRES_PASSWORD=$(openssl rand -hex 32)
+KANBAN_OWNER_PASSWORD=$(openssl rand -hex 32)
+KANBAN_APP_PASSWORD=$(openssl rand -hex 32)
+KANBAN_AUTH_PASSWORD=$(openssl rand -hex 32)
+EOF
+sudo chown root:"$PG_SERVICE" "$PG_DIR/.env" && sudo chmod 640 "$PG_DIR/.env"
+```
+
+`POSTGRES_PASSWORD` (the superuser) is fixed when the data directory is created on the first start; the role passwords
+are applied on every start.
+
+The Postgres service. `KillMode=mixed` sends the stop signal to the Node script only, which shuts Postgres down with a
+fast shutdown (Postgres's own reaction to SIGTERM would wait for the app's connections to close):
+
+```bash
+sudo tee "/etc/systemd/system/$PG_SERVICE.service" >/dev/null <<EOF
+[Unit]
+Description=Kanso Postgres (embedded)
+After=network.target
+
+[Service]
+User=$PG_SERVICE
+WorkingDirectory=$PG_DIR
+EnvironmentFile=$PG_DIR/.env
+Environment=PGDATA_DIR=/var/lib/$PG_SERVICE/data
+StateDirectory=$PG_SERVICE
+StateDirectoryMode=0700
+ExecStart=$NODE_BIN start.mjs
+KillMode=mixed
+TimeoutStopSec=60
+Restart=on-failure
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
+EOF
+sudo systemctl daemon-reload && sudo systemctl enable --now "$PG_SERVICE"
+journalctl -u "$PG_SERVICE"     # ends with "READY: Postgres on 127.0.0.1:..."
+```
+
+### 2. and 3. Configuration and app service
+
+As in [systemd (no Docker)](#systemd-no-docker), with the database URLs pointing at
+`postgres://kanban_app:<app password>@127.0.0.1:$PG_PORT/kanban` (and `kanban_auth`, `kanban_owner` likewise). In the
+app's unit, replace `After=network.target postgresql.service` with:
+
+```ini
+Requires=kanso-pg.service
+After=network.target kanso-pg.service
+```
+
+(use your `$PG_SERVICE` name). Then migrate once as in step 4 (through the SSH tunnel to `$PG_PORT`) before the first
+start of the app. Each release afterwards is the same as step 4.
+
+### Backups (embedded)
+
+Without `pg_dump`, back up the data directory while Postgres is stopped:
+
+```bash
+sudo systemctl stop "$SERVICE" "$PG_SERVICE"
+sudo tar -czf "kanso-pg-$(date +%F).tgz" -C "/var/lib/$PG_SERVICE" data
+sudo systemctl start "$PG_SERVICE" "$SERVICE"
+```
+
+A copy taken while Postgres runs is not safe. A filesystem snapshot (LVM, ZFS, btrfs) of the whole data directory
+works without stopping, since Postgres recovers from it as from a crash. Restore by stopping the service and putting
+the `data` directory back (owned by `$PG_SERVICE`, mode 0700). If `pg_dump` 17 is available on another machine,
+`pg_dump -Fc` through the SSH tunnel also works, as the `postgres` superuser.
 
 ## Sub-path
 

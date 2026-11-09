@@ -1,0 +1,22 @@
+{
+  "name": "kanso-embedded-pg",
+  "private": true,
+  "description": "Postgres 17 for Kanso from the embedded-postgres package, for servers without a system Postgres or Docker",
+  "type": "module",
+  "scripts": {
+    "start": "node start.mjs"
+  },
+  "dependencies": {
+    "embedded-postgres": "17.11.0-beta.19",
+    "postgres": "3.4.9"
+  },
+  "allowScripts": {
+    "@embedded-postgres/linux-x64": true,
+    "@embedded-postgres/linux-arm64": true,
+    "@embedded-postgres/linux-arm": true,
+    "@embedded-postgres/linux-ia32": true,
+    "@embedded-postgres/linux-ppc64": true,
+    "@embedded-postgres/darwin-x64": true,
+    "@embedded-postgres/darwin-arm64": true
+  }
+}

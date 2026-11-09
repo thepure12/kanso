@@ -14,3 +14,4 @@ coverage
 .vscode
 .claude/worktrees/
 .claude/settings.local.json
+deploy/embedded-pg/data

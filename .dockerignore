@@ -10,3 +10,4 @@ tests
 *.log
 Dockerfile
 docker-compose.yml
+deploy

@@ -158,6 +158,7 @@ CI (`.github/workflows/ci.yml`) runs the migrations, the type check and all test
 | [`docker compose --profile app up -d --build`](docs/DEPLOYMENT.md#docker-compose-local) | Trying it out locally |
 | [`docker-compose.prod.yml`](docs/DEPLOYMENT.md#docker-compose-server) | A server, with optional Caddy for automatic HTTPS |
 | [systemd, no Docker](docs/DEPLOYMENT.md#systemd-no-docker) | Your own Node 22, Postgres and reverse proxy |
+| [systemd, no Docker, no Postgres install](docs/DEPLOYMENT.md#systemd-without-a-postgres-install) | A server with only Node 22: Postgres runs from an npm package (`deploy/embedded-pg/`) |
 
 The app can also run [under a sub-path](docs/DEPLOYMENT.md#sub-path) such as `https://example.org/kanso/`.
 See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for the full guide, OAuth callback URLs and reverse proxy requirements.
