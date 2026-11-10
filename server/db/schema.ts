@@ -217,6 +217,35 @@ export const columns = pgTable('columns', {
   check('columns_wip_limit_range', sql`${t.wipLimit} between 1 and 999`),
 ])
 
+// Named set of a board's columns, so the board view can show one group only.
+// A column can be in several groups. See 0051_column_groups_rls.sql.
+export const columnGroups = pgTable('column_groups', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  boardId: uuid('board_id').notNull().references(() => boards.id, { onDelete: 'cascade' }),
+  name: text('name').notNull(),
+  // Chip colour as lowercase #rrggbb. Null = default.
+  color: text('color'),
+  position: doublePrecision('position').notNull(),
+  createdAt: createdAt(),
+}, t => [
+  unique('column_groups_id_board_id_unique').on(t.id, t.boardId),
+  uniqueIndex('column_groups_board_name_unique').on(t.boardId, sql`lower(${t.name})`),
+  check('column_groups_name_length', sql`char_length(${t.name}) between 1 and 50`),
+  check('column_groups_color_hex', sql`${t.color} ~ '^#[0-9a-f]{6}$'`),
+])
+
+// Composite FKs: a group only holds columns of its own board.
+export const columnGroupMembers = pgTable('column_group_members', {
+  groupId: uuid('group_id').notNull(),
+  columnId: uuid('column_id').notNull(),
+  boardId: uuid('board_id').notNull(),
+}, t => [
+  primaryKey({ columns: [t.groupId, t.columnId] }),
+  index('column_group_members_column_idx').on(t.columnId),
+  foreignKey({ columns: [t.groupId, t.boardId], foreignColumns: [columnGroups.id, columnGroups.boardId], name: 'column_group_members_group_fk' }).onDelete('cascade'),
+  foreignKey({ columns: [t.columnId, t.boardId], foreignColumns: [columns.id, columns.boardId], name: 'column_group_members_column_fk' }).onDelete('cascade'),
+])
+
 export const cards = pgTable('cards', {
   id: uuid('id').primaryKey().defaultRandom(),
   boardId: uuid('board_id').notNull().references(() => boards.id, { onDelete: 'cascade' }),
@@ -342,6 +371,8 @@ export const cardComments = pgTable('card_comments', {
   boardId: uuid('board_id').notNull(),
   // Null once the author's account is deleted.
   authorId: uuid('author_id').references(() => users.id, { onDelete: 'set null' }),
+  // Display name of the original author of an imported comment (author_id is null then).
+  importedAuthor: text('imported_author'),
   body: text('body').notNull(),
   createdAt: createdAt(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
@@ -350,6 +381,7 @@ export const cardComments = pgTable('card_comments', {
   cardFk('card_comments_card_board_fk', t),
   index('card_comments_card_idx').on(t.cardId),
   index('card_comments_search_idx').using('gin', t.search),
+  check('card_comments_imported_author', sql`${t.importedAuthor} is null or (${t.authorId} is null and length(${t.importedAuthor}) between 1 and 100)`),
 ])
 
 // Files live in Postgres so the same RLS policies guard downloads.

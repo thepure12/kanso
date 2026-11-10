@@ -477,7 +477,10 @@
       "namePrompt": "Name des Boards",
       "archive": "Board archivieren",
       "archiveConfirm": "Dieses Board archivieren? Es ist dann für alle schreibgeschützt, bis ein Eigentümer es aus dem Archiv holt.",
-      "delete": "Board löschen"
+      "delete": "Board löschen",
+      "columnGroups": "Spaltengruppen",
+      "tagNames": "Tag-Namen anzeigen",
+      "groupNames": "Namen der Spaltengruppen anzeigen"
     },
     "undo": {
       "action": "Rückgängig",
@@ -538,7 +541,11 @@
       "bulk": "Die ausgewählten Karten konnten nicht geändert werden",
       "background": "Hintergrund konnte nicht geändert werden",
       "backgroundUpload": "Hintergrundbild konnte nicht hochgeladen werden",
-      "accent": "Akzentfarbe konnte nicht geändert werden"
+      "accent": "Akzentfarbe konnte nicht geändert werden",
+      "addColumnGroup": "Spaltengruppe konnte nicht hinzugefügt werden",
+      "saveColumnGroup": "Spaltengruppe konnte nicht gespeichert werden",
+      "moveColumnGroup": "Spaltengruppe konnte nicht verschoben werden",
+      "deleteColumnGroup": "Spaltengruppe konnte nicht gelöscht werden"
     },
     "bulk": {
       "toolbar": "Sammelaktionen",
@@ -583,6 +590,7 @@
     "loadFailed": "Aktivität konnte nicht geladen werden"
   },
   "filters": {
+    "clearPanel": "Filter zurücksetzen",
     "button": "Filter",
     "any": "Alle",
     "dueLabel": "Fälligkeit",
@@ -691,6 +699,7 @@
     "submit": "Kommentieren",
     "empty": "Noch keine Kommentare.",
     "edited": "(bearbeitet)",
+    "imported": "Importiert",
     "edit": "Kommentar bearbeiten",
     "delete": "Kommentar löschen",
     "errors": {
@@ -872,7 +881,7 @@
     "deleteDescription": "Alle Boards dieses Teams werden für alle Mitglieder gelöscht.",
     "import": {
       "label": "Board importieren",
-      "description": "Ein JSON-Export aus Kanso oder Trello oder eine CSV-Datei (Jira, Tabellen, Kanso). Kommentare und Anhänge werden nicht importiert.",
+      "description": "Ein JSON-Export aus Kanso oder Trello oder eine CSV-Datei (Jira, Tabellen, Kanso). Anhänge werden nicht importiert.",
       "detect": "Anhand der Datei erkennen",
       "invalidJson": "Diese Datei ist kein gültiges JSON.",
       "defaultName": "Importiertes Board",
@@ -1251,5 +1260,24 @@
       "none": "Ohne Fälligkeit"
     },
     "refresh": "Aktualisieren"
+  },
+  "columnGroups": {
+    "title": "Spaltengruppen",
+    "description": "Fasse Spalten zu Gruppen zusammen, um jeweils nur eine Gruppe anzuzeigen. Eine Spalte kann in mehreren Gruppen sein.",
+    "empty": "Noch keine Spaltengruppen.",
+    "newGroup": "Neue Gruppe",
+    "newColour": "Farbe der neuen Gruppe",
+    "newColumns": "Spalten der neuen Gruppe",
+    "nameOf": "Name von {name}",
+    "columnsOf": "Spalten von {name}",
+    "pickColumns": "Spalten wählen",
+    "columnCount": "{count} Spalte | {count} Spalten",
+    "delete": "{name} löschen",
+    "confirmDelete": "Gruppe „{name}“ löschen? Ihre Spalten bleiben erhalten.",
+    "all": "Alle Spalten",
+    "show": "Spaltengruppe",
+    "showOnly": "Nur {name} anzeigen",
+    "menu": "Gruppen",
+    "manage": "Gruppen verwalten…"
   }
 }

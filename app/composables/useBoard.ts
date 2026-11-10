@@ -1,6 +1,6 @@
 import type { BoardAccent } from '#shared/boardAccents'
 import type { BoardBackground } from '#shared/boardBackgrounds'
-import type { BoardDetail, BoardField, BulkCardAction, Card, CardLink, CardPatch, CardRecurrence, Column, ColumnRule, FieldValue, NewColumnRule, RecurrenceInput, Tag } from '#shared/types/board'
+import type { BoardDetail, BoardField, BulkCardAction, Card, CardLink, CardPatch, CardRecurrence, Column, ColumnGroup, ColumnRule, FieldValue, NewColumnRule, RecurrenceInput, Tag } from '#shared/types/board'
 
 /** Card fields kept in step with the card dialog's details. */
 export type CardCounts = Pick<Card, 'checklist' | 'commentCount' | 'attachmentCount' | 'timeMinutes' | 'coverAttachmentId' | 'watching'>
@@ -142,6 +142,7 @@ export async function useBoard(id: string) {
   const columns = ref<Column[]>([])
   const tags = ref<Tag[]>([])
   const fields = ref<BoardField[]>([])
+  const columnGroups = ref<ColumnGroup[]>([])
   // Card templates (not on the board) and their recurring schedules.
   const templates = ref<Card[]>([])
   const recurrences = ref<CardRecurrence[]>([])
@@ -150,6 +151,7 @@ export async function useBoard(id: string) {
     columns.value = [...b.columns]
     tags.value = [...b.tags]
     fields.value = [...b.fields]
+    columnGroups.value = b.columnGroups.map(g => ({ ...g, columnIds: [...g.columnIds] }))
     templates.value = [...b.templates]
     recurrences.value = [...b.recurrences]
     lists.value = Object.fromEntries(b.columns.map(c => [c.id, b.cards.filter(card => card.columnId === c.id)]))
@@ -407,10 +409,13 @@ export async function useBoard(id: string) {
       await navigateTo('/')
     }, t('board.errors.deleteBoard')),
 
-    addColumn: (title: string) => run(async () => {
-      const col = await api<Column>(`/api/boards/${id}/columns`, { method: 'POST', body: { title } })
+    /** With groupId, the new column also joins that group (the one the board shows). */
+    addColumn: (title: string, groupId?: string | null) => run(async () => {
+      const col = await api<Column>(`/api/boards/${id}/columns`, { method: 'POST', body: { title, groupId: groupId ?? undefined } })
       columns.value.push(col)
       lists.value[col.id] = []
+      const group = groupId ? columnGroups.value.find(g => g.id === groupId) : undefined
+      if (group && !group.columnIds.includes(col.id)) group.columnIds.push(col.id)
     }, t('board.errors.addColumn')),
 
     renameColumn: (col: Column, title: string) => changeColumn(col, 'title', title, t('board.undo.renamedColumn'), t('board.errors.renameColumn')),
@@ -423,6 +428,7 @@ export async function useBoard(id: string) {
       await api(`/api/columns/${col.id}`, { method: 'DELETE' })
       columns.value = columns.value.filter(c => c.id !== col.id)
       delete lists.value[col.id]
+      for (const g of columnGroups.value) g.columnIds = g.columnIds.filter(c => c !== col.id)
     }, t('board.errors.deleteColumn')),
 
     addColumnRule: (col: Column, rule: NewColumnRule) => run(async () => {
@@ -578,6 +584,32 @@ export async function useBoard(id: string) {
       }))
     }, t('board.errors.moveField')),
 
+    addColumnGroup: (group: Pick<ColumnGroup, 'name' | 'color' | 'columnIds'>) => run(async () => {
+      const created = await api<ColumnGroup>(`/api/boards/${id}/column-groups`, { method: 'POST', body: group })
+      if (!columnGroups.value.some(g => g.id === created.id)) columnGroups.value.push(created)
+    }, t('board.errors.addColumnGroup')),
+
+    /** columnIds replaces the group's columns (kept in board order). */
+    updateColumnGroup: (group: ColumnGroup, patch: Partial<Pick<ColumnGroup, 'name' | 'color' | 'columnIds'>>) => run(async () => {
+      Object.assign(group, patch)
+      if (patch.columnIds) group.columnIds = columns.value.map(c => c.id).filter(c => patch.columnIds!.includes(c))
+      await api(`/api/column-groups/${group.id}`, { method: 'PATCH', body: patch })
+    }, t('board.errors.saveColumnGroup')),
+
+    /** Persists a group's new place after a drag (groups already reordered). */
+    columnGroupMoved: (index: number) => run(async () => {
+      const group = columnGroups.value[index]!
+      Object.assign(group, await api<ColumnGroup>(`/api/column-groups/${group.id}`, {
+        method: 'PATCH',
+        body: { aboveId: columnGroups.value[index - 1]?.id ?? null, belowId: columnGroups.value[index + 1]?.id ?? null },
+      }))
+    }, t('board.errors.moveColumnGroup')),
+
+    deleteColumnGroup: (group: ColumnGroup) => run(async () => {
+      await api(`/api/column-groups/${group.id}`, { method: 'DELETE' })
+      columnGroups.value = columnGroups.value.filter(g => g.id !== group.id)
+    }, t('board.errors.deleteColumnGroup')),
+
     deleteField: (field: BoardField) => run(async () => {
       await api(`/api/fields/${field.id}`, { method: 'DELETE' })
       fields.value = fields.value.filter(f => f.id !== field.id)
@@ -637,7 +669,7 @@ export async function useBoard(id: string) {
   }
 
   return {
-    board, error, refresh, columns, lists, tags, fields, templates, recurrences, archived, offline, canEdit, isOwner, dragging, remoteVersion,
+    board, error, refresh, columns, columnGroups, lists, tags, fields, templates, recurrences, archived, offline, canEdit, isOwner, dragging, remoteVersion,
     canUndo: undoStack.canUndo, canRedo: undoStack.canRedo, ...mutations,
   }
 }

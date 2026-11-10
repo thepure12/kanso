@@ -74,8 +74,13 @@ describe('trelloToBoard', () => {
     expect(skipped.fields).toBe(1)
     expect(skipped.invalidValues).toBe(1)
   })
-  it('counts comments and attachments', () => {
-    expect(skipped.comments).toBe(2)
+  it('keeps comments oldest first with their author and time, counting those on dropped cards', () => {
+    expect(parsed.cards[0]!.comments).toEqual([
+      { authorName: 'Former Colleague', body: 'Seen this too', createdAt: '2026-10-02T08:00:00.000Z' },
+      { authorName: 'Zed Unknown', body: 'Me too', createdAt: '2026-10-03T08:00:00.000Z' },
+    ])
+    expect(parsed.cards[2]!.comments).toEqual([{ authorName: null, body: 'Fixed?', createdAt: '2026-10-01T08:00:00.000Z' }])
+    expect(skipped.comments).toBe(1)
     expect(skipped.attachments).toBe(3)
   })
   it('numbers repeated list names', () => {
@@ -87,9 +92,9 @@ describe('trelloToBoard', () => {
     expect(trelloColor('sky_light')).toBe('#7dd3fc')
     expect(trelloColor('mystery')).toBe('#64748b')
   })
-  it('slims an export to what it reads, keeping only comment counts', () => {
+  it('slims an export to what it reads, keeping only comments', () => {
     const slim = slimTrelloExport(JSON.parse(fixture('trello-board.json')))
-    expect(slim.actions).toEqual([{ type: 'commentCard' }, { type: 'commentCard' }])
+    expect((slim.actions as { type: string }[]).map(a => a.type)).toEqual(Array(4).fill('commentCard'))
     expect(trelloToBoard(slim).data).toEqual(data)
   })
 })

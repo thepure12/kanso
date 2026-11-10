@@ -47,6 +47,10 @@ const fieldFilters = computed(() => props.fields.filter(isFilterableField).map(f
     ? [{ label: t('filters.checked'), value: 'true', color: undefined }, { label: t('filters.notChecked'), value: 'none', color: undefined }]
     : [...f.options.map(o => ({ label: o.label, value: o.id, color: o.color as string | undefined })), { label: t('filters.noValue'), value: 'none', color: undefined }],
 })))
+// Resets what the panel sets; the search text stays.
+function clearPanel() {
+  filter.value = { ...emptyFilter(), text: filter.value.text }
+}
 function setFieldFilter(fieldId: string, keys: string[]) {
   filter.value = { ...filter.value, fields: { ...filter.value.fields, [fieldId]: keys } }
 }
@@ -108,6 +112,16 @@ const dueItems = computed(() => (['any', 'overdue', 'today', 'week', 'none', 'st
               </template>
             </USelectMenu>
           </UFormField>
+          <UButton
+            v-if="panelCount"
+            icon="i-lucide-x"
+            color="neutral"
+            variant="ghost"
+            size="sm"
+            class="self-end"
+            :label="t('filters.clearPanel')"
+            @click="clearPanel"
+          />
         </div>
       </template>
     </UPopover>

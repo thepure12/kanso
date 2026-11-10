@@ -22,6 +22,7 @@ const i18n = useI18nContext()
 
 /** The card's tags in board tag order (alphabetical). */
 const cardTags = computed(() => props.tags.filter(t => props.card.tagIds.includes(t.id)))
+const labels = useLabelDisplay()
 const assignees = computed(() => props.members.filter(m => props.card.assigneeIds.includes(m.userId)))
 const due = computed(() => dueStatus(props.card.dueDate, props.today))
 const dueColor = computed(() => ({ overdue: 'error', today: 'warning', soon: 'warning', later: 'neutral' } as const)[due.value ?? 'later'])
@@ -93,7 +94,7 @@ const dueAriaLabel = computed(() => {
       class="-mx-3 -mt-3 mb-2 h-32 w-[calc(100%+1.5rem)] max-w-none object-cover rounded-t-lg"
     >
     <div v-if="cardTags.length" class="flex flex-wrap gap-1 mb-2" :class="props.canEdit && 'pe-12'">
-      <TagChip v-for="t in cardTags" :key="t.id" :tag="t" />
+      <TagChip v-for="t in cardTags" :key="t.id" :tag="t" :compact="!labels.tagNames" />
     </div>
     <p class="text-sm font-medium break-words" :class="props.canEdit && 'pe-12'">
       {{ props.card.title }}

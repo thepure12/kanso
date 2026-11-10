@@ -155,6 +155,7 @@ CI (`.github/workflows/ci.yml`) runs the migrations, the type check and all test
 
 | Option | Best for |
 | --- | --- |
+| [`deploy/install.sh`](docs/DEPLOYMENT.md#install-script) | A Linux server: asks a few questions, then builds, migrates and starts Kanso as a systemd user service (no root) |
 | [`docker compose --profile app up -d --build`](docs/DEPLOYMENT.md#docker-compose-local) | Trying it out locally |
 | [`docker-compose.prod.yml`](docs/DEPLOYMENT.md#docker-compose-server) | A server, with optional Caddy for automatic HTTPS |
 | [systemd, no Docker](docs/DEPLOYMENT.md#systemd-no-docker) | Your own Node 22, Postgres and reverse proxy |

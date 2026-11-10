@@ -11,7 +11,7 @@ export default defineUserHandler(async (event, tx, userId): Promise<CardDetail> 
     tx.select({ id: ci.id, text: ci.text, done: ci.done, position: ci.position })
       .from(ci).where(eq(ci.cardId, id)).orderBy(asc(ci.position)),
     tx.select({
-      id: cc.id, authorId: cc.authorId, authorName: users.name, authorAvatarUrl: users.avatarUrl,
+      id: cc.id, authorId: cc.authorId, authorName: users.name, authorAvatarUrl: users.avatarUrl, importedAuthor: cc.importedAuthor,
       body: cc.body, createdAt: cc.createdAt, updatedAt: cc.updatedAt,
     }).from(cc).leftJoin(users, eq(users.id, cc.authorId)).where(eq(cc.cardId, id)).orderBy(asc(cc.createdAt)),
     tx.select({ id: ca.id, name: ca.name, contentType: ca.contentType, size: ca.size, uploadedBy: ca.uploadedBy, createdAt: ca.createdAt })

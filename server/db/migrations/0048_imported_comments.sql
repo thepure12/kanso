@@ -1,0 +1,2 @@
+ALTER TABLE "card_comments" ADD COLUMN "imported_author" text;--> statement-breakpoint
+ALTER TABLE "card_comments" ADD CONSTRAINT "card_comments_imported_author" CHECK ("card_comments"."imported_author" is null or ("card_comments"."author_id" is null and length("card_comments"."imported_author") between 1 and 100));

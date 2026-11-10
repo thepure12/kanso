@@ -477,7 +477,10 @@
       "namePrompt": "Board name",
       "archive": "Archive board",
       "archiveConfirm": "Archive this board? It becomes read-only for everyone until an owner unarchives it.",
-      "delete": "Delete board"
+      "delete": "Delete board",
+      "columnGroups": "Column groups",
+      "tagNames": "Show tag names",
+      "groupNames": "Show column group names"
     },
     "undo": {
       "action": "Undo",
@@ -538,7 +541,11 @@
       "bulk": "Couldn't change the selected cards",
       "background": "Could not change background",
       "backgroundUpload": "Could not upload background image",
-      "accent": "Could not change accent colour"
+      "accent": "Could not change accent colour",
+      "addColumnGroup": "Could not add the column group",
+      "saveColumnGroup": "Could not save the column group",
+      "moveColumnGroup": "Could not move the column group",
+      "deleteColumnGroup": "Could not delete the column group"
     },
     "bulk": {
       "toolbar": "Bulk actions",
@@ -583,6 +590,7 @@
     "loadFailed": "Could not load activity"
   },
   "filters": {
+    "clearPanel": "Clear filters",
     "button": "Filters",
     "any": "Any",
     "dueLabel": "Due date",
@@ -691,6 +699,7 @@
     "submit": "Comment",
     "empty": "No comments yet.",
     "edited": "(edited)",
+    "imported": "Imported",
     "edit": "Edit comment",
     "delete": "Delete comment",
     "errors": {
@@ -872,7 +881,7 @@
     "deleteDescription": "All boards in this team will be deleted for every member.",
     "import": {
       "label": "Import board",
-      "description": "A Kanso or Trello JSON export, or a CSV (Jira, spreadsheets, Kanso). Comments and attachments are not imported.",
+      "description": "A Kanso or Trello JSON export, or a CSV (Jira, spreadsheets, Kanso). Attachments are not imported.",
       "detect": "Detect from the file",
       "invalidJson": "This file is not valid JSON.",
       "defaultName": "Imported board",
@@ -1251,5 +1260,24 @@
       "none": "No due date"
     },
     "refresh": "Refresh"
+  },
+  "columnGroups": {
+    "title": "Column groups",
+    "description": "Name sets of columns to show one group at a time. A column can be in several groups.",
+    "empty": "No column groups yet.",
+    "newGroup": "New group",
+    "newColour": "Colour of the new group",
+    "newColumns": "Columns of the new group",
+    "nameOf": "Name of {name}",
+    "columnsOf": "Columns of {name}",
+    "pickColumns": "Choose columns",
+    "columnCount": "{count} column | {count} columns",
+    "delete": "Delete {name}",
+    "confirmDelete": "Delete the group “{name}”? Its columns stay.",
+    "all": "All columns",
+    "show": "Column group",
+    "showOnly": "Show only {name}",
+    "menu": "Groups",
+    "manage": "Manage groups…"
   }
 }

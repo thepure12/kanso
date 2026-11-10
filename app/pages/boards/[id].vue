@@ -6,11 +6,12 @@ import { backgroundStyle } from '#shared/boardBackgrounds'
 const route = useRoute()
 const id = route.params.id as string
 const {
-  board, error, refresh, columns, lists, tags, fields, templates, recurrences, archived, offline, canEdit, isOwner, dragging, remoteVersion,
+  board, error, refresh, columns, columnGroups, lists, tags, fields, templates, recurrences, archived, offline, canEdit, isOwner, dragging, remoteVersion,
   renameBoard, setArchived, setBackground, setAccent, uploadBackground, deleteBoard, addColumn, renameColumn, setColumnColor, setColumnWipLimit, deleteColumn, columnMoved,
   addColumnRule, deleteColumnRule, addCard, updateCard, setCardCounts, cardLinkChanged, archiveCard, restoreCard, deleteCard,
   deleteArchivedCard, cardMoved, moveCard, addTag, updateTag, deleteTag,
   addField, updateField, fieldMoved, deleteField, setFieldValue,
+  addColumnGroup, updateColumnGroup, columnGroupMoved, deleteColumnGroup,
   addCardFromTemplate, saveAsTemplate, deleteTemplate, setRecurrence, deleteRecurrence, bulkUpdate, undo, redo, undoGroup,
 } = await useBoard(id)
 const { t } = useI18n()
@@ -147,6 +148,45 @@ onMounted(() => {
   const group = localStorage.getItem(groupKey)
   if (group && isValidGroupBy(group, fields.value)) groupBy.value = group
 })
+// Column group shown in the board view (null = all columns), remembered per board.
+// Other views always show every column (see docs/ROADMAP.md).
+const columnGroupKey = `kanban:column-group:${id}`
+const columnGroupId = ref<string | null>(null)
+const shownGroup = computed(() => columnGroups.value.find(g => g.id === columnGroupId.value) ?? null)
+const shownColumns = computed(() => columnsInGroup(columns.value, shownGroup.value))
+const shownColumnIds = computed(() => new Set(shownColumns.value.map(c => c.id)))
+const columnGroupItems = computed(() => [
+  { label: t('columnGroups.all'), value: 'all' },
+  ...columnGroups.value.map(g => ({ label: g.name, value: g.id, chip: g.color ? { color: 'neutral' as const, style: { backgroundColor: g.color } } : undefined })),
+])
+const columnGroupModel = computed({
+  get: () => shownGroup.value?.id ?? 'all',
+  set: (v: string) => { showColumnGroup(v === 'all' ? null : v) },
+})
+function showColumnGroup(groupId: string | null) {
+  columnGroupId.value = groupId
+  try {
+    if (groupId) localStorage.setItem(columnGroupKey, groupId)
+    else localStorage.removeItem(columnGroupKey)
+  }
+  catch { /* storage unavailable */ }
+}
+onMounted(() => {
+  try {
+    columnGroupId.value = localStorage.getItem(columnGroupKey)
+  }
+  catch { /* storage unavailable */ }
+})
+// A deleted group shows all columns again.
+watch(columnGroups, (list) => {
+  if (columnGroupId.value && !list.some(g => g.id === columnGroupId.value)) showColumnGroup(null)
+})
+const columnGroupsOpen = ref(false)
+
+// Tag and column group chips: names or colour only (personal, all boards).
+const labels = useLabelDisplay()
+onMounted(loadLabelDisplay)
+
 // A deleted select field ends grouping by it.
 watch(fields, (list) => {
   if (!isValidGroupBy(groupBy.value, list)) groupBy.value = 'none'
@@ -201,7 +241,7 @@ const cardAdds: Record<string, { open: () => void } | null> = {}
 defineShortcuts({
   '/': () => { if (!dialogOpen()) filters.value?.focus() },
   'n': () => {
-    const first = columns.value[0]
+    const first = shownColumns.value[0]
     if (canEdit.value && first && !dialogOpen()) cardAdds[first.id]?.open()
   },
   // Not while typing, so text fields keep their own undo; works in dialogs too.
@@ -209,6 +249,12 @@ defineShortcuts({
   'meta_shift_z': () => { redo() },
   'escape': () => { if (selecting.value && !dialogOpen()) clearSelection() },
 })
+
+/** Group chips on a column header; none for the group being shown when it is the column's only one. */
+function columnChips(col: Column) {
+  const groups = groupsForColumn(columnGroups.value, col.id)
+  return shownGroup.value && groups.length === 1 ? [] : groups
+}
 
 function wipState(col: Column) {
   const count = lists.value[col.id]?.length ?? 0
@@ -251,6 +297,20 @@ function columnMenu(col: Column) {
       setColumnWipLimit(col, value)
     } },
     { label: t('board.column.rules'), icon: 'i-lucide-zap', onSelect: () => { rulesColumn.value = col } },
+    {
+      label: t('columnGroups.menu'),
+      icon: 'i-lucide-columns-3',
+      children: [
+        columnGroups.value.map(g => ({
+          label: g.name,
+          type: 'checkbox' as const,
+          checked: g.columnIds.includes(col.id),
+          onUpdateChecked: (member: boolean) => updateColumnGroup(g, { columnIds: toggleColumn(g.columnIds, col.id, member) }),
+          onSelect: (e: Event) => e.preventDefault(),
+        })),
+        [{ label: t('columnGroups.manage'), icon: 'i-lucide-settings-2', onSelect: () => { columnGroupsOpen.value = true } }],
+      ].filter(items => items.length),
+    },
     { label: t('common.delete'), icon: 'i-lucide-trash', color: 'error' as const, onSelect: async () => {
       if (await confirm({ title: t('board.column.deleteConfirm', { title: col.title }), confirmLabel: t('common.delete') })) deleteColumn(col)
     } },
@@ -259,7 +319,12 @@ function columnMenu(col: Column) {
 
 const boardMenu = computed(() => [
   [
-    ...(canEdit.value ? [{ label: t('board.menu.fields'), icon: 'i-lucide-list-plus', onSelect: () => { fieldsOpen.value = true } }] : []),
+    ...(canEdit.value
+      ? [
+          { label: t('board.menu.fields'), icon: 'i-lucide-list-plus', onSelect: () => { fieldsOpen.value = true } },
+          { label: t('board.menu.columnGroups'), icon: 'i-lucide-columns-3', onSelect: () => { columnGroupsOpen.value = true } },
+        ]
+      : []),
     { label: t('board.menu.activity'), icon: 'i-lucide-history', onSelect: () => { activityOpen.value = true } },
     { label: t('board.menu.archived'), icon: 'i-lucide-archive', onSelect: () => { archiveOpen.value = true } },
     { label: t('board.menu.templates'), icon: 'i-lucide-file-stack', onSelect: () => { templatesOpen.value = true } },
@@ -285,6 +350,26 @@ const boardMenu = computed(() => [
         { label: t('board.menu.delete'), icon: 'i-lucide-trash', color: 'error' as const, onSelect: () => { confirmDelete.value = true } },
       ]]
     : []),
+  [
+    {
+      label: t('board.menu.tagNames'),
+      icon: 'i-lucide-tag',
+      type: 'checkbox' as const,
+      checked: labels.value.tagNames,
+      onUpdateChecked: (tagNames: boolean) => setLabelDisplay({ tagNames }),
+      onSelect: (e: Event) => e.preventDefault(),
+    },
+    ...(columnGroups.value.length
+      ? [{
+          label: t('board.menu.groupNames'),
+          icon: 'i-lucide-columns-3',
+          type: 'checkbox' as const,
+          checked: labels.value.groupNames,
+          onUpdateChecked: (groupNames: boolean) => setLabelDisplay({ groupNames }),
+          onSelect: (e: Event) => e.preventDefault(),
+        }]
+      : []),
+  ],
 ])
 </script>
 
@@ -337,6 +422,14 @@ const boardMenu = computed(() => [
             icon="i-lucide-rows-3"
             class="w-40"
             :aria-label="t('board.swimlanes')"
+          />
+          <USelect
+            v-if="view === 'board' && columnGroups.length"
+            v-model="columnGroupModel"
+            :items="columnGroupItems"
+            icon="i-lucide-columns-3"
+            class="w-40"
+            :aria-label="t('columnGroups.show')"
           />
           <USeparator orientation="vertical" class="h-6 mx-1 hidden sm:block" />
           <BoardFilters ref="filters" v-model="filter" class="flex-1 min-w-0" :tags="tags" :fields="fields" :members="board.members" :shown="visibleIds.size" :total="allCards.length" />
@@ -401,7 +494,7 @@ const boardMenu = computed(() => [
       <BoardSwimlanes
         :class="panel"
         :group-by="groupBy"
-        :columns="columns"
+        :columns="shownColumns"
         :lists="lists"
         :tags="tags"
         :fields="fields"
@@ -421,7 +514,7 @@ const boardMenu = computed(() => [
       <div class="flex items-start gap-4 p-4 sm:p-6 min-h-full w-max min-w-full">
         <VueDraggable
           v-model="columns"
-          :disabled="!canEdit"
+          :disabled="!canEdit || !!shownGroup"
           handle=".column-handle"
           :animation="150"
           class="flex items-start gap-4"
@@ -431,16 +524,17 @@ const boardMenu = computed(() => [
         >
           <section
             v-for="col in columns"
+            v-show="shownColumnIds.has(col.id)"
             :key="col.id"
             class="w-72 shrink-0 rounded-lg ring flex flex-col max-h-[calc(100vh-14rem)]"
             :class="[wipState(col) === 'over' ? 'ring-error' : 'ring-default', backed ? 'bg-elevated/95 shadow-lg' : 'bg-elevated/60']"
           >
             <header
-              class="flex items-center gap-2 px-3 py-2 rounded-t-lg"
+              class="flex flex-wrap items-center gap-x-2 gap-y-1.5 px-3 py-2 rounded-t-lg"
               :style="col.color ? { backgroundColor: col.color, color: contrastText(col.color) } : undefined"
             >
-              <UIcon v-if="canEdit" name="i-lucide-grip-vertical" class="column-handle cursor-grab" :class="col.color ? 'opacity-60' : 'text-dimmed'" />
-              <h2 class="font-medium truncate flex-1">
+              <UIcon v-if="canEdit && !shownGroup" name="i-lucide-grip-vertical" class="column-handle cursor-grab" :class="col.color ? 'opacity-60' : 'text-dimmed'" />
+              <h2 class="min-w-0 flex-1 font-medium truncate">
                 {{ col.title }}
               </h2>
               <UTooltip v-if="col.rules.length" :text="t('board.column.ruleCount', { count: col.rules.length }, col.rules.length)">
@@ -461,6 +555,23 @@ const boardMenu = computed(() => [
               <UDropdownMenu v-if="canEdit" :items="columnMenu(col)">
                 <UButton icon="i-lucide-ellipsis" size="xs" color="neutral" variant="ghost" :aria-label="t('board.column.actions')" :class="col.color && 'text-inherit hover:bg-black/10'" />
               </UDropdownMenu>
+              <div v-if="columnChips(col).length" class="basis-full flex flex-wrap items-center gap-1 border-t border-current/15 pt-1.5">
+                <button
+                  v-for="g in columnChips(col)"
+                  :key="g.id"
+                  type="button"
+                  class="cursor-pointer rounded ring ring-inset ring-black/10 hover:opacity-80"
+                  :style="g.color ? { backgroundColor: g.color, color: contrastText(g.color) } : undefined"
+                  :class="[!g.color && 'bg-accented text-default', labels.groupNames ? 'inline-flex items-center gap-1 px-1.5 text-xs leading-5' : 'h-2 w-8 rounded-full']"
+                  :title="labels.groupNames ? undefined : g.name"
+                  :aria-label="t('columnGroups.showOnly', { name: g.name })"
+                  @click="showColumnGroup(g.id)"
+                >
+                  <template v-if="labels.groupNames">
+                    <UIcon name="i-lucide-columns-3" class="size-3 shrink-0" />{{ g.name }}
+                  </template>
+                </button>
+              </div>
             </header>
 
             <VueDraggable
@@ -506,7 +617,7 @@ const boardMenu = computed(() => [
         </VueDraggable>
 
         <div v-if="canEdit" class="w-72 shrink-0" :class="backed && 'bg-default/85 backdrop-blur-sm rounded-lg p-1'">
-          <InlineAdd :label="t('board.addColumn')" :placeholder="t('board.columnTitle')" @add="addColumn" />
+          <InlineAdd :label="t('board.addColumn')" :placeholder="t('board.columnTitle')" @add="title => addColumn(title, shownGroup?.id)" />
         </div>
       </div>
     </div>
@@ -577,6 +688,15 @@ const boardMenu = computed(() => [
       @update="updateField"
       @move="fieldMoved"
       @delete="deleteField"
+    />
+    <ColumnGroupsModal
+      v-model:open="columnGroupsOpen"
+      v-model:groups="columnGroups"
+      :columns="columns"
+      @create="addColumnGroup"
+      @update="updateColumnGroup"
+      @move="columnGroupMoved"
+      @delete="deleteColumnGroup"
     />
     <ArchiveSlideover
       v-model:open="archiveOpen"

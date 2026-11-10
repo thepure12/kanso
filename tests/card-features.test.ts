@@ -120,6 +120,28 @@ describe('card_comments', () => {
     expect((await as(editor.id, sql => sql`delete from card_comments where id = ${c!.id}`)).count).toBe(1)
     expect((await as(owner.id, sql => sql`delete from card_comments where id = ${c2!.id}`)).count).toBe(1)
   })
+
+  it('imported comments (no author) only on a board created in the same transaction, and they log nothing', async () => {
+    const id = await newCard()
+    const imported = (card: string, board: string, sql: postgres.TransactionSql) =>
+      sql`insert into card_comments (card_id, board_id, author_id, imported_author, body) values (${card}, ${board}, null, 'Old Hand', 'from before') returning id`
+    await rejectsWith(as(owner.id, sql => imported(id, boardId, sql)), '42501')
+    // Neither an empty author nor an imported name next to a real author.
+    await rejectsWith(as(editor.id, sql => sql`insert into card_comments (card_id, board_id, author_id, body) values (${id}, ${boardId}, null, 'x')`), '42501')
+    await rejectsWith(as(editor.id, sql => sql`insert into card_comments (card_id, board_id, author_id, imported_author, body) values (${id}, ${boardId}, ${editor.id}, 'Old Hand', 'x')`), '23514')
+
+    const { board, card, comment } = await as(editor.id, async (sql) => {
+      const [b] = await sql`select id from app.create_board('Imported', null)`
+      const [col] = await sql`insert into columns (board_id, title, position) values (${b!.id}, 'Todo', 1) returning id`
+      const [c] = await sql`insert into cards (board_id, column_id, title, position, created_by) values (${b!.id}, ${col!.id}, 'Card', 1, ${editor.id}) returning id`
+      const [m] = await imported(c!.id, b!.id, sql)
+      return { board: b!.id as string, card: c!.id as string, comment: m!.id as string }
+    })
+    boards.push(board)
+    expect(await as(editor.id, sql => sql`select kind from card_activity where card_id = ${card}`)).toEqual([{ kind: 'created' }])
+    expect((await as(editor.id, sql => sql`update card_comments set body = 'mine' where id = ${comment}`)).count).toBe(0)
+    expect((await as(editor.id, sql => sql`delete from card_comments where id = ${comment}`)).count).toBe(1)
+  })
 })
 
 describe('card_attachments', () => {

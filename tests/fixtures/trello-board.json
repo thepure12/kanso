@@ -65,8 +65,10 @@
     ] }
   ],
   "actions": [
-    { "id": "x1", "type": "commentCard", "data": { "text": "Seen this too", "card": { "id": "c1" } } },
+    { "id": "x5", "type": "commentCard", "date": "2026-10-03T08:00:00.000Z", "idMemberCreator": "m2", "data": { "text": "Me too", "card": { "id": "c1" } } },
+    { "id": "x1", "type": "commentCard", "date": "2026-10-02T08:00:00.000Z", "idMemberCreator": "m9", "memberCreator": { "id": "m9", "fullName": "Former Colleague", "username": "former" }, "data": { "text": "Seen this too", "card": { "id": "c1" } } },
     { "id": "x2", "type": "updateCard", "data": {} },
-    { "id": "x3", "type": "commentCard", "data": { "text": "Fixed?", "card": { "id": "c3" } } }
+    { "id": "x3", "type": "commentCard", "date": "2026-10-01T08:00:00.000Z", "data": { "text": "Fixed?", "card": { "id": "c3" } } },
+    { "id": "x4", "type": "commentCard", "data": { "text": "Lost", "card": { "id": "c4" } } }
   ]
 }

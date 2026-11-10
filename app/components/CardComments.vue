@@ -41,10 +41,11 @@ const canDelete = (c: Comment) => props.isOwner || (props.canEdit && mine(c))
     </p>
     <ul v-else class="space-y-4">
       <li v-for="c in [...props.items].reverse()" :key="c.id" class="flex gap-3">
-        <UAvatar :src="c.authorAvatarUrl ?? undefined" :alt="c.authorName ?? '?'" size="sm" class="shrink-0" />
+        <UAvatar :src="c.authorAvatarUrl ?? undefined" :alt="c.importedAuthor ?? c.authorName ?? '?'" size="sm" class="shrink-0" />
         <div class="min-w-0 flex-1 space-y-1">
           <div class="flex items-center gap-2 text-xs">
-            <span class="font-medium">{{ c.authorName ?? t('card.formerMember') }}</span>
+            <span class="font-medium">{{ c.importedAuthor ?? c.authorName ?? t('card.formerMember') }}</span>
+            <UBadge v-if="c.importedAuthor" :label="t('comments.imported')" color="neutral" variant="subtle" size="sm" />
             <span class="text-muted">{{ formatDateTime(c.createdAt, locale) }}</span>
             <span v-if="c.updatedAt !== c.createdAt" class="text-dimmed">{{ t('comments.edited') }}</span>
             <div class="ms-auto flex">

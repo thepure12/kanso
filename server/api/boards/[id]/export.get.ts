@@ -26,7 +26,7 @@ export default defineUserHandler(async (event, tx) => {
   const [board] = await tx.select({ name: boards.name }).from(boards).where(eq(boards.id, id))
   if (!board) notFound('Board not found')
 
-  const [cols, rules, tagRows, cards, people, checklist, comments, attachments, links, fields, values] = await Promise.all([
+  const [cols, rules, tagRows, cards, people, checklist, comments, attachments, links, fields, values, columnGroups] = await Promise.all([
     tx.select({ id: columns.id, title: columns.title, color: columns.color, wipLimit: columns.wipLimit })
       .from(columns).where(eq(columns.boardId, id)).orderBy(asc(columns.position)),
     tx.select({ ...columnRuleFields, columnId: columnRules.columnId }).from(columnRules).where(eq(columnRules.boardId, id)),
@@ -43,7 +43,7 @@ export default defineUserHandler(async (event, tx) => {
     `),
     tx.select({ id: users.id, name: users.name, email: users.email }).from(users),
     tx.select({ cardId: ci.cardId, text: ci.text, done: ci.done }).from(ci).where(eq(ci.boardId, id)).orderBy(asc(ci.position)),
-    tx.select({ cardId: cc.cardId, authorId: cc.authorId, body: cc.body, createdAt: cc.createdAt })
+    tx.select({ cardId: cc.cardId, authorId: cc.authorId, importedAuthor: cc.importedAuthor, body: cc.body, createdAt: cc.createdAt })
       .from(cc).where(eq(cc.boardId, id)).orderBy(asc(cc.createdAt)),
     tx.select({ cardId: ca.cardId, name: ca.name, contentType: ca.contentType, size: ca.size })
       .from(ca).where(eq(ca.boardId, id)).orderBy(asc(ca.createdAt)),
@@ -51,6 +51,7 @@ export default defineUserHandler(async (event, tx) => {
       .from(cardLinks).where(eq(cardLinks.boardId, id)).orderBy(asc(cardLinks.createdAt)),
     loadBoardFields(tx, id),
     tx.select({ cardId: fv.cardId, fieldId: fv.fieldId, value: fv.value }).from(fv).where(eq(fv.boardId, id)),
+    loadColumnGroups(tx, id),
   ])
 
   const colTitle = new Map(cols.map(c => [c.id, c.title]))
@@ -79,7 +80,10 @@ export default defineUserHandler(async (event, tx) => {
     tags: c.tagIds.map(t => tagName.get(t)!).sort(),
     assignees: c.assigneeIds.map(u => person.get(u)?.email ?? null).filter(e => e !== null),
     checklist: (checklistBy.get(c.id) ?? []).map(({ text, done }) => ({ text, done })),
-    comments: (commentsBy.get(c.id) ?? []).map(m => ({ author: m.authorId ? person.get(m.authorId)?.email ?? null : null, body: m.body, createdAt: m.createdAt })),
+    comments: (commentsBy.get(c.id) ?? []).map((m) => {
+      const author = m.authorId ? person.get(m.authorId) : undefined
+      return { author: author?.email ?? null, authorName: author?.name ?? m.importedAuthor, body: m.body, createdAt: m.createdAt }
+    }),
     attachments: (attachmentsBy.get(c.id) ?? []).map(({ name, contentType, size }) => ({ name, contentType, size })),
     fieldValues: Object.fromEntries((valuesBy.get(c.id) ?? [])
       .map(v => [fieldById.get(v.fieldId)!.name, exportValue(v.fieldId, v.value)] as const)
@@ -124,6 +128,7 @@ export default defineUserHandler(async (event, tx) => {
       }),
     })),
     tags: tagRows.map(({ name, color }) => ({ name, color })),
+    columnGroups: columnGroups.map(g => ({ name: g.name, color: g.color, columns: g.columnIds.map(c => colTitle.get(c)!) })),
     fields: fields.map(f => ({ name: f.name, kind: f.kind, options: f.options.map(({ label, color }) => ({ label, color })), showOnCard: f.showOnCard })),
     cards: cardList,
     links: links.map(l => ({ from: cardIndex.get(l.fromCardId)!, to: cardIndex.get(l.toCardId)!, kind: l.kind })),

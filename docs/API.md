@@ -20,7 +20,7 @@ When the instance runs under a sub-path, include it in the base URL (`KANSO=http
 - **Scopes**: *Read only* tokens may only send `GET` and `HEAD` (anything else is `403`). *Read and write* tokens may
   call every allowed route.
 - **Allowed routes**: boards, cards, columns, tags, comments, checklist items, column rules, attachments, card links,
-  fields, time entries, teams, notifications, search and `/api/me`. Account, sign-in, two-factor, session, token,
+  fields, column groups, time entries, teams, notifications, search and `/api/me`. Account, sign-in, two-factor, session, token,
   admin and webhook routes refuse tokens (`403`, or `401` for routes that only take the session cookie), so a leaked
   token cannot take over the account.
 - **Lifetime**: tokens work until revoked on the Account page, until they expire (30 days, 90 days, 1 year or never,
@@ -41,12 +41,14 @@ Errors come back as JSON with `statusCode` and `statusMessage`: `400` invalid in
 | --- | --- | --- |
 | GET | `/api/boards` | Boards you can see |
 | POST | `/api/boards` | Create a board `{ name, teamId?, template? }` (`basic`, `scrum`, `bugs`, `empty`) |
-| GET | `/api/boards/:id` | Board with columns, cards, tags, fields, members and your `role` |
+| GET | `/api/boards/:id` | Board with columns, column groups, cards, tags, fields, members and your `role` |
 | PATCH / DELETE | `/api/boards/:id` | Rename `{ name }` / delete (owners) |
 | GET | `/api/boards/:id/export?format=json\|csv` | Export |
 | GET | `/api/boards/:id/activity?before=&limit=` | Activity feed, newest first (cursor paginated) |
-| POST | `/api/boards/:id/columns` | Add a column `{ title }` |
+| POST | `/api/boards/:id/columns` | Add a column `{ title, groupId? }` (`groupId` also adds it to that column group) |
 | PATCH / DELETE | `/api/columns/:id` | Edit / delete a column |
+| POST | `/api/boards/:id/column-groups` | Add a column group `{ name, color?, columnIds? }` (editors) |
+| PATCH / DELETE | `/api/column-groups/:id` | Edit `{ name?, color?, columnIds?, aboveId?, belowId? }` (`columnIds` replaces the members) / delete a group (its columns stay) |
 | POST | `/api/boards/:id/cards` | Add a card `{ columnId, title, description? }` |
 | GET | `/api/cards/:id` | Card with checklist, comments, attachments, links and activity |
 | PATCH | `/api/cards/:id` | Edit `{ title?, description?, startDate?, dueDate?, priority?, estimate?, tagIds?, assigneeIds?, archived? }` |

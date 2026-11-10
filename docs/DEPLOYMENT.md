@@ -1,7 +1,9 @@
 # Deploying Kanso
 
-Four ways to run Kanso outside development:
+Four ways to run Kanso outside development, plus a script that sets one up for you:
 
+- [Install script](#install-script): asks a few questions, then installs Kanso as a systemd user service of a
+  dedicated user, without root.
 - [Docker Compose (local)](#docker-compose-local): everything in containers on one machine, for trying it out.
 - [Docker Compose (server)](#docker-compose-server): Postgres and the app, optionally with Caddy for automatic HTTPS.
 - [systemd (no Docker)](#systemd-no-docker): the self-contained build behind your own reverse proxy.
@@ -9,6 +11,83 @@ Four ways to run Kanso outside development:
   package, for servers that have neither Docker nor Postgres.
 
 Also: [serving under a sub-path](#sub-path), [OAuth callback URLs](#oauth) and [backups](#backups).
+
+## Install script
+
+`deploy/install.sh` installs Kanso on a Linux server with systemd and updates it later. It runs as an ordinary user,
+never as root: the app and its database run as systemd **user** services of that user, and everything lives in its
+home directory. It can set up:
+
+- `systemd-embedded`: Postgres 17 from [`deploy/embedded-pg/`](#systemd-without-a-postgres-install). Needs nothing
+  but Node 22 (the script offers to download it from nodejs.org into `~/node`). The easiest choice without Docker.
+- `systemd-pg`: an existing Postgres 17 server. Setting up the database needs a superuser once: give the script a
+  superuser URL, or let it print the two commands for an admin to run.
+- `docker`: writes `.env` and runs `docker-compose.prod.yml`, for a user that can use Docker.
+
+### Once, as an admin
+
+Create a system user for Kanso that nobody can log in as, and let its services run without a login session (they
+then also start at boot):
+
+```bash
+sudo useradd -r -m -d /var/lib/kanso -s /usr/sbin/nologin kanso
+sudo loginctl enable-linger kanso
+sudo -u kanso git -C /var/lib/kanso clone <repository URL> kanban
+```
+
+`sudo -u kanso` runs a command with the rights of `kanso`, not of root. A private repository needs credentials for
+`kanso`, such as a read-only deploy key.
+
+### Install and update
+
+```bash
+sudo -u kanso /var/lib/kanso/kanban/deploy/install.sh
+```
+
+It asks for the public URL (a path such as `https://apps.example.org/kanso` sets up a [sub-path](#sub-path)), the admin
+email, the SMTP URL, the setup and the ports. Then it generates all passwords, writes the configuration, builds the app,
+runs the migrations, starts the services and checks that the app answers. `--dry-run` asks the same questions but only
+prints the commands and files.
+
+To update, pull and run the script again: it finds its settings, then builds, migrates and restarts.
+
+```bash
+sudo -u kanso git -C /var/lib/kanso/kanban pull
+sudo -u kanso /var/lib/kanso/kanban/deploy/install.sh
+```
+
+### What it writes
+
+All in the home of `kanso` (`~` below is `/var/lib/kanso`):
+
+| Path | Contents |
+| --- | --- |
+| `~/.local/share/kanso/app/` | `.output` (the running build; the previous one in `.output.old`) and `.env` (settings, secrets) |
+| `~/.local/share/kanso/pg/`, `pg-data/` | embedded Postgres: `start.mjs`, `node_modules`, `.env` (passwords); the data directory |
+| `~/.config/systemd/user/` | `kanso.service`, `kanso-pg.service` |
+| `~/.config/kanso/install.conf` | settings for updates, including the migration (owner) database URL |
+| `~/.local/share/kanso/apache-kanso.conf` | Apache snippet for the reverse proxy |
+
+To change a setting (mail, OAuth keys), edit `~/.local/share/kanso/app/.env` and restart. Managing the services
+as an admin:
+
+```bash
+sudo -u kanso XDG_RUNTIME_DIR=/run/user/$(id -u kanso) systemctl --user restart kanso
+sudo journalctl _UID=$(id -u kanso) -f      # logs of both services
+```
+
+### Reverse proxy
+
+The app listens on `127.0.0.1` only. The script writes an Apache snippet for the URL you gave and prints the steps
+for an admin: copy it to `/etc/apache2/kanso.conf`, `a2enmod proxy proxy_http headers`, add
+`Include /etc/apache2/kanso.conf` inside the existing `<VirtualHost *:443>` of the host, reload Apache. For another
+proxy, see [Your own reverse proxy](#your-own-reverse-proxy).
+
+### Backups
+
+For the embedded Postgres, stop both services and copy `~/.local/share/kanso/pg-data` (see
+[Backups (embedded)](#backups-embedded)); with `systemd-pg`, use `pg_dump`. Also keep the `.env` files: without
+`NUXT_SESSION_PASSWORD` (or `NUXT_TOTP_KEY`) two-factor secrets cannot be read.
 
 ## Docker Compose (local)
 

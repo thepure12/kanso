@@ -33,6 +33,17 @@ export interface Column {
   rules: ColumnRule[]
 }
 
+/** Named set of a board's columns; the board view can show one group only. */
+export interface ColumnGroup {
+  id: string
+  name: string
+  /** Chip colour as #rrggbb, or null for the default. */
+  color: string | null
+  position: number
+  /** Member columns in board order. A column can be in several groups. */
+  columnIds: string[]
+}
+
 /** Automation that runs when a card enters a column (created in it or moved into it). */
 export type NewColumnRule =
   | { kind: 'apply_tag', tagId: string }
@@ -180,6 +191,8 @@ export interface Comment {
   authorId: string | null
   authorName: string | null
   authorAvatarUrl: string | null
+  /** Original author's name of an imported comment (authorId is null then). */
+  importedAuthor: string | null
   /** Markdown. */
   body: string
   createdAt: string
@@ -280,6 +293,8 @@ export interface BoardDetail {
   starred: boolean
   team: { id: string, name: string } | null
   columns: Column[]
+  /** Column groups in position order. */
+  columnGroups: ColumnGroup[]
   /** Unarchived cards; templates are not among them. */
   cards: Card[]
   /** Card templates (each in its default column), in title order. */

@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import type { BoardExport } from '../boardExport'
+import { type BoardExport, MAX_IMPORT_COMMENTS } from '../boardExport'
 import type { FieldKind } from '../types/board'
 import { clip, noSkips, toDate, type ConvertResult } from './common'
 
@@ -45,7 +45,16 @@ const trelloSchema = z.object({
     options: z.array(z.object({ id, value: z.object({ text: z.string().optional() }).nullish(), color: z.string().nullish(), pos: z.number().default(0) })).default([]),
   })).default([]),
   customFieldItems: z.array(customFieldItem).default([]),
-  actions: z.array(z.object({ type: z.string() })).default([]),
+  // Every kind of action; only comments are read (commentAction), the rest is ignored.
+  actions: z.array(z.object({ type: z.string() }).loose()).default([]),
+})
+
+const commentAction = z.object({
+  type: z.literal('commentCard'),
+  date: z.string().nullish(),
+  idMemberCreator: id.nullish(),
+  memberCreator: z.object({ fullName: z.string().nullish(), username: z.string().nullish() }).nullish(),
+  data: z.object({ text: z.string().default(''), card: z.object({ id }) }),
 })
 
 /** Looks like a Trello board export rather than one of ours. */
@@ -87,7 +96,8 @@ const fieldKinds: Record<string, FieldKind> = { text: 'text', number: 'number', 
  * tags (a nameless label is named after its colour), checklists are joined
  * into the card's one checklist, and members become assignees by full name
  * (the export has no emails). Custom fields map to board fields where the
- * kind exists. Comments and attachments are counted, not imported.
+ * kind exists. Comments keep their author's name and time (oldest first);
+ * comments on dropped cards and attachments are counted, not imported.
  */
 export function trelloToBoard(json: unknown): ConvertResult {
   const t = trelloSchema.parse(json)
@@ -141,6 +151,19 @@ export function trelloToBoard(json: unknown): ConvertResult {
     }
   }
 
+  // Trello lists actions newest first.
+  const comments = Map.groupBy(t.actions.flatMap((a) => {
+    if (a.type !== 'commentCard') return []
+    const c = commentAction.safeParse(a)
+    if (!c.success || !c.data.data.text.trim()) {
+      skipped.comments++
+      return []
+    }
+    return [c.data]
+  }).reverse(), c => c.data.card.id)
+  const commentName = (c: z.infer<typeof commentAction>) =>
+    (c.memberCreator?.fullName ?? '').trim() || (c.memberCreator?.username ?? '').trim() || (c.idMemberCreator ? memberName.get(c.idMemberCreator) : '') || null
+
   const checklists = Map.groupBy([...t.checklists].sort((a, b) => a.pos - b.pos), c => c.idCard)
   const date = (s: string | null | undefined) => {
     if (!s) return null
@@ -151,10 +174,14 @@ export function trelloToBoard(json: unknown): ConvertResult {
 
   const cards: NonNullable<BoardExport['cards']> = []
   for (const c of [...t.cards].sort((a, b) => (listIndex.get(a.idList) ?? 0) - (listIndex.get(b.idList) ?? 0) || a.pos - b.pos)) {
+    const cardComments = comments.get(c.id) ?? []
+    comments.delete(c.id)
     if (!listIndex.has(c.idList)) {
       skipped.cards++
+      skipped.comments += cardComments.length
       continue
     }
+    skipped.comments += Math.max(0, cardComments.length - MAX_IMPORT_COMMENTS)
     skipped.attachments += c.attachments?.length ?? c.badges?.attachments ?? 0
     const fieldValues: Record<string, string | number | boolean> = {}
     for (const item of [...c.customFieldItems ?? [], ...looseItems.get(c.id) ?? []]) {
@@ -178,9 +205,15 @@ export function trelloToBoard(json: unknown): ConvertResult {
         .filter(i => i.text)
         .slice(0, 200),
       fieldValues,
+      comments: cardComments.slice(0, MAX_IMPORT_COMMENTS).map(m => ({
+        authorName: commentName(m),
+        body: m.data.text.trim().slice(0, 10_000),
+        createdAt: m.date ?? null,
+      })),
     })
   }
-  skipped.comments = t.actions.filter(a => a.type === 'commentCard').length
+  // Comments on cards that are not in the export.
+  for (const left of comments.values()) skipped.comments += left.length
 
   return {
     data: { name: clip(t.name, 100) || 'Trello board', columns: lists.map(l => ({ title: columnTitle.get(l.id)! })), tags, fields, cards },

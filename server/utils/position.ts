@@ -3,7 +3,7 @@ import { and, asc, eq, inArray, max } from 'drizzle-orm'
 const STEP = 1024
 const MIN_GAP = 1e-6
 
-type Kind = 'card' | 'column' | 'checklist' | 'field'
+type Kind = 'card' | 'column' | 'checklist' | 'field' | 'columnGroup'
 
 function scope(kind: Kind) {
   switch (kind) {
@@ -11,10 +11,11 @@ function scope(kind: Kind) {
     case 'column': return { table: schema.columns, scopeCol: schema.columns.boardId }
     case 'checklist': return { table: schema.checklistItems, scopeCol: schema.checklistItems.cardId }
     case 'field': return { table: schema.boardFields, scopeCol: schema.boardFields.boardId }
+    case 'columnGroup': return { table: schema.columnGroups, scopeCol: schema.columnGroups.boardId }
   }
 }
 
-/** Position after the last item in a column (cards), board (columns, fields) or card (checklist items). */
+/** Position after the last item in a column (cards), board (columns, fields, column groups) or card (checklist items). */
 export async function endPosition(tx: Tx, kind: Kind, scopeId: string): Promise<number> {
   const { table, scopeCol } = scope(kind)
   const [row] = await tx.select({ max: max(table.position) }).from(table).where(eq(scopeCol, scopeId))

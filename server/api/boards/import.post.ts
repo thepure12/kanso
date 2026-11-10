@@ -68,7 +68,9 @@ export default defineUserHandler(async (event, tx, userId) => {
  * among people who can access the new board, and unmatched ones are listed; others are
  * skipped and counted, as are links to missing cards, duplicates, links
  * that would close a blocking cycle, and field values for unknown fields or
- * that do not fit their field. Comments and attachments are not imported. Rules go in
+ * that do not fit their field. Comments are imported without an author, under
+ * the original author's name (imported_author), with their original time; they
+ * log no activity. Attachments are not imported. Rules go in
  * last so they do not fire on the imported cards (as in app.copy_board), and
  * a board created in this transaction notifies nobody.
  */
@@ -84,6 +86,17 @@ async function importBoard(tx: Tx, userId: string, name: string, teamId: string 
   if (columnRows.length) await tx.insert(schema.columns).values(columnRows)
   const columnId = new Map<string, string>()
   for (const c of columnRows) if (!columnId.has(c.title)) columnId.set(c.title, c.id)
+
+  // Group names are unique regardless of case (first one wins); unknown column titles are skipped.
+  const groupRows = [...new Map(data.columnGroups.map(g => [g.name.toLowerCase(), g])).values()].map((g, i) => ({
+    id: randomUUID(), boardId, name: g.name, color: g.color ?? null, position: (i + 1) * 1024,
+    columnIds: [...new Set(g.columns.flatMap(t => columnId.get(t.trim()) ?? []))],
+  }))
+  if (groupRows.length) {
+    await tx.insert(schema.columnGroups).values(groupRows.map(({ columnIds: _, ...g }) => g))
+    const members = groupRows.flatMap(g => g.columnIds.map(columnId => ({ groupId: g.id, columnId, boardId })))
+    if (members.length) await tx.insert(schema.columnGroupMembers).values(members)
+  }
 
   const tagRows = [...new Map(data.tags.map(t => [t.name, t])).values()].map(t => ({ id: randomUUID(), boardId, ...t }))
   if (tagRows.length) await tx.insert(schema.tags).values(tagRows)
@@ -103,6 +116,8 @@ async function importBoard(tx: Tx, userId: string, name: string, teamId: string 
   const wanted = [...new Set([
     ...data.cards.flatMap(c => c.assignees),
     ...data.columns.flatMap(c => c.rules.flatMap(r => 'user' in r && r.user ? [r.user] : [])),
+    // Comment authors only by email, and only when the export has no name for them.
+    ...data.cards.flatMap(c => c.comments.flatMap(m => !m.authorName?.trim() && m.author?.includes('@') ? [m.author] : [])),
   ].map(e => e.trim().toLowerCase()))]
   const emails = wanted.filter(w => w.includes('@'))
   const names = wanted.filter(w => !w.includes('@'))
@@ -121,6 +136,19 @@ async function importBoard(tx: Tx, userId: string, name: string, teamId: string 
   }
   const personId = { get: (s: string) => (s.includes('@') ? byEmail.get(s.trim()) : byName.get(s.trim())) ?? undefined }
   const unmatched = new Set<string>()
+  const personName = new Map(people.map(p => [p.id, p.name]))
+  // The name shown on an imported comment: the export's, else the matched
+  // person's, else the email's local part (never the whole email).
+  const commentAuthor = (m: BoardImport['cards'][number]['comments'][number]) => {
+    const email = m.author?.trim() ?? ''
+    const matched = email.includes('@') ? personName.get(byEmail.get(email.toLowerCase()) ?? '') : undefined
+    return (m.authorName?.trim() || matched || email.split('@')[0]!.trim() || 'Unknown').slice(0, 100)
+  }
+  const importedAt = new Date()
+  const commentTime = (s: string | null | undefined) => {
+    const d = s ? new Date(s) : importedAt
+    return Number.isNaN(d.getTime()) || d > importedAt ? importedAt : d
+  }
 
   const nextPosition = new Map<string, number>()
   const cardRows: (typeof schema.cards.$inferInsert)[] = []
@@ -128,6 +156,7 @@ async function importBoard(tx: Tx, userId: string, name: string, teamId: string 
   const assigneeRows: (typeof schema.cardAssignees.$inferInsert)[] = []
   const checklistRows: (typeof schema.checklistItems.$inferInsert)[] = []
   const valueRows: (typeof schema.cardFieldValues.$inferInsert)[] = []
+  const commentRows: (typeof schema.cardComments.$inferInsert)[] = []
   for (const c of data.cards) {
     const col = columnId.get(c.column.trim())
     if (!col) throw createError({ statusCode: 400, statusMessage: `Card "${c.title}" is in a column that does not exist: "${c.column}"` })
@@ -165,6 +194,10 @@ async function importBoard(tx: Tx, userId: string, name: string, teamId: string 
         valueRows.push({ cardId: id, boardId, fieldId: field.id, value })
       }
       else skipped.fieldValues++
+    }
+    for (const m of c.comments) {
+      const at = commentTime(m.createdAt)
+      commentRows.push({ cardId: id, boardId, authorId: null, importedAuthor: commentAuthor(m), body: m.body, createdAt: at, updatedAt: at })
     }
   }
 
@@ -223,6 +256,7 @@ async function importBoard(tx: Tx, userId: string, name: string, teamId: string 
     [schema.cardAssignees, assigneeRows],
     [schema.checklistItems, checklistRows],
     [schema.cardFieldValues, valueRows],
+    [schema.cardComments, commentRows],
     [schema.cardLinks, linkRows],
     [schema.columnRules, ruleRows],
   ] as const) {

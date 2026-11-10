@@ -38,13 +38,19 @@ export function convertImport(format: ImportFormat, data: unknown, options: { na
 
 /**
  * Trello exports carry the board's whole action history, which can be many
- * megabytes. Keeps only what trelloToBoard reads (comment actions reduced to
- * their type, for the count), so the upload stays under the size limit.
+ * megabytes. Keeps only what trelloToBoard reads (comment actions, reduced to
+ * their text, card, time and author), so the upload stays under the size limit.
  */
 export function slimTrelloExport(json: Record<string, unknown>): Record<string, unknown> {
   const { name, lists, cards, labels, checklists, members, customFields, customFieldItems, actions } = json
   return {
     name, lists, cards, labels, checklists, members, customFields, customFieldItems,
-    actions: Array.isArray(actions) ? actions.filter(a => a?.type === 'commentCard').map(() => ({ type: 'commentCard' })) : [],
+    actions: Array.isArray(actions)
+      ? actions.filter(a => a?.type === 'commentCard').map(({ type, date, idMemberCreator, memberCreator, data }) => ({
+          type, date, idMemberCreator,
+          memberCreator: memberCreator && { fullName: memberCreator.fullName, username: memberCreator.username },
+          data: data && { text: data.text, card: data.card && { id: data.card.id } },
+        }))
+      : [],
   }
 }

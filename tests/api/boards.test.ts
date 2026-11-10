@@ -5,7 +5,7 @@ import { readFileSync } from 'node:fs'
 import { setup, url } from '@nuxt/test-utils/e2e'
 import postgres from 'postgres'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import type { Attachment, BoardActivityPage, BoardDetail, BoardField, BoardSummary, Card, CardDetail, CardLink, CardRecurrence, ColumnRule, Comment, TeamDetail, TimeEntry } from '#shared/types/board'
+import type { Attachment, BoardActivityPage, BoardDetail, BoardField, BoardSummary, Card, CardDetail, CardLink, CardRecurrence, ColumnGroup, ColumnRule, Comment, TeamDetail, TimeEntry } from '#shared/types/board'
 import type { Inbox } from '#shared/types/notifications'
 import type { AdminUser, AuditLogPage, InstanceSettings } from '#shared/types/admin'
 import type { Account, AccountSession } from '#shared/types/account'
@@ -577,6 +577,58 @@ describe('custom fields', () => {
   })
 })
 
+describe('column groups', () => {
+  it('editors manage groups; viewers read; export, import and copy keep them', async () => {
+    const { data: { id: gb } } = await alice.req<{ id: string }>('/api/boards', { method: 'POST', body: { name: 'Groups', template: 'basic' } })
+    extraBoards.push(gb)
+    const val = await signUp('Gita')
+    await alice.req(`/api/boards/${gb}/members`, { method: 'POST', body: { email: val.email, role: 'viewer' } })
+    const [todo, doing, done] = (await alice.req<BoardDetail>(`/api/boards/${gb}`)).data.columns
+    const add = (who: typeof alice, body: unknown) => who.req<ColumnGroup>(`/api/boards/${gb}/column-groups`, { method: 'POST', body })
+
+    const dev = (await add(alice, { name: 'Dev', color: '#3B82F6', columnIds: [doing!.id, todo!.id] })).data
+    expect(dev).toMatchObject({ name: 'Dev', color: '#3b82f6', columnIds: [todo!.id, doing!.id] })
+    const qa = (await add(alice, { name: 'QA', columnIds: [doing!.id, done!.id] })).data
+    expect((await add(alice, { name: 'dev' })).status).toBe(409)
+    expect((await add(val, { name: 'Nope' })).status).toBe(403)
+
+    const otherBoard = (await alice.req<{ id: string }>('/api/boards', { method: 'POST', body: { name: 'Other', template: 'basic' } })).data.id
+    extraBoards.push(otherBoard)
+    const foreign = (await alice.req<BoardDetail>(`/api/boards/${otherBoard}`)).data.columns[0]!
+    expect((await alice.req(`/api/column-groups/${dev.id}`, { method: 'PATCH', body: { columnIds: [foreign.id] } })).status).toBe(400)
+
+    const patched = await alice.req<ColumnGroup>(`/api/column-groups/${qa.id}`, { method: 'PATCH', body: { columnIds: [done!.id], aboveId: null, belowId: dev.id, name: 'Test' } })
+    expect(patched.data).toMatchObject({ name: 'Test', columnIds: [done!.id] })
+    expect((await val.req(`/api/column-groups/${qa.id}`, { method: 'PATCH', body: { name: 'x' } })).status).toBe(404)
+    const { data: col } = await alice.req<{ id: string }>(`/api/boards/${gb}/columns`, { method: 'POST', body: { title: 'Review', groupId: dev.id } })
+
+    const board = (await val.req<BoardDetail>(`/api/boards/${gb}`)).data
+    expect(board.columnGroups.map(g => [g.name, g.columnIds])).toEqual([['Test', [done!.id]], ['Dev', [todo!.id, doing!.id, col.id]]])
+
+    const exported = (await alice.req<string | Record<string, unknown>>(`/api/boards/${gb}/export?format=json`)).data
+    const data = typeof exported === 'string' ? JSON.parse(exported) : exported
+    expect(data.columnGroups).toEqual([
+      { name: 'Test', color: null, columns: [done!.title] },
+      { name: 'Dev', color: '#3b82f6', columns: [todo!.title, doing!.title, 'Review'] },
+    ])
+    data.columnGroups[0].columns.push('Missing')
+    const res = await alice.req<{ id: string }>('/api/boards/import', { method: 'POST', body: { name: 'Imported groups', data } })
+    expect(res.status).toBe(200)
+    extraBoards.push(res.data.id)
+    const imported = (await alice.req<BoardDetail>(`/api/boards/${res.data.id}`)).data
+    const title = new Map(imported.columns.map(c => [c.id, c.title]))
+    expect(imported.columnGroups.map(g => [g.name, g.columnIds.map(c => title.get(c))])).toEqual([['Test', [done!.title]], ['Dev', [todo!.title, doing!.title, 'Review']]])
+
+    const { data: copy } = await alice.req<{ id: string }>(`/api/boards/${gb}/copy`, { method: 'POST', body: { name: 'Groups copy' } })
+    extraBoards.push(copy.id)
+    expect((await alice.req<BoardDetail>(`/api/boards/${copy.id}`)).data.columnGroups.map(g => g.columnIds.length)).toEqual([1, 3])
+
+    expect((await val.req(`/api/column-groups/${dev.id}`, { method: 'DELETE' })).status).toBe(404)
+    expect((await alice.req(`/api/column-groups/${dev.id}`, { method: 'DELETE' })).status).toBe(200)
+    expect((await alice.req<BoardDetail>(`/api/boards/${gb}`)).data.columnGroups.map(g => g.name)).toEqual(['Test'])
+  })
+})
+
 describe('scheduling, time and cover', () => {
   it('start date, estimate: saved, validated, shown on the board', async () => {
     const card = await newCard('Scheduled')
@@ -1014,6 +1066,7 @@ describe('board import', () => {
     const patched = await alice.req(`/api/cards/${card.id}`, { method: 'PATCH', body: { assigneeIds: [members.find(m => m.email === carol.email)!.userId], priority: 'high', startDate: '2026-11-01', dueDate: '2026-11-02', estimate: 3 } })
     expect(patched.status).toBe(200)
     await alice.req(`/api/cards/${card.id}/checklist`, { method: 'POST', body: { text: 'Step one' } })
+    const { data: said } = await carol.req<Comment>(`/api/cards/${card.id}/comments`, { method: 'POST', body: { body: 'Carol was here' } })
     const exported = (await alice.req<Record<string, unknown>>(`/api/boards/${boardId}/export?format=json`)).data
     const data = typeof exported === 'string' ? JSON.parse(exported) : exported
     expect(data.version).toBe(1)
@@ -1031,6 +1084,17 @@ describe('board import', () => {
     expect(copy.cards.map(c => c.title).sort()).toEqual(original.cards.map(c => c.title).sort())
     const imported = copy.cards.find(c => c.title === 'Imported card')!
     expect(imported).toMatchObject({ priority: 'high', assigneeIds: [], checklist: { done: 0, total: 1 }, startDate: '2026-11-01', estimate: 3 })
+
+    // Carol's comment comes over under her name and time, written by nobody:
+    // no activity, nobody can edit it, the owner can delete it.
+    const detail = (await alice.req<CardDetail>(`/api/cards/${imported.id}`)).data
+    expect(detail.comments).toEqual([expect.objectContaining({
+      authorId: null, authorName: null, importedAuthor: 'Carol', body: 'Carol was here', createdAt: said.createdAt, updatedAt: said.createdAt,
+    })])
+    expect(detail.activity.map(a => a.kind)).not.toContain('commented')
+    const importedComment = detail.comments[0]!.id
+    expect((await alice.req(`/api/comments/${importedComment}`, { method: 'PATCH', body: { body: 'mine now' } })).status).toBe(404)
+    expect((await alice.req(`/api/comments/${importedComment}`, { method: 'DELETE' })).status).toBe(200)
 
     const bad = await alice.req('/api/boards/import', { method: 'POST', body: { name: 'Bad', data: { ...data, cards: [{ column: 'Nope', title: 'x' }] } } })
     expect(bad.status).toBe(400)
@@ -1050,7 +1114,7 @@ describe('board import', () => {
     const res = await alice.req<ImportResult>('/api/boards/import', { method: 'POST', body: { name: 'Trello', format: 'trello', data: trello } })
     expect(res.status).toBe(200)
     extraBoards.push(res.data.id!)
-    expect(res.data.skipped).toMatchObject({ assignees: 1, cards: 1, comments: 2, attachments: 3, fields: 1, invalidValues: 1 })
+    expect(res.data.skipped).toMatchObject({ assignees: 1, cards: 1, comments: 1, attachments: 3, fields: 1, invalidValues: 1 })
 
     const b = (await alice.req<BoardDetail>(`/api/boards/${res.data.id}`)).data
     expect(b.columns.map(c => c.title)).toEqual(['To Do', 'Doing', 'Done'])
@@ -1063,6 +1127,11 @@ describe('board import', () => {
     const size = b.fields.find(f => f.name === 'Size')!
     expect(card.fields[size.id]).toBe(size.options.find(o => o.label === 'Large')!.id)
     expect(Object.keys(card.fields)).toHaveLength(5)
+    const comments = (await alice.req<CardDetail>(`/api/cards/${card.id}`)).data.comments
+    expect(comments.map(c => [c.importedAuthor, c.body, c.createdAt])).toEqual([
+      ['Former Colleague', 'Seen this too', '2026-10-02T08:00:00.000Z'],
+      ['Zed Unknown', 'Me too', '2026-10-03T08:00:00.000Z'],
+    ])
     const archived = (await alice.req<Card[]>(`/api/boards/${res.data.id}/archived`)).data
     expect(archived.map(c => c.title)).toEqual(['Ship it'])
   })
