@@ -5,6 +5,8 @@ import type { BoardField, Card, Column, Member, Tag } from '#shared/types/board'
 const props = defineProps<{
   groupBy: Exclude<GroupBy, 'none'>
   columns: Column[]
+  /** Width in px per column id (the board view's resized widths). */
+  columnWidth: (columnId: string) => number
   /** Full per-column card lists (useBoard's lists). */
   lists: Record<string, Card[]>
   tags: Tag[]
@@ -67,8 +69,8 @@ function onDrop(laneKey: string, columnId: string, e: SortableEvent) {
       <div
         v-for="col in props.columns"
         :key="col.id"
-        class="w-72 shrink-0 rounded-lg px-3 py-2 flex items-center gap-2 bg-elevated ring ring-default"
-        :style="col.color ? { backgroundColor: col.color, color: contrastText(col.color) } : undefined"
+        class="shrink-0 rounded-lg px-3 py-2 flex items-center gap-2 bg-elevated ring ring-default"
+        :style="[{ width: `${props.columnWidth(col.id)}px` }, col.color ? { backgroundColor: col.color, color: contrastText(col.color) } : {}]"
       >
         <h2 class="font-medium truncate flex-1">
           {{ col.title }}
@@ -92,7 +94,8 @@ function onDrop(laneKey: string, columnId: string, e: SortableEvent) {
           :disabled="props.dragDisabled"
           :animation="150"
           ghost-class="opacity-40"
-          class="w-72 shrink-0 rounded-lg bg-elevated/60 ring ring-default flex flex-col gap-2 p-2 min-h-12"
+          class="shrink-0 rounded-lg bg-elevated/60 ring ring-default flex flex-col gap-2 p-2 min-h-12"
+          :style="{ width: `${props.columnWidth(col.id)}px` }"
           :data-lane="lane.key"
           :data-column="col.id"
           @start="emit('dragging', true)"

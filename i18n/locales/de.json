@@ -459,6 +459,8 @@
       "ruleCount": "{count} Regel | {count} Regeln",
       "pointsShown": "{points} in angezeigten Karten",
       "overWip": "Über dem WIP-Limit von {limit}",
+      "resize": "Spaltenbreite ändern",
+      "resizeHint": "Ziehen zum Ändern, Doppelklick zum Zurücksetzen",
       "wip": "WIP-Limit {limit}",
       "actions": "Spaltenaktionen"
     },

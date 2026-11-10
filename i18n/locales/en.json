@@ -459,6 +459,8 @@
       "ruleCount": "{count} rule | {count} rules",
       "pointsShown": "{points} in shown cards",
       "overWip": "Over the WIP limit of {limit}",
+      "resize": "Resize column",
+      "resizeHint": "Drag to resize, double-click to reset",
       "wip": "WIP limit {limit}",
       "actions": "Column actions"
     },

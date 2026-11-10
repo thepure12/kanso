@@ -20,3 +20,6 @@
 .markdown hr { @apply border-default; }
 .markdown img { @apply max-w-full rounded; }
 .markdown .mention { @apply rounded bg-primary/10 px-1 font-medium text-primary; }
+
+/* Slightly shorter app header than the Nuxt UI default (4rem). */
+:root { --ui-header-height: 3.5rem; }

@@ -187,6 +187,9 @@ const columnGroupsOpen = ref(false)
 const labels = useLabelDisplay()
 onMounted(loadLabelDisplay)
 
+// Column widths (drag a column's right edge; personal, per board).
+const columnWidths = useColumnWidths(id, computed(() => columns.value.map(c => c.id)))
+
 // A deleted select field ends grouping by it.
 watch(fields, (list) => {
   if (!isValidGroupBy(groupBy.value, list)) groupBy.value = 'none'
@@ -495,6 +498,7 @@ const boardMenu = computed(() => [
         :class="panel"
         :group-by="groupBy"
         :columns="shownColumns"
+        :column-width="columnWidths.widthOf"
         :lists="lists"
         :tags="tags"
         :fields="fields"
@@ -526,9 +530,29 @@ const boardMenu = computed(() => [
             v-for="col in columns"
             v-show="shownColumnIds.has(col.id)"
             :key="col.id"
-            class="w-72 shrink-0 rounded-lg ring flex flex-col max-h-[calc(100vh-14rem)]"
+            class="relative shrink-0 rounded-lg ring flex flex-col max-h-[calc(100vh-14rem)]"
             :class="[wipState(col) === 'over' ? 'ring-error' : 'ring-default', backed ? 'bg-elevated/95 shadow-lg' : 'bg-elevated/60']"
+            :style="columnWidths.styleOf(col.id)"
           >
+            <div
+              role="separator"
+              aria-orientation="vertical"
+              tabindex="0"
+              :aria-label="t('board.column.resize')"
+              :aria-valuenow="columnWidths.widthOf(col.id)"
+              :aria-valuemin="COLUMN_WIDTH_MIN"
+              :aria-valuemax="COLUMN_WIDTH_MAX"
+              :title="t('board.column.resizeHint')"
+              class="absolute inset-y-0 -right-2.5 z-10 w-3 cursor-col-resize touch-none group/resize flex justify-center focus:outline-none"
+              @pointerdown="columnWidths.startResize(col.id, $event)"
+              @dblclick="columnWidths.resetWidth(col.id)"
+              @keydown="columnWidths.onResizeKey(col.id, $event)"
+            >
+              <span
+                class="w-0.5 h-full rounded-full transition-colors group-hover/resize:bg-primary group-focus-visible/resize:bg-primary"
+                :class="columnWidths.resizing.value === col.id ? 'bg-primary' : 'bg-transparent'"
+              />
+            </div>
             <header
               class="flex flex-wrap items-center gap-x-2 gap-y-1.5 px-3 py-2 rounded-t-lg"
               :style="col.color ? { backgroundColor: col.color, color: contrastText(col.color) } : undefined"
