@@ -701,6 +701,7 @@
     "noTags": "No tags",
     "createTag": "Create tag \"{name}\"",
     "noBoardTags": "No tags on this board yet.",
+    "newTag": "New card tag",
     "changeTagColour": "Change colour of {name}",
     "tagColourHelp": "Click a tag to change its colour.",
     "assignees": "Assignees",

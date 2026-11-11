@@ -701,6 +701,7 @@
     "noTags": "Keine Tags",
     "createTag": "Tag „{name}“ anlegen",
     "noBoardTags": "Auf diesem Board gibt es noch keine Tags.",
+    "newTag": "Neues Karten-Tag",
     "changeTagColour": "Farbe von {name} ändern",
     "tagColourHelp": "Klicke auf ein Tag, um seine Farbe zu ändern.",
     "assignees": "Zugewiesen",

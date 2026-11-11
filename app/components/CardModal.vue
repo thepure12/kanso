@@ -140,12 +140,32 @@ const priorityItems = computed(() => [
 
 const selectedTags = computed(() => props.tags.filter(t => form.tagIds.includes(t.id)))
 
-async function addTag(name: string) {
+// A tag typed into the select is not created at once: the user picks its colour first.
+const newTag = ref<{ name: string, color: string } | null>(null)
+const creatingTag = ref(false)
+
+function addTag(name: string) {
   const trimmed = name.trim()
   if (!trimmed) return
-  const color = colorPresets[Math.floor(Math.random() * colorPresets.length)]!
-  const tag = await props.createTag({ name: trimmed.slice(0, 50), color })
-  if (tag) form.tagIds.push(tag.id)
+  const color = newTag.value?.color ?? colorPresets[Math.floor(Math.random() * colorPresets.length)]!
+  newTag.value = { name: trimmed.slice(0, 50), color }
+}
+
+async function confirmNewTag() {
+  const draft = newTag.value
+  const name = draft?.name.trim()
+  if (!draft || !name || creatingTag.value) return
+  creatingTag.value = true
+  try {
+    const tag = await props.createTag({ name, color: draft.color })
+    if (tag) {
+      form.tagIds.push(tag.id)
+      newTag.value = null
+    }
+  }
+  finally {
+    creatingTag.value = false
+  }
 }
 
 // Tag whose colour is open in a popover. Tag colours are board-wide and save on close, not with the card.
@@ -358,6 +378,24 @@ const tabs = computed(() => [
                 {{ t('card.noBoardTags') }}
               </template>
             </USelectMenu>
+            <form
+              v-if="props.canEdit && newTag"
+              class="mt-2 p-3 rounded-md ring ring-default space-y-3"
+              :aria-label="t('card.newTag')"
+              @submit.prevent="confirmNewTag"
+            >
+              <div class="flex items-center gap-2">
+                <span class="size-6 shrink-0 rounded-md ring ring-default" :style="{ backgroundColor: newTag.color }" />
+                <UInput v-model="newTag.name" :maxlength="50" :aria-label="t('card.newTag')" class="flex-1" autofocus />
+              </div>
+              <div class="max-w-72">
+                <ColorField v-model="newTag.color" />
+              </div>
+              <div class="flex justify-end gap-2">
+                <UButton color="neutral" variant="ghost" :label="t('common.cancel')" @click="newTag = null" />
+                <UButton type="submit" icon="i-lucide-plus" :label="t('common.create')" :loading="creatingTag" :disabled="!newTag.name.trim()" />
+              </div>
+            </form>
             <div v-if="props.canEdit && selectedTags.length" class="flex flex-wrap gap-1 mt-2">
               <UPopover
                 v-for="tag in selectedTags"
