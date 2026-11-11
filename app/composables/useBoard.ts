@@ -290,6 +290,15 @@ export async function useBoard(id: string) {
     await api(`/api/columns/${columnId}`, { method: 'PATCH', body: patch })
   }
 
+  /** Puts a column's cards in the order of `order` (ids; every card shown in it) and saves it. */
+  async function orderColumn(columnId: string, order: string[]) {
+    findColumn(columnId)
+    const list = lists.value[columnId] ?? gone('column')
+    const byId = new Map(list.map(c => [c.id, c]))
+    lists.value[columnId] = order.map(cid => byId.get(cid) ?? gone('card'))
+    await api(`/api/columns/${columnId}/order`, { method: 'PUT', body: { cardIds: order } })
+  }
+
   /** Applies a column change and records its inverse. */
   function changeColumn<K extends 'title' | 'color' | 'wipLimit'>(col: Column, key: K, value: Column[K], label: string, failure: string) {
     return run(async () => {
@@ -440,6 +449,17 @@ export async function useBoard(id: string) {
       col.rules = col.rules.filter(r => r.id !== rule.id)
       await api(`/api/column-rules/${rule.id}`, { method: 'DELETE' })
     }, t('board.errors.deleteRule')),
+
+    /** Sorts a column's cards by priority (urgent first), as one undoable step. */
+    sortColumnByPriority: (col: Column) => run(async () => {
+      const before = (lists.value[col.id] ?? []).map(c => c.id)
+      const after = sortByPriority(lists.value[col.id] ?? []).map(c => c.id)
+      if (same(before, after)) return
+      await orderColumn(col.id, after)
+      record(t('board.undo.sortedColumn'),
+        () => orderColumn(col.id, restoreOrder(lists.value[col.id]?.map(c => c.id) ?? gone('column'), before)),
+        () => orderColumn(col.id, sortByPriority(lists.value[col.id] ?? gone('column')).map(c => c.id)))
+    }, t('board.errors.sortColumn')),
 
     /** Persists a column's new place after a drag (columns already reordered). */
     columnMoved: (index: number) => run(async () => {

@@ -65,3 +65,19 @@ export function sortCards(cards: Card[], sort: CardSort | null, ctx: CardSortCon
     return sort.desc ? -order : order
   })
 }
+
+/** A column's cards by priority, urgent first; cards without one go last, ties keep their order. */
+export function sortByPriority<T extends Pick<Card, 'priority'>>(cards: T[]): T[] {
+  const rank = (c: T) => c.priority ? priorities.indexOf(c.priority) : priorities.length
+  return [...cards].sort((a, b) => rank(a) - rank(b))
+}
+
+/**
+ * `ids` put back in the order of `old` (for undoing a sort). Ids that were not
+ * in `old` (added since) keep their place relative to each other, at the end.
+ */
+export function restoreOrder(ids: string[], old: string[]): string[] {
+  const at = new Map(old.map((id, i) => [id, i]))
+  const known = ids.filter(id => at.has(id)).sort((a, b) => at.get(a)! - at.get(b)!)
+  return [...known, ...ids.filter(id => !at.has(id))]
+}

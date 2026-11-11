@@ -8,7 +8,7 @@ const route = useRoute()
 const id = route.params.id as string
 const {
   board, error, refresh, columns, columnGroups, lists, tags, fields, templates, recurrences, archived, offline, canEdit, isOwner, dragging, remoteVersion,
-  renameBoard, setArchived, setBackground, setAccent, uploadBackground, deleteBoard, addColumn, renameColumn, setColumnColor, setColumnWipLimit, deleteColumn, columnMoved,
+  renameBoard, setArchived, setBackground, setAccent, uploadBackground, deleteBoard, addColumn, renameColumn, setColumnColor, setColumnWipLimit, sortColumnByPriority, deleteColumn, columnMoved,
   addColumnRule, deleteColumnRule, addCard, updateCard, setCardCounts, cardLinkChanged, archiveCard, restoreCard, deleteCard,
   deleteArchivedCard, cardMoved, moveCard, addTag, updateTag, deleteTag,
   addField, updateField, fieldMoved, deleteField, setFieldValue,
@@ -301,6 +301,7 @@ function columnMenu(col: Column) {
       setColumnWipLimit(col, value)
     } },
     { label: t('board.column.rules'), icon: 'i-lucide-zap', onSelect: () => { rulesColumn.value = col } },
+    { label: t('board.column.sortPriority'), icon: 'i-lucide-arrow-down-wide-narrow', disabled: (lists.value[col.id]?.length ?? 0) < 2, onSelect: () => sortColumnByPriority(col) },
     {
       label: t('columnGroups.menu'),
       icon: 'i-lucide-columns-3',

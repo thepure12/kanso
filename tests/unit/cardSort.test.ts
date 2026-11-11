@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { BoardField, Card } from '#shared/types/board'
-import { sortCards } from '../../app/utils/cardSort'
+import { restoreOrder, sortByPriority, sortCards } from '../../app/utils/cardSort'
 
 const card = (id: string, over: Partial<Card> = {}): Card => ({
   id, columnId: 'c1', title: id, description: '', position: 1,
@@ -48,5 +48,18 @@ describe('sortCards', () => {
     const cards = [card('a', { fields: { n: 10, s: 'a' } }), card('b', { fields: { n: -1, s: 'l' } }), card('c')]
     expect(ids(sortCards(cards, { key: 'field:n', desc: false }, ctx))).toEqual(['b', 'a', 'c'])
     expect(ids(sortCards(cards, { key: 'field:s', desc: false }, ctx))).toEqual(['b', 'a', 'c'])
+  })
+})
+
+describe('sortByPriority', () => {
+  it('puts urgent first and cards without a priority last, keeping ties in order', () => {
+    const cards = [card('n1'), card('l', { priority: 'low' }), card('u1', { priority: 'urgent' }), card('n2'), card('u2', { priority: 'urgent' }), card('h', { priority: 'high' })]
+    expect(ids(sortByPriority(cards))).toEqual(['u1', 'u2', 'h', 'l', 'n1', 'n2'])
+  })
+})
+
+describe('restoreOrder', () => {
+  it('puts known ids back in their old order and new ones at the end', () => {
+    expect(restoreOrder(['c', 'a', 'x', 'b', 'y'], ['a', 'b', 'gone', 'c'])).toEqual(['a', 'b', 'c', 'x', 'y'])
   })
 })

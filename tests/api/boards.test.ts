@@ -5,7 +5,7 @@ import { readFileSync } from 'node:fs'
 import { setup, url } from '@nuxt/test-utils/e2e'
 import postgres from 'postgres'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import type { Attachment, BoardActivityPage, BoardDetail, BoardField, BoardSummary, Card, CardDetail, CardLink, CardRecurrence, ColumnGroup, ColumnRule, Comment, TeamDetail, TimeEntry } from '#shared/types/board'
+import type { Attachment, BoardActivityPage, BoardDetail, BoardField, BoardSummary, Card, CardDetail, CardLink, CardRecurrence, Column, ColumnGroup, ColumnRule, Comment, TeamDetail, TimeEntry } from '#shared/types/board'
 import type { Inbox } from '#shared/types/notifications'
 import type { AdminUser, AuditLogPage, InstanceSettings } from '#shared/types/admin'
 import type { Account, AccountSession } from '#shared/types/account'
@@ -233,6 +233,29 @@ describe('boards', () => {
     expect((await alice.req(`/api/columns/${id}`, { method: 'PATCH', body: { wipLimit: 2 } })).data).toMatchObject({ wipLimit: 2 })
     expect((await alice.req(`/api/columns/${id}`, { method: 'PATCH', body: { wipLimit: 1000 } })).status).toBe(400)
     expect((await alice.req(`/api/columns/${id}`, { method: 'PATCH', body: { wipLimit: null } })).data).toMatchObject({ wipLimit: null })
+  })
+
+  it('reorders a column\'s cards in one go', async () => {
+    const column = (await alice.req<Column>(`/api/boards/${boardId}/columns`, { method: 'POST', body: { title: 'Sorted' } })).data
+    const add = async (title: string) =>
+      (await alice.req<Card>(`/api/boards/${boardId}/cards`, { method: 'POST', body: { columnId: column.id, title } })).data.id
+    const [a, b, c] = [await add('a'), await add('b'), await add('c')]
+    const order = async () => (await alice.req<BoardDetail>(`/api/boards/${boardId}`)).data.cards
+      .filter(card => card.columnId === column.id).map(card => card.id)
+    const put = (who: typeof alice, cardIds: string[]) => who.req(`/api/columns/${column.id}/order`, { method: 'PUT', body: { cardIds } })
+
+    expect((await put(alice, [c, a, b])).status).toBe(200)
+    expect(await order()).toEqual([c, a, b])
+    // Every shown card exactly once, else the client is stale.
+    expect((await put(alice, [c, a])).status).toBe(409)
+    expect((await put(alice, [c, a, a])).status).toBe(409)
+    expect((await put(alice, [c, a, b, (await newCard('elsewhere')).id])).status).toBe(409)
+    expect((await put(outsider, [a, b, c])).status).toBe(404)
+    // Archived cards are not part of the order.
+    await alice.req(`/api/cards/${b}`, { method: 'PATCH', body: { archived: true } })
+    expect((await put(alice, [a, c])).status).toBe(200)
+    expect(await order()).toEqual([a, c])
+    await alice.req(`/api/columns/${column.id}`, { method: 'DELETE' })
   })
 })
 

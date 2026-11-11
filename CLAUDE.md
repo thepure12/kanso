@@ -88,7 +88,7 @@ Other invariants enforced in SQL (see `server/db/migrations/0001_rls.sql`, `0003
 - Team page `/teams/[id]` (`GET /api/teams/:id`, 404 when not visible): rename/delete (owners), leave, boards, members via `MembersPanel.vue` (the body of `MembersSlideover`). `/?new=board&team=<id>` opens the new-board dialog for that team.
 - Live updates (`0014_board_notify_copy.sql`): `app.notify_board_change()` triggers send `NOTIFY board_changes` `{b: board_id, c: client_id}`; `server/utils/realtime.ts` LISTENs on one connection; `GET /api/boards/:id/events` (SSE) sends `change` (skipping the caller's own tab, coalesced 250 ms) or `gone` after re-checking access. New board tables need a `*_notify` trigger.
 
-Ordering: cards and columns use fractional `position` (float). `server/utils/position.ts` computes the midpoint between neighbour IDs (`aboveId`/`belowId`, null = start/end) and renumbers the scope in steps of 1024 when the gap gets too small. Clients send neighbour IDs, never raw positions.
+Ordering: cards and columns use fractional `position` (float). `server/utils/position.ts` computes the midpoint between neighbour IDs (`aboveId`/`belowId`, null = start/end) and renumbers the scope in steps of 1024 when the gap gets too small. Clients send neighbour IDs, never raw positions. Exception: `PUT /api/columns/:id/order {cardIds}` renumbers a whole column (every shown card exactly once, else 409; column rules do not run), used by the column menu's "Sort by priority" (`useBoard.sortColumnByPriority`, undoable via `restoreOrder`).
 
 ## Sub-path deployments
 
