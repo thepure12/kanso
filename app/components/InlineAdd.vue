@@ -13,11 +13,29 @@ function submit() {
   if (v) emit('add', v)
   value.value = ''
 }
+
+function onEnter(e: KeyboardEvent) {
+  if (e.isComposing) return
+  e.preventDefault()
+  submit()
+}
 </script>
 
 <template>
   <form v-if="editing" class="flex flex-col gap-2" @submit.prevent="submit">
-    <UInput v-model="value" :placeholder="props.placeholder" :maxlength="props.maxlength" autofocus @keydown.esc="editing = false" />
+    <!-- A textarea so long titles wrap while typing; Enter still adds, pasted line breaks become spaces. -->
+    <UTextarea
+      :model-value="value"
+      :placeholder="props.placeholder"
+      :maxlength="props.maxlength"
+      autofocus
+      autoresize
+      :rows="1"
+      :maxrows="6"
+      @update:model-value="v => value = String(v).replace(/\s*[\r\n]+\s*/g, ' ')"
+      @keydown.enter.exact="onEnter"
+      @keydown.esc="editing = false"
+    />
     <div class="flex gap-2">
       <UButton type="submit" size="sm" :label="t('common.add')" />
       <UButton size="sm" color="neutral" variant="ghost" icon="i-lucide-x" :aria-label="t('common.cancel')" @click="editing = false" />
