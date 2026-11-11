@@ -393,6 +393,28 @@ describe('column rules', () => {
     expect(moved.assigneeIds).toHaveLength(2)
     expect(moved.dueDate).toMatch(/^\d{4}-\d{2}-\d{2}$/)
   })
+
+  it('a new tag or assignee rule applies to cards already in the column, set_due does not', async () => {
+    const { data: column } = await alice.req<{ id: string }>(`/api/boards/${board.id}/columns`, { method: 'POST', body: { title: 'Existing rules' } })
+    const story = board.tags.find(t => t.name === 'story')!.id
+    const bug = board.tags.find(t => t.name !== 'story')!.id
+    const card = await newCard('Already here')
+    await alice.req(`/api/cards/${card.id}`, { method: 'PATCH', body: { tagIds: [story] } })
+    await alice.req(`/api/cards/${card.id}/move`, { method: 'POST', body: { columnId: column.id, aboveId: null, belowId: null } })
+
+    for (const body of [
+      { kind: 'apply_tag', tagId: bug },
+      { kind: 'remove_tag', tagId: story },
+      { kind: 'assign_to', userId: userId('Bob') },
+      { kind: 'set_due', dueDays: 3 },
+    ]) expect((await alice.req(`/api/columns/${column.id}/rules`, { method: 'POST', body })).status).toBe(200)
+
+    const { data } = await alice.req<BoardDetail>(`/api/boards/${board.id}`)
+    const after = data.cards.find(c => c.id === card.id)!
+    expect(after.tagIds).toEqual([bug])
+    expect(after.assigneeIds).toEqual([userId('Bob')])
+    expect(after.dueDate).toBeNull()
+  })
 })
 
 describe('card details', () => {

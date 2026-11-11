@@ -443,6 +443,8 @@ export async function useBoard(id: string) {
     addColumnRule: (col: Column, rule: NewColumnRule) => run(async () => {
       const created = await api<ColumnRule>(`/api/columns/${col.id}/rules`, { method: 'POST', body: rule })
       if (!col.rules.some(r => r.id === created.id)) col.rules.push(created)
+      // Tag and assignee rules also change the cards already in the column.
+      if (created.kind !== 'set_due' && lists.value[col.id]?.length) await refresh()
     }, t('board.errors.addRule')),
 
     deleteColumnRule: (col: Column, rule: ColumnRule) => run(async () => {

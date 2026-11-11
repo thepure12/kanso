@@ -1197,7 +1197,7 @@
   },
   "rules": {
     "title": "Rules for {column}",
-    "description": "Rules run when a card is added to this column or moved into it.",
+    "description": "Rules run when a card is added to this column or moved into it. A new tag or assignee rule also applies to the cards already here.",
     "empty": "No rules yet.",
     "applyTag": "Apply tag",
     "removeTag": "Remove tag",

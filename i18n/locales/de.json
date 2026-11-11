@@ -1197,7 +1197,7 @@
   },
   "rules": {
     "title": "Regeln für {column}",
-    "description": "Regeln greifen, wenn eine Karte in dieser Spalte angelegt oder hierher verschoben wird.",
+    "description": "Regeln greifen, wenn eine Karte in dieser Spalte angelegt oder hierher verschoben wird. Neue Tag- und Zuweisungsregeln gelten auch für die Karten, die schon hier sind.",
     "empty": "Noch keine Regeln.",
     "applyTag": "Tag setzen",
     "removeTag": "Tag entfernen",
