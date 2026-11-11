@@ -1,7 +1,7 @@
 import { createHmac, timingSafeEqual } from 'node:crypto'
 
 /** What a token is for. Part of the signature, so a token for one purpose fails as another. */
-export type EmailTokenPurpose = 'email-verify' | 'password-reset' | 'email-change'
+export type EmailTokenPurpose = 'email-verify' | 'password-reset' | 'email-change' | 'invite'
 
 export interface EmailTokenClaims {
   userId: string

@@ -28,6 +28,7 @@ async function sendMail(mail: Mail) {
 
 const DAY = 24 * 60 * 60_000
 const HOUR = 60 * 60_000
+const INVITE_TTL = 14 * DAY
 
 /**
  * Mails a sign-up confirmation link for `user`. With NUXT_MAIL_LOG_LINKS (the
@@ -54,30 +55,53 @@ export async function sendEmailChangeEmail(event: H3Event, user: { id: string, s
   await sendLink(event, user.id, newEmail, `/auth/confirm-email?token=${encodeURIComponent(token)}`, 'mail.emailChange', 'Email change')
 }
 
+export type MembershipTarget = { kind: 'team' | 'board', id: string, name: string }
+
 /**
- * Mails a one-link message to `to` in the user's language (recipientLocale).
- * `keys` is the message group: subject, text ({link}), title, intro, button,
- * expiry and footer.
+ * Invites `to` (no account yet) to a team or board: links to the sign-up page
+ * with the email filled in and a signed invite token (INVITE_TTL); signing up
+ * with it creates a verified account, which claims the invite. In the
+ * inviter's language, since the invitee has none saved.
  */
-async function sendLink(event: H3Event, userId: string, to: string, path: string, keys: string, label: string) {
+export async function sendInviteEmail(event: H3Event, p: { to: string, target: MembershipTarget, inviterId: string, inviter: string }) {
+  // The token proves the invitee owns the address, so sign-up through it skips the confirmation mail.
+  const token = signEmailToken('', p.to, useRuntimeConfig().session.password, INVITE_TTL, 'invite')
+  await sendLink(event, p.inviterId, p.to, `/register?email=${encodeURIComponent(p.to)}&invite=${encodeURIComponent(token)}`,
+    `mail.invite.${p.target.kind}`, 'Invite', { inviter: p.inviter, name: p.target.name })
+}
+
+/** Tells an existing user they were added to a team or board, with a link to it. */
+export async function sendAddedEmail(event: H3Event, p: { userId: string, to: string, target: MembershipTarget, inviter: string }) {
+  const path = `/${p.target.kind === 'team' ? 'teams' : 'boards'}/${p.target.id}`
+  await sendLink(event, p.userId, p.to, path, `mail.added.${p.target.kind}`, 'Added',
+    { inviter: p.inviter, name: p.target.name }, false)
+}
+
+/**
+ * Mails a one-link message to `to` in the language of `localeUserId`
+ * (recipientLocale). `keys` is the message group: subject, text ({link}),
+ * title, intro, button, footer, and expiry when `expires`. `params` fill the
+ * other placeholders.
+ */
+async function sendLink(event: H3Event, localeUserId: string, to: string, path: string, keys: string, label: string, params: Record<string, string> = {}, expires = true) {
   if (!mailConfigured()) {
     console.info(`[mail] ${label} link for ${to}: ${requestSiteUrl(event, true)}${path}`)
     return
   }
-  const i18n = serverI18n(await recipientLocale(event, userId))
+  const i18n = serverI18n(await recipientLocale(event, localeUserId))
   const { t } = i18n
   const link = `${requestSiteUrl(event, false)}${path}`
   await sendMail({
     to,
-    subject: t(`${keys}.subject`),
-    text: t(`${keys}.text`, { link }),
+    subject: t(`${keys}.subject`, params),
+    text: t(`${keys}.text`, { ...params, link }),
     html: linkHtml(i18n, {
-      title: t(`${keys}.title`),
-      intro: t(`${keys}.intro`),
-      button: t(`${keys}.button`),
+      title: t(`${keys}.title`, params),
+      intro: t(`${keys}.intro`, params),
+      button: t(`${keys}.button`, params),
       link,
-      expiry: t(`${keys}.expiry`),
-      footer: t(`${keys}.footer`),
+      expiry: expires ? t(`${keys}.expiry`) : undefined,
+      footer: t(`${keys}.footer`, params),
     }),
   })
 }
@@ -159,7 +183,7 @@ function layout(lang: string, title: string, body: string, footer: string): stri
 }
 
 /** A mail with one call-to-action link. */
-function linkHtml(i18n: I18nContext, p: { title: string, intro: string, button: string, link: string, expiry: string, footer: string }): string {
+function linkHtml(i18n: I18nContext, p: { title: string, intro: string, button: string, link: string, expiry?: string, footer: string }): string {
   const href = escapeHtml(p.link)
   return layout(i18n.locale, p.title, `
       <h1 style="margin:0 0 12px;font-size:20px;line-height:28px;font-weight:600;color:#18181b;">${escapeHtml(p.title)}</h1>
@@ -167,7 +191,7 @@ function linkHtml(i18n: I18nContext, p: { title: string, intro: string, button: 
       <table role="presentation" cellpadding="0" cellspacing="0"><tr><td style="border-radius:8px;background:#4f46e5;">
         <a href="${href}" style="display:inline-block;padding:12px 24px;font-size:15px;font-weight:600;color:#ffffff;text-decoration:none;border-radius:8px;">${escapeHtml(p.button)}</a>
       </td></tr></table>
-      <p style="margin:24px 0 0;font-size:13px;line-height:20px;color:#71717a;">${escapeHtml(i18n.t('mail.linkExpiry', { expiry: p.expiry }))}</p>
+      <p style="margin:24px 0 0;font-size:13px;line-height:20px;color:#71717a;">${escapeHtml(p.expiry ? i18n.t('mail.linkExpiry', { expiry: p.expiry }) : i18n.t('mail.linkFallback'))}</p>
       <p style="margin:4px 0 0;font-size:13px;line-height:20px;word-break:break-all;"><a href="${href}" style="color:#4f46e5;">${href}</a></p>`,
   escapeHtml(p.footer))
 }

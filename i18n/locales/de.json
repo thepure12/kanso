@@ -119,6 +119,45 @@
   },
   "mail": {
     "linkExpiry": "Der Link ist {expiry} gültig. Falls der Button nicht funktioniert, kopiere diesen Link in deinen Browser:",
+    "linkFallback": "Falls der Button nicht funktioniert, kopiere diesen Link in deinen Browser:",
+    "invite": {
+      "team": {
+        "subject": "{inviter} hat dich zum Team {name} auf Kanso eingeladen",
+        "text": "{inviter} hat dich zum Team „{name}“ auf Kanso eingeladen.\n\nErstelle dein Konto mit dieser E-Mail-Adresse, um beizutreten:\n\n{link}\n\nDer Link ist 14 Tage gültig.",
+        "title": "Tritt {name} auf Kanso bei",
+        "intro": "{inviter} hat dich zum Team „{name}“ eingeladen. Erstelle dein Konto mit dieser E-Mail-Adresse, um beizutreten.",
+        "button": "Konto erstellen",
+        "expiry": "14 Tage",
+        "footer": "Falls du diese Einladung nicht erwartet hast, kannst du diese E-Mail ignorieren."
+      },
+      "board": {
+        "subject": "{inviter} hat dich zum Board {name} auf Kanso eingeladen",
+        "text": "{inviter} hat dich zum Board „{name}“ auf Kanso eingeladen.\n\nErstelle dein Konto mit dieser E-Mail-Adresse, um beizutreten:\n\n{link}\n\nDer Link ist 14 Tage gültig.",
+        "title": "Tritt {name} auf Kanso bei",
+        "intro": "{inviter} hat dich zum Board „{name}“ eingeladen. Erstelle dein Konto mit dieser E-Mail-Adresse, um beizutreten.",
+        "button": "Konto erstellen",
+        "expiry": "14 Tage",
+        "footer": "Falls du diese Einladung nicht erwartet hast, kannst du diese E-Mail ignorieren."
+      }
+    },
+    "added": {
+      "team": {
+        "subject": "{inviter} hat dich zum Team {name} hinzugefügt",
+        "text": "{inviter} hat dich zum Team „{name}“ auf Kanso hinzugefügt.\n\nHier geht es zum Team:\n\n{link}",
+        "title": "Du bist jetzt in {name}",
+        "intro": "{inviter} hat dich zum Team „{name}“ hinzugefügt.",
+        "button": "Team öffnen",
+        "footer": "Du erhältst diese E-Mail, weil dich jemand zu einem Team hinzugefügt hat."
+      },
+      "board": {
+        "subject": "{inviter} hat dich zum Board {name} hinzugefügt",
+        "text": "{inviter} hat dich zum Board „{name}“ auf Kanso hinzugefügt.\n\nHier geht es zum Board:\n\n{link}",
+        "title": "Du bist jetzt in {name}",
+        "intro": "{inviter} hat dich zum Board „{name}“ hinzugefügt.",
+        "button": "Board öffnen",
+        "footer": "Du erhältst diese E-Mail, weil dich jemand zu einem Board hinzugefügt hat."
+      }
+    },
     "verify": {
       "subject": "Bestätige deine E-Mail-Adresse für Kanso",
       "text": "Willkommen bei Kanso.\n\nÖffne diesen Link, um deine E-Mail-Adresse zu bestätigen und dein Konto fertig einzurichten:\n\n{link}\n\nDer Link ist 24 Stunden gültig. Falls du dich nicht registriert hast, kannst du diese E-Mail ignorieren.",
@@ -960,7 +999,7 @@
       "viewer": "Nur lesen"
     },
     "invited": "{email} eingeladen",
-    "invitedDescription": "Die Person kommt dazu, sobald sie sich mit dieser E-Mail-Adresse registriert.",
+    "invitedDescription": "Wir haben ihr einen Link zur Registrierung geschickt. Sie kommt dazu, sobald sie sich mit dieser E-Mail-Adresse registriert.",
     "added": "{email} hinzugefügt",
     "addFailed": "Das Mitglied konnte nicht hinzugefügt werden",
     "roleFailed": "Die Rolle konnte nicht geändert werden",

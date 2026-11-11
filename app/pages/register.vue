@@ -11,10 +11,17 @@ const showError = useApiError()
 const loading = ref(false)
 const { data: signup } = await useFetch('/api/auth/signup')
 const restricted = computed(() => signup.value?.mode === 'restricted')
+// Invite mails link here with ?email= (filled in) and ?invite= (a token that
+// proves the address: signing up with that email skips the confirmation mail).
+const route = useRoute()
+const queryString = (v: unknown) => typeof v === 'string' ? v : undefined
+const invitedEmail = queryString(route.query.email)
+const inviteToken = queryString(route.query.invite)
+const { fetch: refreshSession } = useUserSession()
 
 const fields = computed(() => [
   { name: 'name', type: 'text' as const, label: t('common.name'), required: true },
-  { name: 'email', type: 'email' as const, label: t('common.email'), placeholder: t('auth.emailPlaceholder'), required: true },
+  { name: 'email', type: 'email' as const, label: t('common.email'), placeholder: t('auth.emailPlaceholder'), required: true, defaultValue: invitedEmail },
   { name: 'password', type: 'password' as const, label: t('common.password'), description: t('auth.minLength'), required: true },
   { name: 'confirmPassword', type: 'password' as const, label: t('auth.confirmPassword'), required: true },
 ])
@@ -35,7 +42,12 @@ async function onSubmit(e: FormSubmitEvent<Schema>) {
   loading.value = true
   try {
     const { confirmPassword: _, ...body } = e.data
-    await $fetch('/api/auth/register', { method: 'POST', body })
+    const res = await $fetch<{ signedIn?: true, twoFactor?: boolean }>('/api/auth/register', { method: 'POST', body: { ...body, invite: inviteToken } })
+    if (res.signedIn) {
+      if (res.twoFactor) return await navigateTo('/login/2fa')
+      await refreshSession()
+      return await navigateTo('/')
+    }
     sentTo.value = body.email
   }
   catch (err) { showError(err, t('register.failed')) }

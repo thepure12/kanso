@@ -46,6 +46,24 @@ export function clearSessionAfterCommit(event: H3Event) {
 }
 
 /**
+ * Runs `fn` once the handler's transaction has committed (e.g. sending mail,
+ * which should neither hold the transaction open nor undo it when it fails).
+ * Failures are logged, not returned to the client.
+ */
+export function runAfterCommit(event: H3Event, fn: () => Promise<unknown>) {
+  ((event.context.afterCommit ??= []) as (() => Promise<unknown>)[]).push(fn)
+}
+
+async function runAfterCommitTasks(event: H3Event) {
+  const tasks = (event.context.afterCommit ?? []) as (() => Promise<unknown>)[]
+  event.context.afterCommit = []
+  for (const task of tasks) {
+    try { await task() }
+    catch (err) { console.error('[after-commit]', err) }
+  }
+}
+
+/**
  * Personal access token auth (`Authorization: Bearer kb_...`) for
  * defineUserHandler: no cookie is read or set. Only allowed routes
  * (tokenRouteAllowed: no account, auth or admin routes) and, for read-only
@@ -82,6 +100,7 @@ export function defineUserHandler<T>(fn: (event: H3Event, tx: Tx, userId: string
     try {
       const result = await withUser(userId, tx => fn(event, tx, userId), clientIdOf(event), auth)
       if (event.context.clearSessionAfterCommit && token === undefined) await clearUserSession(event)
+      await runAfterCommitTasks(event)
       return result
     }
     catch (err) {

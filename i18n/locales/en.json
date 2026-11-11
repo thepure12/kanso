@@ -119,6 +119,45 @@
   },
   "mail": {
     "linkExpiry": "The link expires in {expiry}. If the button does not work, paste this link into your browser:",
+    "linkFallback": "If the button does not work, paste this link into your browser:",
+    "invite": {
+      "team": {
+        "subject": "{inviter} invited you to the team {name} on Kanso",
+        "text": "{inviter} invited you to the team \"{name}\" on Kanso.\n\nCreate your account with this email address to join:\n\n{link}\n\nThe link expires in 14 days.",
+        "title": "Join {name} on Kanso",
+        "intro": "{inviter} invited you to the team \"{name}\". Create your account with this email address to join.",
+        "button": "Create account",
+        "expiry": "14 days",
+        "footer": "If you did not expect this invite, you can ignore this email."
+      },
+      "board": {
+        "subject": "{inviter} invited you to the board {name} on Kanso",
+        "text": "{inviter} invited you to the board \"{name}\" on Kanso.\n\nCreate your account with this email address to join:\n\n{link}\n\nThe link expires in 14 days.",
+        "title": "Join {name} on Kanso",
+        "intro": "{inviter} invited you to the board \"{name}\". Create your account with this email address to join.",
+        "button": "Create account",
+        "expiry": "14 days",
+        "footer": "If you did not expect this invite, you can ignore this email."
+      }
+    },
+    "added": {
+      "team": {
+        "subject": "{inviter} added you to the team {name}",
+        "text": "{inviter} added you to the team \"{name}\" on Kanso.\n\nOpen it here:\n\n{link}",
+        "title": "You joined {name}",
+        "intro": "{inviter} added you to the team \"{name}\".",
+        "button": "Open team",
+        "footer": "You get this email because someone added you to a team."
+      },
+      "board": {
+        "subject": "{inviter} added you to the board {name}",
+        "text": "{inviter} added you to the board \"{name}\" on Kanso.\n\nOpen it here:\n\n{link}",
+        "title": "You joined {name}",
+        "intro": "{inviter} added you to the board \"{name}\".",
+        "button": "Open board",
+        "footer": "You get this email because someone added you to a board."
+      }
+    },
     "verify": {
       "subject": "Confirm your email for Kanso",
       "text": "Welcome to Kanso.\n\nOpen this link to confirm your email and finish creating your account:\n\n{link}\n\nThe link expires in 24 hours. If you did not sign up, you can ignore this email.",
@@ -960,7 +999,7 @@
       "viewer": "Read only"
     },
     "invited": "Invited {email}",
-    "invitedDescription": "They join when they sign up with this email.",
+    "invitedDescription": "We emailed them a sign-up link. They join when they sign up with this email.",
     "added": "Added {email}",
     "addFailed": "Could not add member",
     "roleFailed": "Could not change role",

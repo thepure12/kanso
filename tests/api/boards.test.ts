@@ -205,6 +205,29 @@ describe('boards', () => {
     expect((await alice.req<BoardDetail>(`/api/boards/${boardId}`)).data.invites).toEqual([])
   })
 
+  it('signs up through an invite link without a confirmation mail', async () => {
+    const email = `linked-${randomUUID()}@api.test`
+    await alice.req(`/api/boards/${boardId}/members`, { method: 'POST', body: { email, role: 'editor' } })
+    const secret = process.env.NUXT_SESSION_PASSWORD!
+    const invite = signEmailToken('', email, secret, 60_000, 'invite')
+
+    // A token for another address, another purpose or a forged one falls back to the confirmation mail.
+    for (const bad of [signEmailToken('', `other-${email}`, secret, 60_000, 'invite'), signEmailToken('', email, secret), 'nope']) {
+      const http = anon()
+      const res = await http('/api/auth/register', { name: 'L', email, password: 'password123', invite: bad })
+      expect(res.data).toEqual({ verificationSent: true })
+      expect((await http('/api/boards')).status).toBe(401)
+    }
+
+    const http = anon()
+    const res = await http('/api/auth/register', { name: 'Linked', email, password: 'password123', invite })
+    expect(res.data).toEqual({ signedIn: true, twoFactor: false })
+    expect((await http(`/api/boards/${boardId}`)).status).toBe(200)
+    expect((await anon()('/api/auth/login', { email, password: 'password123' })).status).toBe(200)
+    // The account is verified now, so the link cannot be used again.
+    expect((await anon()('/api/auth/register', { name: 'X', email, password: 'password456', invite })).status).toBe(409)
+  })
+
   it('sets and validates a WIP limit', async () => {
     const id = col('Sprint').id
     expect((await alice.req(`/api/columns/${id}`, { method: 'PATCH', body: { wipLimit: 2 } })).data).toMatchObject({ wipLimit: 2 })
