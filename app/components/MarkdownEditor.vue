@@ -25,7 +25,8 @@ function updateMention() {
     mention.value = null
     return
   }
-  mention.value = mentionQuery(model.value, el.selectionStart)
+  // The textarea's own value: on `input` the model has not caught up with the keystroke yet.
+  mention.value = mentionQuery(el.value, el.selectionStart)
   highlighted.value = 0
 }
 
@@ -35,7 +36,7 @@ async function pick(m: Member) {
   if (!el || !at) return
   const token = `${mentionToken(m)} `
   const caret = at.start + 1 + at.query.length
-  model.value = model.value.slice(0, at.start) + token + model.value.slice(caret)
+  model.value = el.value.slice(0, at.start) + token + el.value.slice(caret)
   mention.value = null
   await nextTick()
   el.focus()
