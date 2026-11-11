@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { type BoardExport, MAX_IMPORT_COMMENTS } from '../boardExport'
+import { CARD_TITLE_MAX } from '../cards'
 import type { FieldKind } from '../types/board'
 import { clip, noSkips, toDate, type ConvertResult } from './common'
 
@@ -193,7 +194,7 @@ export function trelloToBoard(json: unknown): ConvertResult {
     }
     cards.push({
       column: columnTitle.get(c.idList)!,
-      title: clip(c.name, 200) || 'Untitled',
+      title: clip(c.name, CARD_TITLE_MAX) || 'Untitled',
       description: c.desc.slice(0, 10_000),
       startDate: date(c.start),
       dueDate: date(c.due),

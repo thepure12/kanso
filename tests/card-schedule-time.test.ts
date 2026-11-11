@@ -61,6 +61,13 @@ afterAll(async () => {
   await Promise.all([app.end(), auth.end()])
 })
 
+describe('title length', () => {
+  it('allows 1000 characters, not more', async () => {
+    const id = await newCard('x'.repeat(1000))
+    await rejectsWith(as(editor.id, sql => sql`update cards set title = ${'x'.repeat(1001)} where id = ${id}`), '23514')
+  })
+})
+
 describe('start date and estimate', () => {
   it('start date must not be after the due date; estimate must not be negative', async () => {
     const id = await newCard()

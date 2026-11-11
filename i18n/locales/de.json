@@ -677,6 +677,7 @@
     "deleteConfirmRepeating": "Die Vorlage „{title}“ löschen? Sie wird dann nicht mehr wiederholt."
   },
   "card": {
+    "list": "Liste",
     "keepAssigneesOnTemplate": "Sollen die zugewiesenen Personen in der Vorlage bleiben? Karten aus dieser Vorlage werden ihnen dann ebenfalls zugewiesen.",
     "keepAssignees": "Zuweisungen behalten",
     "dropAssignees": "Weglassen",
@@ -709,11 +710,13 @@
     "priority": "Priorität",
     "estimate": "Schätzung",
     "estimateInvalid": "Gib einen Wert von 0 bis 9999 ein",
+    "titleCount": "{count} / {max}",
     "storyPoints": "Story Points",
     "saveAsTemplate": "Als Vorlage speichern",
     "archive": "Archivieren",
     "formerMember": "Ehemaliges Mitglied",
     "errors": {
+      "titleTooLong": "Der Titel ist zu lang (max. {max} Zeichen)",
       "load": "Die Karte konnte nicht geladen werden",
       "watch": "Die Karte konnte nicht beobachtet werden",
       "unwatch": "Das Beobachten konnte nicht beendet werden"

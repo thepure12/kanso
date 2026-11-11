@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { fieldKinds } from './types/board'
+import { CARD_TITLE_MAX } from './cards'
 
 /**
  * The JSON board export (GET /api/boards/:id/export) and the import
@@ -48,7 +49,7 @@ export const boardExportSchema = z.object({
   })).max(100).default([]),
   cards: z.array(z.object({
     column: z.string(),
-    title: z.string().trim().min(1).max(200),
+    title: z.string().trim().min(1).max(CARD_TITLE_MAX),
     description: z.string().max(10_000).default(''),
     startDate: z.iso.date().nullish(),
     dueDate: z.iso.date().nullish(),

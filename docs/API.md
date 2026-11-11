@@ -49,7 +49,7 @@ Errors come back as JSON with `statusCode` and `statusMessage`: `400` invalid in
 | PATCH / DELETE | `/api/columns/:id` | Edit / delete a column |
 | POST | `/api/boards/:id/column-groups` | Add a column group `{ name, color?, columnIds? }` (editors) |
 | PATCH / DELETE | `/api/column-groups/:id` | Edit `{ name?, color?, columnIds?, aboveId?, belowId? }` (`columnIds` replaces the members) / delete a group (its columns stay) |
-| POST | `/api/boards/:id/cards` | Add a card `{ columnId, title, description? }` |
+| POST | `/api/boards/:id/cards` | Add a card `{ columnId, title, description? }` (title up to 1000 characters) |
 | GET | `/api/cards/:id` | Card with checklist, comments, attachments, links and activity |
 | PATCH | `/api/cards/:id` | Edit `{ title?, description?, startDate?, dueDate?, priority?, estimate?, tagIds?, assigneeIds?, archived? }` |
 | POST | `/api/boards/:id/cards/bulk` | Change up to 200 cards at once, all or none `{ cardIds, columnId?, archived?, priority?, dueDate?, addTagIds?, removeTagIds?, addAssigneeIds?, removeAssigneeIds? }`; `columnId` moves them to the end of that column in board order. Returns `{ cards }` (those not archived) |

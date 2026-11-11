@@ -1,10 +1,11 @@
 import { sql } from 'drizzle-orm'
 import { z } from 'zod'
 import type { Card } from '#shared/types/board'
+import { CARD_TITLE_MAX } from '#shared/cards'
 
 const body = z.object({
   columnId: z.uuid(),
-  title: z.string().trim().min(1).max(200).optional(),
+  title: z.string().trim().min(1).max(CARD_TITLE_MAX).optional(),
   description: z.string().max(10_000).default(''),
   // Copy this template (title, description, tags, assignees, checklist, fields...); title overrides its title.
   templateId: z.uuid().optional(),

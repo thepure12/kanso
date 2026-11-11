@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { priorities, type BoardField, type Card, type CardLink, type CardPatch, type CardRecurrence, type Column, type FieldValue, type Member, type RecurrenceInput, type Tag } from '#shared/types/board'
 import type { CardCounts } from '~/composables/useBoard'
+import { CARD_TITLE_MAX } from '#shared/cards'
 
 const props = defineProps<{
   card: Card
@@ -37,6 +38,8 @@ const emit = defineEmits<{
   saveTemplate: [withAssignees: boolean]
   setRecurrence: [input: RecurrenceInput]
   deleteRecurrence: []
+  /** Move the card to the end of another column. */
+  move: [columnId: string]
 }>()
 const open = defineModel<boolean>('open', { required: true })
 const { t } = useI18n()
@@ -68,6 +71,25 @@ watch(() => [open.value, props.card.id] as const, ([isOpen]) => {
     estimate: c.estimate?.toString() ?? '',
   })
 }, { immediate: true })
+
+// A move can change tags, assignees and dates (column rules). Take the card's new
+// values into fields the user has not edited, so a later Save keeps them.
+const sameSet = (a: string[], b: string[]) => a.length === b.length && a.every(x => b.includes(x))
+watch(() => {
+  const c = props.card
+  return { id: c.id, tagIds: [...c.tagIds], assigneeIds: [...c.assigneeIds], startDate: c.startDate ?? '', dueDate: c.dueDate ?? '' }
+}, (now, before) => {
+  if (!before || now.id !== before.id) return
+  if (sameSet(form.tagIds, before.tagIds)) form.tagIds = now.tagIds
+  if (sameSet(form.assigneeIds, before.assigneeIds)) form.assigneeIds = now.assigneeIds
+  if (form.startDate === before.startDate) form.startDate = now.startDate
+  if (form.dueDate === before.dueDate) form.dueDate = now.dueDate
+})
+
+const columnItems = computed(() => props.columns.map(c => ({ label: c.title, value: c.id })))
+const columnTitle = computed(() => props.columns.find(c => c.id === props.card.columnId)?.title ?? '')
+// Archived cards are not in the board's lists, so they cannot be moved from here.
+const canMove = computed(() => props.canEdit && props.cards.some(c => c.id === props.card.id))
 
 const cardId = computed(() => props.card.id)
 const cd = useCardDetail(cardId)
@@ -145,13 +167,14 @@ const estimate = computed(() => {
 })
 const estimateInvalid = computed(() => estimate.value !== null && !(Number.isFinite(estimate.value) && estimate.value >= 0 && estimate.value <= 9999))
 const datesInvalid = computed(() => !!form.startDate && !!form.dueDate && form.startDate > form.dueDate)
-const invalid = computed(() => !form.title.trim() || estimateInvalid.value || datesInvalid.value)
+const titleLength = computed(() => form.title.trim().length)
+const titleTooLong = computed(() => titleLength.value > CARD_TITLE_MAX)
+const invalid = computed(() => !form.title.trim() || titleTooLong.value || estimateInvalid.value || datesInvalid.value)
 
 const dirty = computed(() => {
   const c = props.card
-  const same = (a: string[], b: string[]) => a.length === b.length && a.every(x => b.includes(x))
   return form.title.trim() !== c.title || form.description !== c.description
-    || !same(form.assigneeIds, c.assigneeIds) || !same(form.tagIds, c.tagIds)
+    || !sameSet(form.assigneeIds, c.assigneeIds) || !sameSet(form.tagIds, c.tagIds)
     || (form.startDate || null) !== c.startDate || (form.dueDate || null) !== c.dueDate
     || form.priority !== c.priority || estimate.value !== c.estimate
 })
@@ -168,6 +191,13 @@ function save() {
     priority: form.priority,
     estimate: estimate.value,
   })
+}
+
+// The title is a textarea so long titles wrap; Enter still saves like the old input did.
+function onTitleEnter(e: KeyboardEvent) {
+  if (e.isComposing) return
+  e.preventDefault()
+  save()
 }
 
 const tab = ref('comments')
@@ -188,8 +218,23 @@ const tabs = computed(() => [
       <div class="grid gap-6 md:grid-cols-[1fr_16rem]">
         <div class="space-y-6 min-w-0">
           <form id="card-form" class="space-y-4" @submit.prevent="save">
-            <UFormField v-if="props.canEdit" :label="t('card.title')" required>
-              <UInput v-model="form.title" class="w-full" />
+            <UFormField
+              v-if="props.canEdit"
+              :label="t('card.title')"
+              required
+              :hint="titleLength > CARD_TITLE_MAX - 100 ? t('card.titleCount', { count: titleLength, max: CARD_TITLE_MAX }) : undefined"
+              :error="titleTooLong ? t('card.errors.titleTooLong', { max: CARD_TITLE_MAX }) : undefined"
+            >
+              <UTextarea
+                :model-value="form.title"
+                :maxlength="CARD_TITLE_MAX"
+                autoresize
+                :rows="1"
+                :maxrows="6"
+                class="w-full"
+                @update:model-value="v => form.title = String(v).replace(/\s*[\r\n]+\s*/g, ' ')"
+                @keydown.enter.exact="onTitleEnter"
+              />
             </UFormField>
             <UFormField :label="t('card.description')">
               <MarkdownEditor v-if="props.canEdit" v-model="form.description" :placeholder="t('card.descriptionPlaceholder')" />
@@ -254,6 +299,18 @@ const tabs = computed(() => [
         </div>
 
         <aside class="space-y-4">
+          <UFormField v-if="!props.template" :label="t('card.list')">
+            <USelect
+              v-if="canMove"
+              :model-value="props.card.columnId"
+              :items="columnItems"
+              class="w-full"
+              @update:model-value="(v: string) => v !== props.card.columnId && emit('move', v)"
+            />
+            <p v-else class="text-sm">
+              {{ columnTitle }}
+            </p>
+          </UFormField>
           <div v-if="cd.detail.value && !props.template" class="flex items-center gap-2">
             <UButton
               :icon="cd.detail.value.watching ? 'i-lucide-eye-off' : 'i-lucide-eye'"

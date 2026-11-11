@@ -2,6 +2,7 @@
 import { VueDraggable, type SortableEvent } from 'vue-draggable-plus'
 import type { BulkCardAction, Card, Column } from '#shared/types/board'
 import { backgroundStyle } from '#shared/boardBackgrounds'
+import { CARD_TITLE_MAX } from '#shared/cards'
 
 const route = useRoute()
 const id = route.params.id as string
@@ -630,7 +631,7 @@ const boardMenu = computed(() => [
             </VueDraggable>
 
             <div v-if="canEdit" class="px-3 pb-3 flex items-start gap-1">
-              <InlineAdd :ref="el => { cardAdds[col.id] = el as { open: () => void } | null }" :label="t('board.addCard')" :placeholder="t('board.cardTitle')" class="flex-1 min-w-0" @add="title => addCard(col.id, title)" />
+              <InlineAdd :ref="el => { cardAdds[col.id] = el as { open: () => void } | null }" :label="t('board.addCard')" :placeholder="t('board.cardTitle')" :maxlength="CARD_TITLE_MAX" class="flex-1 min-w-0" @add="title => addCard(col.id, title)" />
               <UDropdownMenu v-if="templates.length" :items="templateMenu(col)" :content="{ align: 'end' }">
                 <UTooltip :text="t('board.fromTemplate')">
                   <UButton color="neutral" variant="ghost" icon="i-lucide-file-plus" :aria-label="t('board.addFromTemplate')" />
@@ -681,6 +682,7 @@ const boardMenu = computed(() => [
       @open-card="openLinkedCard"
       @link="(link, added) => cardLinkChanged(editingCard!, link, added)"
       @set-field="(field, value) => setFieldValue(editingCard!, field, value)"
+      @move="columnId => moveCard(editingCard!, columnId)"
     />
     <ColumnColorModal
       v-if="colouringColumn"

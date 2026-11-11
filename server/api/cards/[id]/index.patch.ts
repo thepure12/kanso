@@ -1,13 +1,14 @@
 import { and, eq, notInArray, sql } from 'drizzle-orm'
 import { z } from 'zod'
 import { priorities, type Card } from '#shared/types/board'
+import { CARD_TITLE_MAX } from '#shared/cards'
 
 // Story points; the column is numeric(6, 2).
 const estimate = z.number().min(0).max(9999)
 const ids = z.array(z.uuid()).max(50).transform(ids => [...new Set(ids)])
 
 const body = z.object({
-  title: z.string().trim().min(1).max(200).optional(),
+  title: z.string().trim().min(1).max(CARD_TITLE_MAX).optional(),
   description: z.string().max(10_000).optional(),
   startDate: z.iso.date().nullable().optional(),
   dueDate: z.iso.date().nullable().optional(),

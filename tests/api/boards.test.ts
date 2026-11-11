@@ -250,6 +250,17 @@ describe('cards', () => {
     expect((await alice.req(`/api/cards/${card.id}`, { method: 'PATCH', body: { priority: 'meh' } })).status).toBe(400)
   })
 
+  it('accepts titles up to 1000 characters and names the problem past that', async () => {
+    const card = await newCard('Long')
+    const ok = await alice.req<Card>(`/api/cards/${card.id}`, { method: 'PATCH', body: { title: 'x'.repeat(1000) } })
+    expect(ok.data.title).toHaveLength(1000)
+    const tooLong = await alice.req<{ statusMessage: string, data: { issues: { code: string, path: string[], maximum: number }[] } }>(
+      `/api/cards/${card.id}`, { method: 'PATCH', body: { title: 'x'.repeat(1001) } })
+    expect(tooLong.status).toBe(400)
+    expect(tooLong.data.statusMessage).toMatch(/^title: .*1000/)
+    expect(tooLong.data.data.issues[0]).toMatchObject({ code: 'too_big', path: ['title'], maximum: 1000 })
+  })
+
   it('cannot assign someone without access', async () => {
     const card = await newCard('No outsiders')
     const eve = (await outsider.req<{ id: string }>('/api/boards', { method: 'POST', body: { name: 'Eve board' } })).data

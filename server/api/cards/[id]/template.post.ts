@@ -1,9 +1,10 @@
 import { eq, sql } from 'drizzle-orm'
 import { z } from 'zod'
 import type { Card } from '#shared/types/board'
+import { CARD_TITLE_MAX } from '#shared/cards'
 
 const body = z.object({
-  title: z.string().trim().min(1).max(200).optional(),
+  title: z.string().trim().min(1).max(CARD_TITLE_MAX).optional(),
   // Keep the card's assignees on the template (and so on cards made from it).
   withAssignees: z.boolean().default(false),
 }).default({ withAssignees: false })

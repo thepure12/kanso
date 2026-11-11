@@ -1,0 +1,1 @@
+ALTER TABLE "cards" ADD CONSTRAINT "cards_title_length" CHECK (char_length("cards"."title") <= 1000);

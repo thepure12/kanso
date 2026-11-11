@@ -1,4 +1,5 @@
 import type { BoardExport } from '../boardExport'
+import { CARD_TITLE_MAX } from '../cards'
 import type { Priority } from '../types/board'
 import { clip, noSkips, palette, toDate, type ConvertResult } from './common'
 import { parseCsv } from './csv'
@@ -72,7 +73,7 @@ export function csvToBoard(text: string, options: CsvOptions): ConvertResult {
     const first = (role: Role) => cells(role)[0] ?? ''
     let title = first('title')
     if (options.issueKeys && first('key')) title = `${first('key')} ${title}`
-    title = clip(title, 200)
+    title = clip(title, CARD_TITLE_MAX)
     if (!first('title')) {
       skipped.cards++
       continue

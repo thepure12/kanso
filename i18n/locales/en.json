@@ -677,6 +677,7 @@
     "deleteConfirmRepeating": "Delete the template “{title}”? It stops repeating."
   },
   "card": {
+    "list": "List",
     "keepAssigneesOnTemplate": "Keep the assignees on the template? Cards made from it will be assigned to them too.",
     "keepAssignees": "Keep assignees",
     "dropAssignees": "Leave them off",
@@ -709,11 +710,13 @@
     "priority": "Priority",
     "estimate": "Estimate",
     "estimateInvalid": "Enter 0 to 9999",
+    "titleCount": "{count} / {max}",
     "storyPoints": "Story points",
     "saveAsTemplate": "Save as template",
     "archive": "Archive",
     "formerMember": "Former member",
     "errors": {
+      "titleTooLong": "Title is too long (max {max} characters)",
       "load": "Could not load card",
       "watch": "Could not watch card",
       "unwatch": "Could not unwatch card"

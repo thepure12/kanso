@@ -281,6 +281,8 @@ export const cards = pgTable('cards', {
   foreignKey({ columns: [t.columnId, t.boardId], foreignColumns: [columns.id, columns.boardId], name: 'cards_column_board_fk' }).onDelete('cascade'),
   check('cards_start_before_due', sql`${t.startDate} <= ${t.dueDate}`),
   check('cards_estimate_range', sql`${t.estimate} >= 0`),
+  // CARD_TITLE_MAX (shared/cards.ts).
+  check('cards_title_length', sql`char_length(${t.title}) <= 1000`),
 ])
 
 export const tags = pgTable('tags', {

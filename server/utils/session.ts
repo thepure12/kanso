@@ -117,8 +117,21 @@ export const uuidParam = z.object({ id: z.uuid() })
 /** #rrggbb in any case, stored lowercase. */
 export const hexColor = z.string().regex(/^#[0-9a-f]{6}$/i).transform(c => c.toLowerCase())
 
-export function readValidated<T extends z.ZodType>(event: H3Event, schema: T): Promise<z.infer<T>> {
-  return readValidatedBody(event, body => schema.parse(body))
+/**
+ * Parses the JSON body with `schema`. A failure is a 400 whose message names
+ * the first problem (`title: Too big: ...`), with the zod issues in `data.issues`
+ * so the client can show its own wording.
+ */
+export async function readValidated<T extends z.ZodType>(event: H3Event, schema: T): Promise<z.infer<T>> {
+  const result = schema.safeParse(await readBody(event))
+  if (result.success) return result.data
+  const issue = result.error.issues[0]
+  const path = issue?.path.join('.')
+  throw createError({
+    statusCode: 400,
+    statusMessage: issue ? (path ? `${path}: ${issue.message}` : issue.message) : 'Invalid request body',
+    data: { issues: result.error.issues },
+  })
 }
 
 export function paramsValidated<T extends z.ZodType>(event: H3Event, schema: T): Promise<z.infer<T>> {

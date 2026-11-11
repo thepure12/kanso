@@ -21,6 +21,7 @@ export function toHttpError(err: unknown): never {
       throw createError({ statusCode: 404, statusMessage: 'No user with that email' })
     case '23514':
       if (pgConstraint(err) === 'cards_start_before_due') throw createError({ statusCode: 400, statusMessage: 'The start date must be on or before the due date' })
+      if (pgConstraint(err) === 'cards_title_length') throw createError({ statusCode: 400, statusMessage: 'The title is too long' })
       if (pgConstraint(err) === 'cards_estimate_range') throw createError({ statusCode: 400, statusMessage: 'The estimate cannot be negative' })
       if (pgConstraint(err)?.startsWith('card_recurrences_')) throw createError({ statusCode: 400, statusMessage: 'Invalid schedule' })
       if (pgConstraint(err) === 'card_links_not_self') throw createError({ statusCode: 400, statusMessage: 'A card cannot link to itself' })
