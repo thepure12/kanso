@@ -386,7 +386,11 @@
     "expiresLabel": "Expires",
     "create": "Create token",
     "createFailed": "Could not create the token",
-    "revokeFailed": "Could not revoke the token"
+    "revokeFailed": "Could not revoke the token",
+    "mcpTitle": "Use with AI agents (MCP)",
+    "mcpHelp": "Agents such as Claude Code can work with your boards through the MCP server at {url}, sending this token. A read-only token only lets them look. To add it to Claude Code:",
+    "mcpCopy": "Copy command",
+    "mcpCopied": "Command copied"
   },
   "sessions": {
     "title": "Sessions",

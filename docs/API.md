@@ -83,6 +83,29 @@ curl -s -X POST -H "Authorization: Bearer $TOKEN" -H 'content-type: application/
   -d '{"columnId":"'$DONE'","aboveId":null,"belowId":null}' $KANSO/api/cards/$CARD/move
 ```
 
+## MCP (AI agents)
+
+`POST /api/mcp` is a [Model Context Protocol](https://modelcontextprotocol.io) server (Streamable HTTP, stateless,
+JSON responses) for agents such as Claude Code or Claude Desktop. It takes an API token only (`Authorization: Bearer`,
+never the session cookie; `401` without one) and acts as the token's user: each tool calls the routes above, so the
+same permissions, validation and scope rules apply, and changes show up live on open boards. `GET` and `DELETE` are
+`405`.
+
+- **Read tools** (every token): `list_boards`, `get_board` (columns with their cards, tags, members, fields, templates),
+  `get_card` (description, checklist, comments, links, attachments, recent activity), `search`, `my_work`,
+  `list_notifications`.
+- **Write tools** (listed only for read and write tokens): `create_card`, `update_card`, `move_card`,
+  `bulk_update_cards`, `add_comment`, `add_checklist_item`, `update_checklist_item`.
+- API errors come back as tool results with `isError` and the status, e.g. `404 Board not found`.
+
+```bash
+# Claude Code (the Account page shows this command when you create a token)
+claude mcp add --transport http kanso $KANSO/api/mcp --header "Authorization: Bearer $TOKEN"
+```
+
+Other clients: add a remote HTTP MCP server with URL `$KANSO/api/mcp` and the header above. A read-only token is
+enough for an agent that only reports on boards.
+
 ## Webhooks
 
 Board owners add webhooks from the board menu (**Webhooks**). Each one gets the board's card activity (all kinds, or

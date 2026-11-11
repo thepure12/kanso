@@ -59,6 +59,15 @@ async function copy() {
   toast.add({ title: t('tokens.copied'), color: 'success' })
 }
 
+/** MCP endpoint for AI agents, and the Claude Code command that adds it with the new token. */
+const mcpUrl = computed(() => import.meta.client ? window.location.origin + appUrl('/api/mcp') : '')
+const mcpCommand = computed(() => `claude mcp add --transport http kanso ${mcpUrl.value} --header "Authorization: Bearer ${created.value}"`)
+
+async function copyMcpCommand() {
+  await navigator.clipboard.writeText(mcpCommand.value)
+  toast.add({ title: t('tokens.mcpCopied'), color: 'success' })
+}
+
 async function revoke(token: ApiToken) {
   try {
     await $fetch(`/api/account/tokens/${token.id}`, { method: 'DELETE' })
@@ -122,6 +131,20 @@ defineExpose({ refresh })
               <UButton color="neutral" variant="link" size="sm" icon="i-lucide-copy" :aria-label="t('tokens.copy')" @click="copy" />
             </template>
           </UInput>
+          <div class="space-y-1">
+            <p class="text-sm font-medium">
+              {{ t('tokens.mcpTitle') }}
+            </p>
+            <i18n-t keypath="tokens.mcpHelp" tag="p" class="text-sm text-muted" scope="global">
+              <template #url>
+                <code class="break-all">{{ mcpUrl }}</code>
+              </template>
+            </i18n-t>
+            <div class="flex items-start gap-1">
+              <UTextarea :model-value="mcpCommand" readonly autoresize :rows="2" class="flex-1 font-mono text-xs" @focus="($event.target as HTMLTextAreaElement).select()" />
+              <UButton color="neutral" variant="ghost" size="sm" icon="i-lucide-copy" :aria-label="t('tokens.mcpCopy')" @click="copyMcpCommand" />
+            </div>
+          </div>
         </div>
         <form v-else id="new-token" class="space-y-4" @submit.prevent="create">
           <UFormField :label="t('common.name')" :description="t('tokens.nameHelp')">

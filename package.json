@@ -17,6 +17,7 @@
   "dependencies": {
     "@iconify-json/lucide": "^1.2.0",
     "@iconify-json/simple-icons": "^1.2.0",
+    "@modelcontextprotocol/sdk": "^1.32.2",
     "@nuxt/ui": "^4.11.3",
     "@nuxtjs/i18n": "^10.6.0",
     "@vite-pwa/nuxt": "^1.1.1",

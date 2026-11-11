@@ -7,6 +7,19 @@ Cycle time, throughput, cumulative flow and a burndown by `estimate`, computed f
 `archived`). Read only: a slideover or page per board with charts. Needs a query that rebuilds each card's column
 history; the board's last column counts as "done", as for blocked cards.
 
+## Agent integration
+Builds on the MCP endpoint (`POST /api/mcp`, see `docs/API.md`). Candidates:
+- **OAuth for MCP clients**: let agents sign in through the MCP authorization flow (protected resource metadata,
+  dynamic client registration) instead of a pasted API token; tokens issued per client, revocable on `/account`.
+- **More MCP tools**: card links, tags and columns, time entries, watch/unwatch; MCP resources (boards as readable
+  resources) and prompts (e.g. "triage this board", "write a standup from my work").
+- **Built-in assistant**: an AI panel in the app using the Claude API with a server-side key (opt-in per instance):
+  summarise a board or a card's history, turn pasted notes into cards, suggest tags and assignees. Runs as the user
+  through the same routes as the MCP tools.
+- **Agents as board members**: bot accounts that can be assigned cards and added to boards like people (own role,
+  no login, API token only). Assigning a card to one triggers a webhook to the agent, which works through the MCP
+  tools and reports back in comments.
+
 ## Saved filters and views
 Save the current filter, view (board/list/calendar/timeline) and swimlane grouping under a name. Personal (own rows) or
 shared on the board (editors manage, viewers read). New table with RLS and a notify trigger for shared ones.

@@ -74,16 +74,27 @@ async function requireTokenUser(event: H3Event, token: string): Promise<{ userId
   if (!tokenRouteAllowed((event.context.matchedRoute as { path?: string } | undefined)?.path)) {
     throw createError({ statusCode: 403, statusMessage: 'API tokens cannot be used for this route' })
   }
+  const { userId, tokenId, scopes } = await resolveTokenUser(event, token)
+  if (!tokenMethodAllowed(scopes, event.method)) {
+    throw createError({ statusCode: 403, statusMessage: 'This API token is read-only' })
+  }
+  return { userId, auth: { tokenId } }
+}
+
+/**
+ * The user, token id and scopes of a personal access token. Unknown, revoked
+ * and expired tokens are 401 and count against a per-IP limit (429 past it).
+ * No route or method check: callers do that (requireTokenUser) or forward the
+ * token to routes that do (the MCP endpoint).
+ */
+export async function resolveTokenUser(event: H3Event, token: string): Promise<{ userId: string, tokenId: string, scopes: string[] }> {
   const [row] = await useAuthDb().execute<{ token_id: string, user_id: string, scopes: string[] }>(
     sql`select * from app.resolve_api_token(${hashApiToken(token)})`)
   if (!row) {
     await rateLimit(`token:${getRequestIP(event, { xForwardedFor: true }) ?? ''}`, 20)
     throw createError({ statusCode: 401, statusMessage: 'Invalid or expired API token' })
   }
-  if (!tokenMethodAllowed(row.scopes, event.method)) {
-    throw createError({ statusCode: 403, statusMessage: 'This API token is read-only' })
-  }
-  return { userId: row.user_id, auth: { tokenId: row.token_id } }
+  return { userId: row.user_id, tokenId: row.token_id, scopes: row.scopes }
 }
 
 /**

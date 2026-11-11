@@ -386,7 +386,11 @@
     "expiresLabel": "Läuft ab",
     "create": "Token erstellen",
     "createFailed": "Das Token konnte nicht erstellt werden",
-    "revokeFailed": "Das Token konnte nicht widerrufen werden"
+    "revokeFailed": "Das Token konnte nicht widerrufen werden",
+    "mcpTitle": "Mit KI-Agenten nutzen (MCP)",
+    "mcpHelp": "Agenten wie Claude Code können über den MCP-Server unter {url} mit diesem Token auf deine Boards zugreifen. Mit einem Nur-Lese-Token können sie nur lesen. So fügst du ihn Claude Code hinzu:",
+    "mcpCopy": "Befehl kopieren",
+    "mcpCopied": "Befehl kopiert"
   },
   "sessions": {
     "title": "Sitzungen",
