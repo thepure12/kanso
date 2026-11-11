@@ -4,6 +4,7 @@
 import { randomUUID } from 'node:crypto'
 import postgres from 'postgres'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { allowExternalInvites } from './helpers/settings'
 
 const app = postgres(process.env.NUXT_DATABASE_URL!, { onnotice: () => {} })
 const auth = postgres(process.env.NUXT_AUTH_DATABASE_URL!, { onnotice: () => {} })
@@ -32,7 +33,12 @@ async function createUser(name: string, email = newEmail(name), verified = true)
   return u as User
 }
 
+// The email-change test invites an outside email; a dev database may have that turned off.
+let restoreSettings: () => Promise<void>
+beforeAll(async () => { restoreSettings = await allowExternalInvites(owner) })
+
 afterAll(async () => {
+  await restoreSettings?.()
   await owner`delete from admin_audit_log where actor_id = any(${created}) or target_user_id = any(${created})
     or data->>'actor_email' = any(${emails}) or data->>'target_email' = any(${emails})`
   await owner`delete from boards where id in (select board_id from board_members where user_id = any(${created}))`

@@ -2,9 +2,11 @@
 import { randomUUID } from 'node:crypto'
 import postgres from 'postgres'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { allowExternalInvites } from './helpers/settings'
 
 const app = postgres(process.env.NUXT_DATABASE_URL!, { onnotice: () => {} })
 const auth = postgres(process.env.NUXT_AUTH_DATABASE_URL!, { onnotice: () => {} })
+const ownerDb = postgres(process.env.MIGRATION_DATABASE_URL!, { onnotice: () => {} })
 
 function as<T>(userId: string, fn: (sql: postgres.TransactionSql) => Promise<T>) {
   return app.begin(async (sql) => {
@@ -29,8 +31,11 @@ let editor: { id: string, email: string }
 let outsider: { id: string, email: string }
 let boardId: string
 let teamId: string
+let restoreSettings: () => Promise<void>
 
 beforeAll(async () => {
+  // The tests invite outside emails; a dev database may have that turned off.
+  restoreSettings = await allowExternalInvites(ownerDb)
   ;[owner, editor, outsider] = await Promise.all(['owner', 'editor', 'outsider'].map(n => createUser(n)))
   await as(owner.id, async (sql) => {
     ;[{ id: boardId }] = await sql`select id from app.create_board('Invites', null)` as any
@@ -44,7 +49,8 @@ afterAll(async () => {
     await sql`delete from boards where id = ${boardId}`
     await sql`delete from teams where id = ${teamId}`
   })
-  await Promise.all([app.end(), auth.end()])
+  await restoreSettings?.()
+  await Promise.all([app.end(), auth.end(), ownerDb.end()])
 })
 
 describe('invites', () => {

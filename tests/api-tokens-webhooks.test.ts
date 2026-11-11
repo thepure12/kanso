@@ -187,15 +187,25 @@ describe('webhooks', () => {
   it('claims, retries with backoff, fails after 5 attempts and turns off after 20 failures in a row', async () => {
     const hook = await add(owner.id, ['renamed'])
     const card = await newCard()
-    await as(owner.id, sql => sql`update cards set title = 'Ping' where id = ${card}`)
+    // Queue the delivery as not yet due, in the same transaction: a dev server on
+    // the same database delivers due rows as soon as the NOTIFY arrives at commit,
+    // and would claim it before this test. claimFor makes it due when needed.
+    await owner_.begin(async (sql) => {
+      await sql`select set_config('app.user_id', ${owner.id}, true)`
+      await sql`update cards set title = 'Ping' where id = ${card}`
+      await sql`update webhook_deliveries set next_attempt_at = now() + interval '1 day' where webhook_id = ${hook}`
+    })
     await rejectsWith(as(owner.id, sql => sql`select * from app.claim_webhook_deliveries(10)`), '42501')
 
     const [d] = await owner_`select id from webhook_deliveries where webhook_id = ${hook}`
-    const claimFor = async () => {
-      await owner_`update webhook_deliveries set next_attempt_at = now() - interval '1 second' where id = ${d!.id}`
-      const rows = await auth`select * from app.claim_webhook_deliveries(1000)`
+    // Makes the delivery due and claims it in one transaction (as the owner role,
+    // which owns the function), so a dev server cannot take it in between.
+    // kanban_auth's own claim is checked by the lease assertion below.
+    const claimFor = () => owner_.begin(async (sql) => {
+      await sql`update webhook_deliveries set next_attempt_at = now() - interval '1 second' where id = ${d!.id}`
+      const rows = await sql`select * from app.claim_webhook_deliveries(1000)`
       return rows.find(r => r.delivery_id === d!.id)
-    }
+    })
     const claimed = await claimFor()
     expect(claimed).toMatchObject({ webhook_id: hook, url: 'http://203.0.113.1/hook', format: 'json', secret: 's3cret', attempt: 1, kind: 'renamed', card_title: 'Ping', board_name: 'Webhook board', actor_name: 'owner', locale: null })
     // Leased: not handed out again right away.
