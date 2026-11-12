@@ -555,6 +555,7 @@ const boardMenu = computed(() => [
         @delete="card => deletingCard = card"
         @move="moveToLane"
         @dragging="v => dragging = v"
+        @rename="(card, title) => updateCard(card, { title })"
       />
     </div>
     <div v-else class="flex-1 overflow-x-auto">
@@ -662,6 +663,8 @@ const boardMenu = computed(() => [
               group="cards"
               :disabled="dragDisabled"
               :animation="150"
+              filter=".card-title-edit"
+              :prevent-on-filter="false"
               ghost-class="opacity-40"
               class="flex flex-col gap-2 px-3 py-2 min-h-8 overflow-y-auto"
               @start="dragging = true"
@@ -685,6 +688,7 @@ const boardMenu = computed(() => [
                 @open="editingCardId = card.id"
                 @delete="deletingCard = card"
                 @select="toggleSelected(card.id)"
+                @rename="title => updateCard(card, { title })"
               />
             </VueDraggable>
 

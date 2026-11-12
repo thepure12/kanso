@@ -24,6 +24,7 @@ const emit = defineEmits<{
   /** Move to `index` of the column's full list; `laneKey` when dropped into another lane (the card takes its value). */
   'move': [card: Card, columnId: string, index: number, laneKey?: string]
   'dragging': [value: boolean]
+  'rename': [card: Card, title: string]
 }>()
 
 const { t } = useI18n()
@@ -93,6 +94,8 @@ function onDrop(laneKey: string, columnId: string, e: SortableEvent) {
           :group="group(lane.key)"
           :disabled="props.dragDisabled"
           :animation="150"
+          filter=".card-title-edit"
+          :prevent-on-filter="false"
           ghost-class="opacity-40"
           class="shrink-0 rounded-lg bg-elevated/60 ring ring-default flex flex-col gap-2 p-2 min-h-12"
           :style="{ width: `${props.columnWidth(col.id)}px` }"
@@ -116,6 +119,7 @@ function onDrop(laneKey: string, columnId: string, e: SortableEvent) {
             :blocked="props.blockedIds.has(card.id)"
             @open="emit('open', card.id)"
             @delete="emit('delete', card)"
+            @rename="title => emit('rename', card, title)"
           />
         </VueDraggable>
       </div>

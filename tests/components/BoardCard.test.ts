@@ -1,5 +1,5 @@
 import { mountSuspended } from '@nuxt/test-utils/runtime'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import BoardCard from '~/components/BoardCard.vue'
 import type { BoardField, Card, Member, Tag } from '#shared/types/board'
 
@@ -88,5 +88,45 @@ describe('BoardCard', () => {
     expect(text).toContain('Signed')
     expect(text).not.toContain('hidden')
     expect(text).not.toContain('Paid')
+  })
+
+  it('double-clicking the title edits it inline; Enter saves, Escape cancels', async () => {
+    vi.useFakeTimers()
+    try {
+      const w = await mount(card())
+      const title = w.find('p.font-medium')
+      await title.trigger('click', { detail: 1 })
+      await title.trigger('click', { detail: 2 })
+      vi.advanceTimersByTime(300)
+      expect(w.emitted('open')).toBeUndefined()
+      const input = w.find('textarea')
+      expect(input.element.value).toBe('Fix it')
+
+      await input.setValue('  Fix  it\nnow ')
+      await input.trigger('keydown', { key: 'Enter' })
+      expect(w.emitted('rename')).toEqual([['Fix it now']])
+      expect(w.find('textarea').exists()).toBe(false)
+
+      await w.trigger('keydown', { key: 'F2' })
+      await w.find('textarea').setValue('Other')
+      await w.find('textarea').trigger('keydown', { key: 'Escape' })
+      expect(w.emitted('rename')).toHaveLength(1)
+
+      // A single click on the title still opens the card, after the double-click window.
+      await w.find('p.font-medium').trigger('click', { detail: 1 })
+      expect(w.emitted('open')).toBeUndefined()
+      vi.advanceTimersByTime(300)
+      expect(w.emitted('open')).toHaveLength(1)
+    }
+    finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('viewers cannot edit the title; a click opens at once', async () => {
+    const w = await mount(card(), false)
+    await w.find('p.font-medium').trigger('click', { detail: 2 })
+    expect(w.find('textarea').exists()).toBe(false)
+    expect(w.emitted('open')).toHaveLength(1)
   })
 })

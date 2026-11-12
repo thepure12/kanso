@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { BoardField, Card, Member, Tag } from '#shared/types/board'
+import { CARD_TITLE_MAX } from '#shared/cards'
 
 const props = withDefaults(defineProps<{
   card: Card
@@ -16,7 +17,7 @@ const props = withDefaults(defineProps<{
   /** Some card is selected: a click toggles selection instead of opening the card. */
   selecting?: boolean
 }>(), { fields: () => [] })
-const emit = defineEmits<{ open: [], delete: [], select: [] }>()
+const emit = defineEmits<{ open: [], delete: [], select: [], rename: [title: string] }>()
 const { t, locale } = useI18n()
 const i18n = useI18nContext()
 
@@ -45,6 +46,45 @@ function onClick(e: MouseEvent | KeyboardEvent) {
   if (props.canEdit && (props.selecting || e.ctrlKey || e.metaKey || e.shiftKey)) emit('select')
   else emit('open')
 }
+
+// Inline title edit: double-click the title (or F2 on the focused card), Enter or blur saves, Escape cancels.
+// A single click on the title waits for a possible second click before it opens the card.
+const editingTitle = ref(false)
+const titleDraft = ref('')
+const titleInput = ref<{ textareaRef?: HTMLTextAreaElement } | null>(null)
+let openTimer: ReturnType<typeof setTimeout> | undefined
+function cancelOpen() {
+  clearTimeout(openTimer)
+  openTimer = undefined
+}
+onBeforeUnmount(cancelOpen)
+function onTitleClick(e: MouseEvent) {
+  // Selection clicks and read-only cards behave like a click anywhere on the card.
+  if (!props.canEdit || props.selecting || e.ctrlKey || e.metaKey || e.shiftKey) return
+  e.stopPropagation()
+  cancelOpen()
+  if (e.detail === 1) openTimer = setTimeout(() => {
+    openTimer = undefined
+    emit('open')
+  }, 250)
+  else if (e.detail === 2) startTitleEdit()
+}
+function startTitleEdit() {
+  if (!props.canEdit) return
+  titleDraft.value = props.card.title
+  editingTitle.value = true
+  nextTick(() => {
+    const el = titleInput.value?.textareaRef
+    el?.focus()
+    el?.select()
+  })
+}
+function finishTitleEdit(save: boolean) {
+  if (!editingTitle.value) return
+  editingTitle.value = false
+  const title = titleDraft.value.replace(/\s+/g, ' ').trim().slice(0, CARD_TITLE_MAX)
+  if (save && title && title !== props.card.title) emit('rename', title)
+}
 const dateLabel = computed(() => formatDateRange(props.card.startDate, props.card.dueDate, i18n))
 const dueAriaLabel = computed(() => {
   const c = props.card
@@ -62,7 +102,8 @@ const dueAriaLabel = computed(() => {
     :class="props.selected && 'ring-2 ring-primary bg-primary/5'"
     tabindex="0"
     @click="onClick"
-    @keydown.enter="onClick"
+    @keydown.enter.self="onClick"
+    @keydown.f2.self.prevent="startTitleEdit"
   >
     <UTooltip v-if="props.canEdit" :text="t(props.selected ? 'boardCard.deselect' : 'boardCard.select')">
       <UButton
@@ -98,7 +139,29 @@ const dueAriaLabel = computed(() => {
     <div v-if="cardTags.length" class="flex flex-wrap gap-1 mb-2" :class="props.canEdit && 'pe-12'">
       <TagChip v-for="t in cardTags" :key="t.id" :tag="t" :compact="!labels.tagNames" />
     </div>
-    <p class="text-sm font-medium break-words" :class="props.canEdit && 'pe-12'">
+    <UTextarea
+      v-if="editingTitle"
+      ref="titleInput"
+      v-model="titleDraft"
+      :rows="1"
+      autoresize
+      :maxlength="CARD_TITLE_MAX"
+      :aria-label="t('board.cardTitle')"
+      class="card-title-edit w-full"
+      :class="props.canEdit && 'pe-12'"
+      :ui="{ base: 'text-sm font-medium px-1 py-0.5' }"
+      @click.stop
+      @keydown.stop
+      @keydown.enter.exact.prevent="finishTitleEdit(true)"
+      @keydown.esc.prevent="finishTitleEdit(false)"
+      @blur="finishTitleEdit(true)"
+    />
+    <p
+      v-else
+      class="text-sm font-medium break-words"
+      :class="props.canEdit && 'pe-12'"
+      @click="onTitleClick"
+    >
       {{ props.card.title }}
     </p>
     <div v-if="fieldChips.length" class="flex flex-wrap gap-1 mt-2">
