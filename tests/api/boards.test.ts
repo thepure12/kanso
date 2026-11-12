@@ -1197,7 +1197,7 @@ describe('account', () => {
   it('shows and edits the profile and digest setting', async () => {
     const user = await signUp('Profile')
     const acc = await user.req<Account>('/api/account')
-    expect(acc.data).toEqual({ name: 'Profile', email: user.email, hasPassword: true, providers: [], digestEnabled: false, locale: null, twoFactorEnabled: false, recoveryCodesLeft: 0 })
+    expect(acc.data).toEqual({ name: 'Profile', email: user.email, hasPassword: true, providers: [], digestEnabled: false, locale: null, twoFactorEnabled: false, recoveryCodesLeft: 0, avatarUrl: null })
     expect((await user.req('/api/account', { method: 'PATCH', body: { name: 'Renamed', digestEnabled: true } })).status).toBe(200)
     expect((await user.req<Account>('/api/account')).data).toMatchObject({ name: 'Renamed', digestEnabled: true })
     expect((await user.req('/api/account', { method: 'PATCH', body: {} })).status).toBe(400)
