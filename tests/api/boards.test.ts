@@ -939,6 +939,35 @@ describe('board background', () => {
   })
 })
 
+describe('profile picture', () => {
+  const upload = (who: typeof alice, bytes: Buffer) => {
+    const form = new FormData()
+    form.append('file', new Blob([bytes], { type: 'image/png' }), 'me.png')
+    return who.req<{ avatarUrl: string }>('/api/account/avatar', { method: 'POST', body: form })
+  }
+  const png = Buffer.from('89504e470d0a1a0a0000000d49484452', 'hex')
+
+  it('uploads, shows it to people sharing a board, and removes it', async () => {
+    expect((await upload(bob, Buffer.from('<svg/>'))).status).toBe(400)
+    const { data } = await upload(bob, png)
+    const members = (await alice.req<BoardDetail>(`/api/boards/${boardId}`)).data.members
+    const bobId = members.find(m => m.email === bob.email)!.userId
+    expect(data.avatarUrl).toMatch(new RegExp(`^/api/users/${bobId}/avatar\\?v=[0-9a-f]{12}$`))
+    expect(members.find(m => m.userId === bobId)!.avatarUrl).toBe(data.avatarUrl)
+    expect((await bob.req<{ user: { avatarUrl: string } }>('/api/_auth/session')).data.user.avatarUrl).toBe(data.avatarUrl)
+
+    const image = await alice.req<Buffer>(data.avatarUrl)
+    expect(image.headers.get('content-type')).toBe('image/png')
+    expect(image.headers.get('x-content-type-options')).toBe('nosniff')
+    expect(Buffer.compare(image.data, png)).toBe(0)
+    expect((await outsider.req(data.avatarUrl)).status).toBe(404)
+
+    expect((await bob.req('/api/account/avatar', { method: 'DELETE' })).status).toBe(200)
+    expect((await alice.req(data.avatarUrl)).status).toBe(404)
+    expect((await bob.req<{ avatarUrl: string | null }>('/api/account')).data.avatarUrl).toBeNull()
+  })
+})
+
 describe('board accent', () => {
   it('owners set and clear it; members see it; copies keep it', async () => {
     const put = (who: typeof alice, accent: unknown) => who.req(`/api/boards/${boardId}/accent`, { method: 'PUT', body: { accent } })

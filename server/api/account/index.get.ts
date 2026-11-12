@@ -22,6 +22,7 @@ export default defineEventHandler(async (event): Promise<Account> => {
   return {
     name: user.name,
     email: user.email,
+    avatarUrl: user.avatarUrl,
     hasPassword: !!user.passwordHash,
     providers: providers.map(p => p.provider).sort(),
     digestEnabled: user.digestEnabled,

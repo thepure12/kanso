@@ -213,7 +213,22 @@
       "title": "Profile",
       "saved": "Name saved",
       "saveFailed": "Could not save the name",
-      "linked": "Linked sign-in: {providers}"
+      "linked": "Linked sign-in: {providers}",
+      "picture": "Profile picture",
+      "pictureHint": "PNG, JPEG, WebP or GIF. Cropped to a square and shown next to your name on boards and comments.",
+      "pictureUpload": "Upload picture",
+      "pictureChange": "Change picture",
+      "pictureRemove": "Remove picture",
+      "pictureSaved": "Profile picture saved",
+      "pictureRemoved": "Profile picture removed",
+      "pictureFailed": "Could not save the profile picture",
+      "pictureRemoveFailed": "Could not remove the profile picture",
+      "pictureWrongType": "Use a PNG, JPEG, WebP or GIF image",
+      "cropTitle": "Crop picture",
+      "cropDescription": "Drag to move the picture, scroll or use the slider to zoom.",
+      "cropArea": "Picture area. Arrow keys move, plus and minus zoom.",
+      "cropZoom": "Zoom",
+      "cropFailed": "Could not open this image"
     },
     "email": {
       "notChanged": "Email not changed",

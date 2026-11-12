@@ -10,6 +10,8 @@ export interface Me {
 export interface Account {
   name: string
   email: string
+  /** Uploaded picture (GET /api/users/:id/avatar) or one from an OAuth provider. */
+  avatarUrl: string | null
   /** False for accounts that only sign in through OAuth; they can set one. */
   hasPassword: boolean
   /** Linked OAuth providers, e.g. ['github']. */

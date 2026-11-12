@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { AvatarCropModal } from '#components'
 import type { Locale } from '#shared/i18n'
 import type { Account } from '#shared/types/account'
 
@@ -42,6 +43,43 @@ async function saveName() {
   }
   catch (err) { showError(err, t('account.profile.saveFailed')) }
   finally { savingName.value = false }
+}
+
+// Profile picture: cropped by the user and scaled down in the browser, then uploaded.
+const overlay = useOverlay()
+const pictureInput = useTemplateRef<HTMLInputElement>('pictureInput')
+const savingPicture = ref(false)
+async function onPicture(e: Event) {
+  const input = e.target as HTMLInputElement
+  const file = input.files?.[0]
+  input.value = ''
+  if (!file) return
+  if (!AVATAR_TYPES.includes(file.type)) {
+    toast.add({ title: t('account.profile.pictureWrongType'), color: 'error' })
+    return
+  }
+  const cropped = await overlay.create(AvatarCropModal, { destroyOnClose: true }).open({ file }).result
+  if (!cropped) return
+  savingPicture.value = true
+  try {
+    const form = new FormData()
+    form.append('file', cropped, 'avatar')
+    await $fetch('/api/account/avatar', { method: 'POST', body: form })
+    await Promise.all([refresh(), refreshSession()])
+    toast.add({ title: t('account.profile.pictureSaved'), color: 'success' })
+  }
+  catch (err) { showError(err, t('account.profile.pictureFailed')) }
+  finally { savingPicture.value = false }
+}
+async function removePicture() {
+  savingPicture.value = true
+  try {
+    await $fetch('/api/account/avatar', { method: 'DELETE' })
+    await Promise.all([refresh(), refreshSession()])
+    toast.add({ title: t('account.profile.pictureRemoved'), color: 'success' })
+  }
+  catch (err) { showError(err, t('account.profile.pictureRemoveFailed')) }
+  finally { savingPicture.value = false }
 }
 
 // Password
@@ -194,6 +232,30 @@ const providerLabel: Record<string, string> = { discord: 'Discord', github: 'Git
           <h2 class="text-lg font-medium">
             {{ t('account.profile.title') }}
           </h2>
+          <div class="flex items-center gap-4">
+            <UAvatar :src="account.avatarUrl ?? undefined" :alt="account.name" size="3xl" />
+            <div class="space-y-2 min-w-0">
+              <div class="flex flex-wrap gap-2">
+                <UButton
+                  color="neutral" variant="outline" size="sm" icon="i-lucide-image-up"
+                  :label="account.avatarUrl ? t('account.profile.pictureChange') : t('account.profile.pictureUpload')"
+                  :loading="savingPicture"
+                  @click="pictureInput?.click()"
+                />
+                <UButton
+                  v-if="account.avatarUrl"
+                  color="neutral" variant="ghost" size="sm" icon="i-lucide-trash-2"
+                  :label="t('account.profile.pictureRemove')"
+                  :disabled="savingPicture"
+                  @click="removePicture"
+                />
+              </div>
+              <p class="text-xs text-muted">
+                {{ t('account.profile.pictureHint') }}
+              </p>
+            </div>
+            <input ref="pictureInput" type="file" :accept="AVATAR_TYPES.join(',')" class="hidden" :aria-label="t('account.profile.picture')" @change="onPicture">
+          </div>
           <form class="flex items-end gap-2" @submit.prevent="saveName">
             <UFormField :label="t('common.name')" class="flex-1">
               <UInput v-model="name" class="w-full" maxlength="100" required />

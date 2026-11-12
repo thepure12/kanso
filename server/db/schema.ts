@@ -171,6 +171,20 @@ export const boardBackgrounds = pgTable('board_backgrounds', {
   check('board_backgrounds_size', sql`${t.size} between 1 and 5242880 and octet_length(${t.data}) = ${t.size}`),
 ])
 
+// A profile picture the user uploaded; users.avatar_url then points at
+// GET /api/users/:id/avatar. One per user, small (the client resizes it first).
+// See 0060_user_avatars_rls.sql.
+export const userAvatars = pgTable('user_avatars', {
+  userId: uuid('user_id').primaryKey().references(() => users.id, { onDelete: 'cascade' }),
+  contentType: text('content_type').notNull(),
+  size: integer('size').notNull(),
+  data: bytea('data').notNull(),
+  createdAt: createdAt(),
+}, t => [
+  check('user_avatars_type', sql`${t.contentType} in ('image/png', 'image/jpeg', 'image/webp', 'image/gif')`),
+  check('user_avatars_size', sql`${t.size} between 1 and 1048576 and octet_length(${t.data}) = ${t.size}`),
+])
+
 // Boards a user starred; listed first on the home page and in the command palette.
 // Personal: each user sees and changes only their own rows.
 export const boardStars = pgTable('board_stars', {

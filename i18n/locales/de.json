@@ -213,7 +213,22 @@
       "title": "Profil",
       "saved": "Name gespeichert",
       "saveFailed": "Der Name konnte nicht gespeichert werden",
-      "linked": "Verknüpfte Anmeldung: {providers}"
+      "linked": "Verknüpfte Anmeldung: {providers}",
+      "picture": "Profilbild",
+      "pictureHint": "PNG, JPEG, WebP oder GIF. Wird quadratisch zugeschnitten und neben deinem Namen auf Boards und in Kommentaren angezeigt.",
+      "pictureUpload": "Bild hochladen",
+      "pictureChange": "Bild ändern",
+      "pictureRemove": "Bild entfernen",
+      "pictureSaved": "Profilbild gespeichert",
+      "pictureRemoved": "Profilbild entfernt",
+      "pictureFailed": "Das Profilbild konnte nicht gespeichert werden",
+      "pictureRemoveFailed": "Das Profilbild konnte nicht entfernt werden",
+      "pictureWrongType": "Verwende ein PNG-, JPEG-, WebP- oder GIF-Bild",
+      "cropTitle": "Bild zuschneiden",
+      "cropDescription": "Ziehe das Bild, um es zu verschieben. Scrolle oder nutze den Regler zum Zoomen.",
+      "cropArea": "Bildausschnitt. Pfeiltasten verschieben, Plus und Minus zoomen.",
+      "cropZoom": "Zoom",
+      "cropFailed": "Dieses Bild konnte nicht geöffnet werden"
     },
     "email": {
       "notChanged": "E-Mail-Adresse nicht geändert",

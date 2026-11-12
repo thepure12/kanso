@@ -414,6 +414,20 @@
       "when": 1794459138942,
       "tag": "0058_card_trash_rls",
       "breakpoints": true
+    },
+    {
+      "idx": 59,
+      "version": "7",
+      "when": 1794498746054,
+      "tag": "0059_user_avatars",
+      "breakpoints": true
+    },
+    {
+      "idx": 60,
+      "version": "7",
+      "when": 1794498747494,
+      "tag": "0060_user_avatars_rls",
+      "breakpoints": true
     }
   ]
 }
