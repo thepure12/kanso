@@ -64,16 +64,17 @@ function rename(item: ChecklistItem, e: Event) {
           @keydown.enter.prevent="($event.target as HTMLInputElement).blur()"
         >
         <span v-else class="flex-1 text-sm" :class="item.done && 'line-through text-muted'">{{ item.text }}</span>
-        <UButton
-          v-if="props.canEdit"
-          icon="i-lucide-x"
-          size="xs"
-          color="neutral"
-          variant="ghost"
-          :aria-label="t('checklist.deleteItem')"
-          class="opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
-          @click="props.cd.deleteChecklistItem(item)"
-        />
+        <UTooltip v-if="props.canEdit" :text="t('checklist.deleteItem')">
+          <UButton
+            icon="i-lucide-x"
+            size="xs"
+            color="neutral"
+            variant="ghost"
+            :aria-label="t('checklist.deleteItem')"
+            class="opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
+            @click="props.cd.deleteChecklistItem(item)"
+          />
+        </UTooltip>
       </div>
     </VueDraggable>
     <InlineAdd v-if="props.canEdit" :label="t('checklist.addItem')" :placeholder="t('checklist.itemPlaceholder')" @add="props.cd.addChecklistItem" />

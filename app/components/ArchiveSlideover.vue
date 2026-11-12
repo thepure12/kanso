@@ -55,7 +55,9 @@ async function remove(c: ArchivedCard) {
           </div>
           <template v-if="props.canEdit">
             <UButton size="sm" color="neutral" variant="outline" icon="i-lucide-undo-2" :label="t('archive.restore')" @click="restore(c)" />
-            <UButton size="sm" color="error" variant="ghost" icon="i-lucide-trash" :aria-label="t('board.deleteCard')" @click="remove(c)" />
+            <UTooltip :text="t('board.deleteCard')">
+              <UButton size="sm" color="error" variant="ghost" icon="i-lucide-trash" :aria-label="t('board.deleteCard')" @click="remove(c)" />
+            </UTooltip>
           </template>
         </li>
       </ul>

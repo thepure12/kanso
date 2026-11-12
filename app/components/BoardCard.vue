@@ -64,28 +64,30 @@ const dueAriaLabel = computed(() => {
     @click="onClick"
     @keydown.enter="onClick"
   >
-    <UButton
-      v-if="props.canEdit"
-      :icon="props.selected ? 'i-lucide-square-check' : 'i-lucide-square'"
-      size="xs"
-      color="neutral"
-      variant="ghost"
-      :aria-label="t(props.selected ? 'boardCard.deselect' : 'boardCard.select')"
-      :aria-pressed="props.selected"
-      class="absolute z-10 top-1 right-7 transition"
-      :class="props.selected || props.selecting ? 'opacity-100' : 'opacity-0 group-hover:opacity-100 focus-visible:opacity-100'"
-      @click.stop="emit('select')"
-    />
-    <UButton
-      v-if="props.canEdit"
-      icon="i-lucide-x"
-      size="xs"
-      color="neutral"
-      variant="ghost"
-      :aria-label="t('boardCard.delete')"
-      class="absolute z-10 top-1 right-1 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition"
-      @click.stop="emit('delete')"
-    />
+    <UTooltip v-if="props.canEdit" :text="t(props.selected ? 'boardCard.deselect' : 'boardCard.select')">
+      <UButton
+        :icon="props.selected ? 'i-lucide-square-check' : 'i-lucide-square'"
+        size="xs"
+        color="neutral"
+        variant="ghost"
+        :aria-label="t(props.selected ? 'boardCard.deselect' : 'boardCard.select')"
+        :aria-pressed="props.selected"
+        class="absolute z-10 top-1 right-7 transition"
+        :class="props.selected || props.selecting ? 'opacity-100' : 'opacity-0 group-hover:opacity-100 focus-visible:opacity-100'"
+        @click.stop="emit('select')"
+      />
+    </UTooltip>
+    <UTooltip v-if="props.canEdit" :text="t('boardCard.delete')">
+      <UButton
+        icon="i-lucide-x"
+        size="xs"
+        color="neutral"
+        variant="ghost"
+        :aria-label="t('boardCard.delete')"
+        class="absolute z-10 top-1 right-1 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition"
+        @click.stop="emit('delete')"
+      />
+    </UTooltip>
     <img
       v-if="props.card.coverAttachmentId"
       :src="appUrl(`/api/attachments/${props.card.coverAttachmentId}`)"
@@ -101,14 +103,14 @@ const dueAriaLabel = computed(() => {
     </p>
     <div v-if="fieldChips.length" class="flex flex-wrap gap-1 mt-2">
       <template v-for="chip in fieldChips" :key="chip.id">
-        <span
-          v-if="chip.color"
-          class="inline-flex items-center max-w-full rounded px-1.5 py-0.5 text-xs font-medium truncate"
-          :style="{ backgroundColor: chip.color, color: contrastText(chip.color) }"
-          :title="`${chip.name}: ${chip.text}`"
-        >
-          {{ chip.text }}
-        </span>
+        <UTooltip v-if="chip.color" :text="`${chip.name}: ${chip.text}`">
+          <span
+            class="inline-flex items-center max-w-full rounded px-1.5 py-0.5 text-xs font-medium truncate"
+            :style="{ backgroundColor: chip.color, color: contrastText(chip.color) }"
+          >
+            {{ chip.text }}
+          </span>
+        </UTooltip>
         <UBadge
           v-else-if="chip.kind === 'checkbox'"
           color="neutral"
@@ -118,15 +120,15 @@ const dueAriaLabel = computed(() => {
           :label="chip.name"
           class="max-w-full"
         />
-        <UBadge
-          v-else
-          color="neutral"
-          variant="outline"
-          size="sm"
-          :label="`${chip.name}: ${chip.text}`"
-          :title="`${chip.name}: ${chip.text}`"
-          class="max-w-full truncate"
-        />
+        <UTooltip v-else :text="`${chip.name}: ${chip.text}`">
+          <UBadge
+            color="neutral"
+            variant="outline"
+            size="sm"
+            :label="`${chip.name}: ${chip.text}`"
+            class="max-w-full truncate"
+          />
+        </UTooltip>
       </template>
     </div>
     <div v-if="hasMeta" class="flex flex-wrap items-center gap-x-2 gap-y-1 mt-2 text-xs text-dimmed">

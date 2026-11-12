@@ -61,7 +61,9 @@ const menu = computed(() => [
 <template>
   <UContainer v-if="team" class="py-8 space-y-10">
     <div class="flex flex-wrap items-center gap-3">
-      <UButton to="/" icon="i-lucide-arrow-left" color="neutral" variant="ghost" :aria-label="t('teams.allBoards')" />
+      <UTooltip :text="t('teams.allBoards')">
+        <UButton to="/" icon="i-lucide-arrow-left" color="neutral" variant="ghost" :aria-label="t('teams.allBoards')" />
+      </UTooltip>
       <UIcon name="i-lucide-users" class="size-6 text-muted" />
       <h1 class="text-2xl font-semibold truncate">
         {{ team.name }}

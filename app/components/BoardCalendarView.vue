@@ -54,8 +54,12 @@ const dayLabel = (date: string) => new Date(`${date}T00:00`).toLocaleDateString(
   <div class="flex flex-col lg:flex-row gap-4 lg:items-stretch lg:min-h-full">
     <div class="flex-1 min-w-0 w-full flex flex-col">
       <div class="flex flex-wrap items-center gap-2 mb-3">
-        <UButton icon="i-lucide-chevron-left" color="neutral" variant="ghost" :aria-label="t('calendar.previous')" @click="month = shiftMonth(month, -1)" />
-        <UButton icon="i-lucide-chevron-right" color="neutral" variant="ghost" :aria-label="t('calendar.next')" @click="month = shiftMonth(month, 1)" />
+        <UTooltip :text="t('calendar.previous')">
+          <UButton icon="i-lucide-chevron-left" color="neutral" variant="ghost" :aria-label="t('calendar.previous')" @click="month = shiftMonth(month, -1)" />
+        </UTooltip>
+        <UTooltip :text="t('calendar.next')">
+          <UButton icon="i-lucide-chevron-right" color="neutral" variant="ghost" :aria-label="t('calendar.next')" @click="month = shiftMonth(month, 1)" />
+        </UTooltip>
         <UButton color="neutral" variant="outline" :label="t('views.today')" @click="month = monthOf(props.today)" />
         <h2 class="text-lg font-semibold ms-1" aria-live="polite">
           {{ monthTitle(month, locale) }}
@@ -90,22 +94,21 @@ const dayLabel = (date: string) => new Date(`${date}T00:00`).toLocaleDateString(
               class="text-xs self-end size-6 grid place-items-center rounded-full"
               :class="date === props.today ? 'bg-primary text-inverted font-semibold' : ''"
             >{{ Number(date.slice(8)) }}</span>
-            <button
-              v-for="card in byDate.get(date) ?? []"
-              :key="card.id"
-              type="button"
-              :draggable="props.canEdit"
-              :data-card="card.id"
-              class="text-left text-xs rounded px-1.5 py-1 bg-default ring ring-default hover:ring-primary/50 truncate border-s-4"
-              :class="[draggingId === card.id && 'opacity-40', props.canEdit && 'cursor-grab']"
-              :style="{ borderInlineStartColor: tagColor(card) ?? 'var(--ui-border-accented)' }"
-              :title="card.title"
-              @click="emit('open', card.id)"
-              @dragstart="dragStart(card, $event)"
-              @dragend="dragEnd"
-            >
-              {{ card.title }}
-            </button>
+            <UTooltip v-for="card in byDate.get(date) ?? []" :key="card.id" :text="card.title">
+              <button
+                type="button"
+                :draggable="props.canEdit"
+                :data-card="card.id"
+                class="text-left text-xs rounded px-1.5 py-1 bg-default ring ring-default hover:ring-primary/50 truncate border-s-4"
+                :class="[draggingId === card.id && 'opacity-40', props.canEdit && 'cursor-grab']"
+                :style="{ borderInlineStartColor: tagColor(card) ?? 'var(--ui-border-accented)' }"
+                @click="emit('open', card.id)"
+                @dragstart="dragStart(card, $event)"
+                @dragend="dragEnd"
+              >
+                {{ card.title }}
+              </button>
+            </UTooltip>
           </div>
         </template>
       </div>
@@ -124,22 +127,21 @@ const dayLabel = (date: string) => new Date(`${date}T00:00`).toLocaleDateString(
           {{ t(mode === 'due' ? 'calendar.noDue' : 'calendar.noStart') }} <span class="text-muted font-normal">· {{ undated.length }}</span>
         </h3>
         <div class="flex flex-col gap-2 overflow-y-auto max-h-80 lg:max-h-none lg:flex-1 lg:min-h-0 -mx-1 px-1 py-0.5">
-          <button
-            v-for="card in undated"
-            :key="card.id"
-            type="button"
-            :draggable="props.canEdit"
-            :data-card="card.id"
-            class="shrink-0 text-left text-sm rounded px-2 py-1 bg-default ring ring-default hover:ring-primary/50 truncate border-s-4"
-            :class="[draggingId === card.id && 'opacity-40', props.canEdit && 'cursor-grab']"
-            :style="{ borderInlineStartColor: tagColor(card) ?? 'var(--ui-border-accented)' }"
-            :title="card.title"
-            @click="emit('open', card.id)"
-            @dragstart="dragStart(card, $event)"
-            @dragend="dragEnd"
-          >
-            {{ card.title }}
-          </button>
+          <UTooltip v-for="card in undated" :key="card.id" :text="card.title">
+            <button
+              type="button"
+              :draggable="props.canEdit"
+              :data-card="card.id"
+              class="shrink-0 text-left text-sm rounded px-2 py-1 bg-default ring ring-default hover:ring-primary/50 truncate border-s-4"
+              :class="[draggingId === card.id && 'opacity-40', props.canEdit && 'cursor-grab']"
+              :style="{ borderInlineStartColor: tagColor(card) ?? 'var(--ui-border-accented)' }"
+              @click="emit('open', card.id)"
+              @dragstart="dragStart(card, $event)"
+              @dragend="dragEnd"
+            >
+              {{ card.title }}
+            </button>
+          </UTooltip>
         </div>
         <p v-if="props.canEdit" class="text-xs text-dimmed">
           {{ t('calendar.dragHint') }}

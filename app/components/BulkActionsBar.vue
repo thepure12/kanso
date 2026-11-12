@@ -74,6 +74,8 @@ function setDue(value: string | null) {
       </template>
     </UPopover>
     <UButton color="neutral" variant="ghost" icon="i-lucide-archive" :label="t('board.bulk.archive')" @click="emit('apply', { archived: true })" />
-    <UButton color="neutral" variant="ghost" icon="i-lucide-x" :aria-label="t('board.bulk.clear')" @click="emit('clear')" />
+    <UTooltip :text="t('board.bulk.clear')">
+      <UButton color="neutral" variant="ghost" icon="i-lucide-x" :aria-label="t('board.bulk.clear')" @click="emit('clear')" />
+    </UTooltip>
   </div>
 </template>

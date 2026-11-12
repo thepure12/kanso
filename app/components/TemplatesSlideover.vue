@@ -49,7 +49,9 @@ async function remove(tpl: Card) {
             </p>
           </button>
           <UButton size="sm" color="neutral" variant="outline" :icon="props.canEdit ? 'i-lucide-pencil' : 'i-lucide-eye'" :label="props.canEdit ? t('common.edit') : t('templates.view')" @click="emit('open', tpl)" />
-          <UButton v-if="props.canEdit" size="sm" color="error" variant="ghost" icon="i-lucide-trash" :aria-label="t('templates.delete')" @click="remove(tpl)" />
+          <UTooltip v-if="props.canEdit" :text="t('templates.delete')">
+            <UButton size="sm" color="error" variant="ghost" icon="i-lucide-trash" :aria-label="t('templates.delete')" @click="remove(tpl)" />
+          </UTooltip>
         </li>
       </ul>
     </template>

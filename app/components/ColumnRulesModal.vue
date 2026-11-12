@@ -72,14 +72,16 @@ const tagRules = computed<{ kind: TagKind, label: string, key: 'applyTag' | 'rem
             <UIcon name="i-lucide-calendar-clock" class="size-4 text-dimmed shrink-0" />
             <span>{{ t('rules.setDue', { n: rule.dueDays }, rule.dueDays) }}</span>
           </template>
-          <UButton
-            icon="i-lucide-trash"
-            color="error"
-            variant="ghost"
-            class="ms-auto"
-            :aria-label="t('rules.delete')"
-            @click="emit('delete', rule)"
-          />
+          <UTooltip :text="t('rules.delete')">
+            <UButton
+              icon="i-lucide-trash"
+              color="error"
+              variant="ghost"
+              class="ms-auto"
+              :aria-label="t('rules.delete')"
+              @click="emit('delete', rule)"
+            />
+          </UTooltip>
         </div>
 
         <USeparator class="my-4" />

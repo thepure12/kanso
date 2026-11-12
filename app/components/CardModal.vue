@@ -352,25 +352,25 @@ const tabs = computed(() => [
               size="sm"
               @click="toggleWatch"
             />
-            <UButton
-              v-if="props.link"
-              icon="i-lucide-link"
-              :aria-label="t('card.copyLink')"
-              :title="t('card.copyLink')"
-              color="neutral"
-              variant="outline"
-              size="sm"
-              @click="copyLink"
-            />
-            <UAvatarGroup
-              v-if="cd.detail.value.watchers.length"
-              :max="4"
-              size="2xs"
-              class="ms-auto"
-              :title="t('card.watchers', { names: cd.detail.value.watchers.map(w => w.name).join(', ') })"
-            >
-              <UAvatar v-for="w in cd.detail.value.watchers" :key="w.userId" :src="w.avatarUrl ?? undefined" :alt="w.name" />
-            </UAvatarGroup>
+            <UTooltip v-if="props.link" :text="t('card.copyLink')">
+              <UButton
+                icon="i-lucide-link"
+                :aria-label="t('card.copyLink')"
+                color="neutral"
+                variant="outline"
+                size="sm"
+                @click="copyLink"
+              />
+            </UTooltip>
+            <UTooltip v-if="cd.detail.value.watchers.length" :text="t('card.watchers', { names: cd.detail.value.watchers.map(w => w.name).join(', ') })">
+              <UAvatarGroup
+                :max="4"
+                size="2xs"
+                class="ms-auto"
+              >
+                <UAvatar v-for="w in cd.detail.value.watchers" :key="w.userId" :src="w.avatarUrl ?? undefined" :alt="w.name" />
+              </UAvatarGroup>
+            </UTooltip>
           </div>
           <UFormField :label="t('card.tags')">
             <USelectMenu
@@ -459,28 +459,30 @@ const tabs = computed(() => [
           <UFormField v-if="!props.template" :label="t('card.startDate')" :error="datesInvalid ? t('card.startAfterDue') : undefined">
             <div class="flex gap-1">
               <UInput v-model="form.startDate" type="date" class="flex-1" :max="form.dueDate || undefined" :disabled="!props.canEdit" />
-              <UButton
-                v-if="props.canEdit && form.startDate"
-                icon="i-lucide-x"
-                color="neutral"
-                variant="ghost"
-                :aria-label="t('card.clearStartDate')"
-                @click="form.startDate = ''"
-              />
+              <UTooltip v-if="props.canEdit && form.startDate" :text="t('card.clearStartDate')">
+                <UButton
+                  icon="i-lucide-x"
+                  color="neutral"
+                  variant="ghost"
+                  :aria-label="t('card.clearStartDate')"
+                  @click="form.startDate = ''"
+                />
+              </UTooltip>
             </div>
           </UFormField>
 
           <UFormField v-if="!props.template" :label="t('card.dueDate')">
             <div class="flex gap-1">
               <UInput v-model="form.dueDate" type="date" class="flex-1" :disabled="!props.canEdit" />
-              <UButton
-                v-if="props.canEdit && form.dueDate"
-                icon="i-lucide-x"
-                color="neutral"
-                variant="ghost"
-                :aria-label="t('card.clearDueDate')"
-                @click="form.dueDate = ''"
-              />
+              <UTooltip v-if="props.canEdit && form.dueDate" :text="t('card.clearDueDate')">
+                <UButton
+                  icon="i-lucide-x"
+                  color="neutral"
+                  variant="ghost"
+                  :aria-label="t('card.clearDueDate')"
+                  @click="form.dueDate = ''"
+                />
+              </UTooltip>
             </div>
           </UFormField>
 

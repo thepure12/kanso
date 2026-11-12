@@ -129,9 +129,11 @@ defineExpose({ refresh })
             · {{ tk.lastUsedAt ? t('tokens.lastUsed', { date: formatDateTime(tk.lastUsedAt, locale) }) : t('tokens.neverUsed') }}
             · {{ tk.expiresAt ? t('tokens.expires', { date: formatDateTime(tk.expiresAt, locale) }) : t('tokens.noExpiry') }}
           </p>
-          <p v-if="tk.boards" class="text-xs text-muted truncate" :title="tk.boards.map(b => b.name).join(', ')">
-            {{ tk.boards.length ? t('tokens.limitedTo', { boards: tk.boards.map(b => b.name).join(', ') }) : t('tokens.noBoardsLeft') }}
-          </p>
+          <UTooltip v-if="tk.boards" :text="tk.boards.map(b => b.name).join(', ')">
+            <p class="text-xs text-muted truncate">
+              {{ tk.boards.length ? t('tokens.limitedTo', { boards: tk.boards.map(b => b.name).join(', ') }) : t('tokens.noBoardsLeft') }}
+            </p>
+          </UTooltip>
         </div>
         <UButton color="neutral" variant="ghost" size="sm" :label="t('tokens.revoke')" @click="revoke(tk)" />
       </li>
@@ -149,7 +151,9 @@ defineExpose({ refresh })
           />
           <UInput :model-value="created" readonly class="w-full font-mono" @focus="($event.target as HTMLInputElement).select()">
             <template #trailing>
-              <UButton color="neutral" variant="link" size="sm" icon="i-lucide-copy" :aria-label="t('tokens.copy')" @click="copy" />
+              <UTooltip :text="t('tokens.copy')">
+                <UButton color="neutral" variant="link" size="sm" icon="i-lucide-copy" :aria-label="t('tokens.copy')" @click="copy" />
+              </UTooltip>
             </template>
           </UInput>
           <div class="space-y-1">
@@ -163,7 +167,9 @@ defineExpose({ refresh })
             </i18n-t>
             <div class="flex items-start gap-1">
               <UTextarea :model-value="mcpCommand" readonly autoresize :rows="2" class="flex-1 font-mono text-xs" @focus="($event.target as HTMLTextAreaElement).select()" />
-              <UButton color="neutral" variant="ghost" size="sm" icon="i-lucide-copy" :aria-label="t('tokens.mcpCopy')" @click="copyMcpCommand" />
+              <UTooltip :text="t('tokens.mcpCopy')">
+                <UButton color="neutral" variant="ghost" size="sm" icon="i-lucide-copy" :aria-label="t('tokens.mcpCopy')" @click="copyMcpCommand" />
+              </UTooltip>
             </div>
           </div>
         </div>

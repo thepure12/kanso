@@ -103,7 +103,9 @@ const swatch = (id: string, color: string | null) => picking.value?.id === id ? 
                 <span class="truncate">{{ t('columnGroups.columnCount', { count: group.columnIds.length }, group.columnIds.length) }}</span>
               </template>
             </USelectMenu>
-            <UButton icon="i-lucide-trash" color="error" variant="ghost" :aria-label="t('columnGroups.delete', { name: group.name })" @click="remove(group)" />
+            <UTooltip :text="t('columnGroups.delete', { name: group.name })">
+              <UButton icon="i-lucide-trash" color="error" variant="ghost" :aria-label="t('columnGroups.delete', { name: group.name })" @click="remove(group)" />
+            </UTooltip>
           </div>
         </VueDraggable>
 

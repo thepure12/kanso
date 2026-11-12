@@ -403,7 +403,9 @@ const boardMenu = computed(() => [
   >
     <div class="sticky top-(--ui-header-height) z-20" :class="backed ? 'bg-default/85 backdrop-blur-sm' : 'bg-default/75 backdrop-blur'">
       <div class="flex flex-wrap items-center gap-3 px-4 sm:px-6 py-2.5 border-b border-default">
-        <UButton to="/" icon="i-lucide-arrow-left" color="neutral" variant="ghost" :aria-label="t('board.allBoards')" />
+        <UTooltip :text="t('board.allBoards')">
+          <UButton to="/" icon="i-lucide-arrow-left" color="neutral" variant="ghost" :aria-label="t('board.allBoards')" />
+        </UTooltip>
         <div class="min-w-0 flex items-center gap-1.5 text-lg">
           <template v-if="board.team">
             <ULink :to="`/teams/${board.team.id}`" class="text-muted hover:underline truncate shrink-[2]">
@@ -415,18 +417,20 @@ const boardMenu = computed(() => [
             {{ board.name }}
           </h1>
         </div>
-        <UButton
-          color="neutral"
-          variant="ghost"
-          :class="board.starred ? 'text-warning' : 'text-dimmed'"
-          :aria-label="board.starred ? t('board.unstar') : t('board.star')"
-          :aria-pressed="board.starred"
-          @click="toggleStar(board)"
-        >
-          <template #leading>
-            <UIcon name="i-lucide-star" mode="svg" class="size-5" :class="board.starred && '[&_*]:fill-current'" />
-          </template>
-        </UButton>
+        <UTooltip :text="board.starred ? t('board.unstar') : t('board.star')">
+          <UButton
+            color="neutral"
+            variant="ghost"
+            :class="board.starred ? 'text-warning' : 'text-dimmed'"
+            :aria-label="board.starred ? t('board.unstar') : t('board.star')"
+            :aria-pressed="board.starred"
+            @click="toggleStar(board)"
+          >
+            <template #leading>
+              <UIcon name="i-lucide-star" mode="svg" class="size-5" :class="board.starred && '[&_*]:fill-current'" />
+            </template>
+          </UButton>
+        </UTooltip>
         <UBadge v-if="archived" color="warning" variant="subtle" icon="i-lucide-archive" :label="t('board.archivedBadge')" />
         <UTooltip v-else-if="offline" :text="t('pwa.readOnlyHint')">
           <UBadge color="warning" variant="subtle" icon="i-lucide-wifi-off" :label="t('pwa.readOnly')" />
@@ -552,25 +556,26 @@ const boardMenu = computed(() => [
             :class="[wipState(col) === 'over' ? 'ring-error' : 'ring-default', backed ? 'bg-elevated/95 shadow-lg' : 'bg-elevated/60']"
             :style="columnWidths.styleOf(col.id)"
           >
-            <div
-              role="separator"
-              aria-orientation="vertical"
-              tabindex="0"
-              :aria-label="t('board.column.resize')"
-              :aria-valuenow="columnWidths.widthOf(col.id)"
-              :aria-valuemin="COLUMN_WIDTH_MIN"
-              :aria-valuemax="COLUMN_WIDTH_MAX"
-              :title="t('board.column.resizeHint')"
-              class="absolute inset-y-0 -right-2.5 z-10 w-3 cursor-col-resize touch-none group/resize flex justify-center focus:outline-none"
-              @pointerdown="columnWidths.startResize(col.id, $event)"
-              @dblclick="columnWidths.resetWidth(col.id)"
-              @keydown="columnWidths.onResizeKey(col.id, $event)"
-            >
-              <span
-                class="w-0.5 h-full rounded-full transition-colors group-hover/resize:bg-primary group-focus-visible/resize:bg-primary"
-                :class="columnWidths.resizing.value === col.id ? 'bg-primary' : 'bg-transparent'"
-              />
-            </div>
+            <UTooltip :content="{ side: 'right' }" :text="t('board.column.resizeHint')">
+              <div
+                role="separator"
+                aria-orientation="vertical"
+                tabindex="0"
+                :aria-label="t('board.column.resize')"
+                :aria-valuenow="columnWidths.widthOf(col.id)"
+                :aria-valuemin="COLUMN_WIDTH_MIN"
+                :aria-valuemax="COLUMN_WIDTH_MAX"
+                class="absolute inset-y-0 -right-2.5 z-10 w-3 cursor-col-resize touch-none group/resize flex justify-center focus:outline-none"
+                @pointerdown="columnWidths.startResize(col.id, $event)"
+                @dblclick="columnWidths.resetWidth(col.id)"
+                @keydown="columnWidths.onResizeKey(col.id, $event)"
+              >
+                <span
+                  class="w-0.5 h-full rounded-full transition-colors group-hover/resize:bg-primary group-focus-visible/resize:bg-primary"
+                  :class="columnWidths.resizing.value === col.id ? 'bg-primary' : 'bg-transparent'"
+                />
+              </div>
+            </UTooltip>
             <header
               class="flex flex-wrap items-center gap-x-2 gap-y-1.5 px-3 py-2 rounded-t-lg"
               :style="col.color ? { backgroundColor: col.color, color: contrastText(col.color) } : undefined"
@@ -598,21 +603,20 @@ const boardMenu = computed(() => [
                 <UButton icon="i-lucide-ellipsis" size="xs" color="neutral" variant="ghost" :aria-label="t('board.column.actions')" :class="col.color && 'text-inherit hover:bg-black/10'" />
               </UDropdownMenu>
               <div v-if="columnChips(col).length" class="basis-full flex flex-wrap items-center gap-1 border-t border-current/15 pt-1.5">
-                <button
-                  v-for="g in columnChips(col)"
-                  :key="g.id"
-                  type="button"
-                  class="cursor-pointer rounded ring ring-inset ring-black/10 hover:opacity-80"
-                  :style="g.color ? { backgroundColor: g.color, color: contrastText(g.color) } : undefined"
-                  :class="[!g.color && 'bg-accented text-default', labels.groupNames ? 'inline-flex items-center gap-1 px-1.5 text-xs leading-5' : 'h-2 w-8 rounded-full']"
-                  :title="labels.groupNames ? undefined : g.name"
-                  :aria-label="t('columnGroups.showOnly', { name: g.name })"
-                  @click="showColumnGroup(g.id)"
-                >
-                  <template v-if="labels.groupNames">
-                    <UIcon name="i-lucide-columns-3" class="size-3 shrink-0" />{{ g.name }}
-                  </template>
-                </button>
+                <UTooltip v-for="g in columnChips(col)" :key="g.id" :disabled="labels.groupNames" :text="g.name">
+                  <button
+                    type="button"
+                    class="cursor-pointer rounded ring ring-inset ring-black/10 hover:opacity-80"
+                    :style="g.color ? { backgroundColor: g.color, color: contrastText(g.color) } : undefined"
+                    :class="[!g.color && 'bg-accented text-default', labels.groupNames ? 'inline-flex items-center gap-1 px-1.5 text-xs leading-5' : 'h-2 w-8 rounded-full']"
+                    :aria-label="t('columnGroups.showOnly', { name: g.name })"
+                    @click="showColumnGroup(g.id)"
+                  >
+                    <template v-if="labels.groupNames">
+                      <UIcon name="i-lucide-columns-3" class="size-3 shrink-0" />{{ g.name }}
+                    </template>
+                  </button>
+                </UTooltip>
               </div>
             </header>
 

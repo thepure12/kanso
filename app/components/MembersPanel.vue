@@ -227,15 +227,16 @@ async function revoke(inviteId: string) {
             @update:model-value="(r: BoardRole) => setRole(m.userId, r)"
           />
           <UBadge v-else color="neutral" variant="subtle" :label="t(`members.roles.${m.role}`)" />
-          <UButton
-            v-if="props.canManage || m.userId === user?.id"
-            color="error"
-            variant="ghost"
-            size="sm"
-            :icon="m.userId === user?.id ? 'i-lucide-log-out' : 'i-lucide-user-minus'"
-            :aria-label="m.userId === user?.id ? t('members.leave') : t('members.remove')"
-            @click="remove(m.userId)"
-          />
+          <UTooltip v-if="props.canManage || m.userId === user?.id" :text="m.userId === user?.id ? t('members.leave') : t('members.remove')">
+            <UButton
+              color="error"
+              variant="ghost"
+              size="sm"
+              :icon="m.userId === user?.id ? 'i-lucide-log-out' : 'i-lucide-user-minus'"
+              :aria-label="m.userId === user?.id ? t('members.leave') : t('members.remove')"
+              @click="remove(m.userId)"
+            />
+          </UTooltip>
         </template>
       </li>
     </ul>
@@ -248,15 +249,16 @@ async function revoke(inviteId: string) {
         <li v-for="i in props.invites" :key="i.id" class="flex items-center gap-3 py-3">
           <UUser :name="i.email" :description="t('members.notSignedUp')" :avatar="{ icon: 'i-lucide-mail' }" class="flex-1 min-w-0" />
           <UBadge color="neutral" variant="subtle" :label="t(`members.roles.${i.role}`)" />
-          <UButton
-            v-if="props.canManage"
-            color="error"
-            variant="ghost"
-            size="sm"
-            icon="i-lucide-x"
-            :aria-label="t('members.revoke')"
-            @click="revoke(i.id)"
-          />
+          <UTooltip v-if="props.canManage" :text="t('members.revoke')">
+            <UButton
+              color="error"
+              variant="ghost"
+              size="sm"
+              icon="i-lucide-x"
+              :aria-label="t('members.revoke')"
+              @click="revoke(i.id)"
+            />
+          </UTooltip>
         </li>
       </ul>
     </template>

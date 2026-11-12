@@ -42,7 +42,9 @@ const groups = computed(() => groupMyWork(filterMyWork(data.value?.cards ?? [], 
       </div>
       <UTabs v-model="scope" :items="scopeItems" :content="false" size="sm" />
       <USwitch v-model="showDone" :label="t('myWork.showDone')" />
-      <UButton icon="i-lucide-refresh-cw" color="neutral" variant="ghost" :loading="status === 'pending'" :aria-label="t('myWork.refresh')" @click="refresh()" />
+      <UTooltip :text="t('myWork.refresh')">
+        <UButton icon="i-lucide-refresh-cw" color="neutral" variant="ghost" :loading="status === 'pending'" :aria-label="t('myWork.refresh')" @click="refresh()" />
+      </UTooltip>
     </div>
 
     <UAlert v-if="error" color="error" variant="subtle" icon="i-lucide-circle-alert" :title="t('myWork.loadFailed')" />

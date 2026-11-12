@@ -83,37 +83,40 @@ async function remove(a: Attachment) {
         <a :href="appUrl(`/api/attachments/${a.id}`)" target="_blank" rel="noopener" class="truncate hover:underline">{{ a.name }}</a>
         <span class="text-xs text-muted shrink-0">{{ formatBytes(a.size, locale) }}</span>
         <UBadge v-if="a.id === props.coverId" color="neutral" variant="subtle" size="sm" :label="t('attachments.cover')" class="shrink-0" />
-        <UButton
-          v-if="props.canEdit && isImage(a)"
-          :icon="a.id === props.coverId ? 'i-lucide-image-off' : 'i-lucide-image'"
-          size="xs"
-          color="neutral"
-          variant="ghost"
-          :aria-label="a.id === props.coverId ? t('attachments.removeCover') : t('attachments.setCover')"
-          :title="a.id === props.coverId ? t('attachments.removeCover') : t('attachments.setCover')"
-          class="ms-auto"
-          @click="emit('cover', a.id === props.coverId ? null : a.id)"
-        />
-        <UButton
-          :to="appUrl(`/api/attachments/${a.id}?download`)"
-          external
-          download
-          icon="i-lucide-download"
-          size="xs"
-          color="neutral"
-          variant="ghost"
-          :aria-label="t('attachments.download')"
-          :class="!(props.canEdit && isImage(a)) && 'ms-auto'"
-        />
-        <UButton
-          v-if="props.canEdit"
-          icon="i-lucide-trash"
-          size="xs"
-          color="error"
-          variant="ghost"
-          :aria-label="t('attachments.delete')"
-          @click="remove(a)"
-        />
+        <UTooltip v-if="props.canEdit && isImage(a)" :text="a.id === props.coverId ? t('attachments.removeCover') : t('attachments.setCover')">
+          <UButton
+            :icon="a.id === props.coverId ? 'i-lucide-image-off' : 'i-lucide-image'"
+            size="xs"
+            color="neutral"
+            variant="ghost"
+            :aria-label="a.id === props.coverId ? t('attachments.removeCover') : t('attachments.setCover')"
+            class="ms-auto"
+            @click="emit('cover', a.id === props.coverId ? null : a.id)"
+          />
+        </UTooltip>
+        <UTooltip :text="t('attachments.download')">
+          <UButton
+            :to="appUrl(`/api/attachments/${a.id}?download`)"
+            external
+            download
+            icon="i-lucide-download"
+            size="xs"
+            color="neutral"
+            variant="ghost"
+            :aria-label="t('attachments.download')"
+            :class="!(props.canEdit && isImage(a)) && 'ms-auto'"
+          />
+        </UTooltip>
+        <UTooltip v-if="props.canEdit" :text="t('attachments.delete')">
+          <UButton
+            icon="i-lucide-trash"
+            size="xs"
+            color="error"
+            variant="ghost"
+            :aria-label="t('attachments.delete')"
+            @click="remove(a)"
+          />
+        </UTooltip>
       </li>
     </ul>
   </section>

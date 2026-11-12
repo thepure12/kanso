@@ -147,7 +147,9 @@ function eventsSummary(h: BoardWebhook) {
           <template #actions>
             <UInput :model-value="newSecret" readonly size="sm" class="w-full font-mono">
               <template #trailing>
-                <UButton color="neutral" variant="link" size="sm" icon="i-lucide-copy" :aria-label="t('webhooks.copySecret')" @click="copySecret" />
+                <UTooltip :text="t('webhooks.copySecret')">
+                  <UButton color="neutral" variant="link" size="sm" icon="i-lucide-copy" :aria-label="t('webhooks.copySecret')" @click="copySecret" />
+                </UTooltip>
               </template>
             </UInput>
           </template>
@@ -179,9 +181,11 @@ function eventsSummary(h: BoardWebhook) {
           <li v-for="h in hooks" :key="h.id" class="py-3 space-y-1">
             <div class="flex items-center gap-2">
               <USwitch :model-value="h.active" :aria-label="h.active ? t('webhooks.turnOff') : t('webhooks.turnOn')" @update:model-value="setActive(h, $event)" />
-              <p class="flex-1 min-w-0 truncate text-sm font-medium" :title="h.url">
-                {{ h.url }}
-              </p>
+              <UTooltip :text="h.url">
+                <p class="flex-1 min-w-0 truncate text-sm font-medium">
+                  {{ h.url }}
+                </p>
+              </UTooltip>
               <UBadge color="neutral" variant="subtle" size="sm" :label="formatLabel[h.format]" />
             </div>
             <p class="text-xs text-muted">

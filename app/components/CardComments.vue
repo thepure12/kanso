@@ -49,8 +49,12 @@ const canDelete = (c: Comment) => props.isOwner || (props.canEdit && mine(c))
             <span class="text-muted">{{ formatDateTime(c.createdAt, locale) }}</span>
             <span v-if="c.updatedAt !== c.createdAt" class="text-dimmed">{{ t('comments.edited') }}</span>
             <div class="ms-auto flex">
-              <UButton v-if="props.canEdit && mine(c) && editing?.id !== c.id" size="xs" color="neutral" variant="ghost" icon="i-lucide-pencil" :aria-label="t('comments.edit')" @click="editing = { id: c.id, body: c.body }" />
-              <UButton v-if="canDelete(c)" size="xs" color="error" variant="ghost" icon="i-lucide-trash" :aria-label="t('comments.delete')" @click="props.cd.deleteComment(c)" />
+              <UTooltip v-if="props.canEdit && mine(c) && editing?.id !== c.id" :text="t('comments.edit')">
+                <UButton size="xs" color="neutral" variant="ghost" icon="i-lucide-pencil" :aria-label="t('comments.edit')" @click="editing = { id: c.id, body: c.body }" />
+              </UTooltip>
+              <UTooltip v-if="canDelete(c)" :text="t('comments.delete')">
+                <UButton size="xs" color="error" variant="ghost" icon="i-lucide-trash" :aria-label="t('comments.delete')" @click="props.cd.deleteComment(c)" />
+              </UTooltip>
             </div>
           </div>
           <form v-if="editing?.id === c.id" class="space-y-2" @submit.prevent="saveEdit(c)">

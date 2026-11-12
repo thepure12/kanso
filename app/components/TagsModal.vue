@@ -77,7 +77,9 @@ async function remove(tag: Tag) {
             </template>
           </UPopover>
           <UInput :key="tag.name" :default-value="tag.name" :maxlength="50" class="flex-1" @change="rename(tag, $event)" />
-          <UButton icon="i-lucide-trash" color="error" variant="ghost" :aria-label="t('tags.delete', { name: tag.name })" @click="remove(tag)" />
+          <UTooltip :text="t('tags.delete', { name: tag.name })">
+            <UButton icon="i-lucide-trash" color="error" variant="ghost" :aria-label="t('tags.delete', { name: tag.name })" @click="remove(tag)" />
+          </UTooltip>
         </div>
 
         <USeparator class="my-4" />

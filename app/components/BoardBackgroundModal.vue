@@ -151,29 +151,29 @@ const ring = (current: boolean) => current ? 'ring-2 ring-primary' : 'hover:ring
             {{ t('boardBackground.accent') }}
           </h3>
           <div class="flex flex-wrap gap-2">
-            <button
-              type="button"
-              class="size-7 rounded-full flex items-center justify-center border border-dashed border-accented text-muted hover:text-default"
-              :class="[tile, ring(!accent)]"
-              :aria-label="t('boardBackground.accentDefault')"
-              :aria-pressed="!accent"
-              :title="t('boardBackground.accentDefault')"
-              @click="emit('setAccent', null)"
-            >
-              <UIcon name="i-lucide-rotate-ccw" class="size-3.5" />
-            </button>
-            <button
-              v-for="a in boardAccents"
-              :key="a"
-              type="button"
-              class="size-7 rounded-full"
-              :class="[tile, ring(accent === a)]"
-              :style="{ backgroundColor: colors[a][500] }"
-              :aria-label="t(`boardBackground.accentColour.${a}`)"
-              :aria-pressed="accent === a"
-              :title="t(`boardBackground.accentColour.${a}`)"
-              @click="emit('setAccent', a)"
-            />
+            <UTooltip :text="t('boardBackground.accentDefault')">
+              <button
+                type="button"
+                class="size-7 rounded-full flex items-center justify-center border border-dashed border-accented text-muted hover:text-default"
+                :class="[tile, ring(!accent)]"
+                :aria-label="t('boardBackground.accentDefault')"
+                :aria-pressed="!accent"
+                @click="emit('setAccent', null)"
+              >
+                <UIcon name="i-lucide-rotate-ccw" class="size-3.5" />
+              </button>
+            </UTooltip>
+            <UTooltip v-for="a in boardAccents" :key="a" :text="t(`boardBackground.accentColour.${a}`)">
+              <button
+                type="button"
+                class="size-7 rounded-full"
+                :class="[tile, ring(accent === a)]"
+                :style="{ backgroundColor: colors[a][500] }"
+                :aria-label="t(`boardBackground.accentColour.${a}`)"
+                :aria-pressed="accent === a"
+                @click="emit('setAccent', a)"
+              />
+            </UTooltip>
           </div>
           <p class="text-xs text-muted">
             {{ t('boardBackground.accentHint') }}

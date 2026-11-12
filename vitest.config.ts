@@ -20,6 +20,7 @@ export default defineConfig({
         test: {
           name: 'components',
           include: ['tests/components/**/*.test.ts'],
+          setupFiles: ['tests/components/setup.ts'],
           environment: 'nuxt',
           environmentOptions: { nuxt: { rootDir, domEnvironment: 'happy-dom' } },
           // The cached transform of test-utils' app entry stub breaks the next run.

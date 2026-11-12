@@ -61,9 +61,11 @@ defineShortcuts(computed(() => loggedIn.value
             <UKbd value="k" />
           </span>
         </UButton>
-        <UButton v-if="loggedIn" to="/my-work" color="neutral" variant="ghost" icon="i-lucide-list-checks" :aria-label="t('nav.myWork')">
-          <span class="hidden md:inline">{{ t('nav.myWork') }}</span>
-        </UButton>
+        <UTooltip v-if="loggedIn" :text="t('nav.myWork')" :kbds="['g', 'm']">
+          <UButton to="/my-work" color="neutral" variant="ghost" icon="i-lucide-list-checks" :aria-label="t('nav.myWork')">
+            <span class="hidden md:inline">{{ t('nav.myWork') }}</span>
+          </UButton>
+        </UTooltip>
         <UColorModeButton />
         <NotificationBell v-if="loggedIn && user" />
         <UDropdownMenu v-if="loggedIn && user" :items="menu">

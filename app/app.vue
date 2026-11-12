@@ -28,7 +28,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <UApp :locale="uiLocale">
+  <UApp :locale="uiLocale" :tooltip="{ delayDuration: 400 }">
     <NuxtPwaManifest />
     <NuxtLayout>
       <NuxtPage />

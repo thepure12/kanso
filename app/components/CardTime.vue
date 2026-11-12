@@ -61,8 +61,12 @@ const canDelete = (e: TimeEntry) => props.isOwner || (props.canEdit && mine(e))
         <span class="text-xs shrink-0">{{ e.userName ?? t('card.formerMember') }}</span>
         <span class="text-xs text-muted truncate">{{ e.note }}</span>
         <div class="ms-auto flex shrink-0">
-          <UButton v-if="props.canEdit && mine(e)" size="xs" color="neutral" variant="ghost" icon="i-lucide-pencil" :aria-label="t('time.edit')" @click="edit(e)" />
-          <UButton v-if="canDelete(e)" size="xs" color="error" variant="ghost" icon="i-lucide-trash" :aria-label="t('time.delete')" @click="props.cd.deleteTimeEntry(e)" />
+          <UTooltip v-if="props.canEdit && mine(e)" :text="t('time.edit')">
+            <UButton size="xs" color="neutral" variant="ghost" icon="i-lucide-pencil" :aria-label="t('time.edit')" @click="edit(e)" />
+          </UTooltip>
+          <UTooltip v-if="canDelete(e)" :text="t('time.delete')">
+            <UButton size="xs" color="error" variant="ghost" icon="i-lucide-trash" :aria-label="t('time.delete')" @click="props.cd.deleteTimeEntry(e)" />
+          </UTooltip>
         </div>
       </li>
     </ul>

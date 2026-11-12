@@ -23,19 +23,21 @@ const { t } = useI18n()
           <div class="flex items-center gap-1 shrink-0">
             <UBadge v-if="b.archivedAt" color="neutral" variant="outline" icon="i-lucide-archive" :label="t('board.grid.archived')" />
             <UBadge :color="roleColor[b.role]" variant="subtle" :label="t(`board.role.${b.role}`)" />
-            <UButton
-              size="xs"
-              color="neutral"
-              variant="ghost"
-              :class="b.starred ? 'text-warning' : 'text-dimmed'"
-              :aria-label="b.starred ? t('board.unstar') : t('board.star')"
-              :aria-pressed="b.starred"
-              @click.prevent.stop="emit('star', b)"
-            >
-              <template #leading>
-                <UIcon name="i-lucide-star" mode="svg" class="size-4" :class="b.starred && '[&_*]:fill-current'" />
-              </template>
-            </UButton>
+            <UTooltip :text="b.starred ? t('board.unstar') : t('board.star')">
+              <UButton
+                size="xs"
+                color="neutral"
+                variant="ghost"
+                :class="b.starred ? 'text-warning' : 'text-dimmed'"
+                :aria-label="b.starred ? t('board.unstar') : t('board.star')"
+                :aria-pressed="b.starred"
+                @click.prevent.stop="emit('star', b)"
+              >
+                <template #leading>
+                  <UIcon name="i-lucide-star" mode="svg" class="size-4" :class="b.starred && '[&_*]:fill-current'" />
+                </template>
+              </UButton>
+            </UTooltip>
           </div>
         </div>
         <p class="text-sm text-muted mt-2 flex items-center gap-1">

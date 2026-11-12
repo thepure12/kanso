@@ -136,7 +136,9 @@ const dueItems = computed(() => (['any', 'overdue', 'today', 'week', 'none', 'st
       @blur="closeSearchIfEmpty"
       @keydown.esc="onSearchEscape"
     />
-    <UButton v-else icon="i-lucide-search" color="neutral" variant="ghost" :aria-label="t('filters.search')" @click="openSearch" />
+    <UTooltip v-else :text="t('filters.search')">
+      <UButton icon="i-lucide-search" color="neutral" variant="ghost" :aria-label="t('filters.search')" @click="openSearch" />
+    </UTooltip>
     <template v-if="active">
       <span class="text-sm text-muted">{{ t('filters.shown', { shown: props.shown, total: props.total }, props.total) }}</span>
       <UButton size="sm" color="neutral" variant="ghost" icon="i-lucide-x" :label="t('common.clear')" @click="filter = emptyFilter()" />

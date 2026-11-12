@@ -6,14 +6,14 @@ defineProps<{ tag: Tag, compact?: boolean }>()
 </script>
 
 <template>
-  <span
-    v-if="compact"
-    class="inline-block h-2 w-8 rounded-full ring ring-inset ring-black/10"
-    :style="{ backgroundColor: tag.color }"
-    :title="tag.name"
-    role="img"
-    :aria-label="tag.name"
-  />
+  <UTooltip v-if="compact" :text="tag.name">
+    <span
+      class="inline-block h-2 w-8 rounded-full ring ring-inset ring-black/10"
+      :style="{ backgroundColor: tag.color }"
+      role="img"
+      :aria-label="tag.name"
+    />
+  </UTooltip>
   <span
     v-else
     class="inline-flex items-center max-w-full rounded px-1.5 py-0.5 text-xs font-medium truncate"

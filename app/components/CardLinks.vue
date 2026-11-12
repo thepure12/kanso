@@ -66,16 +66,17 @@ function remove(link: CardLink) {
           <UBadge v-if="l.card.archived" color="neutral" variant="subtle" size="sm" :label="t('cardLinks.archived')" />
           <span v-else class="text-xs text-dimmed shrink-0">{{ l.card.columnTitle }}</span>
         </button>
-        <UButton
-          v-if="props.canEdit"
-          icon="i-lucide-x"
-          size="xs"
-          color="neutral"
-          variant="ghost"
-          :aria-label="t('cardLinks.remove', { title: l.card.title })"
-          class="opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
-          @click="remove(l)"
-        />
+        <UTooltip v-if="props.canEdit" :text="t('cardLinks.remove', { title: l.card.title })">
+          <UButton
+            icon="i-lucide-x"
+            size="xs"
+            color="neutral"
+            variant="ghost"
+            :aria-label="t('cardLinks.remove', { title: l.card.title })"
+            class="opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
+            @click="remove(l)"
+          />
+        </UTooltip>
       </div>
     </div>
     <template v-if="props.canEdit">

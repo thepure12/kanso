@@ -38,7 +38,9 @@ function onEnter(e: KeyboardEvent) {
     />
     <div class="flex gap-2">
       <UButton type="submit" size="sm" :label="t('common.add')" />
-      <UButton size="sm" color="neutral" variant="ghost" icon="i-lucide-x" :aria-label="t('common.cancel')" @click="editing = false" />
+      <UTooltip :text="t('common.cancel')">
+        <UButton size="sm" color="neutral" variant="ghost" icon="i-lucide-x" :aria-label="t('common.cancel')" @click="editing = false" />
+      </UTooltip>
     </div>
   </form>
   <UButton v-else color="neutral" variant="ghost" icon="i-lucide-plus" :label="props.label" block class="justify-start" @click="editing = true" />

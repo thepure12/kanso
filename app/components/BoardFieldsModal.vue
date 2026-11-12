@@ -103,7 +103,9 @@ const isPicking = (field: BoardField, option: FieldOption) => picking.value?.fie
                   @click="emit('update', field, { showOnCard: !field.showOnCard })"
                 />
               </UTooltip>
-              <UButton icon="i-lucide-trash" color="error" variant="ghost" :aria-label="t('boardFields.deleteField', { name: field.name })" @click="remove(field)" />
+              <UTooltip :text="t('boardFields.deleteField', { name: field.name })">
+                <UButton icon="i-lucide-trash" color="error" variant="ghost" :aria-label="t('boardFields.deleteField', { name: field.name })" @click="remove(field)" />
+              </UTooltip>
             </div>
 
             <div v-if="field.kind === 'select'" class="ms-12 space-y-1">
@@ -130,7 +132,9 @@ const isPicking = (field: BoardField, option: FieldOption) => picking.value?.fie
                   :aria-label="t('boardFields.option', { label: option.label })"
                   @change="renameOption(field, option, $event)"
                 />
-                <UButton icon="i-lucide-x" size="xs" color="neutral" variant="ghost" :aria-label="t('boardFields.removeOption', { label: option.label })" @click="removeOption(field, option)" />
+                <UTooltip :text="t('boardFields.removeOption', { label: option.label })">
+                  <UButton icon="i-lucide-x" size="xs" color="neutral" variant="ghost" :aria-label="t('boardFields.removeOption', { label: option.label })" @click="removeOption(field, option)" />
+                </UTooltip>
               </div>
               <InlineAdd :label="t('boardFields.addOption')" :placeholder="t('boardFields.optionPlaceholder')" @add="label => addOption(field, label)" />
             </div>

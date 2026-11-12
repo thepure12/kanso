@@ -81,32 +81,34 @@ const isWeekend = (date: string) => [0, 6].includes(new Date(`${date}T00:00`).ge
             <div :style="{ width: `${width}px` }" />
           </div>
           <div v-for="card in g.cards" :key="card.id" class="flex border-b border-default last:border-b-0">
-            <button
-              type="button"
-              class="w-56 shrink-0 sticky left-0 z-[5] px-3 py-1.5 text-sm text-left truncate bg-default border-e border-default hover:underline"
-              :title="card.title"
-              @click="emit('open', card.id)"
-            >
-              {{ card.title }}
-            </button>
+            <UTooltip :text="card.title" :content="{ side: 'right' }">
+              <button
+                type="button"
+                class="w-56 shrink-0 sticky left-0 z-[5] px-3 py-1.5 text-sm text-left truncate bg-default border-e border-default hover:underline"
+                @click="emit('open', card.id)"
+              >
+                {{ card.title }}
+              </button>
+            </UTooltip>
             <div class="relative h-9" :style="{ width: `${width}px` }">
               <template v-for="bar in [timelineBar(card, range.start)!]" :key="card.id">
-                <button
-                  type="button"
-                  class="absolute top-1.5 h-6 text-[11px] font-medium truncate px-1.5 hover:brightness-110"
-                  :class="bar.marker ? 'rounded-full' : 'rounded'"
-                  :style="{
-                    left: `${bar.offset * dayWidth}px`,
-                    width: `${Math.max(bar.length * dayWidth, 12)}px`,
-                    backgroundColor: g.col.color ?? 'var(--ui-primary)',
-                    color: g.col.color ? contrastText(g.col.color) : 'var(--ui-bg)',
-                  }"
-                  :title="`${card.title}: ${formatDateRange(card.startDate, card.dueDate, i18n)}`"
-                  :aria-label="`${card.title}: ${formatDateRange(card.startDate, card.dueDate, i18n)}`"
-                  @click="emit('open', card.id)"
-                >
-                  <span v-if="!bar.marker && bar.length * dayWidth > 48">{{ card.title }}</span>
-                </button>
+                <UTooltip :text="`${card.title}: ${formatDateRange(card.startDate, card.dueDate, i18n)}`">
+                  <button
+                    type="button"
+                    class="absolute top-1.5 h-6 text-[11px] font-medium truncate px-1.5 hover:brightness-110"
+                    :class="bar.marker ? 'rounded-full' : 'rounded'"
+                    :style="{
+                      left: `${bar.offset * dayWidth}px`,
+                      width: `${Math.max(bar.length * dayWidth, 12)}px`,
+                      backgroundColor: g.col.color ?? 'var(--ui-primary)',
+                      color: g.col.color ? contrastText(g.col.color) : 'var(--ui-bg)',
+                    }"
+                    :aria-label="`${card.title}: ${formatDateRange(card.startDate, card.dueDate, i18n)}`"
+                    @click="emit('open', card.id)"
+                  >
+                    <span v-if="!bar.marker && bar.length * dayWidth > 48">{{ card.title }}</span>
+                  </button>
+                </UTooltip>
               </template>
             </div>
           </div>
