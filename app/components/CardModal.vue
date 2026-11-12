@@ -24,6 +24,8 @@ const props = defineProps<{
   template?: boolean
   /** The template's schedule, if any. */
   recurrence?: CardRecurrence | null
+  /** Direct link to the card, offered by "Copy link". */
+  link?: string
 }>()
 const emit = defineEmits<{
   save: [patch: CardPatch]
@@ -44,6 +46,16 @@ const emit = defineEmits<{
 const open = defineModel<boolean>('open', { required: true })
 const { t } = useI18n()
 const choose = useChoice()
+const toast = useToast()
+
+async function copyLink() {
+  try {
+    await navigator.clipboard.writeText(props.link!)
+    toast.add({ title: t('card.linkCopied'), color: 'success' })
+  } catch {
+    toast.add({ title: t('card.linkCopyFailed'), color: 'error' })
+  }
+}
 
 const form = reactive({
   title: '',
@@ -339,6 +351,16 @@ const tabs = computed(() => [
               variant="outline"
               size="sm"
               @click="toggleWatch"
+            />
+            <UButton
+              v-if="props.link"
+              icon="i-lucide-link"
+              :aria-label="t('card.copyLink')"
+              :title="t('card.copyLink')"
+              color="neutral"
+              variant="outline"
+              size="sm"
+              @click="copyLink"
             />
             <UAvatarGroup
               v-if="cd.detail.value.watchers.length"

@@ -53,8 +53,8 @@ const cardOpen = computed({ get: () => !!editingCard.value, set: (v) => { if (!v
 // Cards with an open blocker; the last column counts as done (see blockedCardIds).
 const blockedIds = computed(() => blockedCardIds(allCards.value, columns.value))
 
-// ?card=<id> (links from notifications) opens that card. The query is dropped
-// once read, so the same link works again.
+// ?card=<id> opens that card, and the open card is kept in ?card= (replacing the
+// history entry), so the address bar is a direct link to it. Closing drops it.
 const toast = useToast()
 /** Opens a linked card from the card dialog. Archived cards are not on the board. */
 function openLinkedCard(cardId: string) {
@@ -68,13 +68,27 @@ function openLinkedCard(cardId: string) {
 function openCardFromQuery() {
   const card = route.query.card
   if (typeof card !== 'string') return
+  if (card === editingCardId.value) return
   editingCardId.value = card
-  if (!editingCard.value) toast.add({ title: t('board.cardMissing'), color: 'warning' })
-  const { card: _, ...query } = route.query
-  navigateTo({ query }, { replace: true })
+  if (editingCard.value) return
+  editingCardId.value = null
+  toast.add({ title: t('board.cardMissing'), color: 'warning' })
+  setCardQuery(null)
 }
-onMounted(openCardFromQuery)
+function setCardQuery(cardId: string | null) {
+  if ((route.query.card ?? null) === cardId) return
+  navigateTo({ query: { ...route.query, card: cardId ?? undefined } }, { replace: true })
+}
+onMounted(() => {
+  openCardFromQuery()
+  // Also drops ?card= when the open card disappears (archived or deleted elsewhere).
+  watch(() => editingCard.value?.id ?? null, setCardQuery)
+})
 watch(() => route.query.card, openCardFromQuery)
+/** The open card's direct link, for the dialog's "Copy link". */
+const cardLink = computed(() => editingCard.value && import.meta.client
+  ? `${window.location.origin}${base}/boards/${id}?card=${editingCard.value.id}`
+  : undefined)
 
 const confirmDelete = ref(false)
 const deletingCard = ref<Card | null>(null)
@@ -673,6 +687,7 @@ const boardMenu = computed(() => [
       :create-tag="addTag"
       :remote-version="remoteVersion"
       :template="editingTemplate"
+      :link="editingTemplate ? undefined : cardLink"
       :recurrence="editingTemplate ? recurrences.find(r => r.templateId === editingCard!.id) ?? null : null"
       @update-tag="updateTag"
       @save="patch => updateCard(editingCard!, patch)"
