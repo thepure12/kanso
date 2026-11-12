@@ -1255,7 +1255,7 @@
   },
   "rules": {
     "title": "Regeln für {column}",
-    "description": "Regeln greifen, wenn eine Karte in dieser Spalte angelegt oder hierher verschoben wird. Neue Tag- und Zuweisungsregeln gelten auch für die Karten, die schon hier sind.",
+    "description": "Regeln greifen, wenn eine Karte in dieser Spalte angelegt oder hierher verschoben wird. Neue Karten-Tag- und Zuweisungsregeln können auch die Karten ändern, die schon hier sind.",
     "empty": "Noch keine Regeln.",
     "applyTag": "Tag setzen",
     "removeTag": "Tag entfernen",
@@ -1269,7 +1269,10 @@
     "chooseMember": "Mitglied auswählen",
     "dueInDays": "Fällig in Tagen",
     "daysUntilDue": "Tage bis zur Fälligkeit",
-    "dueRuleExists": "Lösch die Fälligkeitsregel, um sie zu ändern."
+    "dueRuleExists": "Lösch die Fälligkeitsregel, um sie zu ändern.",
+    "existingPrompt": "Diese Regel würde {count} Karte ändern, die schon in dieser Spalte ist. Auch ändern? | Diese Regel würde {count} Karten ändern, die schon in dieser Spalte sind. Auch ändern?",
+    "applyExisting": "Auch ändern | Alle {count} ändern",
+    "onlyNew": "Nur neue Karten"
   },
   "boardBackground": {
     "title": "Hintergrund und Akzent",

@@ -56,6 +56,12 @@ export type NewColumnRule =
 export type ColumnRule = NewColumnRule & { id: string }
 
 /**
+ * POST /api/columns/:id/rules body. A new tag or assignee rule also changes the
+ * cards already in the column unless applyToExisting is false (default true).
+ */
+export type NewColumnRuleRequest = NewColumnRule & { applyToExisting?: boolean }
+
+/**
  * Time-based automation of a board, run hourly. "Open" cards are the ones not
  * archived and not in the last column. Changes show up in the activity log
  * with no actor and `automation: true`.

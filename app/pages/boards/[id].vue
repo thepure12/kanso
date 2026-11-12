@@ -782,7 +782,8 @@ const boardMenu = computed(() => {
       :column="rulesColumn"
       :tags="tags"
       :members="board?.members ?? []"
-      @add="rule => addColumnRule(rulesColumn!, rule)"
+      :cards="lists[rulesColumn.id] ?? []"
+      @add="(rule, applyToExisting) => addColumnRule(rulesColumn!, rule, applyToExisting)"
       @delete="rule => deleteColumnRule(rulesColumn!, rule)"
     />
     <TagsModal

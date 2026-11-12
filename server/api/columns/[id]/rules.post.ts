@@ -2,16 +2,18 @@ import { and, eq, sql } from 'drizzle-orm'
 import { z } from 'zod'
 import type { ColumnRule } from '#shared/types/board'
 
-const body = z.discriminatedUnion('kind', [
+const ruleBody = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('apply_tag'), tagId: z.uuid() }),
   z.object({ kind: z.literal('remove_tag'), tagId: z.uuid() }),
   z.object({ kind: z.literal('assign_to'), userId: z.uuid() }),
   z.object({ kind: z.literal('set_due'), dueDays: z.number().int().min(0).max(365) }),
 ])
+// applyToExisting: false leaves the cards already in the column alone (the UI asks).
+const body = z.intersection(ruleBody, z.object({ applyToExisting: z.boolean().default(true) }))
 
 export default defineUserHandler(async (event, tx): Promise<ColumnRule> => {
   const { id } = await paramsValidated(event, uuidParam)
-  const rule = await readValidated(event, body)
+  const { applyToExisting, ...rule } = await readValidated(event, body)
   const { columns, columnRules } = schema
 
   const [col] = await tx.select({ boardId: columns.boardId }).from(columns).where(eq(columns.id, id))
@@ -21,7 +23,7 @@ export default defineUserHandler(async (event, tx): Promise<ColumnRule> => {
   // Adding an existing rule is a no-op.
   const inserted = await tx.insert(columnRules).values({ boardId: col.boardId, columnId: id, ...rule })
     .onConflictDoNothing().returning({ id: columnRules.id })
-  if (inserted.length) await applyToColumnCards(tx, id, rule)
+  if (inserted.length && applyToExisting) await applyToColumnCards(tx, id, rule)
   const match = 'tagId' in rule
     ? eq(columnRules.tagId, rule.tagId)
     : 'userId' in rule ? eq(columnRules.userId, rule.userId) : eq(columnRules.dueDays, rule.dueDays)
@@ -32,7 +34,7 @@ export default defineUserHandler(async (event, tx): Promise<ColumnRule> => {
   return toColumnRule(row)
 })
 
-type NewRule = z.infer<typeof body>
+type NewRule = z.infer<typeof ruleBody>
 
 /**
  * A new tag or assignee rule also covers the cards already in the column

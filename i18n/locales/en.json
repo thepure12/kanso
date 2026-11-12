@@ -1255,7 +1255,7 @@
   },
   "rules": {
     "title": "Rules for {column}",
-    "description": "Rules run when a card is added to this column or moved into it. A new tag or assignee rule also applies to the cards already here.",
+    "description": "Rules run when a card is added to this column or moved into it. A new card tag or assignee rule can also change the cards already here.",
     "empty": "No rules yet.",
     "applyTag": "Apply tag",
     "removeTag": "Remove tag",
@@ -1269,7 +1269,10 @@
     "chooseMember": "Choose a member",
     "dueInDays": "Due in days",
     "daysUntilDue": "Days until due",
-    "dueRuleExists": "Delete the due date rule to change it."
+    "dueRuleExists": "Delete the due date rule to change it.",
+    "existingPrompt": "This rule would change {count} card already in this column. Change it too? | This rule would change {count} cards already in this column. Change them too?",
+    "applyExisting": "Change it too | Change all {count}",
+    "onlyNew": "Only new cards"
   },
   "boardBackground": {
     "title": "Background and accent",

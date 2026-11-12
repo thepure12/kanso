@@ -1,6 +1,6 @@
 import type { BoardAccent } from '#shared/boardAccents'
 import type { BoardBackground } from '#shared/boardBackgrounds'
-import type { BoardAutomation, BoardDetail, BoardField, BulkCardAction, Card, CardLink, CardPatch, CardRecurrence, Column, ColumnGroup, ColumnRule, FieldValue, NewBoardAutomation, NewColumnRule, RecurrenceInput, Tag } from '#shared/types/board'
+import type { BoardAutomation, BoardDetail, BoardField, BulkCardAction, Card, CardLink, CardPatch, CardRecurrence, Column, ColumnGroup, ColumnRule, FieldValue, NewBoardAutomation, NewColumnRule, NewColumnRuleRequest, RecurrenceInput, Tag } from '#shared/types/board'
 
 /** Card fields kept in step with the card dialog's details. */
 export type CardCounts = Pick<Card, 'checklist' | 'commentCount' | 'attachmentCount' | 'timeMinutes' | 'coverAttachmentId' | 'watching'>
@@ -455,11 +455,12 @@ export async function useBoard(id: string) {
       for (const g of columnGroups.value) g.columnIds = g.columnIds.filter(c => c !== col.id)
     }, t('board.errors.deleteColumn')),
 
-    addColumnRule: (col: Column, rule: NewColumnRule) => run(async () => {
-      const created = await api<ColumnRule>(`/api/columns/${col.id}/rules`, { method: 'POST', body: rule })
+    addColumnRule: (col: Column, rule: NewColumnRule, applyToExisting = true) => run(async () => {
+      const body: NewColumnRuleRequest = { ...rule, applyToExisting }
+      const created = await api<ColumnRule>(`/api/columns/${col.id}/rules`, { method: 'POST', body })
       if (!col.rules.some(r => r.id === created.id)) col.rules.push(created)
-      // Tag and assignee rules also change the cards already in the column.
-      if (created.kind !== 'set_due' && lists.value[col.id]?.length) await refresh()
+      // Tag and assignee rules can also change the cards already in the column.
+      if (applyToExisting && created.kind !== 'set_due' && lists.value[col.id]?.length) await refresh()
     }, t('board.errors.addRule')),
 
     deleteColumnRule: (col: Column, rule: ColumnRule) => run(async () => {

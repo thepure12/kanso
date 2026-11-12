@@ -440,6 +440,34 @@ describe('column rules', () => {
     expect(after.assigneeIds).toEqual([userId('Bob')])
     expect(after.dueDate).toBeNull()
   })
+
+  it('applyToExisting: false leaves the cards already in the column alone', async () => {
+    const { data: column } = await alice.req<{ id: string }>(`/api/boards/${board.id}/columns`, { method: 'POST', body: { title: 'Only new' } })
+    const story = board.tags.find(t => t.name === 'story')!.id
+    const card = await newCard('Left alone')
+    await alice.req(`/api/cards/${card.id}/move`, { method: 'POST', body: { columnId: column.id, aboveId: null, belowId: null } })
+
+    for (const body of [
+      { kind: 'apply_tag', tagId: story, applyToExisting: false },
+      { kind: 'assign_to', userId: userId('Bob'), applyToExisting: false },
+    ]) {
+      const { status, data } = await alice.req<ColumnRule>(`/api/columns/${column.id}/rules`, { method: 'POST', body })
+      expect(status).toBe(200)
+      expect(data).not.toHaveProperty('applyToExisting')
+    }
+    expect((await alice.req(`/api/columns/${column.id}/rules`, { method: 'POST', body: { kind: 'set_due', dueDays: 1, applyToExisting: 'no' } })).status).toBe(400)
+
+    const { data } = await alice.req<BoardDetail>(`/api/boards/${board.id}`)
+    const after = data.cards.find(c => c.id === card.id)!
+    expect(after.tagIds).toEqual([])
+    expect(after.assigneeIds).toEqual([])
+
+    // The rules still run for cards moved in later.
+    const later = await newCard('Moved in later')
+    const { data: moved } = await alice.req<Card>(`/api/cards/${later.id}/move`, { method: 'POST', body: { columnId: column.id, aboveId: null, belowId: null } })
+    expect(moved.tagIds).toEqual([story])
+    expect(moved.assigneeIds).toEqual([userId('Bob')])
+  })
 })
 
 describe('board automations', () => {
