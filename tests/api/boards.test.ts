@@ -986,6 +986,45 @@ describe('board accent', () => {
   })
 })
 
+describe('column outline', () => {
+  it('owners set and clear it; members see it; copies keep it', async () => {
+    const put = (who: typeof alice, outline: unknown) => who.req(`/api/boards/${boardId}/column-outline`, { method: 'PUT', body: { outline } })
+    const outline = { color: '#0ea5e9', width: 2, glow: 3 }
+    expect((await put(alice, outline)).status).toBe(200)
+    expect((await put(alice, { color: 'blue', width: 2, glow: 0 })).status).toBe(400)
+    expect((await put(alice, { color: null, width: 5, glow: 0 })).status).toBe(400)
+    expect((await put(bob, { color: null, width: 1, glow: 0 })).status).toBe(404)
+    expect((await bob.req<BoardDetail>(`/api/boards/${boardId}`)).data.columnOutline).toEqual(outline)
+
+    const copy = await alice.req<{ id: string }>(`/api/boards/${boardId}/copy`, { method: 'POST', body: { name: 'Outline copy', withCards: false } })
+    extraBoards.push(copy.data.id)
+    expect((await alice.req<BoardDetail>(`/api/boards/${copy.data.id}`)).data.columnOutline).toEqual(outline)
+
+    expect((await put(alice, null)).status).toBe(200)
+    expect((await bob.req<BoardDetail>(`/api/boards/${boardId}`)).data.columnOutline).toBeNull()
+  })
+
+  it('columns override it; exports and imports keep the override', async () => {
+    const board = (await alice.req<BoardDetail>(`/api/boards/${boardId}`)).data
+    const col = board.columns[0]!
+    const patch = (who: typeof alice, outline: unknown) => who.req(`/api/columns/${col.id}`, { method: 'PATCH', body: { outline } })
+    const outline = { color: 'column', width: 4, glow: 2 }
+    expect((await patch(bob, outline)).status).toBe(200)
+    expect((await patch(bob, { color: 'column', width: 4 })).status).toBe(400)
+    expect((await alice.req<BoardDetail>(`/api/boards/${boardId}`)).data.columns[0]!.outline).toEqual(outline)
+
+    const exported = (await alice.req<string | Record<string, unknown>>(`/api/boards/${boardId}/export?format=json`)).data
+    const data = typeof exported === 'string' ? JSON.parse(exported) : exported
+    expect(data.columns[0].outline).toEqual(outline)
+    const res = await alice.req<{ id: string }>('/api/boards/import', { method: 'POST', body: { name: 'Imported outline', data } })
+    expect(res.status).toBe(200)
+    extraBoards.push(res.data.id)
+    expect((await alice.req<BoardDetail>(`/api/boards/${res.data.id}`)).data.columns[0]!.outline).toEqual(outline)
+
+    expect((await patch(bob, null)).status).toBe(200)
+  })
+})
+
 describe('notifications', () => {
   it('notifies the assignee live, links to the card and marks read', async () => {
     const stream = await listen('/api/notifications/events', bob.cookie())

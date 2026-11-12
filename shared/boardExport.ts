@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import { fieldKinds } from './types/board'
 import { CARD_TITLE_MAX } from './cards'
+import { columnOutlineSchema } from './columnOutline'
 
 /**
  * The JSON board export (GET /api/boards/:id/export) and the import
@@ -33,6 +34,7 @@ export const boardExportSchema = z.object({
     title: z.string().trim().min(1).max(100),
     color: color.nullish(),
     wipLimit: z.number().int().min(1).max(999).nullish(),
+    outline: columnOutlineSchema.nullish(),
     rules: z.array(rule).max(50).default([]),
   })).max(100),
   tags: z.array(z.object({ name: z.string().trim().min(1).max(50), color })).max(200).default([]),

@@ -6,14 +6,14 @@ export default defineUserHandler(async (event, tx): Promise<BoardDetail> => {
   const { boards, boardAutomations, columns, columnRules, invites, tags, teams } = schema
 
   const [board] = await tx.select({
-    id: boards.id, name: boards.name, teamId: boards.teamId, teamName: teams.name, archivedAt: boards.archivedAt, background: boards.background, accent: boards.accent,
+    id: boards.id, name: boards.name, teamId: boards.teamId, teamName: teams.name, archivedAt: boards.archivedAt, background: boards.background, accent: boards.accent, columnOutline: boards.columnOutline,
     starred: sql<boolean>`exists(select 1 from board_stars s where s.board_id = ${boards.id} and s.user_id = app.current_user_id())`,
   })
     .from(boards).leftJoin(teams, eq(teams.id, boards.teamId)).where(eq(boards.id, id))
   if (!board) notFound('Board not found')
 
   const [cols, ruleRows, cardRows, templates, recurrences, automationRows, tagRows, fields, columnGroups, members, inviteRows, [me]] = await Promise.all([
-    tx.select({ id: columns.id, title: columns.title, position: columns.position, color: columns.color, wipLimit: columns.wipLimit })
+    tx.select({ id: columns.id, title: columns.title, position: columns.position, color: columns.color, wipLimit: columns.wipLimit, outline: columns.outline })
       .from(columns).where(eq(columns.boardId, id)).orderBy(asc(columns.position)),
     tx.select({ ...columnRuleFields, columnId: columnRules.columnId })
       .from(columnRules).where(eq(columnRules.boardId, id)).orderBy(asc(columnRules.createdAt)),
@@ -48,6 +48,7 @@ export default defineUserHandler(async (event, tx): Promise<BoardDetail> => {
     starred: board.starred,
     background: board.background ?? null,
     accent: board.accent ?? null,
+    columnOutline: board.columnOutline ?? null,
     team: board.teamId ? { id: board.teamId, name: board.teamName! } : null,
     columns: cols.map(c => ({ ...c, rules: (rulesByColumn.get(c.id) ?? []).map(toColumnRule) })),
     columnGroups,

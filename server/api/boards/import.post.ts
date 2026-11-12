@@ -81,7 +81,7 @@ async function importBoard(tx: Tx, userId: string, name: string, teamId: string 
 
   // Columns keep their order; cards refer to them by title (first match wins).
   const columnRows = data.columns.map((c, i) => ({
-    id: randomUUID(), boardId, title: c.title, color: c.color ?? null, wipLimit: c.wipLimit ?? null, position: (i + 1) * 1024,
+    id: randomUUID(), boardId, title: c.title, color: c.color ?? null, wipLimit: c.wipLimit ?? null, outline: c.outline ?? null, position: (i + 1) * 1024,
   }))
   if (columnRows.length) await tx.insert(schema.columns).values(columnRows)
   const columnId = new Map<string, string>()

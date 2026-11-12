@@ -610,7 +610,8 @@
       "changedCover": "Titelbild geändert",
       "editedCard": "Karte bearbeitet",
       "changedBackground": "Hintergrund geändert",
-      "changedAccent": "Akzentfarbe geändert"
+      "changedAccent": "Akzentfarbe geändert",
+      "changedColumnOutline": "Spaltenrahmen geändert"
     },
     "errors": {
       "moveCard": "Karte konnte nicht verschoben werden",
@@ -648,6 +649,7 @@
       "background": "Hintergrund konnte nicht geändert werden",
       "backgroundUpload": "Hintergrundbild konnte nicht hochgeladen werden",
       "accent": "Akzentfarbe konnte nicht geändert werden",
+      "columnOutline": "Spaltenrahmen konnte nicht geändert werden",
       "addColumnGroup": "Spaltengruppe konnte nicht hinzugefügt werden",
       "saveColumnGroup": "Spaltengruppe konnte nicht gespeichert werden",
       "moveColumnGroup": "Spaltengruppe konnte nicht verschoben werden",
@@ -1356,8 +1358,28 @@
       "rose": "Rosé"
     }
   },
+  "columnOutline": {
+    "boardTitle": "Spaltenrahmen",
+    "boardHint": "Rahmen um jede Spalte. Eine Spalte kann im Menü Farbe einen eigenen haben.",
+    "title": "Rahmen",
+    "useBoard": "Rahmen des Boards verwenden",
+    "reset": "Rahmen zurücksetzen",
+    "default": "Standard",
+    "accent": "Boardfarbe",
+    "column": "Spaltenfarbe",
+    "custom": "Eigene Farbe",
+    "width": "Stärke",
+    "widthPx": "{n} px",
+    "glow": "Leuchten",
+    "glowLevel": {
+      "0": "Keins",
+      "1": "Schwach",
+      "2": "Mittel",
+      "3": "Stark"
+    }
+  },
   "columnColor": {
-    "title": "Spaltenfarbe",
+    "title": "Spaltenfarbe und Rahmen",
     "remove": "Farbe entfernen"
   },
   "tags": {

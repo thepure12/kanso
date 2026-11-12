@@ -1,5 +1,6 @@
 import type { BoardAccent } from '../boardAccents'
 import type { BoardBackground } from '../boardBackgrounds'
+import type { ColumnOutline } from '../columnOutline'
 
 export type BoardRole = 'owner' | 'editor' | 'viewer'
 
@@ -30,6 +31,8 @@ export interface Column {
   color: string | null
   /** Soft limit: the UI warns when the column holds more cards. Null = none. */
   wipLimit: number | null
+  /** Frame override; null = the board's columnOutline. */
+  outline: ColumnOutline | null
   rules: ColumnRule[]
 }
 
@@ -328,6 +331,8 @@ export interface BoardDetail {
   background: BoardBackground | null
   /** Palette name replacing the primary colour on the board; null = app default. */
   accent: BoardAccent | null
+  /** Colour, thickness and glow of the column frames; null = default ring. */
+  columnOutline: ColumnOutline | null
   role: BoardRole
   /** Set while the board is archived: read-only for everyone until an owner unarchives it. */
   archivedAt: string | null

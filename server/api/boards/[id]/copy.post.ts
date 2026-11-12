@@ -16,12 +16,13 @@ export default defineUserHandler(async (event, tx) => {
   return board
 })
 
-/** Gives the copy the source's accent and background (and uploaded image) when the caller owns the copy. */
+/** Gives the copy the source's accent, column outline and background (and uploaded image) when the caller owns the copy. */
 async function copyAppearance(tx: Tx, src: string, dest: string) {
-  const [row] = await tx.execute<{ kind: string | null, accent: string | null, owner: boolean }>(sql`
-    select background->>'kind' as kind, accent, app.board_role(${dest}) = 'owner' as owner from boards where id = ${src}`)
+  const [row] = await tx.execute<{ kind: string | null, accent: string | null, outline: boolean, owner: boolean }>(sql`
+    select background->>'kind' as kind, accent, column_outline is not null as outline, app.board_role(${dest}) = 'owner' as owner from boards where id = ${src}`)
   if (!row?.owner) return
   if (row.accent) await tx.execute(sql`update boards set accent = ${row.accent} where id = ${dest}`)
+  if (row.outline) await tx.execute(sql`update boards set column_outline = (select column_outline from boards where id = ${src}) where id = ${dest}`)
   if (!row.kind) return
   if (row.kind === 'upload') {
     const image = await tx.execute(sql`

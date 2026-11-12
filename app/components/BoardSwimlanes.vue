@@ -1,12 +1,15 @@
 <script setup lang="ts">
 import { VueDraggable, type SortableEvent } from 'vue-draggable-plus'
 import type { BoardField, Card, Column, Member, Tag } from '#shared/types/board'
+import { type ColumnOutline, columnOutlineStyle, effectiveColumnOutline } from '#shared/columnOutline'
 
 const props = defineProps<{
   groupBy: Exclude<GroupBy, 'none'>
   columns: Column[]
   /** Width in px per column id (the board view's resized widths). */
   columnWidth: (columnId: string) => number
+  /** The board's column frame setting; null = default ring. */
+  outline?: ColumnOutline | null
   /** Full per-column card lists (useBoard's lists). */
   lists: Record<string, Card[]>
   tags: Tag[]
@@ -28,6 +31,9 @@ const emit = defineEmits<{
 }>()
 
 const { t } = useI18n()
+/** Frame style per column (own outline, else the board's); null = default ring classes. */
+const frames = computed(() => Object.fromEntries(props.columns.map(col =>
+  [col.id, columnOutlineStyle(effectiveColumnOutline(col, props.outline), false, col.color)])))
 const ctx = computed(() => ({ members: props.members, tags: props.tags, fields: props.fields }))
 const allCards = computed(() => Object.values(props.lists).flat())
 const lanes = computed(() => buildLanes(allCards.value, props.groupBy, ctx.value, t))
@@ -70,8 +76,9 @@ function onDrop(laneKey: string, columnId: string, e: SortableEvent) {
       <div
         v-for="col in props.columns"
         :key="col.id"
-        class="shrink-0 rounded-lg px-3 py-2 flex items-center gap-2 bg-elevated ring ring-default"
-        :style="[{ width: `${props.columnWidth(col.id)}px` }, col.color ? { backgroundColor: col.color, color: contrastText(col.color) } : {}]"
+        class="shrink-0 rounded-lg px-3 py-2 flex items-center gap-2 bg-elevated"
+        :class="!frames[col.id] && 'ring ring-default'"
+        :style="[{ width: `${props.columnWidth(col.id)}px` }, col.color ? { backgroundColor: col.color, color: contrastText(col.color) } : {}, frames[col.id] ?? {}]"
       >
         <h2 class="font-medium truncate flex-1">
           {{ col.title }}
@@ -97,8 +104,9 @@ function onDrop(laneKey: string, columnId: string, e: SortableEvent) {
           filter=".card-title-edit"
           :prevent-on-filter="false"
           ghost-class="opacity-40"
-          class="shrink-0 rounded-lg bg-elevated/60 ring ring-default flex flex-col gap-2 p-2 min-h-12"
-          :style="{ width: `${props.columnWidth(col.id)}px` }"
+          class="shrink-0 rounded-lg bg-elevated/60 flex flex-col gap-2 p-2 min-h-12"
+          :class="!frames[col.id] && 'ring ring-default'"
+          :style="[{ width: `${props.columnWidth(col.id)}px` }, frames[col.id] ?? {}]"
           :data-lane="lane.key"
           :data-column="col.id"
           @start="emit('dragging', true)"

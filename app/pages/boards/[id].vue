@@ -3,13 +3,14 @@ import { VueDraggable, type SortableEvent } from 'vue-draggable-plus'
 import type { DropdownMenuItem } from '@nuxt/ui'
 import type { BulkCardAction, Card, Column } from '#shared/types/board'
 import { backgroundStyle } from '#shared/boardBackgrounds'
+import { columnOutlineStyle, effectiveColumnOutline } from '#shared/columnOutline'
 import { CARD_TITLE_MAX } from '#shared/cards'
 
 const route = useRoute()
 const id = route.params.id as string
 const {
   board, error, refresh, columns, columnGroups, lists, tags, fields, templates, recurrences, automations, archived, offline, canEdit, isOwner, dragging, remoteVersion,
-  renameBoard, setArchived, setBackground, setAccent, uploadBackground, deleteBoard, addColumn, renameColumn, setColumnColor, setColumnWipLimit, sortColumnByPriority, deleteColumn, columnMoved,
+  renameBoard, setArchived, setBackground, setAccent, setColumnOutline, uploadBackground, deleteBoard, addColumn, renameColumn, setColumnAppearance, setColumnWipLimit, sortColumnByPriority, deleteColumn, columnMoved,
   addColumnRule, deleteColumnRule, addAutomation, updateAutomation, deleteAutomation, addCard, updateCard, setCardCounts, cardLinkChanged, archiveCard, restoreCard, deleteCard, restoreTrashedCard,
   deleteArchivedCard, cardMoved, moveCard, addTag, updateTag, deleteTag,
   addField, updateField, fieldMoved, deleteField, setFieldValue,
@@ -573,6 +574,7 @@ const boardMenu = computed(() => {
         :group-by="groupBy"
         :columns="shownColumns"
         :column-width="columnWidths.widthOf"
+        :outline="board.columnOutline"
         :lists="lists"
         :tags="tags"
         :fields="fields"
@@ -605,9 +607,9 @@ const boardMenu = computed(() => {
             v-for="col in columns"
             v-show="shownColumnIds.has(col.id)"
             :key="col.id"
-            class="relative shrink-0 rounded-lg ring flex flex-col max-h-[calc(100vh-14rem)]"
-            :class="[wipState(col) === 'over' ? 'ring-error' : 'ring-default', backed ? 'bg-elevated/95 shadow-lg' : 'bg-elevated/60']"
-            :style="columnWidths.styleOf(col.id)"
+            class="relative shrink-0 rounded-lg flex flex-col max-h-[calc(100vh-14rem)]"
+            :class="[!effectiveColumnOutline(col, board.columnOutline) && ['ring', wipState(col) === 'over' ? 'ring-error' : 'ring-default'], backed ? 'bg-elevated/95 shadow-lg' : 'bg-elevated/60']"
+            :style="[columnWidths.styleOf(col.id), columnOutlineStyle(effectiveColumnOutline(col, board.columnOutline), wipState(col) === 'over', col.color) ?? {}]"
           >
             <UTooltip :content="{ side: 'right' }" :text="t('board.column.resizeHint')">
               <div
@@ -784,7 +786,9 @@ const boardMenu = computed(() => {
       v-model:open="colourOpen"
       :title="colouringColumn.title"
       :color="colouringColumn.color"
-      @save="color => setColumnColor(colouringColumn!, color)"
+      :outline="colouringColumn.outline"
+      :board-outline="board.columnOutline"
+      @save="value => setColumnAppearance(colouringColumn!, value)"
     />
     <ColumnRulesModal
       v-if="rulesColumn"
@@ -861,9 +865,11 @@ const boardMenu = computed(() => {
       :board-id="board.id"
       :background="board.background"
       :accent="board.accent"
+      :column-outline="board.columnOutline"
       :upload="uploadBackground"
       @set="setBackground"
       @set-accent="setAccent"
+      @set-column-outline="setColumnOutline"
     />
     <WebhooksSlideover v-if="isOwner" v-model:open="webhooksOpen" :board-id="board.id" />
     <CopyBoardModal v-model:open="copyOpen" :board-id="board.id" :board-name="board.name" :team-id="board.team?.id ?? null" />

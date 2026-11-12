@@ -428,6 +428,20 @@
       "when": 1794498747494,
       "tag": "0060_user_avatars_rls",
       "breakpoints": true
+    },
+    {
+      "idx": 61,
+      "version": "7",
+      "when": 1794511835566,
+      "tag": "0061_column_outline",
+      "breakpoints": true
+    },
+    {
+      "idx": 62,
+      "version": "7",
+      "when": 1794511843042,
+      "tag": "0062_column_outline_rls",
+      "breakpoints": true
     }
   ]
 }

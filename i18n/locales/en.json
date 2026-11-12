@@ -610,7 +610,8 @@
       "changedCover": "Changed cover",
       "editedCard": "Edited card",
       "changedBackground": "Changed background",
-      "changedAccent": "Changed accent colour"
+      "changedAccent": "Changed accent colour",
+      "changedColumnOutline": "Changed column outline"
     },
     "errors": {
       "moveCard": "Could not move card",
@@ -648,6 +649,7 @@
       "background": "Could not change background",
       "backgroundUpload": "Could not upload background image",
       "accent": "Could not change accent colour",
+      "columnOutline": "Could not change column outline",
       "addColumnGroup": "Could not add the column group",
       "saveColumnGroup": "Could not save the column group",
       "moveColumnGroup": "Could not move the column group",
@@ -1356,8 +1358,28 @@
       "rose": "Rose"
     }
   },
+  "columnOutline": {
+    "boardTitle": "Column outline",
+    "boardHint": "Frame around every column. A column can have its own in its Colour menu.",
+    "title": "Outline",
+    "useBoard": "Use the board's outline",
+    "reset": "Reset outline",
+    "default": "Default",
+    "accent": "Board colour",
+    "column": "Column colour",
+    "custom": "Custom colour",
+    "width": "Thickness",
+    "widthPx": "{n} px",
+    "glow": "Glow",
+    "glowLevel": {
+      "0": "None",
+      "1": "Soft",
+      "2": "Medium",
+      "3": "Strong"
+    }
+  },
   "columnColor": {
-    "title": "Column colour",
+    "title": "Column colour and outline",
     "remove": "Remove colour"
   },
   "tags": {

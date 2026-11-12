@@ -7,6 +7,16 @@ const tsvector = customType<{ data: string }>({ dataType: () => 'tsvector' })
 
 import type { BoardBackground } from '../../shared/boardBackgrounds'
 import { type BoardAccent, boardAccents } from '../../shared/boardAccents'
+import type { ColumnOutline } from '../../shared/columnOutline'
+
+// Shape of a column outline (shared/columnOutline.ts): exactly color, width, glow.
+const outlineShape = (c: AnyPgColumn) => sql`${c} is null or (
+    jsonb_typeof(${c}) = 'object'
+    and ${c} ?& array['color', 'width', 'glow']
+    and ${c} - 'color' - 'width' - 'glow' = '{}'::jsonb
+    and (${c}->'color' = 'null'::jsonb or ${c}->>'color' in ('accent', 'column') or ${c}->>'color' ~ '^#[0-9a-f]{6}$')
+    and ${c}->'width' in ('1', '2', '3', '4')
+    and ${c}->'glow' in ('0', '1', '2', '3'))`
 
 const createdAt = () => timestamp('created_at', { withTimezone: true }).notNull().defaultNow()
 
@@ -151,12 +161,17 @@ export const boards = pgTable('boards', {
   // Palette name that replaces the primary colour on the board; null = app default.
   // Owners change it (column grant); see shared/boardAccents.ts.
   accent: text('accent').$type<BoardAccent>(),
+  // Colour, thickness and glow of the column frames (columns.outline overrides
+  // it per column); null = default ring.
+  // Owners change it (column grant); see shared/columnOutline.ts.
+  columnOutline: jsonb('column_outline').$type<ColumnOutline>(),
   createdAt: createdAt(),
 }, t => [
   check('boards_background_shape', sql`${t.background} is null
     or (${t.background}->>'kind' = 'color' and ${t.background}->>'value' ~ '^#[0-9a-f]{6}$')
     or (${t.background}->>'kind' in ('gradient', 'photo', 'upload') and ${t.background}->>'value' ~ '^[a-z0-9-]{1,40}$')`),
   check('boards_accent_known', sql`${t.accent} is null or ${t.accent} in (${sql.raw(boardAccents.map(a => `'${a}'`).join(', '))})`),
+  check('boards_column_outline_shape', outlineShape(t.columnOutline)),
 ])
 
 // The uploaded image of a board whose background kind is 'upload'. One per board.
@@ -226,11 +241,14 @@ export const columns = pgTable('columns', {
   color: text('color'),
   // Soft work-in-progress limit: the UI warns when the column holds more cards. Null = none.
   wipLimit: integer('wip_limit'),
+  // Frame colour, thickness and glow; null = the board's column_outline.
+  outline: jsonb('outline').$type<ColumnOutline>(),
   createdAt: createdAt(),
 }, t => [
   unique('columns_id_board_id_unique').on(t.id, t.boardId),
   check('columns_color_hex', sql`${t.color} ~ '^#[0-9a-f]{6}$'`),
   check('columns_wip_limit_range', sql`${t.wipLimit} between 1 and 999`),
+  check('columns_outline_shape', outlineShape(t.outline)),
 ])
 
 // Named set of a board's columns, so the board view can show one group only.

@@ -27,7 +27,7 @@ export default defineUserHandler(async (event, tx) => {
   if (!board) notFound('Board not found')
 
   const [cols, rules, tagRows, cards, people, checklist, comments, attachments, links, fields, values, columnGroups] = await Promise.all([
-    tx.select({ id: columns.id, title: columns.title, color: columns.color, wipLimit: columns.wipLimit })
+    tx.select({ id: columns.id, title: columns.title, color: columns.color, wipLimit: columns.wipLimit, outline: columns.outline })
       .from(columns).where(eq(columns.boardId, id)).orderBy(asc(columns.position)),
     tx.select({ ...columnRuleFields, columnId: columnRules.columnId }).from(columnRules).where(eq(columnRules.boardId, id)),
     tx.select({ id: tags.id, name: tags.name, color: tags.color }).from(tags).where(eq(tags.boardId, id)).orderBy(asc(tags.name)),
@@ -120,6 +120,7 @@ export default defineUserHandler(async (event, tx) => {
       title: c.title,
       color: c.color,
       wipLimit: c.wipLimit,
+      ...(c.outline ? { outline: c.outline } : {}),
       rules: rules.filter(r => r.columnId === c.id).map(({ columnId: _, ...r }) => {
         const { id: _id, ...rule } = toColumnRule(r)
         return 'tagId' in rule ? { kind: rule.kind, tag: tagName.get(rule.tagId) }

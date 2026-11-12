@@ -2,15 +2,17 @@
 import colors from 'tailwindcss/colors'
 import { type BoardAccent, boardAccents } from '#shared/boardAccents'
 import { type BoardBackground, backgroundColors, backgroundGradients, backgroundPhotos, backgroundStyle } from '#shared/boardBackgrounds'
+import { type ColumnOutline, defaultColumnOutline } from '#shared/columnOutline'
 
 const props = defineProps<{
   boardId: string
   background: BoardBackground | null
   accent: BoardAccent | null
+  columnOutline: ColumnOutline | null
   /** Uploads the image and makes it the background; resolves when done. */
   upload: (file: File) => Promise<unknown>
 }>()
-const emit = defineEmits<{ set: [bg: BoardBackground | null], setAccent: [accent: BoardAccent | null] }>()
+const emit = defineEmits<{ set: [bg: BoardBackground | null], setAccent: [accent: BoardAccent | null], setColumnOutline: [outline: ColumnOutline | null] }>()
 const open = defineModel<boolean>('open', { required: true })
 const { t } = useI18n()
 const toast = useToast()
@@ -49,6 +51,11 @@ function onColor(e: Event) {
   const value = (e.target as HTMLInputElement).value.toLowerCase()
   if (/^#[0-9a-f]{6}$/.test(value)) emit('set', { kind: 'color', value })
 }
+
+const outline = computed({
+  get: () => props.columnOutline ?? defaultColumnOutline,
+  set: (v: ColumnOutline) => emit('setColumnOutline', v),
+})
 
 const tile = 'relative rounded-md ring-offset-2 ring-offset-default transition focus-visible:outline-2 focus-visible:outline-primary'
 const ring = (current: boolean) => current ? 'ring-2 ring-primary' : 'hover:ring-2 hover:ring-accented'
@@ -177,6 +184,27 @@ const ring = (current: boolean) => current ? 'ring-2 ring-primary' : 'hover:ring
           </div>
           <p class="text-xs text-muted">
             {{ t('boardBackground.accentHint') }}
+          </p>
+        </section>
+
+        <section class="space-y-3">
+          <div class="flex items-center justify-between gap-2">
+            <h3 class="text-sm font-medium">
+              {{ t('columnOutline.boardTitle') }}
+            </h3>
+            <UButton
+              size="xs"
+              color="neutral"
+              variant="ghost"
+              icon="i-lucide-rotate-ccw"
+              :label="t('columnOutline.reset')"
+              :disabled="!columnOutline"
+              @click="emit('setColumnOutline', null)"
+            />
+          </div>
+          <ColumnOutlinePicker v-model="outline" />
+          <p class="text-xs text-muted">
+            {{ t('columnOutline.boardHint') }}
           </p>
         </section>
 

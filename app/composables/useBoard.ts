@@ -1,4 +1,5 @@
 import type { BoardAccent } from '#shared/boardAccents'
+import type { ColumnOutline } from '#shared/columnOutline'
 import type { BoardBackground } from '#shared/boardBackgrounds'
 import type { BoardAutomation, BoardDetail, BoardField, BulkCardAction, Card, CardLink, CardPatch, CardRecurrence, Column, ColumnGroup, ColumnRule, FieldValue, NewBoardAutomation, NewColumnRule, NewColumnRuleRequest, RecurrenceInput, Tag } from '#shared/types/board'
 
@@ -288,7 +289,7 @@ export async function useBoard(id: string) {
   }
 
   /** Undo/redo of a column title, colour or WIP limit change. */
-  async function patchColumn(columnId: string, patch: Partial<Pick<Column, 'title' | 'color' | 'wipLimit'>>) {
+  async function patchColumn(columnId: string, patch: Partial<Pick<Column, 'title' | 'color' | 'wipLimit' | 'outline'>>) {
     Object.assign(findColumn(columnId), patch)
     await api(`/api/columns/${columnId}`, { method: 'PATCH', body: patch })
   }
@@ -324,6 +325,11 @@ export async function useBoard(id: string) {
   async function putAccent(accent: BoardAccent | null) {
     board.value!.accent = accent
     await api(`/api/boards/${id}/accent`, { method: 'PUT', body: { accent } })
+  }
+
+  async function putColumnOutline(outline: ColumnOutline | null) {
+    board.value!.columnOutline = outline
+    await api(`/api/boards/${id}/column-outline`, { method: 'PUT', body: { outline } })
   }
 
   /** Undo/redo of a card edit: PATCHes the given values. */
@@ -420,6 +426,13 @@ export async function useBoard(id: string) {
       if (before !== accent) record(t('board.undo.changedAccent'), () => putAccent(before), () => putAccent(accent))
     }, t('board.errors.accent')),
 
+    /** Sets the column frame colour, thickness and glow, or null for the default (owners). */
+    setColumnOutline: (outline: ColumnOutline | null) => run(async () => {
+      const before = board.value!.columnOutline
+      await putColumnOutline(outline)
+      if (!same(before, outline)) record(t('board.undo.changedColumnOutline'), () => putColumnOutline(before), () => putColumnOutline(outline))
+    }, t('board.errors.columnOutline')),
+
     /** Uploads an image and makes it the background (owners). */
     uploadBackground: (file: File) => run(async () => {
       const form = new FormData()
@@ -444,7 +457,16 @@ export async function useBoard(id: string) {
 
     renameColumn: (col: Column, title: string) => changeColumn(col, 'title', title, t('board.undo.renamedColumn'), t('board.errors.renameColumn')),
 
-    setColumnColor: (col: Column, color: string | null) => changeColumn(col, 'color', color, t('board.undo.changedColumnColor'), t('board.errors.columnColor')),
+    /** Sets a column's heading colour and outline override together (one undo step). */
+    setColumnAppearance: (col: Column, value: Pick<Column, 'color' | 'outline'>) => run(async () => {
+      const keys = (['color', 'outline'] as const).filter(k => !same(col[k], value[k]))
+      if (!keys.length) return
+      const before = Object.fromEntries(keys.map(k => [k, col[k]])) as Partial<Pick<Column, 'color' | 'outline'>>
+      const after = Object.fromEntries(keys.map(k => [k, value[k]])) as Partial<Pick<Column, 'color' | 'outline'>>
+      await patchColumn(col.id, after)
+      const label = keys.includes('color') ? t('board.undo.changedColumnColor') : t('board.undo.changedColumnOutline')
+      record(label, () => patchColumn(col.id, before), () => patchColumn(col.id, after))
+    }, t('board.errors.columnColor')),
 
     setColumnWipLimit: (col: Column, wipLimit: number | null) => changeColumn(col, 'wipLimit', wipLimit, t('board.undo.setWipLimit'), t('board.errors.wipLimit')),
 

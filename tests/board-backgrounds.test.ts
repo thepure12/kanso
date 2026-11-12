@@ -108,3 +108,42 @@ describe('board accent', () => {
     expect(await setAccent(alice.id, null)).toEqual([{ accent: null }])
   })
 })
+
+describe('column outline', () => {
+  const setOutline = (userId: string, outline: unknown) =>
+    as(userId, sql => sql`update boards set column_outline = ${outline === null ? null : sql.json(outline as never)} where id = ${boardId} returning column_outline`)
+
+  it('only owners change it, viewers see it, bad shapes are refused', async () => {
+    const outline = { color: 'accent', width: 3, glow: 2 }
+    expect(await setOutline(alice.id, outline)).toEqual([{ column_outline: outline }])
+    expect(await setOutline(bob.id, { color: null, width: 1, glow: 0 })).toHaveLength(0)
+    expect(await setOutline(carol.id, { color: null, width: 1, glow: 0 })).toHaveLength(0)
+    expect(await as(carol.id, sql => sql`select column_outline from boards where id = ${boardId}`)).toEqual([{ column_outline: outline }])
+    await rejectsWith(setOutline(alice.id, { color: 'red', width: 1, glow: 0 }), '23514')
+    await rejectsWith(setOutline(alice.id, { color: '#ff0000', width: 9, glow: 0 }), '23514')
+    await rejectsWith(setOutline(alice.id, { color: '#ff0000', width: 1 }), '23514')
+    await rejectsWith(setOutline(alice.id, { color: '#ff0000', width: 1, glow: 0, extra: 1 }), '23514')
+    expect(await setOutline(alice.id, { color: '#ff0000', width: 1, glow: 0 })).toHaveLength(1)
+    expect(await setOutline(alice.id, null)).toEqual([{ column_outline: null }])
+  })
+})
+
+describe('column outline override', () => {
+  it('editors set it per column, viewers cannot, copies keep it', async () => {
+    const [{ id: columnId }] = await as(alice.id, sql => sql`insert into columns (board_id, title, position) values (${boardId}, 'Framed', 1) returning id`) as any
+    const setOutline = (userId: string, outline: unknown) =>
+      as(userId, sql => sql`update columns set outline = ${outline === null ? null : sql.json(outline as never)} where id = ${columnId} returning outline`)
+    const outline = { color: 'column', width: 4, glow: 1 }
+    expect(await setOutline(bob.id, outline)).toEqual([{ outline }])
+    expect(await setOutline(carol.id, null)).toHaveLength(0)
+    await rejectsWith(setOutline(bob.id, { color: 'column', width: 0, glow: 1 }), '23514')
+
+    const [{ id: copyId }] = await as(alice.id, sql => sql`select id from app.copy_board(${boardId}, 'Outline copy', null, false)`) as any
+    try {
+      expect(await as(alice.id, sql => sql`select outline from columns where board_id = ${copyId} and title = 'Framed'`)).toEqual([{ outline }])
+    }
+    finally {
+      await as(alice.id, sql => sql`delete from boards where id = ${copyId}`)
+    }
+  })
+})
