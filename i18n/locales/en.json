@@ -553,7 +553,14 @@
       "columnGroups": "Column groups",
       "tagNames": "Show tag names",
       "groupNames": "Show column group names",
-      "automations": "Automations"
+      "automations": "Automations",
+      "sections": {
+        "setup": "Set up",
+        "history": "History",
+        "share": "Copy and export",
+        "display": "Display",
+        "manage": "Manage board"
+      }
     },
     "undo": {
       "action": "Undo",

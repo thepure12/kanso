@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { VueDraggable, type SortableEvent } from 'vue-draggable-plus'
+import type { DropdownMenuItem } from '@nuxt/ui'
 import type { BulkCardAction, Card, Column } from '#shared/types/board'
 import { backgroundStyle } from '#shared/boardBackgrounds'
 import { CARD_TITLE_MAX } from '#shared/cards'
@@ -364,62 +365,73 @@ function columnMenu(col: Column) {
   ]]
 }
 
-const boardMenu = computed(() => [
-  [
-    ...(canEdit.value
+// Board menu in labelled sections; owner-only items and empty sections drop out.
+const boardMenu = computed(() => {
+  const owner = isOwner.value
+  const editable = owner && !archived.value
+  const section = (label: string, items: DropdownMenuItem[]) =>
+    items.length ? [{ label, type: 'label' as const }, ...items] : []
+  return [
+    section(t('board.menu.sections.setup'), [
+      ...(canEdit.value
+        ? [
+            { label: t('board.menu.fields'), icon: 'i-lucide-list-plus', onSelect: () => { fieldsOpen.value = true } },
+            { label: t('board.menu.columnGroups'), icon: 'i-lucide-columns-3', onSelect: () => { columnGroupsOpen.value = true } },
+          ]
+        : []),
+      { label: t('board.menu.templates'), icon: 'i-lucide-file-stack', onSelect: () => { templatesOpen.value = true } },
+      { label: t('board.menu.automations'), icon: 'i-lucide-timer', onSelect: () => { automationsOpen.value = true } },
+      ...(editable ? [{ label: t('board.menu.background'), icon: 'i-lucide-image', onSelect: () => { backgroundOpen.value = true } }] : []),
+      ...(owner ? [{ label: t('board.menu.webhooks'), icon: 'i-lucide-webhook', onSelect: () => { webhooksOpen.value = true } }] : []),
+    ]),
+    section(t('board.menu.sections.history'), [
+      { label: t('board.menu.activity'), icon: 'i-lucide-history', onSelect: () => { activityOpen.value = true } },
+      { label: t('board.menu.archived'), icon: 'i-lucide-archive', onSelect: () => { archiveOpen.value = true } },
+      ...(canEdit.value ? [{ label: t('board.menu.trash'), icon: 'i-lucide-trash-2', onSelect: () => { trashOpen.value = true } }] : []),
+    ]),
+    section(t('board.menu.sections.share'), [
+      { label: t('board.menu.copy'), icon: 'i-lucide-copy', onSelect: () => { copyOpen.value = true } },
+      { label: t('board.menu.exportJson'), icon: 'i-lucide-file-json', to: `${base}/api/boards/${id}/export?format=json`, external: true, download: true },
+      { label: t('board.menu.exportCsv'), icon: 'i-lucide-file-spreadsheet', to: `${base}/api/boards/${id}/export?format=csv`, external: true, download: true },
+    ]),
+    section(t('board.menu.sections.display'), [
+      {
+        label: t('board.menu.tagNames'),
+        icon: 'i-lucide-tag',
+        type: 'checkbox' as const,
+        checked: labels.value.tagNames,
+        onUpdateChecked: (tagNames: boolean) => setLabelDisplay({ tagNames }),
+        onSelect: (e: Event) => e.preventDefault(),
+      },
+      ...(columnGroups.value.length
+        ? [{
+            label: t('board.menu.groupNames'),
+            icon: 'i-lucide-columns-3',
+            type: 'checkbox' as const,
+            checked: labels.value.groupNames,
+            onUpdateChecked: (groupNames: boolean) => setLabelDisplay({ groupNames }),
+            onSelect: (e: Event) => e.preventDefault(),
+          }]
+        : []),
+    ]),
+    section(t('board.menu.sections.manage'), owner
       ? [
-          { label: t('board.menu.fields'), icon: 'i-lucide-list-plus', onSelect: () => { fieldsOpen.value = true } },
-          { label: t('board.menu.columnGroups'), icon: 'i-lucide-columns-3', onSelect: () => { columnGroupsOpen.value = true } },
+          ...(archived.value
+            ? [{ label: t('board.menu.unarchive'), icon: 'i-lucide-archive-restore', onSelect: () => setArchived(false) }]
+            : [
+                { label: t('board.menu.rename'), icon: 'i-lucide-pencil', onSelect: async () => {
+                  const name = (await ask({ title: t('board.menu.rename'), label: t('board.menu.namePrompt'), initial: board.value?.name }))?.trim()
+                  if (name) renameBoard(name)
+                } },
+                { label: t('board.menu.archive'), icon: 'i-lucide-archive', onSelect: async () => {
+                  if (await confirm({ title: t('board.menu.archiveConfirm'), confirmLabel: t('board.menu.archive'), color: 'primary' })) setArchived(true)
+                } },
+              ]),
+          { label: t('board.menu.delete'), icon: 'i-lucide-trash', color: 'error' as const, onSelect: () => { confirmDelete.value = true } },
         ]
       : []),
-    { label: t('board.menu.activity'), icon: 'i-lucide-history', onSelect: () => { activityOpen.value = true } },
-    { label: t('board.menu.archived'), icon: 'i-lucide-archive', onSelect: () => { archiveOpen.value = true } },
-    ...(canEdit.value ? [{ label: t('board.menu.trash'), icon: 'i-lucide-trash-2', onSelect: () => { trashOpen.value = true } }] : []),
-    { label: t('board.menu.templates'), icon: 'i-lucide-file-stack', onSelect: () => { templatesOpen.value = true } },
-    { label: t('board.menu.automations'), icon: 'i-lucide-timer', onSelect: () => { automationsOpen.value = true } },
-    { label: t('board.menu.copy'), icon: 'i-lucide-copy', onSelect: () => { copyOpen.value = true } },
-    { label: t('board.menu.exportJson'), icon: 'i-lucide-file-json', to: `${base}/api/boards/${id}/export?format=json`, external: true, download: true },
-    { label: t('board.menu.exportCsv'), icon: 'i-lucide-file-spreadsheet', to: `${base}/api/boards/${id}/export?format=csv`, external: true, download: true },
-  ],
-  ...(isOwner.value
-    ? [[
-        { label: t('board.menu.webhooks'), icon: 'i-lucide-webhook', onSelect: () => { webhooksOpen.value = true } },
-        ...(archived.value
-          ? [{ label: t('board.menu.unarchive'), icon: 'i-lucide-archive-restore', onSelect: () => setArchived(false) }]
-          : [
-              { label: t('board.menu.background'), icon: 'i-lucide-image', onSelect: () => { backgroundOpen.value = true } },
-              { label: t('board.menu.rename'), icon: 'i-lucide-pencil', onSelect: async () => {
-                const name = (await ask({ title: t('board.menu.rename'), label: t('board.menu.namePrompt'), initial: board.value?.name }))?.trim()
-                if (name) renameBoard(name)
-              } },
-              { label: t('board.menu.archive'), icon: 'i-lucide-archive', onSelect: async () => {
-                if (await confirm({ title: t('board.menu.archiveConfirm'), confirmLabel: t('board.menu.archive'), color: 'primary' })) setArchived(true)
-              } },
-            ]),
-        { label: t('board.menu.delete'), icon: 'i-lucide-trash', color: 'error' as const, onSelect: () => { confirmDelete.value = true } },
-      ]]
-    : []),
-  [
-    {
-      label: t('board.menu.tagNames'),
-      icon: 'i-lucide-tag',
-      type: 'checkbox' as const,
-      checked: labels.value.tagNames,
-      onUpdateChecked: (tagNames: boolean) => setLabelDisplay({ tagNames }),
-      onSelect: (e: Event) => e.preventDefault(),
-    },
-    ...(columnGroups.value.length
-      ? [{
-          label: t('board.menu.groupNames'),
-          icon: 'i-lucide-columns-3',
-          type: 'checkbox' as const,
-          checked: labels.value.groupNames,
-          onUpdateChecked: (groupNames: boolean) => setLabelDisplay({ groupNames }),
-          onSelect: (e: Event) => e.preventDefault(),
-        }]
-      : []),
-  ],
-])
+  ].filter(items => items.length)
+})
 </script>
 
 <template>

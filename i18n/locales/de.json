@@ -553,7 +553,14 @@
       "columnGroups": "Spaltengruppen",
       "tagNames": "Tag-Namen anzeigen",
       "groupNames": "Namen der Spaltengruppen anzeigen",
-      "automations": "Automatisierungen"
+      "automations": "Automatisierungen",
+      "sections": {
+        "setup": "Einrichten",
+        "history": "Verlauf",
+        "share": "Kopieren und exportieren",
+        "display": "Anzeige",
+        "manage": "Board verwalten"
+      }
     },
     "undo": {
       "action": "Rückgängig",
