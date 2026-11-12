@@ -332,7 +332,7 @@
     "emailsPlaceholder": "person{'@'}elsewhere.org",
     "externalInvites": "Invites from outside the allowed domains",
     "externalInvitesHelp": "Board and team owners can invite any email; the invite lets that person sign up. When off, owners can only invite allowed addresses.",
-    "rulesNote": "These rules only apply to new sign-ups. Existing accounts keep working; remove them below.",
+    "rulesNote": "These rules only apply to new sign-ups. Existing accounts keep working; remove them under Users.",
     "saved": "Settings saved",
     "saveFailed": "Could not save settings",
     "adminFailed": "Could not change admin rights",
@@ -345,7 +345,14 @@
     "makeAdmin": "Make admin",
     "removeUser": "Remove user",
     "removeTitle": "Remove {email}?",
-    "removeDescription": "The account is deleted and loses access to every board and team. Boards and teams where they were the last owner pass to another member, or are deleted if nobody else is in them. Cards and comments they wrote stay. They can sign up again if the sign-up rules allow it."
+    "removeDescription": "The account is deleted and loses access to every board and team. Boards and teams where they were the last owner pass to another member, or are deleted if nobody else is in them. Cards and comments they wrote stay. They can sign up again if the sign-up rules allow it.",
+    "columnUser": "User",
+    "columnRole": "Role",
+    "columnJoined": "Joined",
+    "memberRole": "Member",
+    "searchUsers": "Search by name or email",
+    "noUsersMatch": "No users match.",
+    "userActions": "Actions for {name}"
   },
   "audit": {
     "title": "Audit log",

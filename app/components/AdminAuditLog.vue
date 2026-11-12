@@ -18,9 +18,6 @@ defineExpose({ refresh })
 
 <template>
   <section class="space-y-2">
-    <h2 class="text-lg font-medium">
-      {{ t('audit.title') }}
-    </h2>
     <p v-if="!data?.entries.length" class="text-sm text-muted">
       {{ t('audit.empty') }}
     </p>

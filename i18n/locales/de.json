@@ -332,7 +332,7 @@
     "emailsPlaceholder": "person{'@'}woanders.org",
     "externalInvites": "Einladungen außerhalb der erlaubten Domains",
     "externalInvitesHelp": "Board- und Team-Owner können jede E-Mail-Adresse einladen; mit der Einladung kann sich die Person registrieren. Ist das aus, können Owner nur erlaubte Adressen einladen.",
-    "rulesNote": "Diese Regeln gelten nur für neue Registrierungen. Bestehende Konten funktionieren weiter; du kannst sie unten entfernen.",
+    "rulesNote": "Diese Regeln gelten nur für neue Registrierungen. Bestehende Konten funktionieren weiter; du kannst sie unter „Nutzer“ entfernen.",
     "saved": "Einstellungen gespeichert",
     "saveFailed": "Die Einstellungen konnten nicht gespeichert werden",
     "adminFailed": "Die Admin-Rechte konnten nicht geändert werden",
@@ -345,7 +345,14 @@
     "makeAdmin": "Zum Admin machen",
     "removeUser": "Konto entfernen",
     "removeTitle": "{email} entfernen?",
-    "removeDescription": "Das Konto wird gelöscht und verliert den Zugriff auf alle Boards und Teams. Boards und Teams, in denen die Person der letzte Owner war, gehen an ein anderes Mitglied über oder werden gelöscht, wenn niemand sonst dabei ist. Von ihr geschriebene Karten und Kommentare bleiben erhalten. Sie kann sich erneut registrieren, wenn die Registrierungsregeln es erlauben."
+    "removeDescription": "Das Konto wird gelöscht und verliert den Zugriff auf alle Boards und Teams. Boards und Teams, in denen die Person der letzte Owner war, gehen an ein anderes Mitglied über oder werden gelöscht, wenn niemand sonst dabei ist. Von ihr geschriebene Karten und Kommentare bleiben erhalten. Sie kann sich erneut registrieren, wenn die Registrierungsregeln es erlauben.",
+    "columnUser": "Konto",
+    "columnRole": "Rolle",
+    "columnJoined": "Seit",
+    "memberRole": "Mitglied",
+    "searchUsers": "Nach Name oder E-Mail suchen",
+    "noUsersMatch": "Keine passenden Nutzer.",
+    "userActions": "Aktionen für {name}"
   },
   "audit": {
     "title": "Protokoll",
