@@ -5,7 +5,7 @@ import { readFileSync } from 'node:fs'
 import { setup, url } from '@nuxt/test-utils/e2e'
 import postgres from 'postgres'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import type { Attachment, BoardActivityPage, BoardDetail, BoardField, BoardSummary, Card, CardDetail, CardLink, CardRecurrence, Column, ColumnGroup, ColumnRule, Comment, TeamDetail, TimeEntry } from '#shared/types/board'
+import type { Attachment, BoardActivityPage, BoardDetail, BoardField, BoardSummary, Card, CardDetail, CardLink, CardRecurrence, Column, ColumnGroup, ColumnRule, Comment, Person, TeamDetail, TimeEntry } from '#shared/types/board'
 import type { Inbox } from '#shared/types/notifications'
 import type { AdminUser, AuditLogPage, InstanceSettings } from '#shared/types/admin'
 import type { Account, AccountSession } from '#shared/types/account'
@@ -1295,6 +1295,19 @@ describe('stars, archive, activity and teams', () => {
   // The realtime tests removed Bob from the main board.
   beforeAll(async () => {
     expect((await alice.req(`/api/boards/${boardId}/members`, { method: 'POST', body: { email: bob.email, role: 'editor' } })).status).toBe(200)
+  })
+
+  it('suggests people the caller shares a board with, never the caller or strangers', async () => {
+    const all = (await alice.req<Person[]>('/api/people')).data
+    expect(all.map(p => p.email)).toContain(bob.email)
+    expect(all.map(p => p.email)).not.toContain(alice.email)
+    expect(all.map(p => p.email)).not.toContain(outsider.email)
+    const byName = (await alice.req<Person[]>('/api/people?q=bo')).data
+    expect(byName.find(p => p.email === bob.email)).toMatchObject({ name: 'Bob', avatarUrl: null })
+    expect((await alice.req<Person[]>(`/api/people?q=${encodeURIComponent(outsider.email)}`)).data).toEqual([])
+    // LIKE wildcards are matched literally.
+    expect((await alice.req<Person[]>('/api/people?q=%25')).data).toEqual([])
+    expect((await outsider.req<Person[]>(`/api/people?q=${encodeURIComponent(bob.email)}`)).data).toEqual([])
   })
 
   it('stars and unstars a board for the caller only', async () => {

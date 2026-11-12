@@ -27,6 +27,7 @@ const { user } = useUserSession()
 const showError = useApiError()
 const toast = useToast()
 const { t } = useI18n()
+const listId = useId()
 
 const roles = computed(() => (['owner', 'editor', 'viewer'] as const).map(value => ({
   label: t(`members.roles.${value}`), value, description: t(`members.roleDescriptions.${value}`),
@@ -35,6 +36,85 @@ const roles = computed(() => (['owner', 'editor', 'viewer'] as const).map(value 
 const email = ref('')
 const role = ref<BoardRole>('editor')
 const adding = ref(false)
+
+// Suggestions: people the caller already shares a board or team with (RLS
+// decides), fetched 300 ms after typing stops, minus current members and invites.
+const SUGGEST_DELAY = 300
+const people = ref<Person[]>([])
+const suggestOpen = ref(false)
+const highlighted = ref(-1)
+let suggestTimer: ReturnType<typeof setTimeout> | undefined
+let suggestSeq = 0
+
+const suggestions = computed(() => {
+  const taken = new Set([
+    ...props.members.map(m => m.email.toLowerCase()),
+    ...props.invites.map(i => i.email.toLowerCase()),
+  ])
+  return people.value.filter(p => !taken.has(p.email.toLowerCase()))
+})
+const showSuggestions = computed(() => suggestOpen.value && suggestions.value.length > 0)
+
+async function loadSuggestions() {
+  const seq = ++suggestSeq
+  try {
+    const res = await $fetch<Person[]>('/api/people', { query: { q: email.value.trim() } })
+    if (seq !== suggestSeq) return
+    people.value = res
+    highlighted.value = -1
+  }
+  catch { if (seq === suggestSeq) people.value = [] }
+}
+
+function scheduleSuggestions() {
+  clearTimeout(suggestTimer)
+  suggestTimer = setTimeout(loadSuggestions, SUGGEST_DELAY)
+}
+
+function onEmailInput() {
+  suggestOpen.value = true
+  scheduleSuggestions()
+}
+
+function onEmailFocus() {
+  suggestOpen.value = true
+  if (!people.value.length) scheduleSuggestions()
+}
+
+function closeSuggestions() {
+  suggestOpen.value = false
+  highlighted.value = -1
+}
+
+function pick(p: Person) {
+  email.value = p.email
+  closeSuggestions()
+}
+
+function onEmailKeydown(e: KeyboardEvent) {
+  if (!showSuggestions.value) return
+  const n = suggestions.value.length
+  if (e.key === 'ArrowDown') {
+    e.preventDefault()
+    highlighted.value = (highlighted.value + 1) % n
+  }
+  else if (e.key === 'ArrowUp') {
+    e.preventDefault()
+    highlighted.value = (highlighted.value - 1 + n) % n
+  }
+  else if (e.key === 'Enter' && highlighted.value >= 0) {
+    e.preventDefault()
+    pick(suggestions.value[highlighted.value]!)
+  }
+  else if (e.key === 'Escape') {
+    // Close the list, not the surrounding slideover.
+    e.preventDefault()
+    e.stopPropagation()
+    closeSuggestions()
+  }
+}
+
+onBeforeUnmount(() => clearTimeout(suggestTimer))
 
 async function add() {
   if (!email.value.trim()) return
@@ -45,6 +125,8 @@ async function add() {
       ? { title: t('members.invited', { email: email.value }), description: t('members.invitedDescription'), color: 'success' }
       : { title: t('members.added', { email: email.value }), color: 'success' })
     email.value = ''
+    people.value = []
+    closeSuggestions()
     emit('changed')
   }
   catch (err) { showError(err, t('members.addFailed')) }
@@ -80,7 +162,46 @@ async function revoke(inviteId: string) {
 <template>
   <div>
     <form v-if="props.canManage" class="flex flex-col gap-2 mb-6" @submit.prevent="add">
-      <UInput v-model="email" type="email" :placeholder="t('members.emailPlaceholder')" icon="i-lucide-mail" />
+      <div class="relative">
+        <UInput
+          v-model="email"
+          type="email"
+          :placeholder="t('members.emailPlaceholder')"
+          icon="i-lucide-mail"
+          autocomplete="off"
+          class="w-full"
+          role="combobox"
+          aria-autocomplete="list"
+          :aria-expanded="showSuggestions"
+          :aria-controls="showSuggestions ? listId : undefined"
+          :aria-activedescendant="showSuggestions && highlighted >= 0 ? `${listId}-${highlighted}` : undefined"
+          @input="onEmailInput"
+          @focus="onEmailFocus"
+          @blur="closeSuggestions"
+          @keydown="onEmailKeydown"
+        />
+        <ul
+          v-if="showSuggestions"
+          :id="listId"
+          role="listbox"
+          :aria-label="t('members.suggestions')"
+          class="absolute z-10 mt-1 w-full max-h-64 overflow-y-auto rounded-md border border-default bg-default shadow-lg py-1"
+        >
+          <li
+            v-for="(p, i) in suggestions"
+            :id="`${listId}-${i}`"
+            :key="p.userId"
+            role="option"
+            :aria-selected="i === highlighted"
+            class="px-2 py-1.5 cursor-pointer"
+            :class="i === highlighted ? 'bg-elevated' : 'hover:bg-elevated/50'"
+            @mousedown.prevent="pick(p)"
+            @mouseenter="highlighted = i"
+          >
+            <UUser :name="p.name" :description="p.email" :avatar="{ src: p.avatarUrl ?? undefined, alt: p.name }" size="sm" />
+          </li>
+        </ul>
+      </div>
       <div class="flex gap-2">
         <USelect v-model="role" :items="roles" class="flex-1" />
         <UButton type="submit" icon="i-lucide-user-plus" :label="t('members.add')" :loading="adding" />

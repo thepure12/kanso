@@ -1026,6 +1026,7 @@
     "revokeFailed": "Could not revoke invite",
     "emailPlaceholder": "person{'@'}example.com",
     "add": "Add",
+    "suggestions": "Suggested people",
     "you": "{name} (you)",
     "leave": "Leave",
     "remove": "Remove member",

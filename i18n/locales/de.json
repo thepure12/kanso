@@ -1026,6 +1026,7 @@
     "revokeFailed": "Die Einladung konnte nicht zurückgezogen werden",
     "emailPlaceholder": "person{'@'}example.com",
     "add": "Hinzufügen",
+    "suggestions": "Vorgeschlagene Personen",
     "you": "{name} (du)",
     "leave": "Verlassen",
     "remove": "Mitglied entfernen",
