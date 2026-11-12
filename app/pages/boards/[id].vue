@@ -379,14 +379,15 @@ const boardMenu = computed(() => [
 </script>
 
 <template>
-  <!-- Calendar, list and timeline views fit the window below the site header and scroll inside it. -->
+  <!-- Calendar, list, timeline and swimlane views fit the window below the site header and scroll inside it.
+       The plain board view lets the page scroll, so its toolbar sticks below the site header. -->
   <div
     v-if="board"
     class="flex flex-col min-h-0"
-    :class="view === 'calendar' || view === 'list' || view === 'timeline' ? 'flex-none h-[calc(100dvh-var(--ui-header-height))]' : 'flex-1'"
+    :class="view !== 'board' || groupBy !== 'none' ? 'flex-none h-[calc(100dvh-var(--ui-header-height))]' : 'flex-1'"
     :style="bgStyle"
   >
-    <div :class="backed && 'bg-default/85 backdrop-blur-sm'">
+    <div class="sticky top-(--ui-header-height) z-20" :class="backed ? 'bg-default/85 backdrop-blur-sm' : 'bg-default/75 backdrop-blur'">
       <div class="flex flex-wrap items-center gap-3 px-4 sm:px-6 py-2.5 border-b border-default">
         <UButton to="/" icon="i-lucide-arrow-left" color="neutral" variant="ghost" :aria-label="t('board.allBoards')" />
         <div class="min-w-0 flex items-center gap-1.5 text-lg">
@@ -451,9 +452,10 @@ const boardMenu = computed(() => [
           </UDropdownMenu>
         </div>
       </div>
+    </div>
 
+    <div v-if="archived" :class="backed && 'bg-default/85 backdrop-blur-sm'">
       <UAlert
-        v-if="archived"
         color="warning"
         variant="subtle"
         icon="i-lucide-archive"
@@ -495,7 +497,7 @@ const boardMenu = computed(() => [
     <div v-else-if="view === 'timeline'" class="flex-1 min-h-0 overflow-auto p-4 sm:p-6">
       <BoardTimelineView :class="panel" :cards="visibleCards" :columns="columns" :today="today" @open="cardId => editingCardId = cardId" />
     </div>
-    <div v-else-if="groupBy !== 'none'" class="flex-1 overflow-auto">
+    <div v-else-if="groupBy !== 'none'" class="flex-1 min-h-0 overflow-auto">
       <BoardSwimlanes
         :class="panel"
         :group-by="groupBy"
