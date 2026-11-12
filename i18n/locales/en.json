@@ -206,6 +206,8 @@
   },
   "account": {
     "title": "Account",
+    "security": "Security",
+    "dangerZone": "Danger zone",
     "settingFailed": "Could not save the setting",
     "profile": {
       "title": "Profile",
@@ -221,6 +223,7 @@
       "current": "You sign in with {email}.",
       "checkInbox": "Check your new inbox",
       "sent": "We sent a link to {email}. Your email changes when you open it. The link expires in 24 hours.",
+      "change": "Change email",
       "new": "New email",
       "send": "Send confirmation link"
     },
@@ -241,6 +244,7 @@
     },
     "notifications": {
       "title": "Notifications",
+      "thisDevice": "On this device",
       "digest": "Daily email digest",
       "digestDescription": "Once a day, an email with your unread notifications and the cards assigned to you that are due soon. Nothing is sent on days with nothing new.",
       "desktop": "Desktop notifications on this device",

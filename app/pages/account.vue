@@ -12,10 +12,22 @@ useHead({ title: () => t('account.title') })
 
 const { data: account, refresh } = await useFetch<Account>('/api/account')
 
+// Tab, kept in ?tab= (profile is the default and leaves the query out).
+const tab = computed<AccountTab>({
+  get: () => accountTabFrom(route.query.tab),
+  set: v => router.replace({ query: { ...route.query, tab: v === 'profile' ? undefined : v } }),
+})
+const tabs = computed(() => [
+  { label: t('account.profile.title'), value: 'profile', icon: 'i-lucide-user' },
+  { label: t('account.security'), value: 'security', icon: 'i-lucide-shield' },
+  { label: t('account.notifications.title'), value: 'notifications', icon: 'i-lucide-bell' },
+  { label: t('tokens.title'), value: 'tokens', icon: 'i-lucide-key-round' },
+])
+
 onMounted(() => {
   if (route.query.error) showError({ statusMessage: String(route.query.error) }, t('account.email.notChanged'))
   else if (route.query.emailChanged) toast.add({ title: t('account.email.changed'), description: t('account.email.changedDescription', { email: account.value?.email }), color: 'success' })
-  if (route.query.error || route.query.emailChanged) router.replace({ query: {} })
+  if (route.query.error || route.query.emailChanged) router.replace({ query: { tab: route.query.tab } })
 })
 
 // Profile
@@ -37,6 +49,13 @@ const currentPassword = ref('')
 const newPassword = ref('')
 const confirmPassword = ref('')
 const savingPassword = ref(false)
+// The forms stay folded behind a button; without a password the set form shows at once.
+const passwordFormOpen = ref(false)
+const showPasswordForm = computed(() => passwordFormOpen.value || !account.value?.hasPassword)
+function closePasswordForm() {
+  passwordFormOpen.value = false
+  currentPassword.value = newPassword.value = confirmPassword.value = ''
+}
 const passwordMismatch = computed(() => !!confirmPassword.value && newPassword.value !== confirmPassword.value)
 async function savePassword() {
   if (newPassword.value.length < 8 || passwordMismatch.value) return
@@ -46,7 +65,7 @@ async function savePassword() {
       method: 'POST',
       body: { currentPassword: currentPassword.value || undefined, newPassword: newPassword.value },
     })
-    currentPassword.value = newPassword.value = confirmPassword.value = ''
+    closePasswordForm()
     await Promise.all([refresh(), sessionList.value?.refresh()])
     toast.add({ title: t('account.password.saved'), description: t('account.password.savedDescription'), color: 'success' })
   }
@@ -59,6 +78,11 @@ const newEmail = ref('')
 const emailPassword = ref('')
 const emailSentTo = ref('')
 const savingEmail = ref(false)
+const emailFormOpen = ref(false)
+function closeEmailForm() {
+  emailFormOpen.value = false
+  newEmail.value = emailPassword.value = ''
+}
 async function changeEmail() {
   savingEmail.value = true
   try {
@@ -67,7 +91,7 @@ async function changeEmail() {
       body: { email: newEmail.value, password: emailPassword.value || undefined },
     })
     emailSentTo.value = res.sentTo
-    newEmail.value = emailPassword.value = ''
+    closeEmailForm()
   }
   catch (err) { showError(err, t('account.email.saveFailed')) }
   finally { savingEmail.value = false }
@@ -156,143 +180,182 @@ const providerLabel: Record<string, string> = { discord: 'Discord', github: 'Git
 </script>
 
 <template>
-  <UContainer class="py-8 space-y-10 max-w-2xl">
+  <UContainer class="py-8 space-y-6 max-w-2xl">
     <h1 class="text-2xl font-semibold">
       {{ t('account.title') }}
     </h1>
 
     <template v-if="account">
-      <section class="space-y-4">
-        <h2 class="text-lg font-medium">
-          {{ t('account.profile.title') }}
-        </h2>
-        <form class="flex items-end gap-2" @submit.prevent="saveName">
-          <UFormField :label="t('common.name')" class="flex-1">
-            <UInput v-model="name" class="w-full" maxlength="100" required />
+      <UTabs v-model="tab" :items="tabs" :content="false" variant="link" class="w-full" :ui="{ trigger: 'flex-none', leadingIcon: 'hidden sm:inline-flex' }" />
+
+      <!-- v-show, not tab content: keeps half-filled forms and loaded lists when switching tabs. -->
+      <div v-show="tab === 'profile'" class="divide-y divide-default *:py-6 *:first:pt-0">
+        <section class="space-y-4">
+          <h2 class="text-lg font-medium">
+            {{ t('account.profile.title') }}
+          </h2>
+          <form class="flex items-end gap-2" @submit.prevent="saveName">
+            <UFormField :label="t('common.name')" class="flex-1">
+              <UInput v-model="name" class="w-full" maxlength="100" required />
+            </UFormField>
+            <UButton type="submit" :label="t('common.save')" :loading="savingName" :disabled="!name.trim() || name.trim() === account.name" />
+          </form>
+          <p v-if="account.providers.length" class="text-sm text-muted">
+            {{ t('account.profile.linked', { providers: account.providers.map(p => providerLabel[p] ?? p).join(', ') }) }}
+          </p>
+        </section>
+
+        <section class="space-y-4">
+          <div class="flex items-center justify-between gap-2">
+            <h2 class="text-lg font-medium">
+              {{ t('common.email') }}
+            </h2>
+            <UButton
+              v-if="!emailFormOpen"
+              color="neutral" variant="outline" size="sm" icon="i-lucide-pencil"
+              :label="t('account.email.change')"
+              @click="emailFormOpen = true"
+            />
+          </div>
+          <i18n-t keypath="account.email.current" tag="p" class="text-sm" scope="global">
+            <template #email>
+              <strong>{{ account.email }}</strong>
+            </template>
+          </i18n-t>
+          <UAlert
+            v-if="emailSentTo"
+            color="info"
+            variant="subtle"
+            icon="i-lucide-mail-check"
+            :title="t('account.email.checkInbox')"
+            :description="t('account.email.sent', { email: emailSentTo })"
+          />
+          <form v-if="emailFormOpen" class="space-y-4" @submit.prevent="changeEmail">
+            <UFormField :label="t('account.email.new')">
+              <UInput v-model="newEmail" type="email" class="w-full" autocomplete="email" autofocus required />
+            </UFormField>
+            <UFormField v-if="account.hasPassword" :label="t('account.password.current')">
+              <UInput v-model="emailPassword" type="password" class="w-full" autocomplete="current-password" required />
+            </UFormField>
+            <div class="flex gap-2">
+              <UButton type="submit" :label="t('account.email.send')" :loading="savingEmail" />
+              <UButton color="neutral" variant="ghost" :label="t('common.cancel')" @click="closeEmailForm" />
+            </div>
+          </form>
+        </section>
+
+        <section class="space-y-4">
+          <h2 class="text-lg font-medium">
+            {{ t('language.label') }}
+          </h2>
+          <UFormField :description="t('language.help')">
+            <USelect :model-value="account.locale ?? 'auto'" :items="languageItems" class="w-56" :aria-label="t('language.label')" @update:model-value="setLanguage" />
           </UFormField>
-          <UButton type="submit" :label="t('common.save')" :loading="savingName" :disabled="!name.trim() || name.trim() === account.name" />
-        </form>
-        <p v-if="account.providers.length" class="text-sm text-muted">
-          {{ t('account.profile.linked', { providers: account.providers.map(p => providerLabel[p] ?? p).join(', ') }) }}
-        </p>
-      </section>
+        </section>
 
-      <section class="space-y-4">
-        <h2 class="text-lg font-medium">
-          {{ t('common.email') }}
-        </h2>
-        <i18n-t keypath="account.email.current" tag="p" class="text-sm" scope="global">
-          <template #email>
-            <strong>{{ account.email }}</strong>
-          </template>
-        </i18n-t>
-        <UAlert
-          v-if="emailSentTo"
-          color="info"
-          variant="subtle"
-          icon="i-lucide-mail-check"
-          :title="t('account.email.checkInbox')"
-          :description="t('account.email.sent', { email: emailSentTo })"
-        />
-        <form class="space-y-4" @submit.prevent="changeEmail">
-          <UFormField :label="t('account.email.new')">
-            <UInput v-model="newEmail" type="email" class="w-full" autocomplete="email" required />
-          </UFormField>
-          <UFormField v-if="account.hasPassword" :label="t('account.password.current')">
-            <UInput v-model="emailPassword" type="password" class="w-full" autocomplete="current-password" required />
-          </UFormField>
-          <UButton type="submit" :label="t('account.email.send')" :loading="savingEmail" />
-        </form>
-      </section>
+        <section class="space-y-4">
+          <div class="rounded-lg border border-error/40 p-4 space-y-3">
+            <h2 class="text-lg font-medium text-error">
+              {{ t('account.dangerZone') }}
+            </h2>
+            <p class="text-sm text-muted">
+              {{ t('account.delete.explain') }}
+            </p>
+            <UButton color="error" variant="subtle" icon="i-lucide-trash-2" :label="t('account.delete.title')" @click="deleteOpen = true" />
+          </div>
+        </section>
+      </div>
 
-      <section class="space-y-4">
-        <h2 class="text-lg font-medium">
-          {{ t('common.password') }}
-        </h2>
-        <p v-if="!account.hasPassword" class="text-sm text-muted">
-          {{ t('account.password.oauthOnly', { providers: account.providers.map(p => providerLabel[p] ?? p).join(', ') || t('account.password.linkedAccount') }) }}
-        </p>
-        <form class="space-y-4" @submit.prevent="savePassword">
-          <UFormField v-if="account.hasPassword" :label="t('account.password.current')">
-            <UInput v-model="currentPassword" type="password" class="w-full" autocomplete="current-password" required />
-          </UFormField>
-          <UFormField :label="t('account.password.new')" :description="t('account.password.minLength')">
-            <UInput v-model="newPassword" type="password" class="w-full" autocomplete="new-password" minlength="8" required />
-          </UFormField>
-          <UFormField :label="t('account.password.confirm')" :error="passwordMismatch ? t('account.password.mismatch') : undefined">
-            <UInput v-model="confirmPassword" type="password" class="w-full" autocomplete="new-password" required />
-          </UFormField>
-          <UButton type="submit" :label="account.hasPassword ? t('account.password.change') : t('account.password.set')" :loading="savingPassword" />
-        </form>
-        <p class="text-sm text-muted">
-          {{ t('account.password.signsOut') }}
-        </p>
-      </section>
+      <div v-show="tab === 'security'" class="divide-y divide-default *:py-6 *:first:pt-0">
+        <section class="space-y-4">
+          <div class="flex items-center justify-between gap-2">
+            <h2 class="text-lg font-medium">
+              {{ t('common.password') }}
+            </h2>
+            <UButton
+              v-if="!showPasswordForm"
+              color="neutral" variant="outline" size="sm" icon="i-lucide-key-round"
+              :label="t('account.password.change')"
+              @click="passwordFormOpen = true"
+            />
+          </div>
+          <p v-if="!account.hasPassword" class="text-sm text-muted">
+            {{ t('account.password.oauthOnly', { providers: account.providers.map(p => providerLabel[p] ?? p).join(', ') || t('account.password.linkedAccount') }) }}
+          </p>
+          <p v-else class="text-sm text-muted">
+            {{ t('account.password.signsOut') }}
+          </p>
+          <form v-if="showPasswordForm" class="space-y-4" @submit.prevent="savePassword">
+            <UFormField v-if="account.hasPassword" :label="t('account.password.current')">
+              <UInput v-model="currentPassword" type="password" class="w-full" autocomplete="current-password" autofocus required />
+            </UFormField>
+            <UFormField :label="t('account.password.new')" :description="t('account.password.minLength')">
+              <UInput v-model="newPassword" type="password" class="w-full" autocomplete="new-password" minlength="8" required />
+            </UFormField>
+            <UFormField :label="t('account.password.confirm')" :error="passwordMismatch ? t('account.password.mismatch') : undefined">
+              <UInput v-model="confirmPassword" type="password" class="w-full" autocomplete="new-password" required />
+            </UFormField>
+            <div class="flex gap-2">
+              <UButton type="submit" :label="account.hasPassword ? t('account.password.change') : t('account.password.set')" :loading="savingPassword" />
+              <UButton v-if="account.hasPassword" color="neutral" variant="ghost" :label="t('common.cancel')" @click="closePasswordForm" />
+            </div>
+          </form>
+        </section>
 
-      <TwoFactorSettings :account="account" @changed="onTwoFactorChanged" />
+        <TwoFactorSettings :account="account" @changed="onTwoFactorChanged" />
 
-      <SessionList ref="sessionList" />
+        <SessionList ref="sessionList" />
+      </div>
 
-      <ApiTokenList />
-
-      <section class="space-y-4">
-        <h2 class="text-lg font-medium">
-          {{ t('language.label') }}
-        </h2>
-        <UFormField :label="t('language.label')" :description="t('language.help')">
-          <USelect :model-value="account.locale ?? 'auto'" :items="languageItems" class="w-56" @update:model-value="setLanguage" />
-        </UFormField>
-      </section>
-
-      <section class="space-y-4">
-        <h2 class="text-lg font-medium">
-          {{ t('account.notifications.title') }}
-        </h2>
-        <USwitch
-          :model-value="account.digestEnabled"
-          :label="t('account.notifications.digest')"
-          :description="t('account.notifications.digestDescription')"
-          @update:model-value="setDigest"
-        />
-        <USwitch
-          :model-value="desktop.toasts.value"
-          :label="t('account.notifications.toasts')"
-          :description="t('account.notifications.toastsDescription')"
-          @update:model-value="desktop.setToasts"
-        />
-        <div class="flex items-start gap-4">
+      <div v-show="tab === 'notifications'" class="space-y-8">
+        <section class="space-y-4">
+          <h2 class="text-lg font-medium">
+            {{ t('common.email') }}
+          </h2>
           <USwitch
-            :model-value="desktop.enabled.value"
-            :disabled="desktop.permission.value === 'unsupported' || desktop.permission.value === 'denied'"
-            :label="t('account.notifications.desktop')"
-            :description="desktopHint"
-            class="flex-1"
-            @update:model-value="setDesktop"
+            :model-value="account.digestEnabled"
+            :label="t('account.notifications.digest')"
+            :description="t('account.notifications.digestDescription')"
+            @update:model-value="setDigest"
           />
-          <UButton
-            size="sm" color="neutral" variant="outline" icon="i-lucide-bell-ring"
-            :label="t('account.notifications.desktopTest')" :disabled="!desktop.enabled.value"
-            @click="testDesktop"
-          />
-        </div>
-        <USwitch
-          :model-value="desktop.whenFocused.value"
-          :disabled="!desktop.enabled.value"
-          :label="t('account.notifications.desktopFocused')"
-          :description="t('account.notifications.desktopFocusedDescription')"
-          @update:model-value="desktop.setWhenFocused"
-        />
-      </section>
+        </section>
 
-      <section class="space-y-4">
-        <h2 class="text-lg font-medium text-error">
-          {{ t('account.delete.title') }}
-        </h2>
-        <p class="text-sm text-muted">
-          {{ t('account.delete.explain') }}
-        </p>
-        <UButton color="error" variant="subtle" icon="i-lucide-trash-2" :label="t('account.delete.title')" @click="deleteOpen = true" />
-      </section>
+        <section class="space-y-4">
+          <h2 class="text-lg font-medium">
+            {{ t('account.notifications.thisDevice') }}
+          </h2>
+          <USwitch
+            :model-value="desktop.toasts.value"
+            :label="t('account.notifications.toasts')"
+            :description="t('account.notifications.toastsDescription')"
+            @update:model-value="desktop.setToasts"
+          />
+          <div class="flex items-start gap-4">
+            <USwitch
+              :model-value="desktop.enabled.value"
+              :disabled="desktop.permission.value === 'unsupported' || desktop.permission.value === 'denied'"
+              :label="t('account.notifications.desktop')"
+              :description="desktopHint"
+              class="flex-1"
+              @update:model-value="setDesktop"
+            />
+            <UButton
+              size="sm" color="neutral" variant="outline" icon="i-lucide-bell-ring"
+              :label="t('account.notifications.desktopTest')" :disabled="!desktop.enabled.value"
+              @click="testDesktop"
+            />
+          </div>
+          <USwitch
+            :model-value="desktop.whenFocused.value"
+            :disabled="!desktop.enabled.value"
+            :label="t('account.notifications.desktopFocused')"
+            :description="t('account.notifications.desktopFocusedDescription')"
+            @update:model-value="desktop.setWhenFocused"
+          />
+        </section>
+      </div>
+
+      <ApiTokenList v-show="tab === 'tokens'" />
     </template>
 
     <UModal v-model:open="deleteOpen" :title="t('account.delete.confirmTitle')">

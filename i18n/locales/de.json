@@ -206,6 +206,8 @@
   },
   "account": {
     "title": "Konto",
+    "security": "Sicherheit",
+    "dangerZone": "Gefahrenzone",
     "settingFailed": "Die Einstellung konnte nicht gespeichert werden",
     "profile": {
       "title": "Profil",
@@ -221,6 +223,7 @@
       "current": "Du meldest dich mit {email} an.",
       "checkInbox": "Schau in dein neues Postfach",
       "sent": "Wir haben einen Link an {email} geschickt. Sobald du ihn öffnest, wird deine E-Mail-Adresse geändert. Der Link ist 24 Stunden gültig.",
+      "change": "E-Mail ändern",
       "new": "Neue E-Mail-Adresse",
       "send": "Bestätigungslink senden"
     },
@@ -241,6 +244,7 @@
     },
     "notifications": {
       "title": "Benachrichtigungen",
+      "thisDevice": "Auf diesem Gerät",
       "digest": "Tägliche Zusammenfassung per E-Mail",
       "digestDescription": "Einmal am Tag eine E-Mail mit deinen ungelesenen Benachrichtigungen und den dir zugewiesenen Karten, die bald fällig sind. An Tagen ohne Neuigkeiten kommt nichts.",
       "desktop": "Desktop-Benachrichtigungen auf diesem Gerät",
