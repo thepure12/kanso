@@ -232,6 +232,22 @@ function onTitleEnter(e: KeyboardEvent) {
   save()
 }
 
+// Ctrl/Cmd+Enter submits what is being edited: the card (title, description and
+// sidebar fields) or another form inside the dialog, such as a comment.
+function onModKeydown(e: KeyboardEvent) {
+  if (e.key !== 'Enter' || !(e.ctrlKey || e.metaKey) || e.isComposing || e.defaultPrevented) return
+  const target = e.target as HTMLElement
+  const form = target.closest('form')
+  if (form && form.id !== 'card-form') {
+    e.preventDefault()
+    form.requestSubmit()
+  }
+  else if (props.canEdit && (form || target.closest('aside'))) {
+    e.preventDefault()
+    if (dirty.value) save()
+  }
+}
+
 const tab = ref('comments')
 const tabs = computed(() => [
   {
@@ -247,7 +263,7 @@ const tabs = computed(() => [
 <template>
   <UModal v-model:open="open" :title="props.canEdit ? (props.template ? t('card.editTemplate') : t('card.editCard')) : form.title" :ui="{ content: 'sm:max-w-4xl' }">
     <template #body>
-      <div class="grid gap-6 md:grid-cols-[1fr_16rem]">
+      <div class="grid gap-6 md:grid-cols-[1fr_16rem]" @keydown="onModKeydown">
         <div class="space-y-6 min-w-0">
           <form id="card-form" class="space-y-4" @submit.prevent="save">
             <UFormField

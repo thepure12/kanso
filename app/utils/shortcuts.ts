@@ -24,6 +24,7 @@ export const shortcutGroups: { label: string, items: ShortcutHelp[] }[] = [
       { kbds: ['meta', 'z'], description: 'shortcuts.undo' },
       { kbds: ['meta', 'shift', 'z'], description: 'shortcuts.redo' },
       { kbds: ['shift', 'click'], description: 'shortcuts.selectCard' },
+      { kbds: ['meta', 'enter'], description: 'shortcuts.saveCard' },
       { kbds: ['escape'], description: 'shortcuts.escape' },
     ],
   },

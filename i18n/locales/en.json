@@ -113,6 +113,7 @@
     "newCard": "Add a card to the first column",
     "undo": "Undo your last change",
     "redo": "Redo",
+    "saveCard": "Save the open card or submit a comment",
     "escape": "Close the dialog, cancel editing or clear the selection",
     "myWork": "Go to my work",
     "selectCard": "Select a card for bulk changes"

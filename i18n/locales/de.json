@@ -113,6 +113,7 @@
     "newCard": "Karte in der ersten Spalte anlegen",
     "undo": "Letzte Änderung rückgängig machen",
     "redo": "Wiederherstellen",
+    "saveCard": "Offene Karte speichern oder Kommentar absenden",
     "escape": "Dialog schließen, Bearbeitung abbrechen oder Auswahl aufheben",
     "myWork": "Zu meiner Arbeit",
     "selectCard": "Karte für Sammeländerungen auswählen"
