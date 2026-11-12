@@ -39,6 +39,8 @@ export interface ApiToken {
   /** The first characters, to tell tokens apart, e.g. "kb_Ab12Cd". */
   prefix: string
   scopes: ('read' | 'write')[]
+  /** Boards a limited token reaches (ones the user still sees); null = every board. */
+  boards: { id: string, name: string }[] | null
   createdAt: string
   lastUsedAt: string | null
   expiresAt: string | null

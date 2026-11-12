@@ -372,6 +372,20 @@
       "when": 1794410432618,
       "tag": "0052_card_title_length",
       "breakpoints": true
+    },
+    {
+      "idx": 53,
+      "version": "7",
+      "when": 1794434252797,
+      "tag": "0053_api_token_boards",
+      "breakpoints": true
+    },
+    {
+      "idx": 54,
+      "version": "7",
+      "when": 1794434257624,
+      "tag": "0054_api_token_boards_rls",
+      "breakpoints": true
     }
   ]
 }

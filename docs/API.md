@@ -19,6 +19,10 @@ When the instance runs under a sub-path, include it in the base URL (`KANSO=http
 
 - **Scopes**: *Read only* tokens may only send `GET` and `HEAD` (anything else is `403`). *Read and write* tokens may
   call every allowed route.
+- **Boards**: a token reaches every board its owner can see, or only the boards chosen at creation. A limited token
+  sees nothing of other boards (`404`), lists only its boards, cannot create boards or teams (`403`) and acts as a
+  team viewer at most (no renaming, member changes or leaving). Deleting a board or losing access to it never widens
+  the token.
 - **Allowed routes**: boards, cards, columns, tags, comments, checklist items, column rules, attachments, card links,
   fields, column groups, time entries, teams, notifications, search and `/api/me`. Account, sign-in, two-factor, session, token,
   admin and webhook routes refuse tokens (`403`, or `401` for routes that only take the session cookie), so a leaked

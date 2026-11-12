@@ -573,6 +573,9 @@ export const apiTokens = pgTable('api_tokens', {
   prefix: text('prefix').notNull(),
   // 'read' (GET/HEAD only) and/or 'write'.
   scopes: text('scopes').array().notNull(),
+  // Boards the token may reach; null = every board the user can see. Not a
+  // foreign key: a deleted board drops out without widening the token.
+  boardIds: uuid('board_ids').array(),
   createdAt: createdAt(),
   lastUsedAt: timestamp('last_used_at', { withTimezone: true }),
   expiresAt: timestamp('expires_at', { withTimezone: true }),
@@ -580,6 +583,7 @@ export const apiTokens = pgTable('api_tokens', {
 }, t => [
   index('api_tokens_user_idx').on(t.userId),
   check('api_tokens_scopes', sql`${t.scopes} <@ array['read', 'write'] and cardinality(${t.scopes}) > 0`),
+  check('api_tokens_board_ids', sql`${t.boardIds} is null or cardinality(${t.boardIds}) between 1 and 100`),
 ])
 
 export const webhookFormat = pgEnum('webhook_format', ['json', 'slack', 'discord'])

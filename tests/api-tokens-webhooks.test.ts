@@ -115,6 +115,77 @@ describe('api tokens', () => {
   })
 })
 
+describe('api tokens limited to boards', () => {
+  /** As `userId` through a token limited to `boards` (what withUser sets). */
+  function asToken<T>(userId: string, boards: string[], fn: (sql: postgres.TransactionSql) => Promise<T>) {
+    return as(userId, async (sql) => {
+      await sql`select set_config('app.token_boards', ${`{${boards.join(',')}}`}, true)`
+      return fn(sql)
+    })
+  }
+
+  let otherBoard: string
+  let teamId: string
+  let teamBoard: string
+  beforeAll(async () => {
+    await as(owner.id, async (sql) => {
+      ;[{ id: otherBoard }] = await sql`select id from app.create_board('Other board')` as any
+      ;[{ id: teamId }] = await sql`select id from app.create_team('Token team')` as any
+      ;[{ id: teamBoard }] = await sql`select id from app.create_board('Team board', ${teamId})` as any
+    })
+  })
+  afterAll(async () => {
+    await as(owner.id, sql => sql`delete from boards where id = any(${[otherBoard, teamBoard]})`)
+    await as(owner.id, sql => sql`delete from teams where id = ${teamId}`)
+  })
+
+  it('stores and resolves the boards; only boards the user sees, at least one', async () => {
+    const [row] = await as(owner.id, sql => sql`
+      insert into api_tokens (user_id, name, token_hash, prefix, scopes, board_ids)
+      values (${owner.id}, 'limited', ${sha('kb_limited')}, 'kb_limited', ${['read']}, ${[boardId]}) returning id`)
+    expect(await resolve('kb_limited')).toMatchObject({ token_id: row!.id, board_ids: [boardId] })
+    expect((await resolve((await newToken(owner.id)).token))!.board_ids).toBeNull()
+    await rejectsWith(as(outsider.id, sql => sql`
+      insert into api_tokens (user_id, name, token_hash, prefix, scopes, board_ids)
+      values (${outsider.id}, 'x', ${sha(`kb_${randomUUID()}`)}, 'kb_x', ${['read']}, ${[boardId]})`), '42501')
+    await rejectsWith(as(owner.id, sql => sql`
+      insert into api_tokens (user_id, name, token_hash, prefix, scopes, board_ids)
+      values (${owner.id}, 'x', ${sha(`kb_${randomUUID()}`)}, 'kb_x', ${['read']}, ${[]}::uuid[])`), '23514')
+  })
+
+  it('reach only their boards', async () => {
+    await asToken(owner.id, [boardId], async (sql) => {
+      const seen = (await sql`select id from boards`).map(r => r.id)
+      expect(seen).toContain(boardId)
+      expect(seen).not.toContain(otherBoard)
+      expect(seen).not.toContain(teamBoard)
+      expect(await sql`select id from columns where board_id = ${otherBoard}`).toHaveLength(0)
+      const [{ r }] = await sql`select app.board_role(${otherBoard}) as r` as any
+      expect(r).toBeNull()
+      expect(await sql`insert into columns (board_id, title, position) values (${boardId}, 'Ok', 9) returning id`).toHaveLength(1)
+    })
+    await rejectsWith(asToken(owner.id, [boardId], sql => sql`insert into columns (board_id, title, position) values (${otherBoard}, 'No', 9)`), '42501')
+    // The team board is reachable when listed.
+    await asToken(owner.id, [teamBoard], async (sql) => {
+      expect((await sql`select id from boards`).map(r => r.id)).toEqual([teamBoard])
+    })
+  })
+
+  it('cannot create boards or teams, nor manage or leave teams', async () => {
+    await rejectsWith(asToken(owner.id, [boardId], sql => sql`select app.create_board('Nope')`), '42501')
+    await rejectsWith(asToken(owner.id, [boardId], sql => sql`select app.create_team('Nope')`), '42501')
+    await rejectsWith(asToken(owner.id, [teamBoard], sql => sql`select app.add_team_member(${teamId}, ${editor.email}, 'editor')`), '42501')
+    await asToken(owner.id, [boardId], async (sql) => {
+      // The team stays readable (a board's team name), as a viewer.
+      expect(await sql`select id from teams where id = ${teamId}`).toHaveLength(1)
+      const [{ r }] = await sql`select app.team_role(${teamId}) as r` as any
+      expect(r).toBe('viewer')
+      expect(await sql`update teams set name = 'Renamed' where id = ${teamId} returning id`).toHaveLength(0)
+      expect(await sql`delete from team_members where team_id = ${teamId} and user_id = ${owner.id} returning user_id`).toHaveLength(0)
+    })
+  })
+})
+
 describe('webhooks', () => {
   const add = (userId: string, events: string[] = [], url = 'http://203.0.113.1/hook') => as(userId, sql => sql`
     insert into board_webhooks (board_id, url, format, secret, events, created_by)

@@ -166,6 +166,32 @@ describe('api tokens', () => {
     expect((await alice.req('/api/boards')).status).toBe(200)
   })
 
+  it('can be limited to some boards', async () => {
+    const other = await alice.req<{ id: string }>('/api/boards', { method: 'POST', body: { name: 'Other token board' } })
+    boards.push(other.data.id)
+    const res = await alice.req<ApiToken & { token: string }>('/api/account/tokens', {
+      method: 'POST', body: { name: 'limited', scopes: ['read', 'write'], boardIds: [board.id, board.id] },
+    })
+    expect(res.status).toBe(200)
+    expect(res.data.boards).toEqual([{ id: board.id, name: 'Token board' }])
+    expect((await alice.req<ApiToken[]>('/api/account/tokens')).data.find(x => x.id === res.data.id)?.boards).toEqual([{ id: board.id, name: 'Token board' }])
+    expect((await newToken(['read'])).boards).toBeNull()
+
+    const token = res.data.token
+    expect((await call<{ id: string }[]>('/api/boards', { token })).data.map(b => b.id)).toEqual([board.id])
+    expect((await call(`/api/boards/${board.id}`, { token })).status).toBe(200)
+    expect((await call(`/api/boards/${other.data.id}`, { token })).status).toBe(404)
+    expect((await call(`/api/boards/${other.data.id}`, { method: 'PATCH', body: { name: 'x' }, token })).status).toBe(404)
+    expect((await call('/api/boards', { method: 'POST', body: { name: 'New' }, token })).status).toBe(403)
+    expect((await call('/api/teams', { method: 'POST', body: { name: 'New' }, token })).status).toBe(403)
+
+    // Only boards the user can see, and at least one.
+    const bobsBoard = await bob.req<{ id: string }>('/api/boards', { method: 'POST', body: { name: 'Bob only' } })
+    expect((await alice.req('/api/account/tokens', { method: 'POST', body: { name: 'x', scopes: ['read'], boardIds: [bobsBoard.data.id] } })).status).toBe(403)
+    expect((await alice.req('/api/account/tokens', { method: 'POST', body: { name: 'x', scopes: ['read'], boardIds: [] } })).status).toBe(400)
+    await bob.req(`/api/boards/${bobsBoard.data.id}`, { method: 'DELETE' })
+  })
+
   it('a password reset revokes every token', async () => {
     const carol = await signUp('Carol')
     const res = await carol.req<ApiToken & { token: string }>('/api/account/tokens', { method: 'POST', body: { name: 'ci', scopes: ['read'], expiresInDays: 30 } })

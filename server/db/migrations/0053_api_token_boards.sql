@@ -1,0 +1,2 @@
+ALTER TABLE "api_tokens" ADD COLUMN "board_ids" uuid[];--> statement-breakpoint
+ALTER TABLE "api_tokens" ADD CONSTRAINT "api_tokens_board_ids" CHECK ("api_tokens"."board_ids" is null or cardinality("api_tokens"."board_ids") between 1 and 100);

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { ApiToken } from '#shared/types/account'
+import type { BoardSummary } from '#shared/types/board'
 
 const showError = useApiError()
 const toast = useToast()
@@ -12,6 +13,8 @@ const createOpen = ref(false)
 const name = ref('')
 const access = ref<'read' | 'write'>('read')
 const expiry = ref<'30' | '90' | '365' | 'never'>('90')
+const boardScope = ref<'all' | 'some'>('all')
+const boardIds = ref<string[]>([])
 const creating = ref(false)
 /** The new token, shown once. */
 const created = ref<string | null>(null)
@@ -20,6 +23,18 @@ const accessItems = computed(() => [
   { label: t('tokens.readOnly'), value: 'read', description: t('tokens.readOnlyDescription') },
   { label: t('tokens.readWrite'), value: 'write', description: t('tokens.readWriteDescription') },
 ])
+const boardScopeItems = computed(() => [
+  { label: t('tokens.allBoards'), value: 'all', description: t('tokens.allBoardsDescription') },
+  { label: t('tokens.someBoards'), value: 'some', description: t('tokens.someBoardsDescription') },
+])
+/** Boards to pick from, loaded when the dialog first asks for them. */
+const { data: boards, execute: loadBoards, status: boardsStatus } = useFetch<BoardSummary[]>('/api/boards', { immediate: false, server: false, default: () => [] })
+const boardItems = computed(() => boards.value.map(b => ({ label: b.name, value: b.id })))
+watch(boardScope, (scope) => {
+  if (scope === 'some' && boardsStatus.value === 'idle') loadBoards()
+})
+const canCreate = computed(() => !!name.value.trim() && (boardScope.value === 'all' || boardIds.value.length > 0))
+
 const expiryItems = computed(() => [
   { label: t('tokens.days30'), value: '30' },
   { label: t('tokens.days90'), value: '90' },
@@ -31,6 +46,8 @@ function openCreate() {
   name.value = ''
   access.value = 'read'
   expiry.value = '90'
+  boardScope.value = 'all'
+  boardIds.value = []
   created.value = null
   createOpen.value = true
 }
@@ -44,6 +61,7 @@ async function create() {
         name: name.value.trim(),
         scopes: access.value === 'write' ? ['read', 'write'] : ['read'],
         expiresInDays: expiry.value === 'never' ? null : Number(expiry.value),
+        boardIds: boardScope.value === 'some' ? boardIds.value : null,
       },
     })
     created.value = res.token
@@ -111,6 +129,9 @@ defineExpose({ refresh })
             · {{ tk.lastUsedAt ? t('tokens.lastUsed', { date: formatDateTime(tk.lastUsedAt, locale) }) : t('tokens.neverUsed') }}
             · {{ tk.expiresAt ? t('tokens.expires', { date: formatDateTime(tk.expiresAt, locale) }) : t('tokens.noExpiry') }}
           </p>
+          <p v-if="tk.boards" class="text-xs text-muted truncate" :title="tk.boards.map(b => b.name).join(', ')">
+            {{ tk.boards.length ? t('tokens.limitedTo', { boards: tk.boards.map(b => b.name).join(', ') }) : t('tokens.noBoardsLeft') }}
+          </p>
         </div>
         <UButton color="neutral" variant="ghost" size="sm" :label="t('tokens.revoke')" @click="revoke(tk)" />
       </li>
@@ -153,6 +174,20 @@ defineExpose({ refresh })
           <UFormField :label="t('tokens.access')">
             <URadioGroup v-model="access" :items="accessItems" />
           </UFormField>
+          <UFormField :label="t('tokens.boards')">
+            <URadioGroup v-model="boardScope" :items="boardScopeItems" />
+            <USelectMenu
+              v-if="boardScope === 'some'"
+              v-model="boardIds"
+              :items="boardItems"
+              value-key="value"
+              multiple
+              :loading="boardsStatus === 'pending'"
+              :placeholder="t('tokens.pickBoards')"
+              :aria-label="t('tokens.pickBoards')"
+              class="w-full mt-2"
+            />
+          </UFormField>
           <UFormField :label="t('tokens.expiresLabel')">
             <USelect v-model="expiry" :items="expiryItems" class="w-40" />
           </UFormField>
@@ -163,7 +198,7 @@ defineExpose({ refresh })
           <UButton v-if="created" :label="t('common.done')" @click="createOpen = false" />
           <template v-else>
             <UButton color="neutral" variant="ghost" :label="t('common.cancel')" @click="createOpen = false" />
-            <UButton type="submit" form="new-token" :label="t('tokens.create')" :loading="creating" :disabled="!name.trim()" />
+            <UButton type="submit" form="new-token" :label="t('tokens.create')" :loading="creating" :disabled="!canCreate" />
           </template>
         </div>
       </template>
