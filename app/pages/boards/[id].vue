@@ -108,7 +108,7 @@ function openTemplate(template: Card) {
 
 /** "From template" menu of a column: adds a copy of the template at the end of it. */
 function templateMenu(col: Column) {
-  return [templates.value.map(tpl => ({ label: tpl.title, icon: 'i-lucide-file-text', onSelect: () => addCardFromTemplate(col.id, tpl) }))]
+  return [templates.value.map(tpl => ({ label: tpl.title, icon: 'i-lucide-file-text', onSelect: async () => revealCard(await addCardFromTemplate(col.id, tpl)) }))]
 }
 
 const colouringColumn = ref<Column | null>(null)
@@ -246,6 +246,17 @@ function moveToLane(card: Card, columnId: string, index: number, laneKey?: strin
     groupBy.value === 'priority' ? updateCard(card, { priority: lanePriority(laneKey) }) : undefined,
     field ? setFieldValue(card, field, laneKey === 'none' ? null : laneKey) : undefined,
   ]))
+}
+
+/** Scrolls a just-added card into view (its column scrolls once it is full). */
+async function revealCard(card: { id: string } | undefined) {
+  if (!card) return
+  await nextTick()
+  document.querySelector(`[data-card-id="${card.id}"]`)?.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'smooth' })
+}
+
+async function addCardAndReveal(columnId: string, title: string) {
+  revealCard(await addCard(columnId, title))
 }
 
 // Board shortcuts (listed in app/utils/shortcuts.ts). defineShortcuts skips them
@@ -674,6 +685,7 @@ const boardMenu = computed(() => [
                 v-for="card in lists[col.id]"
                 v-show="visibleIds.has(card.id)"
                 :key="card.id"
+                :data-card-id="card.id"
                 :card="card"
                 :tags="tags"
                 :fields="fields"
@@ -691,7 +703,7 @@ const boardMenu = computed(() => [
             </VueDraggable>
 
             <div v-if="canEdit" class="px-3 pb-3 flex items-start gap-1">
-              <InlineAdd :ref="el => { cardAdds[col.id] = el as { open: () => void } | null }" :label="t('board.addCard')" :placeholder="t('board.cardTitle')" :maxlength="CARD_TITLE_MAX" class="flex-1 min-w-0" @add="title => addCard(col.id, title)" />
+              <InlineAdd :ref="el => { cardAdds[col.id] = el as { open: () => void } | null }" :label="t('board.addCard')" :placeholder="t('board.cardTitle')" :maxlength="CARD_TITLE_MAX" class="flex-1 min-w-0" @add="title => addCardAndReveal(col.id, title)" />
               <UDropdownMenu v-if="templates.length" :items="templateMenu(col)" :content="{ align: 'end' }">
                 <UTooltip :text="t('board.fromTemplate')">
                   <UButton color="neutral" variant="ghost" icon="i-lucide-file-plus" :aria-label="t('board.addFromTemplate')" />

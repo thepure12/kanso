@@ -513,6 +513,7 @@ export async function useBoard(id: string) {
       // Server returns tags, assignees and due date set by the column's rules.
       const card = await api<Card>(`/api/boards/${id}/cards`, { method: 'POST', body: { columnId, title } })
       lists.value[columnId]!.push(card)
+      return card
     }, t('board.errors.addCard')),
 
     /** Adds a card made from a template at the end of the column (its rules then run). */
