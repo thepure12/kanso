@@ -273,8 +273,18 @@ defineShortcuts({
   // Not while typing, so text fields keep their own undo; works in dialogs too.
   'meta_z': () => { undo() },
   'meta_shift_z': () => { redo() },
-  'escape': () => { if (selecting.value && !dialogOpen()) clearSelection() },
 })
+
+// Escape clears the card selection. Not a defineShortcuts entry: those call preventDefault,
+// and the open dialog (card, confirm, slideover) then ignores Escape instead of closing.
+function onEscape(e: KeyboardEvent) {
+  if (e.key !== 'Escape' || e.defaultPrevented || !selecting.value || dialogOpen()) return
+  const el = e.target as HTMLElement | null
+  if (el?.closest('input, textarea, [contenteditable="true"], [contenteditable="plaintext-only"]')) return
+  clearSelection()
+}
+onMounted(() => document.addEventListener('keydown', onEscape))
+onBeforeUnmount(() => document.removeEventListener('keydown', onEscape))
 
 /** Group chips on a column header; none for the group being shown when it is the column's only one. */
 function columnChips(col: Column) {
