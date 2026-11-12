@@ -346,6 +346,11 @@ describe('bulk card actions', () => {
     bulkBoard = (await alice.req<BoardDetail>(`/api/boards/${id}`)).data
   })
 
+  // Eve is a viewer here; later tests expect her to share no board with Alice or Bob.
+  afterAll(async () => {
+    await alice.req(`/api/boards/${bulkBoard.id}`, { method: 'DELETE' })
+  })
+
   it('moves cards to the end of a column in board order', async () => {
     const [a, b, c] = [await add('A'), await add('B'), await add('C', 1)]
     const target = bulkBoard.columns.at(-1)!.id
@@ -860,11 +865,15 @@ describe('copy and export', () => {
     extraBoards.push(data.id)
     const copy = (await bob.req<BoardDetail>(`/api/boards/${data.id}`)).data
     expect(copy.role).toBe('owner')
-    expect(copy.columns.map(c => c.title)).toEqual(board.columns.map(c => c.title))
+    // Earlier tests add columns, so compare with the board as it is now.
+    const source = (await bob.req<BoardDetail>(`/api/boards/${boardId}`)).data
+    expect(copy.columns.map(c => c.title)).toEqual(source.columns.map(c => c.title))
     expect(copy.cards.length).toBeGreaterThan(0)
     // Alice has no access to Bob's copy, so she is dropped from assignees and rules.
     expect(copy.cards.flatMap(c => c.assigneeIds)).not.toContain(userId('Alice'))
-    expect(copy.columns.flatMap(c => c.rules).filter(r => r.kind === 'assign_to')).toHaveLength(1)
+    const assignRules = (b: BoardDetail) => b.columns.flatMap(c => c.rules).flatMap(r => r.kind === 'assign_to' ? [r.userId] : [])
+    expect(assignRules(source)).toContain(userId('Alice'))
+    expect(assignRules(copy)).toEqual(assignRules(source).filter(id => id !== userId('Alice')))
     await bob.req(`/api/boards/${data.id}/members`, { method: 'POST', body: { email: alice.email, role: 'owner' } })
   })
 
