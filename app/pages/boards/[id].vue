@@ -294,6 +294,27 @@ function onColumnDrop(e: SortableEvent) {
   nextTick(() => columnMoved(e.newIndex!))
 }
 
+// Inline column rename: double-click the title, Enter or blur saves, Escape cancels.
+const renamingColumnId = ref<string | null>(null)
+const columnTitleDraft = ref('')
+function startColumnRename(col: Column) {
+  if (!canEdit.value) return
+  columnTitleDraft.value = col.title
+  renamingColumnId.value = col.id
+}
+function finishColumnRename(col: Column, save: boolean) {
+  if (renamingColumnId.value !== col.id) return
+  renamingColumnId.value = null
+  const title = columnTitleDraft.value.trim()
+  if (save && title && title !== col.title) renameColumn(col, title)
+}
+function focusRenameInput(el: unknown) {
+  if (el instanceof HTMLInputElement && document.activeElement !== el) {
+    el.focus()
+    el.select()
+  }
+}
+
 function columnMenu(col: Column) {
   return [[
     { label: t('board.column.rename'), icon: 'i-lucide-pencil', onSelect: async () => {
@@ -581,7 +602,23 @@ const boardMenu = computed(() => [
               :style="col.color ? { backgroundColor: col.color, color: contrastText(col.color) } : undefined"
             >
               <UIcon v-if="canEdit && !shownGroup" name="i-lucide-grip-vertical" class="column-handle cursor-grab" :class="col.color ? 'opacity-60' : 'text-dimmed'" />
-              <h2 class="min-w-0 flex-1 font-medium truncate">
+              <input
+                v-if="renamingColumnId === col.id"
+                :ref="focusRenameInput"
+                v-model="columnTitleDraft"
+                maxlength="100"
+                :aria-label="t('board.column.titlePrompt')"
+                class="min-w-0 flex-1 font-medium bg-default text-default rounded px-1 -mx-1 outline-none ring ring-primary"
+                @keydown.enter.prevent="finishColumnRename(col, true)"
+                @keydown.esc.stop.prevent="finishColumnRename(col, false)"
+                @blur="finishColumnRename(col, true)"
+              >
+              <h2
+                v-else
+                class="min-w-0 flex-1 font-medium truncate"
+                :class="canEdit && 'cursor-text select-none'"
+                @dblclick="startColumnRename(col)"
+              >
                 {{ col.title }}
               </h2>
               <UTooltip v-if="col.rules.length" :text="t('board.column.ruleCount', { count: col.rules.length }, col.rules.length)">
