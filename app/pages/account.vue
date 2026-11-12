@@ -88,6 +88,37 @@ async function setDigest(enabled: boolean) {
   catch (err) { showError(err, t('account.settingFailed')) }
 }
 
+// Desktop notifications: per device, no server state.
+const desktop = useDesktopNotifications()
+onMounted(desktop.sync)
+const desktopHint = computed(() => {
+  if (desktop.permission.value === 'unsupported') return t('account.notifications.desktopUnsupported')
+  if (desktop.permission.value === 'denied') return t('account.notifications.desktopBlocked')
+  return t('account.notifications.desktopDescription')
+})
+// No tag: a repeated tag replaces the earlier notification without showing it again.
+function testDesktop() {
+  desktop.sync()
+  if (!desktop.enabled.value) {
+    toast.add({ title: desktopHint.value, color: 'warning' })
+    return
+  }
+  try {
+    const shown = new Notification(t('account.notifications.desktopTestTitle'), {
+      body: t('account.notifications.desktopTestBody'),
+      icon: appUrl('/pwa-192x192.png'),
+    })
+    shown.onshow = () => toast.add({ title: t('account.notifications.desktopTestSent'), description: t('account.notifications.desktopTestHint') })
+    shown.onerror = () => toast.add({ title: t('account.notifications.desktopTestFailed'), description: t('account.notifications.desktopTestHint'), color: 'warning' })
+  }
+  catch (err) {
+    toast.add({ title: t('account.notifications.desktopTestFailed'), description: err instanceof Error ? err.message : String(err), color: 'warning' })
+  }
+}
+async function setDesktop(on: boolean) {
+  if (!await desktop.setEnabled(on)) toast.add({ title: t('account.notifications.desktopBlocked'), color: 'warning' })
+}
+
 // Language: saved on the account (also used for emails and webhook messages)
 // and applied now; 'auto' clears it and goes back to the browser's language.
 const { setLocale } = useI18n()
@@ -223,6 +254,21 @@ const providerLabel: Record<string, string> = { discord: 'Discord', github: 'Git
           :description="t('account.notifications.digestDescription')"
           @update:model-value="setDigest"
         />
+        <div class="flex items-start gap-4">
+          <USwitch
+            :model-value="desktop.enabled.value"
+            :disabled="desktop.permission.value === 'unsupported' || desktop.permission.value === 'denied'"
+            :label="t('account.notifications.desktop')"
+            :description="desktopHint"
+            class="flex-1"
+            @update:model-value="setDesktop"
+          />
+          <UButton
+            size="sm" color="neutral" variant="outline" icon="i-lucide-bell-ring"
+            :label="t('account.notifications.desktopTest')" :disabled="!desktop.enabled.value"
+            @click="testDesktop"
+          />
+        </div>
       </section>
 
       <section class="space-y-4">

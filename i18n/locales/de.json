@@ -239,7 +239,17 @@
     "notifications": {
       "title": "Benachrichtigungen",
       "digest": "Tägliche Zusammenfassung per E-Mail",
-      "digestDescription": "Einmal am Tag eine E-Mail mit deinen ungelesenen Benachrichtigungen und den dir zugewiesenen Karten, die bald fällig sind. An Tagen ohne Neuigkeiten kommt nichts."
+      "digestDescription": "Einmal am Tag eine E-Mail mit deinen ungelesenen Benachrichtigungen und den dir zugewiesenen Karten, die bald fällig sind. An Tagen ohne Neuigkeiten kommt nichts.",
+      "desktop": "Desktop-Benachrichtigungen auf diesem Gerät",
+      "desktopDescription": "Neue Benachrichtigungen als Systembenachrichtigungen anzeigen, während Kanso im Hintergrund geöffnet ist. Dein Browser fragt nach der Erlaubnis.",
+      "desktopBlocked": "Benachrichtigungen sind für diese Seite blockiert. Erlaube sie in den Website-Einstellungen des Browsers und versuche es erneut.",
+      "desktopUnsupported": "Dieser Browser unterstützt keine Desktop-Benachrichtigungen.",
+      "desktopTest": "Test senden",
+      "desktopTestTitle": "Testbenachrichtigung",
+      "desktopTestBody": "Desktop-Benachrichtigungen funktionieren auf diesem Gerät.",
+      "desktopTestSent": "Testbenachrichtigung gesendet",
+      "desktopTestFailed": "Testbenachrichtigung konnte nicht angezeigt werden",
+      "desktopTestHint": "Wenn nichts erscheint, prüfe, ob dein System Benachrichtigungen von diesem Browser erlaubt und „Nicht stören“ aus ist."
     },
     "delete": {
       "title": "Konto löschen",

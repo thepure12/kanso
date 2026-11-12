@@ -1,15 +1,25 @@
 import type { Inbox, Notification } from '#shared/types/notifications'
 
-/** The session user's notifications, refetched whenever the server reports a new one. */
+/**
+ * The session user's notifications, refetched whenever the server reports a new one.
+ * New ones also become desktop notifications when the user turned them on.
+ */
 export function useNotifications() {
   const showError = useApiError()
   const inbox = ref<Inbox | null>(null)
   const base = basePath()
   const unread = computed(() => inbox.value?.unread ?? 0)
+  const router = useRouter()
+  const desktop = useDesktopNotifier()
 
   async function refresh() {
     try {
       inbox.value = await $fetch<Inbox>('/api/notifications')
+      desktop.notify(inbox.value.items, (n) => {
+        // The inbox may have been reloaded since: mark the current copy.
+        markRead(inbox.value?.items.find(i => i.id === n.id) ?? n)
+        router.push(`/boards/${n.boardId}?card=${n.cardId}`)
+      })
     }
     catch { /* the bell stays as it was; the next event retries */ }
   }
