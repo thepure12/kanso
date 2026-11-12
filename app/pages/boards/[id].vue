@@ -673,7 +673,12 @@ const boardMenu = computed(() => {
               <UDropdownMenu v-if="canEdit" :items="columnMenu(col)">
                 <UButton icon="i-lucide-ellipsis" size="xs" color="neutral" variant="ghost" :aria-label="t('board.column.actions')" :class="col.color && 'text-inherit hover:bg-black/10'" />
               </UDropdownMenu>
-              <div v-if="columnChips(col).length" class="basis-full flex flex-wrap items-center gap-1 border-t border-current/15 pt-1.5">
+              <!-- On a coloured header the chips sit on a translucent strip so chips of the column's own colour stay visible. -->
+              <div
+                v-if="columnChips(col).length"
+                class="basis-full flex flex-wrap items-center gap-1"
+                :class="col.color ? '-mx-1.5 mt-0.5 px-1.5 py-1.5 rounded-md bg-default/60' : 'border-t border-current/15 pt-1.5'"
+              >
                 <UTooltip v-for="g in columnChips(col)" :key="g.id" :disabled="labels.groupNames" :text="g.name">
                   <button
                     type="button"
