@@ -29,8 +29,8 @@ export default defineNuxtConfig({
   nitro: {
     experimental: { tasks: true },
     // Daily email digest (server/tasks/notifications/digest.ts), server time;
-    // recurring cards (server/tasks/cards/recurring.ts); webhook retries (server/tasks/webhooks/deliver.ts).
-    scheduledTasks: { '0 7 * * *': ['notifications:digest'], '*/15 * * * *': ['cards:recurring'], '* * * * *': ['webhooks:deliver'] },
+    // recurring cards (server/tasks/cards/recurring.ts); board automations (server/tasks/cards/automations.ts); webhook retries (server/tasks/webhooks/deliver.ts).
+    scheduledTasks: { '0 7 * * *': ['notifications:digest'], '*/15 * * * *': ['cards:recurring'], '0 * * * *': ['cards:automations'], '* * * * *': ['webhooks:deliver'] },
   },
   // UI text lives in i18n/locales/<code>.json (lazy-loaded). No URL prefixes: the
   // locale comes from the user's saved preference (users.locale, applied by the

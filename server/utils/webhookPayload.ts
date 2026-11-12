@@ -2,7 +2,7 @@ import { createHmac } from 'node:crypto'
 import type { I18nContext } from '#shared/i18n'
 import type { Activity } from '#shared/types/board'
 import type { WebhookFormat } from '#shared/webhooks'
-import { describeActivity } from '../../app/utils/activityText'
+import { actorLabel, describeActivity } from '../../app/utils/activityText'
 
 /** One activity as a webhook sends it (from app.claim_webhook_deliveries), or a test ping (no activity). */
 export interface WebhookEvent {
@@ -27,7 +27,7 @@ export function signWebhook(secret: string, timestamp: number, body: string): st
 function sentence(e: WebhookEvent, i18n: I18nContext): string {
   const a = e.activity
   if (!a) return i18n.t('webhook.ping', { board: e.board.name })
-  return `${a.actor?.name ?? i18n.t('common.someone')} ${describeActivity({ kind: a.kind as Activity['kind'], data: a.data as Activity['data'] }, i18n)}`
+  return `${actorLabel(a.actor?.name, { data: a.data as Activity['data'] }, i18n)} ${describeActivity({ kind: a.kind as Activity['kind'], data: a.data as Activity['data'] }, i18n)}`
 }
 
 function links(e: WebhookEvent, siteUrl: string | null) {

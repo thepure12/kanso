@@ -57,7 +57,7 @@ async function select(n: Notification) {
                 <span class="min-w-0">
                   <span class="block font-medium truncate">{{ n.cardTitle }}</span>
                   <span class="block">
-                    {{ n.activity.actorName ?? t('common.someone') }} {{ describeNotification(n.activity, i18n, user?.id) }}
+                    {{ actorLabel(n.activity.actorName, n.activity, i18n) }} {{ describeNotification(n.activity, i18n, user?.id) }}
                   </span>
                   <span class="block text-xs text-muted">{{ n.boardName }} · {{ formatDateTime(n.activity.createdAt, locale) }}</span>
                 </span>

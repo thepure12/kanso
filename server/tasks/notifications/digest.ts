@@ -1,6 +1,6 @@
 import { sql } from 'drizzle-orm'
 import type { Activity } from '#shared/types/board'
-import { describeNotification } from '../../../app/utils/activityText'
+import { actorLabel, describeNotification } from '../../../app/utils/activityText'
 
 type DigestRow = {
   user_id: string
@@ -26,7 +26,7 @@ export default defineTask({
         const i18n = serverI18n(r.locale)
         await sendDigestEmail(i18n, r.email, r.name, r.items.map(i => ({
           ...i,
-          text: `${i.actorName ?? i18n.t('common.someone')} ${describeNotification(i, i18n, r.user_id)}`,
+          text: `${actorLabel(i.actorName, i, i18n)} ${describeNotification(i, i18n, r.user_id)}`,
         })), r.due)
       }
       catch (err) {

@@ -51,7 +51,7 @@ export function useDesktopNotifier() {
     // A tab the user is looking at already shows the bell's badge.
     if (document.visibilityState === 'visible' && document.hasFocus()) return
     for (const n of fresh) {
-      const actor = n.activity.actorName ?? i18n.t('common.someone')
+      const actor = actorLabel(n.activity.actorName, n.activity, i18n)
       try {
         // Same tag in several tabs: the browser shows it once.
         const shown = new Notification(n.cardTitle, {

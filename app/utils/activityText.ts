@@ -9,6 +9,12 @@ import { formatDate, formatPoints } from './format'
  * notification.* in i18n/locales/*.json.
  */
 
+/** Who did it: the actor's name, "Automation" for board automations, else "Someone". */
+export function actorLabel(actorName: string | null | undefined, a: Pick<Activity, 'data'>, i18n: I18nContext): string {
+  if (actorName) return actorName
+  return i18n.t((a.data as { automation?: unknown }).automation ? 'activity.automation' : 'common.someone')
+}
+
 /** What the actor did, e.g. "moved this card from Todo to Done". */
 export function describeActivity(a: Pick<Activity, 'kind' | 'data'>, i18n: I18nContext): string {
   const { t, locale } = i18n
@@ -35,6 +41,7 @@ export function describeActivity(a: Pick<Activity, 'kind' | 'data'>, i18n: I18nC
     case 'linked': return linkText(d, t)
     case 'unlinked': return t('activity.unlinked', { card: d.card })
     case 'field': return fieldText(d, i18n)
+    case 'stale': return t('activity.stale', { n: Number(d.days) }, Number(d.days))
   }
   return a.kind
 }

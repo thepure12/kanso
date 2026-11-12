@@ -4,7 +4,7 @@ import type { ActivityKind } from './types/board'
 const kinds = {
   created: 1, moved: 1, renamed: 1, described: 1, start: 1, due: 1, priority: 1, estimate: 1, archived: 1, restored: 1,
   tagged: 1, untagged: 1, assigned: 1, unassigned: 1, commented: 1, mentioned: 1, attached: 1, detached: 1,
-  linked: 1, unlinked: 1, field: 1,
+  linked: 1, unlinked: 1, field: 1, stale: 1,
 } satisfies Record<ActivityKind, 1>
 
 /** What a webhook can be limited to: activity kinds (an empty list sends all). */

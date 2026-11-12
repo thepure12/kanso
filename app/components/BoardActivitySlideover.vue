@@ -44,7 +44,7 @@ watch(() => [open.value, props.version] as const, ([isOpen]) => { if (isOpen) lo
               {{ a.cardTitle }}
             </ULink>
             <p>
-              <span class="font-medium">{{ a.actorName ?? t('common.someone') }}</span>
+              <span class="font-medium">{{ actorLabel(a.actorName, a, i18n) }}</span>
               {{ describeActivity(a, i18n) }}
             </p>
             <p class="text-xs text-muted">

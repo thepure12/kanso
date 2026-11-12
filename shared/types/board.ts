@@ -55,6 +55,30 @@ export type NewColumnRule =
 
 export type ColumnRule = NewColumnRule & { id: string }
 
+/**
+ * Time-based automation of a board, run hourly. "Open" cards are the ones not
+ * archived and not in the last column. Changes show up in the activity log
+ * with no actor and `automation: true`.
+ */
+export type NewBoardAutomation =
+  /** Archives cards that have been in the last column for `days` days (1-365). */
+  | { kind: 'archive_done', days: number }
+  /** Adds tagId to open cards without activity for `days` days (1-365). */
+  | { kind: 'tag_stale', days: number, tagId: string }
+  /** Logs `stale` on open cards without activity for `days` days (1-365), notifying assignees and watchers. */
+  | { kind: 'notify_stale', days: number }
+  /** Raises open cards due within `days` days (0-365) or overdue to `priority`. */
+  | { kind: 'raise_priority', days: number, priority: Priority }
+
+export type BoardAutomationKind = NewBoardAutomation['kind']
+export const boardAutomationKinds = ['archive_done', 'tag_stale', 'notify_stale', 'raise_priority'] as const satisfies readonly BoardAutomationKind[]
+
+export type BoardAutomation = NewBoardAutomation & {
+  id: string
+  active: boolean
+  lastRunAt: string | null
+}
+
 export interface Tag {
   id: string
   name: string
@@ -211,7 +235,7 @@ export interface Attachment {
 export type ActivityKind =
   | 'created' | 'moved' | 'renamed' | 'described' | 'start' | 'due' | 'priority' | 'estimate' | 'archived' | 'restored'
   | 'tagged' | 'untagged' | 'assigned' | 'unassigned' | 'commented' | 'mentioned' | 'attached' | 'detached'
-  | 'linked' | 'unlinked' | 'field'
+  | 'linked' | 'unlinked' | 'field' | 'stale'
 
 export interface Activity {
   id: string
@@ -222,7 +246,8 @@ export interface Activity {
    * Kind-specific details, e.g. { from, to } for moved and renamed. commented
    * and mentioned also carry `mentions`, an array of user ids (see mentionsOf).
    * field: { field, kind, from, to } with values as text (option labels for
-   * select fields, null = no value).
+   * select fields, null = no value). stale: { days } (a number).
+   * Activity of a board automation has no actor and `automation: true`.
    */
   data: Record<string, string | null>
   createdAt: string
@@ -301,6 +326,8 @@ export interface BoardDetail {
   templates: Card[]
   /** Recurring card schedules, at most one per template. */
   recurrences: CardRecurrence[]
+  /** Time-based automations in creation order. */
+  automations: BoardAutomation[]
   tags: Tag[]
   /** Custom fields in position order. */
   fields: BoardField[]

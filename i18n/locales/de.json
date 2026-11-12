@@ -79,7 +79,9 @@
       "cleared": "hat {field} geleert",
       "set": "hat {field} auf {value} gesetzt",
       "text": "„{value}“"
-    }
+    },
+    "automation": "Automatisierung",
+    "stale": "hat diese Karte markiert: seit einem Tag keine Aktivität | hat diese Karte markiert: seit {n} Tagen keine Aktivität"
   },
   "notification": {
     "assignedYou": "hat dir diese Karte zugewiesen",
@@ -552,7 +554,8 @@
       "delete": "Board löschen",
       "columnGroups": "Spaltengruppen",
       "tagNames": "Tag-Namen anzeigen",
-      "groupNames": "Namen der Spaltengruppen anzeigen"
+      "groupNames": "Namen der Spaltengruppen anzeigen",
+      "automations": "Automatisierungen"
     },
     "undo": {
       "action": "Rückgängig",
@@ -619,7 +622,10 @@
       "addColumnGroup": "Spaltengruppe konnte nicht hinzugefügt werden",
       "saveColumnGroup": "Spaltengruppe konnte nicht gespeichert werden",
       "moveColumnGroup": "Spaltengruppe konnte nicht verschoben werden",
-      "deleteColumnGroup": "Spaltengruppe konnte nicht gelöscht werden"
+      "deleteColumnGroup": "Spaltengruppe konnte nicht gelöscht werden",
+      "addAutomation": "Automatisierung konnte nicht hinzugefügt werden",
+      "updateAutomation": "Automatisierung konnte nicht geändert werden",
+      "deleteAutomation": "Automatisierung konnte nicht gelöscht werden"
     },
     "bulk": {
       "toolbar": "Sammelaktionen",
@@ -1134,7 +1140,8 @@
       "detached": "Anhang entfernt",
       "linked": "Verknüpft",
       "unlinked": "Verknüpfung entfernt",
-      "field": "Benutzerdefiniertes Feld"
+      "field": "Benutzerdefiniertes Feld",
+      "stale": "Keine aktuelle Aktivität"
     }
   },
   "views": {
@@ -1361,5 +1368,33 @@
     "showOnly": "Nur {name} anzeigen",
     "menu": "Gruppen",
     "manage": "Gruppen verwalten…"
+  },
+  "automations": {
+    "title": "Automatisierungen",
+    "description": "Wird stündlich geprüft. Offene Karten sind nicht archiviert und nicht in der letzten Spalte. Änderungen erscheinen im Aktivitätsprotokoll als Automatisierung.",
+    "empty": "Noch keine Automatisierungen.",
+    "readOnly": "Nur Bearbeiter können Automatisierungen ändern.",
+    "kind": "Wann",
+    "kinds": {
+      "archive_done": "Erledigte Karten archivieren",
+      "tag_stale": "Liegengebliebene Karten markieren",
+      "notify_stale": "Über liegengebliebene Karten benachrichtigen",
+      "raise_priority": "Priorität vor Fälligkeit erhöhen"
+    },
+    "text": {
+      "archive_done": "Karten in der letzten Spalte nach einem Tag archivieren | Karten in der letzten Spalte nach {n} Tagen archivieren",
+      "tag_stale": "Offene Karten ohne Aktivität seit einem Tag mit Karten-Tag versehen | Offene Karten ohne Aktivität seit {n} Tagen mit Karten-Tag versehen",
+      "notify_stale": "Zuständige und Beobachter benachrichtigen, wenn eine offene Karte seit einem Tag keine Aktivität hatte | Zuständige und Beobachter benachrichtigen, wenn eine offene Karte seit {n} Tagen keine Aktivität hatte",
+      "raise_priority": "Offene Karten, die heute fällig oder überfällig sind, auf {priority} setzen | Offene Karten, die innerhalb eines Tages fällig sind, auf {priority} setzen | Offene Karten, die innerhalb von {n} Tagen fällig sind, auf {priority} setzen"
+    },
+    "days": "Tage",
+    "chooseTag": "Karten-Tag auswählen",
+    "noTags": "Auf diesem Board gibt es noch keine Karten-Tags.",
+    "priority": "Priorität",
+    "active": "Aktiv",
+    "delete": "Automatisierung löschen",
+    "lastRun": "Zuletzt ausgeführt {time}",
+    "neverRun": "Noch nicht ausgeführt",
+    "tag": "Karten-Tag"
   }
 }

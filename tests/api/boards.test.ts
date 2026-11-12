@@ -5,7 +5,7 @@ import { readFileSync } from 'node:fs'
 import { setup, url } from '@nuxt/test-utils/e2e'
 import postgres from 'postgres'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import type { Attachment, BoardActivityPage, BoardDetail, BoardField, BoardSummary, Card, CardDetail, CardLink, CardRecurrence, Column, ColumnGroup, ColumnRule, Comment, Person, TeamDetail, TimeEntry } from '#shared/types/board'
+import type { Attachment, BoardActivityPage, BoardAutomation, BoardDetail, BoardField, BoardSummary, Card, CardDetail, CardLink, CardRecurrence, Column, ColumnGroup, ColumnRule, Comment, Person, TeamDetail, TimeEntry } from '#shared/types/board'
 import type { Inbox } from '#shared/types/notifications'
 import type { AdminUser, AuditLogPage, InstanceSettings } from '#shared/types/admin'
 import type { Account, AccountSession } from '#shared/types/account'
@@ -414,6 +414,33 @@ describe('column rules', () => {
     expect(after.tagIds).toEqual([bug])
     expect(after.assigneeIds).toEqual([userId('Bob')])
     expect(after.dueDate).toBeNull()
+  })
+})
+
+describe('board automations', () => {
+  it('editors add, pause and delete them; the board lists them; outsiders get 403/404', async () => {
+    const story = board.tags.find(t => t.name === 'story')!.id
+    const post = (who: typeof alice, body: unknown) => who.req<BoardAutomation>(`/api/boards/${board.id}/automations`, { method: 'POST', body })
+    const { status, data: tagStale } = await post(bob, { kind: 'tag_stale', days: 14, tagId: story })
+    expect(status).toBe(200)
+    expect(tagStale).toMatchObject({ kind: 'tag_stale', days: 14, tagId: story, active: true, lastRunAt: null })
+    expect((await post(alice, { kind: 'tag_stale', days: 3, tagId: story })).status).toBe(409)
+    expect((await post(alice, { kind: 'archive_done', days: 0 })).status).toBe(400)
+    expect((await post(alice, { kind: 'raise_priority', days: 2 })).status).toBe(400)
+    expect((await post(outsider, { kind: 'archive_done', days: 7 })).status).toBe(403)
+    const { data: raise } = await post(alice, { kind: 'raise_priority', days: 0, priority: 'urgent' })
+    expect(raise).toMatchObject({ kind: 'raise_priority', days: 0, priority: 'urgent' })
+
+    const paused = await bob.req<BoardAutomation>(`/api/automations/${tagStale.id}`, { method: 'PATCH', body: { active: false } })
+    expect(paused.data.active).toBe(false)
+    // days 0 only fits raise_priority (check constraint).
+    expect((await bob.req(`/api/automations/${tagStale.id}`, { method: 'PATCH', body: { days: 0 } })).status).toBe(400)
+    expect((await outsider.req(`/api/automations/${tagStale.id}`, { method: 'PATCH', body: { active: true } })).status).toBe(404)
+
+    const { data } = await alice.req<BoardDetail>(`/api/boards/${board.id}`)
+    expect(data.automations.map(a => a.id)).toEqual([tagStale.id, raise.id])
+    for (const a of [tagStale, raise]) expect((await alice.req(`/api/automations/${a.id}`, { method: 'DELETE' })).status).toBe(200)
+    expect((await alice.req(`/api/automations/${raise.id}`, { method: 'DELETE' })).status).toBe(404)
   })
 })
 

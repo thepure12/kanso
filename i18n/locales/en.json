@@ -79,7 +79,9 @@
       "cleared": "cleared {field}",
       "set": "set {field} to {value}",
       "text": "\"{value}\""
-    }
+    },
+    "automation": "Automation",
+    "stale": "flagged this card: no activity for a day | flagged this card: no activity for {n} days"
   },
   "notification": {
     "assignedYou": "assigned you to this card",
@@ -552,7 +554,8 @@
       "delete": "Delete board",
       "columnGroups": "Column groups",
       "tagNames": "Show tag names",
-      "groupNames": "Show column group names"
+      "groupNames": "Show column group names",
+      "automations": "Automations"
     },
     "undo": {
       "action": "Undo",
@@ -619,7 +622,10 @@
       "addColumnGroup": "Could not add the column group",
       "saveColumnGroup": "Could not save the column group",
       "moveColumnGroup": "Could not move the column group",
-      "deleteColumnGroup": "Could not delete the column group"
+      "deleteColumnGroup": "Could not delete the column group",
+      "addAutomation": "Could not add automation",
+      "updateAutomation": "Could not change automation",
+      "deleteAutomation": "Could not delete automation"
     },
     "bulk": {
       "toolbar": "Bulk actions",
@@ -1134,7 +1140,8 @@
       "detached": "Attachment removed",
       "linked": "Linked",
       "unlinked": "Unlinked",
-      "field": "Custom field"
+      "field": "Custom field",
+      "stale": "No recent activity"
     }
   },
   "views": {
@@ -1361,5 +1368,33 @@
     "showOnly": "Show only {name}",
     "menu": "Groups",
     "manage": "Manage groups…"
+  },
+  "automations": {
+    "title": "Automations",
+    "description": "Checked every hour. Open cards are the ones not archived and not in the last column. Changes show up in the activity log as made by Automation.",
+    "empty": "No automations yet.",
+    "readOnly": "Only editors can change automations.",
+    "kind": "When",
+    "kinds": {
+      "archive_done": "Archive done cards",
+      "tag_stale": "Tag stale cards",
+      "notify_stale": "Notify about stale cards",
+      "raise_priority": "Raise priority near due date"
+    },
+    "text": {
+      "archive_done": "Archive cards in the last column after a day | Archive cards in the last column after {n} days",
+      "tag_stale": "Tag open cards without activity for a day | Tag open cards without activity for {n} days",
+      "notify_stale": "Notify assignees and watchers when an open card has had no activity for a day | Notify assignees and watchers when an open card has had no activity for {n} days",
+      "raise_priority": "Raise open cards due today or overdue to {priority} | Raise open cards due within a day to {priority} | Raise open cards due within {n} days to {priority}"
+    },
+    "days": "Days",
+    "chooseTag": "Choose a card tag",
+    "noTags": "No card tags on this board yet.",
+    "priority": "Priority",
+    "active": "Active",
+    "delete": "Delete automation",
+    "lastRun": "Last run {time}",
+    "neverRun": "Not run yet",
+    "tag": "Card tag"
   }
 }

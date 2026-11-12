@@ -23,7 +23,7 @@ When the instance runs under a sub-path, include it in the base URL (`KANSO=http
   sees nothing of other boards (`404`), lists only its boards, cannot create boards or teams (`403`) and acts as a
   team viewer at most (no renaming, member changes or leaving). Deleting a board or losing access to it never widens
   the token.
-- **Allowed routes**: boards, cards, columns, tags, comments, checklist items, column rules, attachments, card links,
+- **Allowed routes**: boards, cards, columns, tags, comments, checklist items, column rules, board automations, attachments, card links,
   fields, column groups, time entries, teams, notifications, search and `/api/me`. Account, sign-in, two-factor, session, token,
   admin and webhook routes refuse tokens (`403`, or `401` for routes that only take the session cookie), so a leaked
   token cannot take over the account.
@@ -53,6 +53,8 @@ Errors come back as JSON with `statusCode` and `statusMessage`: `400` invalid in
 | PATCH / DELETE | `/api/columns/:id` | Edit / delete a column |
 | POST | `/api/boards/:id/column-groups` | Add a column group `{ name, color?, columnIds? }` (editors) |
 | PATCH / DELETE | `/api/column-groups/:id` | Edit `{ name?, color?, columnIds?, aboveId?, belowId? }` (`columnIds` replaces the members) / delete a group (its columns stay) |
+| POST | `/api/boards/:id/automations` | Add a time-based automation (editors, checked hourly): `{ kind: 'archive_done' \| 'notify_stale', days }` (1-365), `{ kind: 'tag_stale', days, tagId }` or `{ kind: 'raise_priority', days, priority }` (days 0-365); the same one twice is `409` |
+| PATCH / DELETE | `/api/automations/:id` | Edit `{ days?, active? }` / delete an automation |
 | POST | `/api/boards/:id/cards` | Add a card `{ columnId, title, description? }` (title up to 1000 characters) |
 | GET | `/api/cards/:id` | Card with checklist, comments, attachments, links and activity |
 | PATCH | `/api/cards/:id` | Edit `{ title?, description?, startDate?, dueDate?, priority?, estimate?, tagIds?, assigneeIds?, archived? }` |

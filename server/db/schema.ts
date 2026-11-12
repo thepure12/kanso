@@ -24,6 +24,8 @@ export const boardFieldKind = pgEnum('board_field_kind', ['text', 'number', 'dat
 
 export const recurrenceRule = pgEnum('recurrence_rule', ['daily', 'weekly', 'monthly'])
 
+export const boardAutomationKind = pgEnum('board_automation_kind', ['archive_done', 'tag_stale', 'notify_stale', 'raise_priority'])
+
 export const users = pgTable('users', {
   id: uuid('id').primaryKey().defaultRandom(),
   email: citext('email').notNull().unique(),
@@ -337,6 +339,34 @@ export const columnRules = pgTable('column_rules', {
     when 'remove_tag' then ${t.tagId} is not null and ${t.userId} is null and ${t.dueDays} is null
     when 'assign_to' then ${t.userId} is not null and ${t.tagId} is null and ${t.dueDays} is null
     when 'set_due' then ${t.dueDays} between 0 and 365 and ${t.tagId} is null and ${t.userId} is null
+    else false
+  end`),
+])
+
+// Time-based automations of a board, run hourly by app.run_board_automations()
+// (server/tasks/cards/automations.ts). See 0056_board_automations_rls.sql.
+// archive_done: archives cards that have been in the last column for `days` days.
+// tag_stale: adds tag_id to open cards (not in the last column) without activity for `days` days.
+// notify_stale: logs `stale` on such cards, so assignees and watchers are notified.
+// raise_priority: raises open cards due within `days` days (or overdue) to `priority`.
+export const boardAutomations = pgTable('board_automations', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  boardId: uuid('board_id').notNull().references(() => boards.id, { onDelete: 'cascade' }),
+  kind: boardAutomationKind('kind').notNull(),
+  days: integer('days').notNull(),
+  tagId: uuid('tag_id'),
+  priority: cardPriority('priority'),
+  active: boolean('active').notNull().default(true),
+  lastRunAt: timestamp('last_run_at', { withTimezone: true }),
+  createdAt: createdAt(),
+}, t => [
+  unique('board_automations_unique').on(t.boardId, t.kind, t.tagId, t.priority).nullsNotDistinct(),
+  foreignKey({ columns: [t.tagId, t.boardId], foreignColumns: [tags.id, tags.boardId], name: 'board_automations_tag_board_fk' }).onDelete('cascade'),
+  check('board_automations_kind_fields', sql`case ${t.kind}::text
+    when 'archive_done' then ${t.days} between 1 and 365 and ${t.tagId} is null and ${t.priority} is null
+    when 'tag_stale' then ${t.days} between 1 and 365 and ${t.tagId} is not null and ${t.priority} is null
+    when 'notify_stale' then ${t.days} between 1 and 365 and ${t.tagId} is null and ${t.priority} is null
+    when 'raise_priority' then ${t.days} between 0 and 365 and ${t.priority} is not null and ${t.tagId} is null
     else false
   end`),
 ])

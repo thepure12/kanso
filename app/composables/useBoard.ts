@@ -1,6 +1,6 @@
 import type { BoardAccent } from '#shared/boardAccents'
 import type { BoardBackground } from '#shared/boardBackgrounds'
-import type { BoardDetail, BoardField, BulkCardAction, Card, CardLink, CardPatch, CardRecurrence, Column, ColumnGroup, ColumnRule, FieldValue, NewColumnRule, RecurrenceInput, Tag } from '#shared/types/board'
+import type { BoardAutomation, BoardDetail, BoardField, BulkCardAction, Card, CardLink, CardPatch, CardRecurrence, Column, ColumnGroup, ColumnRule, FieldValue, NewBoardAutomation, NewColumnRule, RecurrenceInput, Tag } from '#shared/types/board'
 
 /** Card fields kept in step with the card dialog's details. */
 export type CardCounts = Pick<Card, 'checklist' | 'commentCount' | 'attachmentCount' | 'timeMinutes' | 'coverAttachmentId' | 'watching'>
@@ -146,6 +146,8 @@ export async function useBoard(id: string) {
   // Card templates (not on the board) and their recurring schedules.
   const templates = ref<Card[]>([])
   const recurrences = ref<CardRecurrence[]>([])
+  // Time-based automations (BoardAutomationsModal).
+  const automations = ref<BoardAutomation[]>([])
   watch(board, (b) => {
     if (!b) return
     columns.value = [...b.columns]
@@ -154,6 +156,7 @@ export async function useBoard(id: string) {
     columnGroups.value = b.columnGroups.map(g => ({ ...g, columnIds: [...g.columnIds] }))
     templates.value = [...b.templates]
     recurrences.value = [...b.recurrences]
+    automations.value = [...b.automations]
     lists.value = Object.fromEntries(b.columns.map(c => [c.id, b.cards.filter(card => card.columnId === c.id)]))
   }, { immediate: true })
 
@@ -452,6 +455,23 @@ export async function useBoard(id: string) {
       await api(`/api/column-rules/${rule.id}`, { method: 'DELETE' })
     }, t('board.errors.deleteRule')),
 
+    addAutomation: (automation: NewBoardAutomation) => run(async () => {
+      const created = await api<BoardAutomation>(`/api/boards/${id}/automations`, { method: 'POST', body: automation })
+      if (!automations.value.some(a => a.id === created.id)) automations.value.push(created)
+    }, t('board.errors.addAutomation')),
+
+    /** Changes the days or pauses/resumes an automation. */
+    updateAutomation: (automation: BoardAutomation, patch: { days?: number, active?: boolean }) => run(async () => {
+      Object.assign(automation, patch)
+      const updated = await api<BoardAutomation>(`/api/automations/${automation.id}`, { method: 'PATCH', body: patch })
+      Object.assign(automation, updated)
+    }, t('board.errors.updateAutomation')),
+
+    deleteAutomation: (automation: BoardAutomation) => run(async () => {
+      automations.value = automations.value.filter(a => a.id !== automation.id)
+      await api(`/api/automations/${automation.id}`, { method: 'DELETE' })
+    }, t('board.errors.deleteAutomation')),
+
     /** Sorts a column's cards by priority (urgent first), as one undoable step. */
     sortColumnByPriority: (col: Column) => run(async () => {
       const before = (lists.value[col.id] ?? []).map(c => c.id)
@@ -583,6 +603,7 @@ export async function useBoard(id: string) {
         for (const card of list) card.tagIds = card.tagIds.filter(t => t !== tag.id)
       }
       for (const col of columns.value) col.rules = col.rules.filter(r => !('tagId' in r && r.tagId === tag.id))
+      automations.value = automations.value.filter(a => !('tagId' in a && a.tagId === tag.id))
     }, t('board.errors.deleteTag')),
 
     addField: (field: NewBoardField) => run(async () => {
@@ -691,7 +712,7 @@ export async function useBoard(id: string) {
   }
 
   return {
-    board, error, refresh, columns, columnGroups, lists, tags, fields, templates, recurrences, archived, offline, canEdit, isOwner, dragging, remoteVersion,
+    board, error, refresh, columns, columnGroups, lists, tags, fields, templates, recurrences, automations, archived, offline, canEdit, isOwner, dragging, remoteVersion,
     canUndo: undoStack.canUndo, canRedo: undoStack.canRedo, ...mutations,
   }
 }

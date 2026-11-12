@@ -92,6 +92,9 @@ lives in Postgres row-level security policies. The app holds none of its own.
 
 - **Column rules** run when a card enters a column: apply a tag, remove a tag, add an assignee, set the due date.
   Columns also have a colour and a soft WIP limit.
+- **Board automations** run every hour: archive cards that have sat in the last column for N days, tag stale cards or
+  notify their assignees and watchers, raise the priority of cards due within N days. They show up in the activity
+  log as "Automation", so notifications and webhooks follow.
 - **Card templates**: "Save as template" keeps a copy (description, tags, checklist, estimate, priority, field values,
   optionally assignees). A template can **repeat** daily, weekly (chosen weekdays) or monthly, optionally with a due date.
 - **Webhooks** (owners): send card activity as signed JSON, or as Slack or Discord messages. Retried with backoff,

@@ -7,9 +7,9 @@ import { CARD_TITLE_MAX } from '#shared/cards'
 const route = useRoute()
 const id = route.params.id as string
 const {
-  board, error, refresh, columns, columnGroups, lists, tags, fields, templates, recurrences, archived, offline, canEdit, isOwner, dragging, remoteVersion,
+  board, error, refresh, columns, columnGroups, lists, tags, fields, templates, recurrences, automations, archived, offline, canEdit, isOwner, dragging, remoteVersion,
   renameBoard, setArchived, setBackground, setAccent, uploadBackground, deleteBoard, addColumn, renameColumn, setColumnColor, setColumnWipLimit, sortColumnByPriority, deleteColumn, columnMoved,
-  addColumnRule, deleteColumnRule, addCard, updateCard, setCardCounts, cardLinkChanged, archiveCard, restoreCard, deleteCard,
+  addColumnRule, deleteColumnRule, addAutomation, updateAutomation, deleteAutomation, addCard, updateCard, setCardCounts, cardLinkChanged, archiveCard, restoreCard, deleteCard,
   deleteArchivedCard, cardMoved, moveCard, addTag, updateTag, deleteTag,
   addField, updateField, fieldMoved, deleteField, setFieldValue,
   addColumnGroup, updateColumnGroup, columnGroupMoved, deleteColumnGroup,
@@ -104,6 +104,7 @@ const activityOpen = ref(false)
 const copyOpen = ref(false)
 const templatesOpen = ref(false)
 const webhooksOpen = ref(false)
+const automationsOpen = ref(false)
 
 function openTemplate(template: Card) {
   templatesOpen.value = false
@@ -368,6 +369,7 @@ const boardMenu = computed(() => [
     { label: t('board.menu.activity'), icon: 'i-lucide-history', onSelect: () => { activityOpen.value = true } },
     { label: t('board.menu.archived'), icon: 'i-lucide-archive', onSelect: () => { archiveOpen.value = true } },
     { label: t('board.menu.templates'), icon: 'i-lucide-file-stack', onSelect: () => { templatesOpen.value = true } },
+    { label: t('board.menu.automations'), icon: 'i-lucide-timer', onSelect: () => { automationsOpen.value = true } },
     { label: t('board.menu.copy'), icon: 'i-lucide-copy', onSelect: () => { copyOpen.value = true } },
     { label: t('board.menu.exportJson'), icon: 'i-lucide-file-json', to: `${base}/api/boards/${id}/export?format=json`, external: true, download: true },
     { label: t('board.menu.exportCsv'), icon: 'i-lucide-file-spreadsheet', to: `${base}/api/boards/${id}/export?format=csv`, external: true, download: true },
@@ -804,6 +806,15 @@ const boardMenu = computed(() => [
       :can-edit="canEdit"
       @open="openTemplate"
       @delete="deleteTemplate"
+    />
+    <BoardAutomationsModal
+      v-model:open="automationsOpen"
+      :automations="automations"
+      :tags="tags"
+      :can-edit="canEdit"
+      @add="addAutomation"
+      @update="updateAutomation"
+      @delete="deleteAutomation"
     />
     <BoardActivitySlideover v-model:open="activityOpen" :board-id="board.id" :version="remoteVersion" />
     <BoardBackgroundModal
