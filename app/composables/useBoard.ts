@@ -334,6 +334,18 @@ export async function useBoard(id: string) {
   }
 
   /** Undo/redo of archiving. Unarchiving reloads the board to place the card. */
+  /** Moves a card to the trash (dropping it from the board) or brings it back (reloads to place it). */
+  async function setCardTrashed(cardId: string, trashed: boolean) {
+    if (trashed) {
+      removeCard(findCard(cardId))
+      await api(`/api/cards/${cardId}`, { method: 'DELETE' })
+    }
+    else {
+      await api(`/api/cards/${cardId}/restore`, { method: 'POST' })
+      await refresh()
+    }
+  }
+
   async function setCardArchived(cardId: string, archived: boolean) {
     if (archived) removeCard(findCard(cardId))
     await api(`/api/cards/${cardId}`, { method: 'PATCH', body: { archived } })
@@ -574,15 +586,20 @@ export async function useBoard(id: string) {
       await refresh()
     }, t('board.errors.restoreCard')),
 
+    /** Moves the card to the board's trash; undo restores it. */
     deleteCard: (card: Card) => run(async () => {
-      await api(`/api/cards/${card.id}`, { method: 'DELETE' })
       removeCard(card)
+      await api(`/api/cards/${card.id}`, { method: 'DELETE' })
+      record(t('board.undo.deletedCard'), () => setCardTrashed(card.id, false), () => setCardTrashed(card.id, true))
     }, t('board.errors.deleteCard')),
 
-    /** Deletes an archived card (not in any list). Deleting cannot be undone. */
+    /** Moves an archived card (not in any list) to the trash. */
     deleteArchivedCard: (cardId: string) => run(async () => {
       await api(`/api/cards/${cardId}`, { method: 'DELETE' })
     }, t('board.errors.deleteCard')),
+
+    /** Brings a card back from the trash (reloads the board to place it). */
+    restoreTrashedCard: (cardId: string) => run(() => setCardTrashed(cardId, false), t('trash.restoreFailed')),
 
     addTag: (tag: Omit<Tag, 'id'>) => run(async () => {
       const created = await api<Tag>(`/api/boards/${id}/tags`, { method: 'POST', body: tag })

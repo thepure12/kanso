@@ -60,7 +60,10 @@ Errors come back as JSON with `statusCode` and `statusMessage`: `400` invalid in
 | PATCH | `/api/cards/:id` | Edit `{ title?, description?, startDate?, dueDate?, priority?, estimate?, tagIds?, assigneeIds?, archived? }` |
 | POST | `/api/boards/:id/cards/bulk` | Change up to 200 cards at once, all or none `{ cardIds, columnId?, archived?, priority?, dueDate?, addTagIds?, removeTagIds?, addAssigneeIds?, removeAssigneeIds? }`; `columnId` moves them to the end of that column in board order. Returns `{ cards }` (those not archived) |
 | POST | `/api/cards/:id/move` | Move `{ columnId, aboveId, belowId }` (neighbour card ids in the target column, `null` = start/end) |
-| DELETE | `/api/cards/:id` | Delete a card |
+| DELETE | `/api/cards/:id` | Move a card to the board's trash (deleted for good after 30 days) |
+| POST | `/api/cards/:id/restore` | Bring a card back from the trash |
+| GET | `/api/boards/:id/trash` | Trashed cards, newest first (editors) |
+| DELETE | `/api/boards/:id/trash` | Empty the trash; `/api/boards/:id/trash/:cardId` deletes one card for good |
 | POST | `/api/cards/:id/comments` | Comment `{ body }` (Markdown) |
 | POST | `/api/cards/:id/checklist` | Add a checklist item `{ text }` |
 | POST | `/api/boards/:id/members` | Share `{ email, role }` (owners) |

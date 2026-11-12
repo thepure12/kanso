@@ -195,6 +195,17 @@ export interface CardRecurrence {
 /** Body of PUT /api/cards/:id/recurrence. */
 export type RecurrenceInput = Pick<CardRecurrence, 'columnId' | 'rule' | 'interval' | 'weekdays' | 'dayOfMonth' | 'dueInDays' | 'active'>
 
+/** A card in a board's trash (GET /api/boards/:id/trash); purged 30 days after deletion. */
+export interface TrashedCard {
+  id: string
+  columnId: string
+  title: string
+  isTemplate: boolean
+  deletedAt: string
+  /** Name of who deleted it; null once their account is gone. */
+  deletedBy: string | null
+}
+
 export interface ArchivedCard {
   id: string
   columnId: string

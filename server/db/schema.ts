@@ -270,6 +270,11 @@ export const cards = pgTable('cards', {
   // board, search, notifications and column rules. Fixed at creation (trigger).
   // See 0037_card_templates_recurring_rls.sql.
   isTemplate: boolean('is_template').notNull().default(false),
+  // Trash: a deleted card is hidden by the cards_select policy (so every query
+  // skips it) and purged after 30 days. Set and cleared only through
+  // app.trash_card / app.restore_card. See 0058_card_trash_rls.sql.
+  deletedAt: timestamp('deleted_at', { withTimezone: true }),
+  deletedBy: uuid('deleted_by').references(() => users.id, { onDelete: 'set null' }),
   // Null once the creator's account is removed.
   createdBy: uuid('created_by').references(() => users.id, { onDelete: 'set null' }),
   createdAt: createdAt(),
@@ -279,6 +284,7 @@ export const cards = pgTable('cards', {
 }, t => [
   unique('cards_id_board_id_unique').on(t.id, t.boardId),
   index('cards_search_idx').using('gin', t.search),
+  index('cards_trash_idx').on(t.boardId, t.deletedAt).where(sql`${t.deletedAt} is not null`),
   // Composite FK: a card can only live in a column of its own board.
   foreignKey({ columns: [t.columnId, t.boardId], foreignColumns: [columns.id, columns.boardId], name: 'cards_column_board_fk' }).onDelete('cascade'),
   check('cards_start_before_due', sql`${t.startDate} <= ${t.dueDate}`),

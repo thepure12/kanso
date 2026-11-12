@@ -9,7 +9,7 @@ const id = route.params.id as string
 const {
   board, error, refresh, columns, columnGroups, lists, tags, fields, templates, recurrences, automations, archived, offline, canEdit, isOwner, dragging, remoteVersion,
   renameBoard, setArchived, setBackground, setAccent, uploadBackground, deleteBoard, addColumn, renameColumn, setColumnColor, setColumnWipLimit, sortColumnByPriority, deleteColumn, columnMoved,
-  addColumnRule, deleteColumnRule, addAutomation, updateAutomation, deleteAutomation, addCard, updateCard, setCardCounts, cardLinkChanged, archiveCard, restoreCard, deleteCard,
+  addColumnRule, deleteColumnRule, addAutomation, updateAutomation, deleteAutomation, addCard, updateCard, setCardCounts, cardLinkChanged, archiveCard, restoreCard, deleteCard, restoreTrashedCard,
   deleteArchivedCard, cardMoved, moveCard, addTag, updateTag, deleteTag,
   addField, updateField, fieldMoved, deleteField, setFieldValue,
   addColumnGroup, updateColumnGroup, columnGroupMoved, deleteColumnGroup,
@@ -91,15 +91,10 @@ const cardLink = computed(() => editingCard.value && import.meta.client
   : undefined)
 
 const confirmDelete = ref(false)
-const deletingCard = ref<Card | null>(null)
-const deleteCardOpen = computed({ get: () => !!deletingCard.value, set: (v) => { if (!v) deletingCard.value = null } })
-function confirmDeleteCard() {
-  deleteCard(deletingCard.value!)
-  deletingCard.value = null
-}
 const tagsOpen = ref(false)
 const fieldsOpen = ref(false)
 const archiveOpen = ref(false)
+const trashOpen = ref(false)
 const activityOpen = ref(false)
 const copyOpen = ref(false)
 const templatesOpen = ref(false)
@@ -368,6 +363,7 @@ const boardMenu = computed(() => [
       : []),
     { label: t('board.menu.activity'), icon: 'i-lucide-history', onSelect: () => { activityOpen.value = true } },
     { label: t('board.menu.archived'), icon: 'i-lucide-archive', onSelect: () => { archiveOpen.value = true } },
+    ...(canEdit.value ? [{ label: t('board.menu.trash'), icon: 'i-lucide-trash-2', onSelect: () => { trashOpen.value = true } }] : []),
     { label: t('board.menu.templates'), icon: 'i-lucide-file-stack', onSelect: () => { templatesOpen.value = true } },
     { label: t('board.menu.automations'), icon: 'i-lucide-timer', onSelect: () => { automationsOpen.value = true } },
     { label: t('board.menu.copy'), icon: 'i-lucide-copy', onSelect: () => { copyOpen.value = true } },
@@ -554,7 +550,7 @@ const boardMenu = computed(() => [
         :drag-disabled="dragDisabled"
         :today="today"
         @open="cardId => editingCardId = cardId"
-        @delete="card => deletingCard = card"
+        @delete="deleteCard"
         @move="moveToLane"
         @dragging="v => dragging = v"
         @rename="(card, title) => updateCard(card, { title })"
@@ -688,7 +684,7 @@ const boardMenu = computed(() => [
                 :selected="selected.has(card.id)"
                 :selecting="selecting"
                 @open="editingCardId = card.id"
-                @delete="deletingCard = card"
+                @delete="deleteCard(card)"
                 @select="toggleSelected(card.id)"
                 @rename="title => updateCard(card, { title })"
               />
@@ -740,7 +736,7 @@ const boardMenu = computed(() => [
       @save="patch => updateCard(editingCard!, patch)"
       @counts="counts => setCardCounts(editingCard!, counts)"
       @archive="archiveCard(editingCard!)"
-      @delete="editingTemplate ? deleteTemplate(editingCard!) : deletingCard = editingCard"
+      @delete="editingTemplate ? deleteTemplate(editingCard!) : deleteCard(editingCard!)"
       @save-template="withAssignees => saveAsTemplate(editingCard!, withAssignees)"
       @set-recurrence="input => setRecurrence(editingCard!, input)"
       @delete-recurrence="deleteRecurrence(editingCard!)"
@@ -798,6 +794,13 @@ const boardMenu = computed(() => [
       :restore="restoreCard"
       :remove="deleteArchivedCard"
     />
+    <TrashSlideover
+      v-model:open="trashOpen"
+      :board-id="board.id"
+      :columns="columns"
+      :version="remoteVersion"
+      :restore="restoreTrashedCard"
+    />
     <TemplatesSlideover
       v-model:open="templatesOpen"
       :templates="templates"
@@ -847,16 +850,6 @@ const boardMenu = computed(() => [
         <div class="flex justify-end gap-2 w-full">
           <UButton color="neutral" variant="ghost" :label="t('common.cancel')" @click="confirmDelete = false" />
           <UButton color="error" :label="t('board.menu.delete')" @click="deleteBoard" />
-        </div>
-      </template>
-    </UModal>
-
-    <UModal v-model:open="deleteCardOpen" :title="t('board.deleteCardTitle', { title: deletingCard?.title })" :description="t('board.deleteCardDescription')">
-      <template #footer>
-        <div class="flex justify-end gap-2 w-full">
-          <UButton color="neutral" variant="ghost" :label="t('common.cancel')" @click="deletingCard = null" />
-          <UButton color="neutral" variant="outline" icon="i-lucide-archive" :label="t('board.archiveInstead')" @click="archiveCard(deletingCard!); deletingCard = null" />
-          <UButton color="error" :label="t('board.deleteCard')" @click="confirmDeleteCard" />
         </div>
       </template>
     </UModal>

@@ -5,7 +5,7 @@ import { readFileSync } from 'node:fs'
 import { setup, url } from '@nuxt/test-utils/e2e'
 import postgres from 'postgres'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import type { Attachment, BoardActivityPage, BoardAutomation, BoardDetail, BoardField, BoardSummary, Card, CardDetail, CardLink, CardRecurrence, Column, ColumnGroup, ColumnRule, Comment, Person, TeamDetail, TimeEntry } from '#shared/types/board'
+import type { Attachment, BoardActivityPage, BoardAutomation, BoardDetail, BoardField, BoardSummary, Card, CardDetail, CardLink, CardRecurrence, Column, ColumnGroup, ColumnRule, Comment, Person, TeamDetail, TimeEntry, TrashedCard } from '#shared/types/board'
 import type { Inbox } from '#shared/types/notifications'
 import type { AdminUser, AuditLogPage, InstanceSettings } from '#shared/types/admin'
 import type { Account, AccountSession } from '#shared/types/account'
@@ -301,6 +301,31 @@ describe('cards', () => {
     expect(archived.map(a => a.id)).toContain(card.id)
     await alice.req(`/api/cards/${card.id}`, { method: 'PATCH', body: { archived: false } })
     expect((await alice.req<BoardDetail>(`/api/boards/${boardId}`)).data.cards.some(c => c.id === card.id)).toBe(true)
+  })
+
+  it('deletes to the trash, restores, and deletes for good', async () => {
+    const [card, other] = [await newCard('Trash me'), await newCard('Purge me')]
+    const onBoard = async (id: string) => (await alice.req<BoardDetail>(`/api/boards/${boardId}`)).data.cards.some(c => c.id === id)
+    expect((await outsider.req(`/api/cards/${card.id}`, { method: 'DELETE' })).status).toBe(404)
+    for (const c of [card, other]) expect((await alice.req(`/api/cards/${c.id}`, { method: 'DELETE' })).status).toBe(200)
+    expect(await onBoard(card.id)).toBe(false)
+    expect((await alice.req(`/api/cards/${card.id}`)).status).toBe(404)
+    expect((await alice.req(`/api/cards/${card.id}`, { method: 'DELETE' })).status).toBe(404)
+
+    const trash = await alice.req<TrashedCard[]>(`/api/boards/${boardId}/trash`)
+    expect(trash.data.find(c => c.id === card.id)).toMatchObject({ title: 'Trash me', isTemplate: false, deletedBy: 'Alice' })
+    expect((await outsider.req(`/api/boards/${boardId}/trash`)).status).toBe(404)
+
+    expect((await alice.req(`/api/cards/${card.id}/restore`, { method: 'POST' })).status).toBe(200)
+    expect(await onBoard(card.id)).toBe(true)
+    expect((await alice.req(`/api/cards/${card.id}/restore`, { method: 'POST' })).status).toBe(404)
+
+    expect((await alice.req(`/api/boards/${boardId}/trash/${card.id}`, { method: 'DELETE' })).status).toBe(404)
+    expect((await alice.req(`/api/boards/${boardId}/trash/${other.id}`, { method: 'DELETE' })).status).toBe(200)
+    expect((await alice.req<TrashedCard[]>(`/api/boards/${boardId}/trash`)).data.some(c => c.id === other.id)).toBe(false)
+    await alice.req(`/api/cards/${card.id}`, { method: 'DELETE' })
+    expect((await alice.req<{ deleted: number }>(`/api/boards/${boardId}/trash`, { method: 'DELETE' })).data.deleted).toBeGreaterThanOrEqual(1)
+    expect((await alice.req<TrashedCard[]>(`/api/boards/${boardId}/trash`)).data).toEqual([])
   })
 })
 
