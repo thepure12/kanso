@@ -244,6 +244,8 @@
       "digest": "Daily email digest",
       "digestDescription": "Once a day, an email with your unread notifications and the cards assigned to you that are due soon. Nothing is sent on days with nothing new.",
       "desktop": "Desktop notifications on this device",
+      "toasts": "In-app messages on this device",
+      "toastsDescription": "Show new notifications as a message in Kanso.",
       "desktopDescription": "Show new notifications as system notifications while Kanso is open in the background. Your browser asks for permission.",
       "desktopBlocked": "Notifications are blocked for this site. Allow them in the browser's site settings, then try again.",
       "desktopUnsupported": "This browser does not support desktop notifications.",
@@ -252,7 +254,9 @@
       "desktopTestBody": "Desktop notifications work on this device.",
       "desktopTestSent": "Test notification sent",
       "desktopTestFailed": "Could not show the test notification",
-      "desktopTestHint": "If nothing appears, check that your system allows notifications from this browser and that Do Not Disturb is off."
+      "desktopTestHint": "If nothing appears, check that your system allows notifications from this browser and that Do Not Disturb is off.",
+      "desktopFocused": "Desktop notifications while Kanso is focused",
+      "desktopFocusedDescription": "Also show system notifications while you are looking at Kanso."
     },
     "delete": {
       "title": "Delete account",
@@ -1084,6 +1088,8 @@
   },
   "notifications": {
     "title": "Notifications",
+    "toastOpen": "Open",
+    "toastMany": "{count} new notification | {count} new notifications",
     "unreadLabel": "Notifications, {count} unread",
     "markAllRead": "Mark all read",
     "dueSoon": "Due soon",

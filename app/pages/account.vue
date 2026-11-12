@@ -254,6 +254,12 @@ const providerLabel: Record<string, string> = { discord: 'Discord', github: 'Git
           :description="t('account.notifications.digestDescription')"
           @update:model-value="setDigest"
         />
+        <USwitch
+          :model-value="desktop.toasts.value"
+          :label="t('account.notifications.toasts')"
+          :description="t('account.notifications.toastsDescription')"
+          @update:model-value="desktop.setToasts"
+        />
         <div class="flex items-start gap-4">
           <USwitch
             :model-value="desktop.enabled.value"
@@ -269,6 +275,13 @@ const providerLabel: Record<string, string> = { discord: 'Discord', github: 'Git
             @click="testDesktop"
           />
         </div>
+        <USwitch
+          :model-value="desktop.whenFocused.value"
+          :disabled="!desktop.enabled.value"
+          :label="t('account.notifications.desktopFocused')"
+          :description="t('account.notifications.desktopFocusedDescription')"
+          @update:model-value="desktop.setWhenFocused"
+        />
       </section>
 
       <section class="space-y-4">
