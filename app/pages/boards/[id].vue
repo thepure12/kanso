@@ -515,11 +515,10 @@ const boardMenu = computed(() => {
               <UIcon v-else name="i-lucide-columns-3" :class="ui.leadingIcon()" />
             </template>
             <template #item-leading="{ item }">
-              <span
-                v-if="typeof item === 'object' && 'color' in item && item.color"
-                class="size-3 rounded-full shrink-0 ring ring-default"
-                :style="{ backgroundColor: item.color }"
-              />
+              <!-- Items align to the top, sized for a size-5 icon: centre the dot in that box. -->
+              <span v-if="typeof item === 'object' && 'color' in item && item.color" class="size-5 shrink-0 flex items-center justify-center">
+                <span class="size-3 rounded-full ring ring-default" :style="{ backgroundColor: item.color }" />
+              </span>
             </template>
           </USelect>
           <USeparator orientation="vertical" class="h-6 mx-1 hidden sm:block" />
