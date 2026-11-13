@@ -1,7 +1,8 @@
 import type { BoardAccent } from '#shared/boardAccents'
 import type { ColumnOutline } from '#shared/columnOutline'
 import type { BoardBackground } from '#shared/boardBackgrounds'
-import type { BoardAutomation, BoardDetail, BoardField, BulkCardAction, Card, CardLink, CardPatch, CardRecurrence, Column, ColumnGroup, ColumnRule, FieldValue, NewBoardAutomation, NewColumnRule, NewColumnRuleRequest, RecurrenceInput, Tag } from '#shared/types/board'
+import type { BoardAutomation, BoardDetail, BoardField, BulkCardAction, Card, CardLink, CardPatch, CardRecurrence, Column, ColumnGroup, ColumnRule, FieldValue, NewBoardAutomation, NewColumnRule, NewColumnRuleRequest, RecurrenceInput, SavedView, Tag } from '#shared/types/board'
+import type { SavedViewConfig } from '#shared/savedViews'
 
 /** Card fields kept in step with the card dialog's details. */
 export type CardCounts = Pick<Card, 'checklist' | 'commentCount' | 'attachmentCount' | 'timeMinutes' | 'coverAttachmentId' | 'watching'>
@@ -153,6 +154,7 @@ export async function useBoard(id: string) {
   const tags = ref<Tag[]>([])
   const fields = ref<BoardField[]>([])
   const columnGroups = ref<ColumnGroup[]>([])
+  const savedViews = ref<SavedView[]>([])
   // Card templates (not on the board) and their recurring schedules.
   const templates = ref<Card[]>([])
   const recurrences = ref<CardRecurrence[]>([])
@@ -164,6 +166,7 @@ export async function useBoard(id: string) {
     tags.value = [...b.tags]
     fields.value = [...b.fields]
     columnGroups.value = b.columnGroups.map(g => ({ ...g, columnIds: [...g.columnIds] }))
+    savedViews.value = [...b.savedViews]
     templates.value = [...b.templates]
     recurrences.value = [...b.recurrences]
     automations.value = [...b.automations]
@@ -703,6 +706,25 @@ export async function useBoard(id: string) {
       columnGroups.value = columnGroups.value.filter(g => g.id !== group.id)
     }, t('board.errors.deleteColumnGroup')),
 
+    /** Saves a view. Throws on failure, so the dialog can show a taken name (409) next to the input. */
+    addSavedView: async (input: { name: string, shared: boolean, config: SavedViewConfig }) => {
+      const created = await api<SavedView>(`/api/boards/${id}/saved-views`, { method: 'POST', body: input })
+      savedViews.value = sortSavedViews([...savedViews.value.filter(v => v.id !== created.id), created])
+      return created
+    },
+
+    /** Renames a view or replaces its settings. Throws on failure, like addSavedView. */
+    updateSavedView: async (view: SavedView, patch: { name?: string, config?: SavedViewConfig }) => {
+      const updated = await api<SavedView>(`/api/saved-views/${view.id}`, { method: 'PATCH', body: patch })
+      savedViews.value = sortSavedViews(savedViews.value.map(v => v.id === updated.id ? updated : v))
+      return updated
+    },
+
+    deleteSavedView: (view: SavedView) => run(async () => {
+      await api(`/api/saved-views/${view.id}`, { method: 'DELETE' })
+      savedViews.value = savedViews.value.filter(v => v.id !== view.id)
+    }, t('savedViews.errors.delete')),
+
     deleteField: (field: BoardField) => run(async () => {
       await api(`/api/fields/${field.id}`, { method: 'DELETE' })
       fields.value = fields.value.filter(f => f.id !== field.id)
@@ -762,7 +784,7 @@ export async function useBoard(id: string) {
   }
 
   return {
-    board, error, refresh, columns, columnGroups, lists, tags, fields, templates, recurrences, automations, archived, offline, canEdit, isOwner, dragging, remoteVersion,
+    board, error, refresh, columns, columnGroups, savedViews, lists, tags, fields, templates, recurrences, automations, archived, offline, canEdit, isOwner, dragging, remoteVersion,
     canUndo: undoStack.canUndo, canRedo: undoStack.canRedo, ...mutations,
   }
 }

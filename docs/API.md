@@ -53,6 +53,8 @@ Errors come back as JSON with `statusCode` and `statusMessage`: `400` invalid in
 | PATCH / DELETE | `/api/columns/:id` | Edit / delete a column |
 | POST | `/api/boards/:id/column-groups` | Add a column group (called a column tag in the UI) `{ name, color?, columnIds? }` (editors) |
 | PATCH / DELETE | `/api/column-groups/:id` | Edit `{ name?, color?, columnIds?, aboveId?, belowId? }` (`columnIds` replaces the members) / delete a group (its columns stay) |
+| POST | `/api/boards/:id/saved-views` | Save a view `{ name, shared?, config: { view, groupBy, columnGroupId, filter } }`: personal (anyone with access) or `shared: true` on the board (editors); a taken name is `409`. Listed as `savedViews` on the board (shared ones and your own) |
+| PATCH / DELETE | `/api/saved-views/:id` | Rename / replace the settings `{ name?, config? }` / delete a saved view |
 | POST | `/api/boards/:id/automations` | Add a time-based automation (editors, checked hourly): `{ kind: 'archive_done' \| 'notify_stale', days }` (1-365), `{ kind: 'tag_stale', days, tagId }` or `{ kind: 'raise_priority', days, priority }` (days 0-365); the same one twice is `409` |
 | PATCH / DELETE | `/api/automations/:id` | Edit `{ days?, active? }` / delete an automation |
 | POST | `/api/boards/:id/cards` | Add a card `{ columnId, title, description? }` (title up to 1000 characters) |

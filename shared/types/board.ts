@@ -1,6 +1,7 @@
 import type { BoardAccent } from '../boardAccents'
 import type { BoardBackground } from '../boardBackgrounds'
 import type { ColumnOutline } from '../columnOutline'
+import type { SavedViewConfig } from '../savedViews'
 
 export type BoardRole = 'owner' | 'editor' | 'viewer'
 
@@ -45,6 +46,15 @@ export interface ColumnGroup {
   position: number
   /** Member columns in board order. A column can be in several groups. */
   columnIds: string[]
+}
+
+/** Named view of a board: view, grouping, column group and filter. */
+export interface SavedView {
+  id: string
+  name: string
+  /** Shared on the board (editors manage, everyone sees); else personal. */
+  shared: boolean
+  config: SavedViewConfig
 }
 
 /** Automation that runs when a card enters a column (created in it or moved into it). */
@@ -344,6 +354,8 @@ export interface BoardDetail {
   columns: Column[]
   /** Column groups in position order. */
   columnGroups: ColumnGroup[]
+  /** Shared views and the user's own, by name. */
+  savedViews: SavedView[]
   /** Unarchived cards; templates are not among them. */
   cards: Card[]
   /** Card templates (each in its default column), in title order. */

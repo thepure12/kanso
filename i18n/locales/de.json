@@ -1453,6 +1453,36 @@
     "menu": "Spalten-Tags",
     "manage": "Spalten-Tags verwalten…"
   },
+  "savedViews": {
+    "label": "Ansichten",
+    "activeLabel": "Gespeicherte Ansicht: {name}",
+    "shared": "Geteilt",
+    "personal": "Nur ich",
+    "saveCurrent": "Aktuelle Ansicht speichern…",
+    "manage": "Ansichten verwalten…",
+    "saveTitle": "Ansicht speichern",
+    "saveDescription": "Speichert Ansicht, Swimlanes, Spalten-Tag und Filter unter einem Namen.",
+    "name": "Name",
+    "shareWithBoard": "Mit dem Board teilen",
+    "shareHint": "Alle auf dem Board sehen sie; Bearbeiter können sie ändern.",
+    "nameTaken": "Eine Ansicht mit diesem Namen gibt es schon.",
+    "saved": "Ansicht „{name}“ gespeichert",
+    "updated": "Ansicht „{name}“ aktualisiert",
+    "manageTitle": "Gespeicherte Ansichten",
+    "manageDescription": "Ansichten umbenennen, durch die aktuelle Board-Ansicht ersetzen oder löschen.",
+    "empty": "Noch keine gespeicherten Ansichten.",
+    "sharedHint": "Mit dem Board geteilt",
+    "personalHint": "Nur du siehst diese Ansicht",
+    "nameOf": "Name von {name}",
+    "overwrite": "Durch die aktuelle Ansicht ersetzen",
+    "overwriteOf": "{name} durch die aktuelle Ansicht ersetzen",
+    "delete": "{name} löschen",
+    "confirmDelete": "Die Ansicht „{name}“ löschen?",
+    "errors": {
+      "save": "Ansicht konnte nicht gespeichert werden",
+      "delete": "Ansicht konnte nicht gelöscht werden"
+    }
+  },
   "automations": {
     "title": "Automatisierungen",
     "description": "Wird stündlich geprüft. Offene Karten sind nicht archiviert und nicht in der letzten Spalte. Änderungen erscheinen im Aktivitätsprotokoll als Automatisierung.",

@@ -5,7 +5,7 @@ import { readFileSync } from 'node:fs'
 import { setup, url } from '@nuxt/test-utils/e2e'
 import postgres from 'postgres'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import type { Attachment, BoardActivityPage, BoardAutomation, BoardDetail, BoardField, BoardSummary, Card, CardDetail, CardLink, CardRecurrence, Column, ColumnGroup, ColumnRule, Comment, Person, TeamDetail, TimeEntry, TrashedCard } from '#shared/types/board'
+import type { Attachment, BoardActivityPage, BoardAutomation, BoardDetail, BoardField, BoardSummary, Card, CardDetail, CardLink, CardRecurrence, Column, ColumnGroup, ColumnRule, SavedView, Comment, Person, TeamDetail, TimeEntry, TrashedCard } from '#shared/types/board'
 import type { Inbox } from '#shared/types/notifications'
 import type { AdminUser, AuditLogPage, InstanceSettings } from '#shared/types/admin'
 import type { Account, AccountSession } from '#shared/types/account'
@@ -813,6 +813,38 @@ describe('column groups', () => {
     expect((await val.req(`/api/column-groups/${dev.id}`, { method: 'DELETE' })).status).toBe(404)
     expect((await alice.req(`/api/column-groups/${dev.id}`, { method: 'DELETE' })).status).toBe(200)
     expect((await alice.req<BoardDetail>(`/api/boards/${gb}`)).data.columnGroups.map(g => g.name)).toEqual(['Test'])
+  })
+})
+
+describe('saved views', () => {
+  it('personal and shared views: saved, validated, listed on the board', async () => {
+    const { data: { id: vb } } = await alice.req<{ id: string }>('/api/boards', { method: 'POST', body: { name: 'Views', template: 'basic' } })
+    extraBoards.push(vb)
+    const val = await signUp('Vera')
+    await alice.req(`/api/boards/${vb}/members`, { method: 'POST', body: { email: val.email, role: 'viewer' } })
+    const config = { view: 'list', groupBy: 'priority', columnGroupId: null, filter: { text: 'bug', tagIds: [], assigneeIds: ['none'], priorities: ['high'], due: 'week', fields: {} } }
+    const add = (who: typeof alice, body: unknown) => who.req<SavedView>(`/api/boards/${vb}/saved-views`, { method: 'POST', body })
+
+    const mine = (await add(alice, { name: ' Mine ', config })).data
+    expect(mine).toMatchObject({ name: 'Mine', shared: false, config })
+    const team = (await add(alice, { name: 'Team', shared: true, config: { ...config, view: 'calendar' } })).data
+    expect(team.shared).toBe(true)
+    expect((await add(alice, { name: 'mine', config })).status).toBe(409)
+    expect((await add(alice, { name: 'Bad', config: { ...config, view: 'gantt' } })).status).toBe(400)
+    expect((await add(val, { name: 'Nope', shared: true, config })).status).toBe(403)
+    const valView = (await add(val, { name: 'Mine', config })).data
+
+    expect((await alice.req<BoardDetail>(`/api/boards/${vb}`)).data.savedViews.map(v => v.name)).toEqual(['Mine', 'Team'])
+    expect((await val.req<BoardDetail>(`/api/boards/${vb}`)).data.savedViews.map(v => [v.name, v.shared])).toEqual([['Mine', false], ['Team', true]])
+
+    const patched = await alice.req<SavedView>(`/api/saved-views/${mine.id}`, { method: 'PATCH', body: { name: 'Bugs', config: { ...config, view: 'board' } } })
+    expect(patched.data).toMatchObject({ name: 'Bugs', config: { view: 'board' } })
+    expect((await alice.req(`/api/saved-views/${mine.id}`, { method: 'PATCH', body: {} })).status).toBe(400)
+    expect((await val.req(`/api/saved-views/${team.id}`, { method: 'PATCH', body: { name: 'x' } })).status).toBe(404)
+    expect((await alice.req(`/api/saved-views/${valView.id}`, { method: 'DELETE' })).status).toBe(404)
+    expect((await val.req(`/api/saved-views/${valView.id}`, { method: 'DELETE' })).status).toBe(200)
+    expect((await alice.req(`/api/saved-views/${team.id}`, { method: 'DELETE' })).status).toBe(200)
+    expect((await val.req<BoardDetail>(`/api/boards/${vb}`)).data.savedViews).toEqual([])
   })
 })
 

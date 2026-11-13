@@ -1,4 +1,5 @@
 import type { Translate } from '#shared/i18n'
+import { fieldKindMeta } from './fields'
 import { priorities, type BoardField, type Card, type Member, type Priority, type Tag } from '#shared/types/board'
 
 /** Swimlane grouping of the board view; `field:<id>` is a select field. */
@@ -101,12 +102,12 @@ export function laneInsertIndex(columnIds: string[], above: string | null, below
 }
 
 /** Choices of a "Group by" select: the groupings plus one per select field. */
-export function groupByItems(fields: BoardField[], t: Translate): { label: string, value: GroupBy }[] {
+export function groupByItems(fields: BoardField[], t: Translate): { label: string, value: GroupBy, icon: string }[] {
   return [
-    { label: t('swimlanes.none'), value: 'none' },
-    { label: t('swimlanes.assignee'), value: 'assignee' },
-    { label: t('swimlanes.priority'), value: 'priority' },
-    { label: t('swimlanes.tag'), value: 'tag' },
-    ...fields.filter(f => f.kind === 'select').map(f => ({ label: f.name, value: `field:${f.id}` as const })),
+    { label: t('swimlanes.none'), value: 'none', icon: 'i-lucide-square-dashed' },
+    { label: t('swimlanes.assignee'), value: 'assignee', icon: 'i-lucide-user' },
+    { label: t('swimlanes.priority'), value: 'priority', icon: 'i-lucide-flag' },
+    { label: t('swimlanes.tag'), value: 'tag', icon: 'i-lucide-tag' },
+    ...fields.filter(f => f.kind === 'select').map(f => ({ label: f.name, value: `field:${f.id}` as const, icon: fieldKindMeta.select.icon })),
   ]
 }

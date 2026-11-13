@@ -8,6 +8,7 @@ const tsvector = customType<{ data: string }>({ dataType: () => 'tsvector' })
 import type { BoardBackground } from '../../shared/boardBackgrounds'
 import { type BoardAccent, boardAccents } from '../../shared/boardAccents'
 import type { ColumnOutline } from '../../shared/columnOutline'
+import type { SavedViewConfig } from '../../shared/savedViews'
 
 // Shape of a column outline (shared/columnOutline.ts): exactly color, width, glow.
 const outlineShape = (c: AnyPgColumn) => sql`${c} is null or (
@@ -278,6 +279,23 @@ export const columnGroupMembers = pgTable('column_group_members', {
   index('column_group_members_column_idx').on(t.columnId),
   foreignKey({ columns: [t.groupId, t.boardId], foreignColumns: [columnGroups.id, columnGroups.boardId], name: 'column_group_members_group_fk' }).onDelete('cascade'),
   foreignKey({ columns: [t.columnId, t.boardId], foreignColumns: [columns.id, columns.boardId], name: 'column_group_members_column_fk' }).onDelete('cascade'),
+])
+
+// Named board view (view, grouping, column group, filter). user_id null = shared
+// on the board (editors manage), else personal. See 0066_saved_views_rls.sql.
+export const savedViews = pgTable('saved_views', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  boardId: uuid('board_id').notNull().references(() => boards.id, { onDelete: 'cascade' }),
+  userId: uuid('user_id').references(() => users.id, { onDelete: 'cascade' }),
+  name: text('name').notNull(),
+  config: jsonb('config').$type<SavedViewConfig>().notNull(),
+  createdBy: uuid('created_by').references(() => users.id, { onDelete: 'set null' }),
+  createdAt: createdAt(),
+}, t => [
+  uniqueIndex('saved_views_name_unique').on(t.boardId, sql`coalesce(${t.userId}, '00000000-0000-0000-0000-000000000000'::uuid)`, sql`lower(${t.name})`),
+  index('saved_views_user_idx').on(t.userId),
+  check('saved_views_name_length', sql`char_length(${t.name}) between 1 and 50`),
+  check('saved_views_config_shape', sql`jsonb_typeof(${t.config}) = 'object' and pg_column_size(${t.config}) < 16384`),
 ])
 
 export const cards = pgTable('cards', {

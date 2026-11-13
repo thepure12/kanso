@@ -47,7 +47,7 @@ beforeEach(() => {
     id: 'board', name: 'B', role: 'owner', archivedAt: null, team: null, members: [],
     columns: [column('c1'), column('c2')],
     cards: [card('a', 'c1'), card('b', 'c1'), card('x', 'c2')],
-    tags: [], fields: [], columnGroups: [], templates: [], recurrences: [], automations: [],
+    tags: [], fields: [], columnGroups: [], savedViews: [], templates: [], recurrences: [], automations: [],
   } as unknown as BoardDetail)
 })
 

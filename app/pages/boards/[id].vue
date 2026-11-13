@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { VueDraggable, type SortableEvent } from 'vue-draggable-plus'
 import type { DropdownMenuItem } from '@nuxt/ui'
-import type { BulkCardAction, Card, Column } from '#shared/types/board'
+import type { BulkCardAction, Card, Column, SavedView } from '#shared/types/board'
 import { backgroundStyle } from '#shared/boardBackgrounds'
 import { columnOutlineStyle, effectiveColumnOutline } from '#shared/columnOutline'
 import { CARD_TITLE_MAX } from '#shared/cards'
@@ -9,12 +9,12 @@ import { CARD_TITLE_MAX } from '#shared/cards'
 const route = useRoute()
 const id = route.params.id as string
 const {
-  board, error, refresh, columns, columnGroups, lists, tags, fields, templates, recurrences, automations, archived, offline, canEdit, isOwner, dragging, remoteVersion,
+  board, error, refresh, columns, columnGroups, savedViews, lists, tags, fields, templates, recurrences, automations, archived, offline, canEdit, isOwner, dragging, remoteVersion,
   renameBoard, setArchived, setBackground, setAccent, setColumnOutline, uploadBackground, deleteBoard, addColumn, renameColumn, setColumnAppearance, setColumnWipLimit, sortColumnByPriority, deleteColumn, columnMoved,
   addColumnRule, deleteColumnRule, addAutomation, updateAutomation, deleteAutomation, addCard, updateCard, setCardCounts, cardLinkChanged, archiveCard, restoreCard, deleteCard, restoreTrashedCard,
   deleteArchivedCard, cardMoved, moveCard, addTag, updateTag, deleteTag,
   addField, updateField, fieldMoved, deleteField, setFieldValue,
-  addColumnGroup, updateColumnGroup, columnGroupMoved, deleteColumnGroup,
+  addColumnGroup, updateColumnGroup, columnGroupMoved, deleteColumnGroup, addSavedView, updateSavedView, deleteSavedView,
   addCardFromTemplate, saveAsTemplate, deleteTemplate, setRecurrence, deleteRecurrence, bulkUpdate, undo, redo, undoGroup,
 } = await useBoard(id)
 const { t } = useI18n()
@@ -195,6 +195,28 @@ watch(columnGroups, (list) => {
   if (columnGroupId.value && !list.some(g => g.id === columnGroupId.value)) showColumnGroup(null)
 })
 const columnGroupsOpen = ref(false)
+// The swimlane select shows the chosen grouping's icon; the generic rows icon when none.
+const groupByOptions = computed(() => groupByItems(fields.value, t))
+const groupByIcon = computed(() => groupBy.value === 'none' ? 'i-lucide-rows-3' : groupByOptions.value.find(i => i.value === groupBy.value)?.icon ?? 'i-lucide-rows-3')
+// View, swimlane and column tag selects show only their icon on phones, so the toolbar fits one row.
+const iconOnlyOnPhones = {
+  base: 'max-sm:h-8 max-sm:w-8 max-sm:p-0',
+  leading: 'max-sm:inset-0 max-sm:p-0 max-sm:justify-center',
+  value: 'max-sm:sr-only',
+  placeholder: 'max-sm:sr-only',
+  trailing: 'max-sm:hidden',
+  content: 'min-w-48',
+}
+
+// Saved views: the view, grouping, column group and filter under a name.
+const currentView = computed(() => currentViewConfig({ view: view.value, groupBy: groupBy.value, columnGroupId: columnGroupId.value, filter: filter.value }))
+function applySavedView(saved: SavedView) {
+  const next = sanitizeViewConfig(saved.config, { tags: tags.value, members: board.value?.members ?? [], fields: fields.value, columnGroups: columnGroups.value })
+  if (view.value !== next.view) view.value = next.view
+  groupBy.value = next.groupBy
+  showColumnGroup(next.columnGroupId)
+  filter.value = next.filter
+}
 
 // Tag and column group chips: names or colour only (personal, all boards).
 const labels = useLabelDisplay()
@@ -489,16 +511,35 @@ const boardMenu = computed(() => {
           <UBadge color="warning" variant="subtle" icon="i-lucide-wifi-off" :label="t('pwa.readOnly')" />
         </UTooltip>
         <UBadge v-else-if="!canEdit" color="neutral" variant="subtle" icon="i-lucide-eye" :label="t('board.viewOnly')" />
-        <div class="order-last basis-full 2xl:order-none 2xl:basis-0 2xl:flex-1 min-w-0 flex max-sm:flex-nowrap max-sm:overflow-x-auto flex-wrap items-center gap-2">
+        <div class="relative order-last basis-full 2xl:order-none 2xl:basis-0 2xl:flex-1 min-w-0 flex flex-wrap items-center gap-2">
           <USeparator orientation="vertical" class="h-6 mx-1 hidden 2xl:block" />
-          <UTabs v-model="view" :items="viewItems" :content="false" size="sm" :aria-label="t('board.viewLabel')" :ui="{ label: 'sr-only sm:not-sr-only' }" />
+          <SavedViewsMenu
+            :views="savedViews"
+            :current="currentView"
+            :can-share="canEdit"
+            :offline="offline"
+            :create="addSavedView"
+            :update="updateSavedView"
+            :remove="deleteSavedView"
+            @apply="applySavedView"
+          />
+          <!-- Tabs from sm up; a select on phones, where four icon tabs take too much room. -->
+          <UTabs v-model="view" :items="viewItems" :content="false" size="sm" class="hidden sm:flex" :aria-label="t('board.viewLabel')" />
+          <USelect
+            v-model="view"
+            :items="viewItems"
+            :icon="viewIcons[view]"
+            class="sm:hidden shrink-0"
+            :ui="iconOnlyOnPhones"
+            :aria-label="t('board.viewLabel')"
+          />
           <USelect
             v-if="view === 'board'"
             v-model="groupBy"
-            :items="groupByItems(fields, t)"
-            icon="i-lucide-rows-3"
+            :items="groupByOptions"
+            :icon="groupByIcon"
             class="shrink-0 sm:w-40"
-            :ui="{ base: 'max-sm:h-8', value: 'max-sm:sr-only', placeholder: 'max-sm:sr-only', content: 'min-w-48' }"
+            :ui="iconOnlyOnPhones"
             :aria-label="t('board.swimlanes')"
           />
           <USelect
@@ -507,7 +548,7 @@ const boardMenu = computed(() => {
             :items="columnGroupItems"
             icon="i-lucide-columns-3"
             class="shrink-0 sm:w-40"
-            :ui="{ base: 'max-sm:h-8', value: 'max-sm:sr-only', placeholder: 'max-sm:sr-only', content: 'min-w-48' }"
+            :ui="iconOnlyOnPhones"
             :aria-label="t('columnGroups.show')"
           >
             <template #leading="{ ui }">

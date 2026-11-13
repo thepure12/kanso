@@ -14,20 +14,28 @@ const panelCount = computed(() => {
 })
 
 // The search box stays collapsed to an icon until opened (click or `/`), and
-// collapses again when it loses focus while empty.
+// collapses again when it loses focus while empty. On phones it only shows
+// while focused, laid over the whole toolbar row; with text it collapses to
+// a highlighted icon.
 const search = useTemplateRef<{ inputRef: HTMLInputElement | null }>('search')
 const searchOpen = ref(!!filter.value.text)
+const mobile = useIsMobile()
+const focused = ref(false)
+const showSearch = computed(() => searchOpen.value && (!mobile.value || focused.value))
 async function openSearch() {
   searchOpen.value = true
+  focused.value = true
   await nextTick()
   search.value?.inputRef?.focus()
 }
-function closeSearchIfEmpty() {
+function onSearchBlur() {
+  focused.value = false
   if (!filter.value.text.trim()) searchOpen.value = false
 }
 function onSearchEscape() {
   filter.value.text = ''
   searchOpen.value = false
+  search.value?.inputRef?.blur()
 }
 watch(() => filter.value.text, v => { if (v) searchOpen.value = true })
 defineExpose({ focus: openSearch })
@@ -60,7 +68,8 @@ const dueItems = computed(() => (['any', 'overdue', 'today', 'week', 'none', 'st
 </script>
 
 <template>
-  <div class="flex max-sm:flex-nowrap flex-wrap items-center gap-2">
+  <!-- On phones the group never wraps inside: it moves to a line of its own when it does not fit. -->
+  <div class="flex flex-wrap items-center gap-2 max-sm:min-w-max">
     <UPopover :content="{ align: 'start' }">
       <UButton icon="i-lucide-list-filter" color="neutral" :variant="panelCount ? 'soft' : 'outline'" :aria-label="t('filters.button')">
         <span class="hidden sm:inline">{{ t('filters.button') }}</span>
@@ -126,23 +135,38 @@ const dueItems = computed(() => (['any', 'overdue', 'today', 'week', 'none', 'st
         </div>
       </template>
     </UPopover>
+    <!-- Phones: absolute over the toolbar row (the page's row is relative). -->
     <UInput
-      v-if="searchOpen"
+      v-if="showSearch"
       ref="search"
       v-model="filter.text"
       icon="i-lucide-search"
       :placeholder="t('filters.search')"
-      class="w-36 sm:w-48 shrink-0"
+      class="max-sm:absolute max-sm:inset-x-0 max-sm:top-0 max-sm:z-10 sm:w-48 sm:shrink-0"
       :aria-label="t('filters.search')"
-      @blur="closeSearchIfEmpty"
+      @focus="focused = true"
+      @blur="onSearchBlur"
       @keydown.esc="onSearchEscape"
     />
-    <UTooltip v-else :text="t('filters.search')">
-      <UButton icon="i-lucide-search" color="neutral" variant="ghost" :aria-label="t('filters.search')" @click="openSearch" />
+    <UTooltip v-else :text="filter.text.trim() ? `${t('filters.search')}: ${filter.text.trim()}` : t('filters.search')">
+      <UButton
+        icon="i-lucide-search"
+        :color="filter.text.trim() ? 'primary' : 'neutral'"
+        :variant="filter.text.trim() ? 'soft' : 'ghost'"
+        :aria-label="t('filters.search')"
+        @click="openSearch"
+      />
     </UTooltip>
     <template v-if="active">
-      <span class="text-sm text-muted whitespace-nowrap">{{ t('filters.shown', { shown: props.shown, total: props.total }, props.total) }}</span>
-      <UButton size="sm" color="neutral" variant="ghost" icon="i-lucide-x" :label="t('common.clear')" @click="filter = emptyFilter()" />
+      <span class="text-sm text-muted whitespace-nowrap">
+        <span class="hidden sm:inline">{{ t('filters.shown', { shown: props.shown, total: props.total }, props.total) }}</span>
+        <!-- Short on phones; the full wording stays for screen readers. -->
+        <span class="sm:hidden" aria-hidden="true">{{ props.shown }}/{{ props.total }}</span>
+        <span class="sr-only sm:hidden">{{ t('filters.shown', { shown: props.shown, total: props.total }, props.total) }}</span>
+      </span>
+      <UButton size="sm" color="neutral" variant="ghost" icon="i-lucide-x" :aria-label="t('common.clear')" @click="filter = emptyFilter()">
+        <span class="hidden sm:inline">{{ t('common.clear') }}</span>
+      </UButton>
     </template>
   </div>
 </template>

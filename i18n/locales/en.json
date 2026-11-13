@@ -1453,6 +1453,36 @@
     "menu": "Column tags",
     "manage": "Manage column tags…"
   },
+  "savedViews": {
+    "label": "Views",
+    "activeLabel": "Saved view: {name}",
+    "shared": "Shared",
+    "personal": "Only me",
+    "saveCurrent": "Save current view…",
+    "manage": "Manage views…",
+    "saveTitle": "Save view",
+    "saveDescription": "Saves the view, swimlanes, column tag and filters under a name.",
+    "name": "Name",
+    "shareWithBoard": "Share with the board",
+    "shareHint": "Everyone on the board sees it; editors can change it.",
+    "nameTaken": "A view with this name already exists.",
+    "saved": "Saved view “{name}”",
+    "updated": "Updated view “{name}”",
+    "manageTitle": "Saved views",
+    "manageDescription": "Rename views, replace them with what the board shows now, or delete them.",
+    "empty": "No saved views yet.",
+    "sharedHint": "Shared with the board",
+    "personalHint": "Only you see this view",
+    "nameOf": "Name of {name}",
+    "overwrite": "Replace with the current view",
+    "overwriteOf": "Replace {name} with the current view",
+    "delete": "Delete {name}",
+    "confirmDelete": "Delete the view “{name}”?",
+    "errors": {
+      "save": "Couldn't save the view",
+      "delete": "Couldn't delete the view"
+    }
+  },
   "automations": {
     "title": "Automations",
     "description": "Checked every hour. Open cards are the ones not archived and not in the last column. Changes show up in the activity log as made by Automation.",

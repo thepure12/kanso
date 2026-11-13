@@ -76,8 +76,8 @@ const columnVisibility = computed(() => narrow.value
 // Grouping: the column (status) or a swimlane grouping.
 const groupBy = ref<'column' | GroupBy>('none')
 const groupItems = computed(() => [
-  { label: t('swimlanes.none'), value: 'none' },
-  { label: t('listView.status'), value: 'column' },
+  ...groupByItems(props.fields, t).slice(0, 1),
+  { label: t('listView.status'), value: 'column', icon: 'i-lucide-columns-3' },
   ...groupByItems(props.fields, t).slice(1),
 ])
 watch(() => props.fields, (list) => {
@@ -117,7 +117,7 @@ const dueClass = (card: Card) => {
 <template>
   <div class="flex flex-col gap-4 max-h-full">
     <div class="flex items-center gap-2">
-      <USelect v-model="groupBy" :items="groupItems" icon="i-lucide-rows-3" class="w-44" :aria-label="t('listView.groupBy')" />
+      <USelect v-model="groupBy" :items="groupItems" :icon="groupBy === 'none' ? 'i-lucide-rows-3' : groupItems.find(i => i.value === groupBy)?.icon ?? 'i-lucide-rows-3'" class="w-44" :aria-label="t('listView.groupBy')" />
       <span class="text-sm text-muted">{{ t('listView.cardCount', { n: props.cards.length }, props.cards.length) }}</span>
     </div>
     <!-- Grows with the cards up to the window height, then scrolls; a single table scrolls itself so its header stays visible. -->

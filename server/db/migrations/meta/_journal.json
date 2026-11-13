@@ -456,6 +456,20 @@
       "when": 1794585645735,
       "tag": "0064_column_rule_assign_mover_rls",
       "breakpoints": true
+    },
+    {
+      "idx": 65,
+      "version": "7",
+      "when": 1794594482720,
+      "tag": "0065_saved_views",
+      "breakpoints": true
+    },
+    {
+      "idx": 66,
+      "version": "7",
+      "when": 1794594488673,
+      "tag": "0066_saved_views_rls",
+      "breakpoints": true
     }
   ]
 }
