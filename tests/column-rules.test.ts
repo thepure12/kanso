@@ -164,6 +164,38 @@ describe('assign_to rules', () => {
   })
 })
 
+describe('assign_mover rules', () => {
+  let columnId: string
+  const addMover = (by: string) =>
+    as(by, sql => sql`insert into column_rules (board_id, column_id, kind) values (${boardId}, ${columnId}, 'assign_mover')`)
+
+  beforeAll(async () => {
+    [{ id: columnId }] = await as(owner.id, sql => sql`insert into columns (board_id, title, position) values (${boardId}, 'Doing', 5) returning id`) as any
+  })
+
+  it('takes no tag, user or days, and one per column', async () => {
+    await rejectsWith(as(owner.id, sql => sql`insert into column_rules (board_id, column_id, kind, user_id) values (${boardId}, ${columnId}, 'assign_mover', ${owner.id})`), '23514')
+    await rejectsWith(as(owner.id, sql => sql`insert into column_rules (board_id, column_id, kind, tag_id) values (${boardId}, ${columnId}, 'assign_mover', ${doneTagId})`), '23514')
+    await rejectsWith(addMover(viewer.id), '42501')
+    await addMover(editor.id)
+    await rejectsWith(addMover(owner.id), '23505')
+  })
+
+  it('assigns whoever creates the card in the column or moves it there, not on reorder', async () => {
+    const [{ id: created }] = await as(editor.id, sql => sql`insert into cards (board_id, column_id, title, position, created_by) values (${boardId}, ${columnId}, 'Card', 1, ${editor.id}) returning id`) as any
+    expect(await assigneesOf(created)).toEqual([editor.id])
+
+    const [{ id: moved }] = await as(editor.id, sql => sql`insert into cards (board_id, column_id, title, position, created_by) values (${boardId}, ${todoId}, 'Card', 1, ${editor.id}) returning id`) as any
+    expect(await assigneesOf(moved)).toEqual([])
+    await as(owner.id, sql => sql`update cards set column_id = ${columnId} where id = ${moved}`)
+    expect(await assigneesOf(moved)).toEqual([owner.id])
+
+    await as(owner.id, sql => sql`delete from card_assignees where card_id = ${moved}`)
+    await as(editor.id, sql => sql`update cards set column_id = ${columnId}, position = 9 where id = ${moved}`)
+    expect(await assigneesOf(moved)).toEqual([])
+  })
+})
+
 describe('remove_tag and set_due rules', () => {
   let tagId: string
   let shipId: string

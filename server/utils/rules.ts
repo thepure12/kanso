@@ -18,6 +18,8 @@ export function toColumnRule(r: RuleRow): ColumnRule {
       return { id: r.id, kind: r.kind, tagId: r.tagId! }
     case 'assign_to':
       return { id: r.id, kind: r.kind, userId: r.userId! }
+    case 'assign_mover':
+      return { id: r.id, kind: r.kind }
     case 'set_due':
       return { id: r.id, kind: r.kind, dueDays: r.dueDays! }
   }

@@ -1293,6 +1293,8 @@
     "removeTag": "Karten-Tag entfernen",
     "assign": "Zuweisen",
     "formerMember": "ein ehemaliges Mitglied (wird übersprungen)",
+    "mover": "Wer sie hier ablegt",
+    "assignMover": "Die Person zuweisen, die die Karte hier anlegt oder hierher verschiebt",
     "setDue": "Fälligkeit auf heute setzen | Fälligkeit auf morgen setzen | Fälligkeit in {n} Tagen setzen",
     "delete": "Regel löschen",
     "chooseTag": "Karten-Tag auswählen",

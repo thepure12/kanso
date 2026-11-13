@@ -53,6 +53,8 @@ export type NewColumnRule =
   | { kind: 'remove_tag', tagId: string }
   /** Adds userId to the card's assignees. Skipped if userId has lost access to the board. */
   | { kind: 'assign_to', userId: string }
+  /** Adds the person who creates the card in the column or moves it there. At most one per column. */
+  | { kind: 'assign_mover' }
   /** Sets the due date to today + dueDays (0-365). At most one per column. */
   | { kind: 'set_due', dueDays: number }
 

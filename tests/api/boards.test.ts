@@ -473,6 +473,29 @@ describe('column rules', () => {
     expect(moved.tagIds).toEqual([story])
     expect(moved.assigneeIds).toEqual([userId('Bob')])
   })
+
+  it('assign_mover assigns whoever adds or moves a card in, once per column, not cards already there', async () => {
+    const { data: column } = await alice.req<{ id: string }>(`/api/boards/${board.id}/columns`, { method: 'POST', body: { title: 'Mover' } })
+    const already = await newCard('Before the rule')
+    await alice.req(`/api/cards/${already.id}/move`, { method: 'POST', body: { columnId: column.id, aboveId: null, belowId: null } })
+
+    const first = await alice.req<ColumnRule>(`/api/columns/${column.id}/rules`, { method: 'POST', body: { kind: 'assign_mover' } })
+    expect(first.status).toBe(200)
+    expect(first.data).toEqual({ id: expect.any(String), kind: 'assign_mover' })
+    // Adding it again returns the same rule.
+    expect((await alice.req<ColumnRule>(`/api/columns/${column.id}/rules`, { method: 'POST', body: { kind: 'assign_mover' } })).data.id).toBe(first.data.id)
+    expect((await alice.req(`/api/columns/${column.id}/rules`, { method: 'POST', body: { kind: 'assign_mover', userId: userId('Bob') } })).status).toBe(200)
+
+    const card = await newCard('Moved by Bob')
+    const { data: moved } = await bob.req<Card>(`/api/cards/${card.id}/move`, { method: 'POST', body: { columnId: column.id, aboveId: null, belowId: null } })
+    expect(moved.assigneeIds).toEqual([userId('Bob')])
+    const { data: created } = await alice.req<Card>(`/api/boards/${boardId}/cards`, { method: 'POST', body: { columnId: column.id, title: 'Created by Alice' } })
+    expect(created.assigneeIds).toEqual([userId('Alice')])
+
+    const { data } = await alice.req<BoardDetail>(`/api/boards/${board.id}`)
+    expect(data.cards.find(c => c.id === already.id)!.assigneeIds).toEqual([])
+    expect(data.columns.find(c => c.id === column.id)!.rules).toHaveLength(1)
+  })
 })
 
 describe('board automations', () => {
@@ -1318,6 +1341,9 @@ describe('board import', () => {
     expect(copy.columns.map(c => c.title)).toEqual(original.columns.map(c => c.title))
     expect(copy.tags.map(t => t.name).sort()).toEqual(original.tags.map(t => t.name).sort())
     expect(copy.cards.map(c => c.title).sort()).toEqual(original.cards.map(c => c.title).sort())
+    // The column rules test added an assign_mover rule to column "Mover".
+    expect(data.columns.find((c: { title: string }) => c.title === 'Mover').rules).toEqual([{ kind: 'assign_mover' }])
+    expect(copy.columns.find(c => c.title === 'Mover')!.rules).toEqual([{ id: expect.any(String), kind: 'assign_mover' }])
     const imported = copy.cards.find(c => c.title === 'Imported card')!
     expect(imported).toMatchObject({ priority: 'high', assigneeIds: [], checklist: { done: 0, total: 1 }, startDate: '2026-11-01', estimate: 3 })
 

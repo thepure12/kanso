@@ -24,6 +24,7 @@ const color = z.string().regex(/^#[0-9a-f]{6}$/i).transform(c => c.toLowerCase()
 const rule = z.discriminatedUnion('kind', [
   z.object({ kind: z.enum(['apply_tag', 'remove_tag']), tag: z.string().nullish() }),
   z.object({ kind: z.literal('assign_to'), user: z.string().nullish() }),
+  z.object({ kind: z.literal('assign_mover') }),
   z.object({ kind: z.literal('set_due'), dueDays: z.number().int().min(0).max(365) }),
 ])
 

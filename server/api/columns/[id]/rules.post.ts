@@ -6,6 +6,7 @@ const ruleBody = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('apply_tag'), tagId: z.uuid() }),
   z.object({ kind: z.literal('remove_tag'), tagId: z.uuid() }),
   z.object({ kind: z.literal('assign_to'), userId: z.uuid() }),
+  z.object({ kind: z.literal('assign_mover') }),
   z.object({ kind: z.literal('set_due'), dueDays: z.number().int().min(0).max(365) }),
 ])
 // applyToExisting: false leaves the cards already in the column alone (the UI asks).
@@ -26,7 +27,8 @@ export default defineUserHandler(async (event, tx): Promise<ColumnRule> => {
   if (inserted.length && applyToExisting) await applyToColumnCards(tx, id, rule)
   const match = 'tagId' in rule
     ? eq(columnRules.tagId, rule.tagId)
-    : 'userId' in rule ? eq(columnRules.userId, rule.userId) : eq(columnRules.dueDays, rule.dueDays)
+    : 'userId' in rule ? eq(columnRules.userId, rule.userId)
+      : 'dueDays' in rule ? eq(columnRules.dueDays, rule.dueDays) : undefined
   const [row] = await tx.select(columnRuleFields).from(columnRules)
     .where(and(eq(columnRules.columnId, id), eq(columnRules.kind, rule.kind), match))
   // Only possible for set_due: the column already has one with other days.
@@ -39,7 +41,8 @@ type NewRule = z.infer<typeof ruleBody>
 /**
  * A new tag or assignee rule also covers the cards already in the column
  * (not templates or archived cards), through the caller's policies like the
- * trigger. set_due is left out: it would overwrite dates people set on purpose.
+ * trigger. set_due is left out: it would overwrite dates people set on purpose;
+ * assign_mover too: who moved those cards in is not known.
  */
 async function applyToColumnCards(tx: Tx, columnId: string, rule: NewRule) {
   const cards = sql`select id, board_id from cards where column_id = ${columnId} and not is_template and archived_at is null`

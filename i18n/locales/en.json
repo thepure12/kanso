@@ -1293,6 +1293,8 @@
     "removeTag": "Remove card tag",
     "assign": "Assign",
     "formerMember": "a former member (skipped)",
+    "mover": "Whoever puts it here",
+    "assignMover": "Assign whoever adds or moves the card here",
     "setDue": "Set due date today | Set due date tomorrow | Set due date in {n} days",
     "delete": "Delete rule",
     "chooseTag": "Choose a card tag",

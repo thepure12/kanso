@@ -238,10 +238,12 @@ async function importBoard(tx: Tx, userId: string, name: string, teamId: string 
       const row: typeof schema.columnRules.$inferInsert = { boardId, columnId: columnRows[i]!.id, kind: r.kind }
       if (r.kind === 'set_due') row.dueDays = r.dueDays
       else if (r.kind === 'assign_to') row.userId = r.user ? personId.get(r.user.toLowerCase()) : undefined
-      else row.tagId = r.tag ? tagId.get(r.tag) : undefined
-      // Unknown tag or person, or a duplicate (one rule per kind and target, one due date per column).
+      else if (r.kind !== 'assign_mover') row.tagId = r.tag ? tagId.get(r.tag) : undefined
+      // Unknown tag or person, or a duplicate (one rule per kind and target, one due date
+      // and one assign_mover per column).
       const key = `${row.columnId}:${row.kind}:${row.tagId ?? row.userId ?? ''}`
-      if ((r.kind !== 'set_due' && !row.tagId && !row.userId) || seenRules.has(key)) {
+      const needsTarget = r.kind === 'apply_tag' || r.kind === 'remove_tag' || r.kind === 'assign_to'
+      if ((needsTarget && !row.tagId && !row.userId) || seenRules.has(key)) {
         skipped.rules++
         continue
       }

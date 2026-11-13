@@ -19,6 +19,14 @@ const tagsFor = (kind: TagKind) => props.tags.filter(t => !props.column.rules.so
 const memberItems = computed(() => props.members
   .filter(m => !props.column.rules.some(r => r.kind === 'assign_to' && r.userId === m.userId))
   .map(m => ({ label: m.name, value: m.userId, avatar: { src: m.avatarUrl ?? undefined, alt: m.name } })))
+// At most one "assign the mover" rule per column.
+const hasMoverRule = computed(() => props.column.rules.some(r => r.kind === 'assign_mover'))
+// Select value for the assign_mover rule ("whoever puts the card here": adds or moves it in), listed first.
+const MOVER = 'mover'
+const assignItems = computed(() => [
+  ...hasMoverRule.value ? [] : [{ label: t('rules.mover'), value: MOVER, icon: 'i-lucide-user-check' }],
+  ...memberItems.value,
+])
 // A column sets the due date at most once.
 const hasDueRule = computed(() => props.column.rules.some(r => r.kind === 'set_due'))
 
@@ -30,7 +38,7 @@ watch(open, (isOpen) => {
   pending.value = null
 })
 
-/** Cards already in the column that the rule would change (set_due never touches them). */
+/** Cards already in the column that the rule would change (set_due and assign_mover never touch them). */
 function affectedCount(rule: NewColumnRule) {
   switch (rule.kind) {
     case 'apply_tag': return props.cards.filter(c => !c.tagIds.includes(rule.tagId)).length
@@ -88,6 +96,10 @@ const tagRules = computed<{ kind: TagKind, label: string, key: 'applyTag' | 'rem
             </template>
             <span v-else class="text-muted">{{ t('rules.formerMember') }}</span>
           </template>
+          <template v-else-if="rule.kind === 'assign_mover'">
+            <UIcon name="i-lucide-user-check" class="size-4 text-dimmed shrink-0" />
+            <span>{{ t('rules.assignMover') }}</span>
+          </template>
           <template v-else>
             <UIcon name="i-lucide-calendar-clock" class="size-4 text-dimmed shrink-0" />
             <span>{{ t('rules.setDue', { n: rule.dueDays }, rule.dueDays) }}</span>
@@ -143,11 +155,11 @@ const tagRules = computed<{ kind: TagKind, label: string, key: 'applyTag' | 'rem
             <UButton type="submit" icon="i-lucide-plus" :label="t('common.add')" :disabled="!draft[r.key]" />
           </form>
 
-          <form class="flex items-center gap-2" @submit.prevent="draft.userId && add({ kind: 'assign_to', userId: draft.userId })">
+          <form class="flex items-center gap-2" @submit.prevent="draft.userId === MOVER ? add({ kind: 'assign_mover' }) : draft.userId && add({ kind: 'assign_to', userId: draft.userId })">
             <span class="text-sm shrink-0 w-24">{{ t('rules.assign') }}</span>
             <USelectMenu
               v-model="draft.userId"
-              :items="memberItems"
+              :items="assignItems"
               value-key="value"
               :placeholder="t('rules.chooseMember')"
               class="flex-1"
