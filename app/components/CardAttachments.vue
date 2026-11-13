@@ -8,17 +8,16 @@ const toast = useToast()
 const { t, locale } = useI18n()
 const confirm = useConfirm()
 
-const MAX_BYTES = 10 * 1024 * 1024
 const input = ref<HTMLInputElement>()
 const uploading = ref(false)
 
 const isImage = (a: Attachment) => ['image/png', 'image/jpeg', 'image/gif', 'image/webp'].includes(a.contentType)
 
 async function upload(files: File[]) {
-  const tooBig = files.filter(f => f.size > MAX_BYTES)
+  const tooBig = files.filter(f => f.size > ATTACHMENT_MAX_BYTES)
   if (tooBig.length) {
     toast.add({ title: t('attachments.tooBig'), description: tooBig.map(f => f.name).join(', '), color: 'error' })
-    files = files.filter(f => f.size <= MAX_BYTES)
+    files = files.filter(f => f.size <= ATTACHMENT_MAX_BYTES)
   }
   if (!files.length) return
   uploading.value = true
@@ -41,9 +40,10 @@ function onDrop(e: DragEvent) {
   if (props.canEdit) upload([...e.dataTransfer?.files ?? []])
 }
 
-// Pasting files or a screenshot anywhere in the open card attaches them.
+// Pasting files or a screenshot anywhere in the open card attaches them
+// (MarkdownEditor handles pastes into comments and the description itself).
 function onPaste(e: ClipboardEvent) {
-  if (!props.canEdit || !props.items) return
+  if (e.defaultPrevented || !props.canEdit || !props.items) return
   const files = pastedFiles(e.clipboardData, isTextField(e.target))
   if (!files.length) return
   e.preventDefault()

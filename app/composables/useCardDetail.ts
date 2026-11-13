@@ -105,11 +105,17 @@ export function useCardDetail(cardId: Ref<string>) {
       await api(`/api/comments/${comment.id}`, { method: 'DELETE' })
     }, t('comments.errors.delete')),
 
-    upload: (files: File[]) => run(async (d) => {
-      const form = new FormData()
-      for (const f of files) form.append('file', f)
-      d.attachments.push(...await api<Attachment[]>(`${base()}/attachments`, { method: 'POST', body: form }))
-    }, t('attachments.errors.upload')),
+    /** Uploads files (at most 5 per call) and returns the new attachments, or [] on failure. */
+    upload: async (files: File[]) => {
+      let added: Attachment[] = []
+      await run(async (d) => {
+        const form = new FormData()
+        for (const f of files) form.append('file', f)
+        added = await api<Attachment[]>(`${base()}/attachments`, { method: 'POST', body: form })
+        d.attachments.push(...added)
+      }, t('attachments.errors.upload'))
+      return added
+    },
 
     deleteAttachment: (a: Attachment) => run(async (d) => {
       d.attachments = d.attachments.filter(x => x.id !== a.id)

@@ -30,7 +30,7 @@ const canDelete = (c: Comment) => props.isOwner || (props.canEdit && mine(c))
 <template>
   <div class="space-y-4 pt-2">
     <form v-if="props.canEdit" class="space-y-2" @submit.prevent="post">
-      <MarkdownEditor v-model="draft" :rows="3" :members="props.members" :placeholder="t('comments.placeholder')" />
+      <MarkdownEditor v-model="draft" :rows="3" :members="props.members" :upload="props.cd.upload" :placeholder="t('comments.placeholder')" />
       <div class="flex justify-end">
         <UButton type="submit" size="sm" :label="t('comments.submit')" :disabled="!draft.trim()" />
       </div>
@@ -58,7 +58,7 @@ const canDelete = (c: Comment) => props.isOwner || (props.canEdit && mine(c))
             </div>
           </div>
           <form v-if="editing?.id === c.id" class="space-y-2" @submit.prevent="saveEdit(c)">
-            <MarkdownEditor v-model="editing.body" :rows="3" :members="props.members" />
+            <MarkdownEditor v-model="editing.body" :rows="3" :members="props.members" :upload="props.cd.upload" />
             <div class="flex justify-end gap-2">
               <UButton size="sm" color="neutral" variant="ghost" :label="t('common.cancel')" @click="editing = null" />
               <UButton type="submit" size="sm" :label="t('common.save')" :disabled="!editing.body.trim()" />

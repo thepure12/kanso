@@ -1,8 +1,9 @@
 <script setup lang="ts">
 const props = defineProps<{ text: string }>()
+const base = basePath()
 
 // The server renders plain text (no DOM for DOMPurify).
-const html = computed(() => import.meta.client ? renderMarkdown(props.text) : '')
+const html = computed(() => import.meta.client ? renderMarkdown(props.text, base) : '')
 </script>
 
 <template>

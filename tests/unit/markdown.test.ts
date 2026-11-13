@@ -30,4 +30,9 @@ describe('renderMarkdown', () => {
     expect(html).toContain('<span class="mention">@Ann &lt;b&gt;</span>')
     expect(html).not.toContain('user:')
   })
+
+  it('renders pasted attachment images under the base path', () => {
+    const html = renderMarkdown('![shot.png](attachment:0b5b6c1e-6f43-4d0e-9a51-7d1f1c3c2a10)', '/kanso')
+    expect(html).toContain('<img src="/kanso/api/attachments/0b5b6c1e-6f43-4d0e-9a51-7d1f1c3c2a10" alt="shot.png">')
+  })
 })

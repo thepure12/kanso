@@ -965,7 +965,12 @@
     "markdown": "Markdown wird unterstützt",
     "markdownMentions": "Markdown wird unterstützt, {'@'} zum Erwähnen",
     "nothingToPreview": "Nichts für die Vorschau.",
-    "mention": "Jemanden erwähnen"
+    "mention": "Jemanden erwähnen",
+    "uploading": "{name} wird hochgeladen…",
+    "markdownFiles": "Markdown wird unterstützt, Bilder einfügen oder hineinziehen",
+    "markdownMentionsFiles": "Markdown, {'@'} zum Erwähnen, Bilder einfügen oder hineinziehen",
+    "addImage": "Bild",
+    "addImageHint": "Bild einfügen. Du kannst auch eines in den Text einfügen oder hineinziehen."
   },
   "home": {
     "title": "Boards",

@@ -965,7 +965,12 @@
     "markdown": "Markdown supported",
     "markdownMentions": "Markdown supported, {'@'} to mention",
     "nothingToPreview": "Nothing to preview.",
-    "mention": "Mention someone"
+    "mention": "Mention someone",
+    "uploading": "Uploading {name}…",
+    "markdownFiles": "Markdown supported, paste or drop images",
+    "markdownMentionsFiles": "Markdown, {'@'} to mention, paste or drop images",
+    "addImage": "Image",
+    "addImageHint": "Insert an image. You can also paste or drop one into the text."
   },
   "home": {
     "title": "Boards",

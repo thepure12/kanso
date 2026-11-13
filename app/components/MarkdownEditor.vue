@@ -1,11 +1,22 @@
 <script setup lang="ts">
-import type { Member } from '#shared/types/board'
+import type { Attachment, Member } from '#shared/types/board'
 
-/** With `members`, typing `@` suggests people and inserts mention tokens (app/utils/mentions.ts). */
-const props = defineProps<{ placeholder?: string, rows?: number, disabled?: boolean, members?: Member[] }>()
+/**
+ * With `members`, typing `@` suggests people and inserts mention tokens (app/utils/mentions.ts).
+ * With `upload`, images and files pasted, dropped or picked with the Image button become
+ * card attachments, linked at the caret as `attachment:<id>` (app/utils/attachmentLinks.ts).
+ */
+const props = defineProps<{
+  placeholder?: string
+  rows?: number
+  disabled?: boolean
+  members?: Member[]
+  upload?: (files: File[]) => Promise<Attachment[]>
+}>()
 const model = defineModel<string>({ required: true })
 const preview = ref(false)
 const { t } = useI18n()
+const toast = useToast()
 
 const textarea = useTemplateRef<{ textareaRef: HTMLTextAreaElement | null }>('textarea')
 const mention = ref<{ start: number, query: string } | null>(null)
@@ -43,6 +54,70 @@ async function pick(m: Member) {
   el.setSelectionRange(at.start + token.length, at.start + token.length)
 }
 
+let uploads = 0
+
+// A placeholder marks the spot while the files upload, so typing on meanwhile keeps its place.
+async function insertFiles(files: File[]) {
+  const el = textarea.value?.textareaRef
+  if (!props.upload || !el) return
+  const tooBig = files.filter(f => f.size > ATTACHMENT_MAX_BYTES)
+  if (tooBig.length) toast.add({ title: t('attachments.tooBig'), description: tooBig.map(f => f.name).join(', '), color: 'error' })
+  const ok = files.filter(f => f.size <= ATTACHMENT_MAX_BYTES)
+  if (!ok.length) return
+
+  const marker = `[${t('editor.uploading', { name: ok.map(f => f.name).join(', ') })}](uploading:${++uploads})`
+  const { selectionStart: start, selectionEnd: end } = el
+  model.value = el.value.slice(0, start) + marker + el.value.slice(end)
+  await nextTick()
+  el.focus()
+  el.setSelectionRange(start + marker.length, start + marker.length)
+
+  const added: Attachment[] = []
+  for (let i = 0; i < ok.length; i += 5) added.push(...await props.upload(ok.slice(i, i + 5)))
+  model.value = model.value.replace(marker, added.map(attachmentMarkdown).join('\n'))
+}
+
+// preventDefault also tells CardAttachments' document listener to leave the paste alone.
+function onPaste(e: ClipboardEvent) {
+  if (!props.upload) return
+  const files = pastedFiles(e.clipboardData, true)
+  if (!files.length) return
+  e.preventDefault()
+  insertFiles(files)
+}
+
+const fileInput = useTemplateRef<HTMLInputElement>('fileInput')
+async function pickFiles() {
+  preview.value = false
+  await nextTick()
+  fileInput.value?.click()
+}
+function onPick(e: Event) {
+  const el = e.target as HTMLInputElement
+  insertFiles([...el.files ?? []])
+  el.value = ''
+}
+
+const dragOver = ref(false)
+const hasFiles = (e: DragEvent) => !!props.upload && !!e.dataTransfer?.types.includes('Files')
+function onDragOver(e: DragEvent) {
+  if (!hasFiles(e)) return
+  e.preventDefault()
+  dragOver.value = true
+}
+function onDrop(e: DragEvent) {
+  dragOver.value = false
+  if (!hasFiles(e)) return
+  e.preventDefault()
+  e.stopPropagation()
+  insertFiles([...e.dataTransfer!.files])
+}
+
+const hint = computed(() => {
+  if (props.upload) return props.members?.length ? t('editor.markdownMentionsFiles') : t('editor.markdownFiles')
+  return props.members?.length ? t('editor.markdownMentions') : t('editor.markdown')
+})
+
 function onKeydown(e: KeyboardEvent) {
   if (!suggestions.value.length) return
   if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
@@ -66,7 +141,21 @@ function onKeydown(e: KeyboardEvent) {
     <div class="flex gap-1">
       <UButton size="xs" :variant="preview ? 'ghost' : 'soft'" color="neutral" :label="t('editor.write')" @click="preview = false" />
       <UButton size="xs" :variant="preview ? 'soft' : 'ghost'" color="neutral" :label="t('editor.preview')" @click="preview = true" />
-      <span class="ms-auto text-xs text-dimmed self-center">{{ props.members?.length ? t('editor.markdownMentions') : t('editor.markdown') }}</span>
+      <UTooltip v-if="props.upload" :text="t('editor.addImageHint')">
+        <UButton
+          size="xs"
+          variant="ghost"
+          color="neutral"
+          icon="i-lucide-image-plus"
+          :aria-label="t('editor.addImage')"
+          :disabled="props.disabled"
+          @click="pickFiles"
+        >
+          <span class="hidden sm:inline">{{ t('editor.addImage') }}</span>
+        </UButton>
+      </UTooltip>
+      <input ref="fileInput" type="file" accept="image/*" multiple class="hidden" @change="onPick">
+      <span class="ms-auto text-xs text-dimmed self-center text-end">{{ hint }}</span>
     </div>
     <div v-if="preview" class="min-h-20 rounded-md ring ring-default p-3">
       <MarkdownText v-if="model.trim()" :text="model" />
@@ -74,7 +163,14 @@ function onKeydown(e: KeyboardEvent) {
         {{ t('editor.nothingToPreview') }}
       </p>
     </div>
-    <div v-else class="relative">
+    <div
+      v-else
+      class="relative rounded-md"
+      :class="dragOver && 'ring-2 ring-primary'"
+      @dragover="onDragOver"
+      @dragleave="dragOver = false"
+      @drop="onDrop"
+    >
       <UTextarea
         ref="textarea"
         v-model="model"
@@ -88,6 +184,7 @@ function onKeydown(e: KeyboardEvent) {
         @keyup.left.right="updateMention"
         @keydown="onKeydown"
         @blur="mention = null"
+        @paste="onPaste"
       />
       <ul
         v-if="suggestions.length"
