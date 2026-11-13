@@ -170,7 +170,7 @@ const shownColumns = computed(() => columnsInGroup(columns.value, shownGroup.val
 const shownColumnIds = computed(() => new Set(shownColumns.value.map(c => c.id)))
 const columnGroupItems = computed(() => [
   { label: t('columnGroups.all'), value: 'all' },
-  ...columnGroups.value.map(g => ({ label: g.name, value: g.id, chip: g.color ? { color: 'neutral' as const, style: { backgroundColor: g.color } } : undefined })),
+  ...columnGroups.value.map(g => ({ label: g.name, value: g.id, color: g.color ?? undefined })),
 ])
 const columnGroupModel = computed({
   get: () => shownGroup.value?.id ?? 'all',
@@ -509,7 +509,19 @@ const boardMenu = computed(() => {
             class="shrink-0 sm:w-40"
             :ui="{ base: 'max-sm:h-8', value: 'max-sm:sr-only', placeholder: 'max-sm:sr-only', content: 'min-w-48' }"
             :aria-label="t('columnGroups.show')"
-          />
+          >
+            <template #leading="{ ui }">
+              <span v-if="shownGroup?.color" class="size-3 rounded-full shrink-0 ring ring-default" :style="{ backgroundColor: shownGroup.color }" />
+              <UIcon v-else name="i-lucide-columns-3" :class="ui.leadingIcon()" />
+            </template>
+            <template #item-leading="{ item }">
+              <span
+                v-if="typeof item === 'object' && 'color' in item && item.color"
+                class="size-3 rounded-full shrink-0 ring ring-default"
+                :style="{ backgroundColor: item.color }"
+              />
+            </template>
+          </USelect>
           <USeparator orientation="vertical" class="h-6 mx-1 hidden sm:block" />
           <BoardFilters ref="filters" v-model="filter" class="flex-1 min-w-0" :tags="tags" :fields="fields" :members="board.members" :shown="visibleIds.size" :total="allCards.length" />
           <USeparator orientation="vertical" class="h-6 mx-1 hidden 2xl:block" />
