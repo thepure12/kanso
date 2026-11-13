@@ -21,11 +21,16 @@ onMounted(() => watch(() => me.value?.locale, (saved) => {
   if (saved && saved !== locale.value) setLocale(saved)
 }, { immediate: true }))
 
+// Phones hide the header's colour mode button; the user menu offers it instead.
+const colorMode = useColorMode()
 const menu = computed(() => [
   [{ label: user.value?.email, type: 'label' as const }],
   [{ label: t('nav.account'), icon: 'i-lucide-user-cog', to: '/account' }],
   ...(me.value?.isAdmin ? [[{ label: t('nav.admin'), icon: 'i-lucide-shield', to: '/admin' }]] : []),
   [
+    colorMode.value === 'dark'
+      ? { label: t('nav.lightMode'), icon: 'i-lucide-sun', class: 'sm:hidden', onSelect: () => { colorMode.preference = 'light' } }
+      : { label: t('nav.darkMode'), icon: 'i-lucide-moon', class: 'sm:hidden', onSelect: () => { colorMode.preference = 'dark' } },
     { label: t('nav.shortcuts'), icon: 'i-lucide-keyboard', kbds: ['?'], onSelect: () => { shortcutsOpen.value = true } },
     // Offered once the browser fires beforeinstallprompt (production builds, not yet installed).
     ...($pwa?.showInstallPrompt && !$pwa.isPWAInstalled ? [{ label: t('nav.install'), icon: 'i-lucide-monitor-down', onSelect: () => { $pwa.install() } }] : []),
@@ -66,10 +71,12 @@ defineShortcuts(computed(() => loggedIn.value
             <span class="hidden md:inline">{{ t('nav.myWork') }}</span>
           </UButton>
         </UTooltip>
-        <UColorModeButton />
+        <UColorModeButton class="hidden sm:inline-flex" />
         <NotificationBell v-if="loggedIn && user" />
         <UDropdownMenu v-if="loggedIn && user" :items="menu">
-          <UButton color="neutral" variant="ghost" :avatar="{ src: user.avatarUrl ?? undefined, alt: user.name }" :label="user.name" />
+          <UButton color="neutral" variant="ghost" :avatar="{ src: user.avatarUrl ?? undefined, alt: user.name }" :aria-label="user.name">
+            <span class="hidden sm:inline truncate max-w-40">{{ user.name }}</span>
+          </UButton>
         </UDropdownMenu>
       </template>
     </UHeader>

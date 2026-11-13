@@ -101,7 +101,9 @@
     "signOut": "Sign out",
     "search": "Search",
     "install": "Install app",
-    "myWork": "My work"
+    "myWork": "My work",
+    "lightMode": "Light mode",
+    "darkMode": "Dark mode"
   },
   "shortcuts": {
     "title": "Keyboard shortcuts",
@@ -1261,7 +1263,9 @@
     "undatedLabel": "Cards without a date",
     "noDue": "No due date",
     "noStart": "No start date",
-    "dragHint": "Drag cards onto a day to set the date, or here to clear it."
+    "dragHint": "Drag cards onto a day to set the date, or here to clear it.",
+    "noneThisMonth": "No cards this month",
+    "tapHint": "Tap a card to change its dates"
   },
   "boardFields": {
     "title": "Fields",

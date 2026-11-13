@@ -66,6 +66,13 @@ const tableColumns = computed<TableColumn<Card>[]>(() => [
   })),
 ])
 
+// Below Tailwind `md` only the essential columns stay (select, title, status, due).
+const narrow = useMediaMatch('(max-width: 767px)')
+const essential = new Set(['select', 'title', 'column', 'due'])
+const columnVisibility = computed(() => narrow.value
+  ? Object.fromEntries(tableColumns.value.flatMap(c => c.id && !essential.has(c.id) ? [[c.id, false]] : []))
+  : {})
+
 // Grouping: the column (status) or a swimlane grouping.
 const groupBy = ref<'column' | GroupBy>('none')
 const groupItems = computed(() => [
@@ -127,6 +134,7 @@ const dueClass = (card: Card) => {
         <UTable
           :data="g.cards"
           :columns="tableColumns"
+          :column-visibility="columnVisibility"
           :empty="t('listView.noCards')"
           sticky="header"
           class="min-h-0"
@@ -147,7 +155,7 @@ const dueClass = (card: Card) => {
             />
           </template>
           <template #title-cell="{ row }">
-            <button type="button" class="text-left font-medium hover:underline focus-visible:underline max-w-80 truncate block" @click="emit('open', row.original.id)">
+            <button type="button" class="text-left font-medium hover:underline focus-visible:underline max-w-48 sm:max-w-80 truncate block" @click="emit('open', row.original.id)">
               {{ row.original.title }}
             </button>
           </template>

@@ -26,7 +26,7 @@ async function select(n: Notification) {
     </UChip>
 
     <template #content>
-      <div class="w-96 max-h-[70vh] overflow-y-auto">
+      <div class="w-[calc(100vw-1.5rem)] sm:w-96 max-h-[70vh] overflow-y-auto">
         <div class="flex items-center justify-between px-3 py-2 border-b border-default">
           <span class="font-semibold text-sm">{{ t('notifications.title') }}</span>
           <UButton v-if="unread" size="xs" variant="link" :label="t('notifications.markAllRead')" @click="markAllRead" />

@@ -73,7 +73,7 @@ function remove(link: CardLink) {
             color="neutral"
             variant="ghost"
             :aria-label="t('cardLinks.remove', { title: l.card.title })"
-            class="opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
+            class="pointer-fine:opacity-0 pointer-fine:group-hover:opacity-100 focus-visible:opacity-100"
             @click="remove(l)"
           />
         </UTooltip>

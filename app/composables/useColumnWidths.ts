@@ -27,7 +27,8 @@ export function useColumnWidths(boardId: string, columnIds: Ref<string[]>) {
   }
 
   const widthOf = (columnId: string) => widths.value[columnId] ?? COLUMN_WIDTH_DEFAULT
-  const styleOf = (columnId: string) => ({ width: `${widthOf(columnId)}px` })
+  // Never wider than a phone screen (minus the board padding), so one column fits.
+  const styleOf = (columnId: string) => ({ width: `${widthOf(columnId)}px`, maxWidth: 'calc(100vw - 3rem)' })
 
   function setWidth(columnId: string, px: number) {
     widths.value = { ...widths.value, [columnId]: clampColumnWidth(px) }

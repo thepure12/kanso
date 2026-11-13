@@ -48,32 +48,32 @@ function setDue(value: string | null) {
   <div
     role="toolbar"
     :aria-label="t('board.bulk.toolbar')"
-    class="fixed z-40 bottom-4 inset-x-0 mx-auto w-fit max-w-[calc(100vw-2rem)] flex flex-wrap items-center gap-1 rounded-lg bg-default ring ring-default shadow-lg px-3 py-2"
+    class="fixed z-40 bottom-[max(0.5rem,env(safe-area-inset-bottom))] sm:bottom-4 inset-x-2 sm:inset-x-0 sm:mx-auto sm:w-fit sm:max-w-[calc(100vw-2rem)] flex flex-nowrap sm:flex-wrap items-center gap-1 overflow-x-auto rounded-lg bg-default ring ring-default shadow-lg px-2 sm:px-3 py-2"
   >
-    <span class="text-sm font-medium me-2">{{ t('board.bulk.selected', { n: props.count }, props.count) }}</span>
+    <span class="text-sm font-medium me-1 sm:me-2 whitespace-nowrap">{{ t('board.bulk.selected', { n: props.count }, props.count) }}</span>
     <UDropdownMenu :items="moveItems">
-      <UButton color="neutral" variant="ghost" icon="i-lucide-arrow-right-left" :label="t('board.bulk.move')" />
+      <UButton color="neutral" variant="ghost" icon="i-lucide-arrow-right-left" :aria-label="t('board.bulk.move')"><span class="hidden sm:inline">{{ t('board.bulk.move') }}</span></UButton>
     </UDropdownMenu>
     <UDropdownMenu v-if="props.tags.length" :items="tagItems">
-      <UButton color="neutral" variant="ghost" icon="i-lucide-tags" :label="t('board.bulk.tags')" />
+      <UButton color="neutral" variant="ghost" icon="i-lucide-tags" :aria-label="t('board.bulk.tags')"><span class="hidden sm:inline">{{ t('board.bulk.tags') }}</span></UButton>
     </UDropdownMenu>
     <UDropdownMenu :items="assigneeItems">
-      <UButton color="neutral" variant="ghost" icon="i-lucide-user-plus" :label="t('board.bulk.assignees')" />
+      <UButton color="neutral" variant="ghost" icon="i-lucide-user-plus" :aria-label="t('board.bulk.assignees')"><span class="hidden sm:inline">{{ t('board.bulk.assignees') }}</span></UButton>
     </UDropdownMenu>
     <UDropdownMenu :items="priorityItems">
-      <UButton color="neutral" variant="ghost" icon="i-lucide-flag" :label="t('board.bulk.priority')" />
+      <UButton color="neutral" variant="ghost" icon="i-lucide-flag" :aria-label="t('board.bulk.priority')"><span class="hidden sm:inline">{{ t('board.bulk.priority') }}</span></UButton>
     </UDropdownMenu>
     <UPopover v-model:open="dueOpen">
-      <UButton color="neutral" variant="ghost" icon="i-lucide-calendar" :label="t('board.bulk.dueDate')" />
+      <UButton color="neutral" variant="ghost" icon="i-lucide-calendar" :aria-label="t('board.bulk.dueDate')"><span class="hidden sm:inline">{{ t('board.bulk.dueDate') }}</span></UButton>
       <template #content>
-        <form class="p-3 flex items-center gap-2" @submit.prevent="due && setDue(due)">
+        <form class="p-3 flex flex-col sm:flex-row items-stretch sm:items-center gap-2" @submit.prevent="due && setDue(due)">
           <UInput v-model="due" type="date" :aria-label="t('board.bulk.dueDate')" />
           <UButton type="submit" :label="t('board.bulk.set')" :disabled="!due" />
           <UButton color="neutral" variant="outline" :label="t('board.bulk.clearDue')" @click="setDue(null)" />
         </form>
       </template>
     </UPopover>
-    <UButton color="neutral" variant="ghost" icon="i-lucide-archive" :label="t('board.bulk.archive')" @click="emit('apply', { archived: true })" />
+    <UButton color="neutral" variant="ghost" icon="i-lucide-archive" :aria-label="t('board.bulk.archive')" @click="emit('apply', { archived: true })"><span class="hidden sm:inline">{{ t('board.bulk.archive') }}</span></UButton>
     <UTooltip :text="t('board.bulk.clear')">
       <UButton color="neutral" variant="ghost" icon="i-lucide-x" :aria-label="t('board.bulk.clear')" @click="emit('clear')" />
     </UTooltip>

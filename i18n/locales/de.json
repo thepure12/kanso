@@ -101,7 +101,9 @@
     "signOut": "Abmelden",
     "search": "Suchen",
     "install": "App installieren",
-    "myWork": "Meine Arbeit"
+    "myWork": "Meine Arbeit",
+    "lightMode": "Heller Modus",
+    "darkMode": "Dunkler Modus"
   },
   "shortcuts": {
     "title": "Tastenkürzel",
@@ -1261,7 +1263,9 @@
     "undatedLabel": "Karten ohne Datum",
     "noDue": "Ohne Fälligkeit",
     "noStart": "Ohne Beginn",
-    "dragHint": "Zieh Karten auf einen Tag, um das Datum zu setzen, oder hierher, um es zu entfernen."
+    "dragHint": "Zieh Karten auf einen Tag, um das Datum zu setzen, oder hierher, um es zu entfernen.",
+    "noneThisMonth": "Keine Karten in diesem Monat",
+    "tapHint": "Tippe auf eine Karte, um ihre Termine zu ändern"
   },
   "boardFields": {
     "title": "Felder",

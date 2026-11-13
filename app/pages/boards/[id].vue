@@ -454,12 +454,12 @@ const boardMenu = computed(() => {
     :class="view !== 'board' || groupBy !== 'none' ? 'flex-none h-[calc(100dvh-var(--ui-header-height))]' : 'flex-1'"
     :style="bgStyle"
   >
-    <div class="sticky top-(--ui-header-height) z-20" :class="backed ? 'bg-default/85 backdrop-blur-sm' : 'bg-default/75 backdrop-blur'">
-      <div class="flex flex-wrap items-center gap-3 px-4 sm:px-6 py-2.5 border-b border-default">
+    <div class="sm:sticky sm:top-(--ui-header-height) z-20" :class="backed ? 'bg-default/85 backdrop-blur-sm' : 'bg-default/75 backdrop-blur'">
+      <div class="flex flex-wrap items-center gap-x-1 gap-y-2 sm:gap-3 px-2 sm:px-6 py-2 sm:py-2.5 border-b border-default">
         <UTooltip :text="t('board.allBoards')">
           <UButton to="/" icon="i-lucide-arrow-left" color="neutral" variant="ghost" :aria-label="t('board.allBoards')" />
         </UTooltip>
-        <div class="min-w-0 flex items-center gap-1.5 text-lg">
+        <div class="min-w-0 max-sm:flex-1 flex items-center gap-1.5 text-base sm:text-lg">
           <template v-if="board.team">
             <ULink :to="`/teams/${board.team.id}`" class="text-muted hover:underline truncate shrink-[2]">
               {{ board.team.name }}
@@ -489,15 +489,16 @@ const boardMenu = computed(() => {
           <UBadge color="warning" variant="subtle" icon="i-lucide-wifi-off" :label="t('pwa.readOnly')" />
         </UTooltip>
         <UBadge v-else-if="!canEdit" color="neutral" variant="subtle" icon="i-lucide-eye" :label="t('board.viewOnly')" />
-        <div class="order-last basis-full 2xl:order-none 2xl:basis-0 2xl:flex-1 min-w-0 flex flex-wrap items-center gap-2">
+        <div class="order-last basis-full 2xl:order-none 2xl:basis-0 2xl:flex-1 min-w-0 flex max-sm:flex-nowrap max-sm:overflow-x-auto flex-wrap items-center gap-2">
           <USeparator orientation="vertical" class="h-6 mx-1 hidden 2xl:block" />
-          <UTabs v-model="view" :items="viewItems" :content="false" size="sm" :aria-label="t('board.viewLabel')" />
+          <UTabs v-model="view" :items="viewItems" :content="false" size="sm" :aria-label="t('board.viewLabel')" :ui="{ label: 'sr-only sm:not-sr-only' }" />
           <USelect
             v-if="view === 'board'"
             v-model="groupBy"
             :items="groupByItems(fields, t)"
             icon="i-lucide-rows-3"
-            class="w-40"
+            class="shrink-0 sm:w-40"
+            :ui="{ base: 'max-sm:h-8', value: 'max-sm:sr-only', placeholder: 'max-sm:sr-only', content: 'min-w-48' }"
             :aria-label="t('board.swimlanes')"
           />
           <USelect
@@ -505,19 +506,24 @@ const boardMenu = computed(() => {
             v-model="columnGroupModel"
             :items="columnGroupItems"
             icon="i-lucide-columns-3"
-            class="w-40"
+            class="shrink-0 sm:w-40"
+            :ui="{ base: 'max-sm:h-8', value: 'max-sm:sr-only', placeholder: 'max-sm:sr-only', content: 'min-w-48' }"
             :aria-label="t('columnGroups.show')"
           />
           <USeparator orientation="vertical" class="h-6 mx-1 hidden sm:block" />
           <BoardFilters ref="filters" v-model="filter" class="flex-1 min-w-0" :tags="tags" :fields="fields" :members="board.members" :shown="visibleIds.size" :total="allCards.length" />
           <USeparator orientation="vertical" class="h-6 mx-1 hidden 2xl:block" />
         </div>
-        <div class="ms-auto flex items-center gap-2">
-          <UAvatarGroup :max="4" size="sm">
+        <div class="ms-auto flex items-center gap-1 sm:gap-2">
+          <UAvatarGroup :max="4" size="sm" class="hidden sm:flex">
             <UAvatar v-for="m in board.members" :key="m.userId" :src="m.avatarUrl ?? undefined" :alt="m.name" />
           </UAvatarGroup>
-          <UButton v-if="canEdit" icon="i-lucide-tags" color="neutral" variant="outline" :label="t('board.tags')" @click="tagsOpen = true" />
-          <UButton icon="i-lucide-users" color="neutral" variant="outline" :label="t('board.members')" @click="membersOpen = true" />
+          <UButton v-if="canEdit" icon="i-lucide-tags" color="neutral" variant="outline" :aria-label="t('board.tags')" @click="tagsOpen = true">
+            <span class="hidden sm:inline">{{ t('board.tags') }}</span>
+          </UButton>
+          <UButton icon="i-lucide-users" color="neutral" variant="outline" :aria-label="t('board.members')" @click="membersOpen = true">
+            <span class="hidden sm:inline">{{ t('board.members') }}</span>
+          </UButton>
           <UDropdownMenu :items="boardMenu">
             <UButton icon="i-lucide-ellipsis" color="neutral" variant="ghost" :aria-label="t('board.actions')" />
           </UDropdownMenu>
@@ -591,8 +597,8 @@ const boardMenu = computed(() => {
         @rename="(card, title) => updateCard(card, { title })"
       />
     </div>
-    <div v-else class="flex-1 overflow-x-auto">
-      <div class="flex items-start gap-4 p-4 sm:p-6 min-h-full w-max min-w-full">
+    <div v-else class="flex-1 overflow-x-auto snap-x snap-proximity sm:snap-none scroll-px-3">
+      <div class="flex items-start gap-3 sm:gap-4 p-3 sm:p-6 min-h-full w-max min-w-full">
         <VueDraggable
           v-model="columns"
           :disabled="!canEdit || !!shownGroup"
@@ -607,7 +613,7 @@ const boardMenu = computed(() => {
             v-for="col in columns"
             v-show="shownColumnIds.has(col.id)"
             :key="col.id"
-            class="relative shrink-0 rounded-lg flex flex-col max-h-[calc(100vh-14rem)]"
+            class="relative shrink-0 snap-start rounded-lg flex flex-col max-h-[calc(100dvh-14rem)]"
             :class="[!effectiveColumnOutline(col, board.columnOutline) && ['ring', wipState(col) === 'over' ? 'ring-error' : 'ring-default'], backed ? 'bg-elevated/95 shadow-lg' : 'bg-elevated/60']"
             :style="[columnWidths.styleOf(col.id), columnOutlineStyle(effectiveColumnOutline(col, board.columnOutline), wipState(col) === 'over', col.color) ?? {}]"
           >
@@ -635,7 +641,7 @@ const boardMenu = computed(() => {
               class="flex flex-wrap items-center gap-x-2 gap-y-1.5 px-3 py-2 rounded-t-lg"
               :style="col.color ? { backgroundColor: col.color, color: contrastText(col.color) } : undefined"
             >
-              <UIcon v-if="canEdit && !shownGroup" name="i-lucide-grip-vertical" class="column-handle cursor-grab" :class="col.color ? 'opacity-60' : 'text-dimmed'" />
+              <UIcon v-if="canEdit && !shownGroup" name="i-lucide-grip-vertical" class="column-handle cursor-grab pointer-coarse:size-6" :class="col.color ? 'opacity-60' : 'text-dimmed'" />
               <input
                 v-if="renamingColumnId === col.id"
                 :ref="focusRenameInput"
@@ -671,7 +677,7 @@ const boardMenu = computed(() => {
               </UTooltip>
               <UBadge v-else color="neutral" variant="soft" size="sm" :label="String(lists[col.id]?.length ?? 0)" />
               <UDropdownMenu v-if="canEdit" :items="columnMenu(col)">
-                <UButton icon="i-lucide-ellipsis" size="xs" color="neutral" variant="ghost" :aria-label="t('board.column.actions')" :class="col.color && 'text-inherit hover:bg-black/10'" />
+                <UButton icon="i-lucide-ellipsis" size="xs" color="neutral" variant="ghost" class="pointer-coarse:p-1.5" :aria-label="t('board.column.actions')" :class="col.color && 'text-inherit hover:bg-black/10'" />
               </UDropdownMenu>
               <!-- On a coloured header the chips sit on a translucent strip so chips of the column's own colour stay visible. -->
               <div
@@ -701,6 +707,9 @@ const boardMenu = computed(() => {
               group="cards"
               :disabled="dragDisabled"
               :animation="150"
+              :delay="200"
+              :delay-on-touch-only="true"
+              :touch-start-threshold="5"
               filter=".card-title-edit"
               :prevent-on-filter="false"
               ghost-class="opacity-40"
@@ -742,7 +751,7 @@ const boardMenu = computed(() => {
           </section>
         </VueDraggable>
 
-        <div v-if="canEdit" class="w-72 shrink-0" :class="backed && 'bg-default/85 backdrop-blur-sm rounded-lg p-1'">
+        <div v-if="canEdit" class="w-72 max-w-[calc(100vw-3rem)] shrink-0 snap-start" :class="backed && 'bg-default/85 backdrop-blur-sm rounded-lg p-1'">
           <InlineAdd :label="t('board.addColumn')" :placeholder="t('board.columnTitle')" @add="title => addColumn(title, shownGroup?.id)" />
         </div>
       </div>

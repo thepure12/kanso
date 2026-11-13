@@ -242,8 +242,12 @@ async function onLeftTeam() {
         {{ t('home.title') }}
       </h1>
       <div class="flex gap-2">
-        <UButton icon="i-lucide-users" color="neutral" variant="outline" :label="t('home.newTeam')" @click="teamOpen = true" />
-        <UButton icon="i-lucide-upload" color="neutral" variant="outline" :label="t('home.import.label')" @click="newBoard(null, true)" />
+        <UButton icon="i-lucide-users" color="neutral" variant="outline" :aria-label="t('home.newTeam')" @click="teamOpen = true">
+          <span class="hidden sm:inline">{{ t('home.newTeam') }}</span>
+        </UButton>
+        <UButton icon="i-lucide-upload" color="neutral" variant="outline" :aria-label="t('home.import.label')" @click="newBoard(null, true)">
+          <span class="hidden sm:inline">{{ t('home.import.label') }}</span>
+        </UButton>
         <UButton icon="i-lucide-plus" :label="t('home.newBoard')" @click="newBoard()" />
       </div>
     </div>

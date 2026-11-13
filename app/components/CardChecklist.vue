@@ -71,7 +71,7 @@ function rename(item: ChecklistItem, e: Event) {
             color="neutral"
             variant="ghost"
             :aria-label="t('checklist.deleteItem')"
-            class="opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
+            class="pointer-fine:opacity-0 pointer-fine:group-hover:opacity-100 focus-visible:opacity-100"
             @click="props.cd.deleteChecklistItem(item)"
           />
         </UTooltip>

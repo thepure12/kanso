@@ -18,6 +18,10 @@ const weeks = computed(() => monthGrid(month.value))
 const weekdays = computed(() => weekdayNames(locale.value))
 const byDate = computed(() => cardsByDate(props.cards, mode.value))
 const undated = computed(() => byDate.value.get(null) ?? [])
+/** Phones list the month's days that have cards instead of the 7-column grid. */
+const agenda = computed(() => weeks.value.flat()
+  .filter(d => monthOf(d) === month.value)
+  .flatMap(d => byDate.value.get(d)?.length ? [{ date: d, cards: byDate.value.get(d)! }] : []))
 const tagColor = (card: Card) => props.tags.find(t => card.tagIds.includes(t.id))?.color
 
 // Drag and drop between days (native HTML drag events; editors only).
@@ -48,6 +52,7 @@ function drop(date: string | null) {
 }
 
 const dayLabel = (date: string) => new Date(`${date}T00:00`).toLocaleDateString(locale.value, { dateStyle: 'full' })
+const agendaDay = (date: string) => new Date(`${date}T00:00`).toLocaleDateString(locale.value, { weekday: 'short', day: 'numeric', month: 'short' })
 </script>
 
 <template>
@@ -66,8 +71,31 @@ const dayLabel = (date: string) => new Date(`${date}T00:00`).toLocaleDateString(
         </h2>
         <USelect v-model="mode" :items="modeItems" icon="i-lucide-calendar" class="w-36 ms-auto" :aria-label="t('calendar.placeBy')" />
       </div>
+      <ol class="sm:hidden flex flex-col gap-3" :aria-label="monthTitle(month, locale)">
+        <li v-for="day in agenda" :key="day.date" class="flex gap-3">
+          <span
+            class="w-16 shrink-0 text-xs pt-1.5"
+            :class="day.date === props.today ? 'text-primary font-semibold' : 'text-muted'"
+          >{{ agendaDay(day.date) }}</span>
+          <div class="flex-1 min-w-0 flex flex-col gap-1.5">
+            <button
+              v-for="card in day.cards"
+              :key="card.id"
+              type="button"
+              class="text-left text-sm rounded px-2 py-1.5 bg-default ring ring-default truncate border-s-4"
+              :style="{ borderInlineStartColor: tagColor(card) ?? 'var(--ui-border-accented)' }"
+              @click="emit('open', card.id)"
+            >
+              {{ card.title }}
+            </button>
+          </div>
+        </li>
+        <li v-if="!agenda.length" class="text-sm text-muted py-4 text-center">
+          {{ t('calendar.noneThisMonth') }}
+        </li>
+      </ol>
       <div
-        class="flex-1 grid grid-cols-7 rounded-lg ring ring-default overflow-hidden"
+        class="flex-1 hidden sm:grid grid-cols-7 rounded-lg ring ring-default overflow-hidden"
         :style="{ gridTemplateRows: `auto repeat(${weeks.length}, minmax(7rem, 1fr))` }"
         role="grid"
         :aria-label="monthTitle(month, locale)"
@@ -143,8 +171,11 @@ const dayLabel = (date: string) => new Date(`${date}T00:00`).toLocaleDateString(
             </button>
           </UTooltip>
         </div>
-        <p v-if="props.canEdit" class="text-xs text-dimmed">
+        <p v-if="props.canEdit" class="text-xs text-dimmed pointer-coarse:hidden">
           {{ t('calendar.dragHint') }}
+        </p>
+        <p v-if="props.canEdit" class="text-xs text-dimmed hidden pointer-coarse:block">
+          {{ t('calendar.tapHint') }}
         </p>
       </aside>
     </div>

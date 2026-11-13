@@ -60,15 +60,16 @@ const dueItems = computed(() => (['any', 'overdue', 'today', 'week', 'none', 'st
 </script>
 
 <template>
-  <div class="flex flex-wrap items-center gap-2">
+  <div class="flex max-sm:flex-nowrap flex-wrap items-center gap-2">
     <UPopover :content="{ align: 'start' }">
-      <UButton icon="i-lucide-list-filter" color="neutral" :variant="panelCount ? 'soft' : 'outline'" :label="t('filters.button')">
+      <UButton icon="i-lucide-list-filter" color="neutral" :variant="panelCount ? 'soft' : 'outline'" :aria-label="t('filters.button')">
+        <span class="hidden sm:inline">{{ t('filters.button') }}</span>
         <template v-if="panelCount" #trailing>
           <UBadge :label="String(panelCount)" size="sm" variant="solid" />
         </template>
       </UButton>
       <template #content>
-        <div class="p-4 w-72 flex flex-col gap-3">
+        <div class="p-4 w-[min(18rem,calc(100vw-2rem))] flex flex-col gap-3">
           <UFormField :label="t('filters.tags')">
             <USelectMenu
               v-model="filter.tagIds"
@@ -131,7 +132,7 @@ const dueItems = computed(() => (['any', 'overdue', 'today', 'week', 'none', 'st
       v-model="filter.text"
       icon="i-lucide-search"
       :placeholder="t('filters.search')"
-      class="w-48"
+      class="w-36 sm:w-48 shrink-0"
       :aria-label="t('filters.search')"
       @blur="closeSearchIfEmpty"
       @keydown.esc="onSearchEscape"
@@ -140,7 +141,7 @@ const dueItems = computed(() => (['any', 'overdue', 'today', 'week', 'none', 'st
       <UButton icon="i-lucide-search" color="neutral" variant="ghost" :aria-label="t('filters.search')" @click="openSearch" />
     </UTooltip>
     <template v-if="active">
-      <span class="text-sm text-muted">{{ t('filters.shown', { shown: props.shown, total: props.total }, props.total) }}</span>
+      <span class="text-sm text-muted whitespace-nowrap">{{ t('filters.shown', { shown: props.shown, total: props.total }, props.total) }}</span>
       <UButton size="sm" color="neutral" variant="ghost" icon="i-lucide-x" :label="t('common.clear')" @click="filter = emptyFilter()" />
     </template>
   </div>

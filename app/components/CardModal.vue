@@ -45,6 +45,8 @@ const emit = defineEmits<{
 }>()
 const open = defineModel<boolean>('open', { required: true })
 const { t } = useI18n()
+// Phones get a full-screen dialog with Save in a footer instead of at the end of the sidebar.
+const isMobile = useIsMobile()
 const choose = useChoice()
 const toast = useToast()
 
@@ -261,7 +263,7 @@ const tabs = computed(() => [
 </script>
 
 <template>
-  <UModal v-model:open="open" :title="props.canEdit ? (props.template ? t('card.editTemplate') : t('card.editCard')) : form.title" :ui="{ content: 'sm:max-w-4xl' }">
+  <UModal v-model:open="open" :title="props.canEdit ? (props.template ? t('card.editTemplate') : t('card.editCard')) : form.title" :fullscreen="isMobile" :ui="{ content: 'sm:max-w-4xl' }">
     <template #body>
       <div class="grid gap-6 md:grid-cols-[1fr_16rem]" @keydown="onModKeydown">
         <div class="space-y-6 min-w-0">
@@ -445,7 +447,7 @@ const tabs = computed(() => [
                   <TagChip :tag="picking?.id === tag.id ? { ...tag, color: picking.color } : tag" />
                 </button>
                 <template #content>
-                  <div v-if="picking" class="p-4 w-72">
+                  <div v-if="picking" class="p-4 w-[min(18rem,calc(100vw-2rem))]">
                     <ColorField v-model="picking.color" />
                   </div>
                 </template>
@@ -527,8 +529,10 @@ const tabs = computed(() => [
           />
 
           <template v-if="props.canEdit">
-            <UButton type="submit" form="card-form" block :label="t('common.save')" :disabled="!dirty || invalid" />
-            <USeparator />
+            <template v-if="!isMobile">
+              <UButton type="submit" form="card-form" block :label="t('common.save')" :disabled="!dirty || invalid" />
+              <USeparator />
+            </template>
             <div class="flex flex-col gap-1">
               <template v-if="!props.template">
                 <UButton color="neutral" variant="ghost" icon="i-lucide-copy-plus" :label="t('card.saveAsTemplate')" class="justify-start" @click="saveTemplate" />
@@ -539,6 +543,9 @@ const tabs = computed(() => [
           </template>
         </aside>
       </div>
+    </template>
+    <template v-if="isMobile && props.canEdit" #footer>
+      <UButton type="submit" form="card-form" block :label="t('common.save')" :disabled="!dirty || invalid" />
     </template>
   </UModal>
 </template>

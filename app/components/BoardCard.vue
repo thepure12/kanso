@@ -49,6 +49,8 @@ function onClick(e: MouseEvent | KeyboardEvent) {
 
 // Inline title edit: double-click the title (or F2 on the focused card), Enter or blur saves, Escape cancels.
 // A single click on the title waits for a possible second click before it opens the card.
+// On touch screens a tap opens the card at once (no double-tap edit, so no wait).
+const coarsePointer = useCoarsePointer()
 const editingTitle = ref(false)
 const titleDraft = ref('')
 const titleInput = ref<{ textareaRef?: HTMLTextAreaElement } | null>(null)
@@ -60,7 +62,7 @@ function cancelOpen() {
 onBeforeUnmount(cancelOpen)
 function onTitleClick(e: MouseEvent) {
   // Selection clicks and read-only cards behave like a click anywhere on the card.
-  if (!props.canEdit || props.selecting || e.ctrlKey || e.metaKey || e.shiftKey) return
+  if (!props.canEdit || props.selecting || coarsePointer.value || e.ctrlKey || e.metaKey || e.shiftKey) return
   e.stopPropagation()
   cancelOpen()
   if (e.detail === 1) openTimer = setTimeout(() => {
@@ -114,7 +116,7 @@ const dueAriaLabel = computed(() => {
         :aria-label="t(props.selected ? 'boardCard.deselect' : 'boardCard.select')"
         :aria-pressed="props.selected"
         class="absolute z-10 top-1 right-7 transition"
-        :class="props.selected || props.selecting ? 'opacity-100' : 'opacity-0 group-hover:opacity-100 focus-visible:opacity-100'"
+        :class="props.selected || props.selecting ? 'opacity-100' : 'pointer-fine:opacity-0 pointer-fine:group-hover:opacity-100 focus-visible:opacity-100'"
         @click.stop="emit('select')"
       />
     </UTooltip>
@@ -125,7 +127,7 @@ const dueAriaLabel = computed(() => {
         color="neutral"
         variant="ghost"
         :aria-label="t('boardCard.delete')"
-        class="absolute z-10 top-1 right-1 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition"
+        class="absolute z-10 top-1 right-1 pointer-fine:opacity-0 pointer-fine:group-hover:opacity-100 focus-visible:opacity-100 transition"
         @click.stop="emit('delete')"
       />
     </UTooltip>

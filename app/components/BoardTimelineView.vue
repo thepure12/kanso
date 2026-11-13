@@ -37,7 +37,8 @@ const isWeekend = (date: string) => [0, 6].includes(new Date(`${date}T00:00`).ge
 </script>
 
 <template>
-  <div class="flex flex-col gap-3 max-h-full">
+  <!-- --tl-label: width of the sticky card title column (narrower on phones). -->
+  <div class="flex flex-col gap-3 max-h-full [--tl-label:7rem] sm:[--tl-label:14rem]">
     <div class="flex flex-wrap items-center gap-2">
       <USelect v-model="zoom" :items="zoomItems" icon="i-lucide-zoom-in" class="w-32" :aria-label="t('timeline.zoom')" />
       <UButton color="neutral" variant="outline" :label="t('views.today')" @click="scrollToToday" />
@@ -47,10 +48,10 @@ const isWeekend = (date: string) => [0, 6].includes(new Date(`${date}T00:00`).ge
     </div>
     <!-- Grows with the rows up to the window height, then scrolls; the date header stays on top. -->
     <div v-if="groups.length" ref="scroller" class="min-h-0 overflow-auto rounded-lg ring ring-default">
-      <div class="relative" :style="{ width: `calc(14rem + ${width}px)` }">
+      <div class="relative" :style="{ width: `calc(var(--tl-label) + ${width}px)` }">
         <!-- Header: months, then days (week zoom) or week starts (month zoom). -->
         <div class="flex sticky top-0 z-10 bg-default border-b border-default">
-          <div class="w-56 shrink-0 sticky left-0 z-20 bg-default border-e border-default" />
+          <div class="w-(--tl-label) shrink-0 sticky left-0 z-20 bg-default border-e border-default" />
           <div class="relative" :style="{ width: `${width}px` }">
             <div class="relative h-6 border-b border-default">
               <span
@@ -75,7 +76,7 @@ const isWeekend = (date: string) => [0, 6].includes(new Date(`${date}T00:00`).ge
 
         <template v-for="g in groups" :key="g.col.id">
           <div class="flex bg-elevated/60 border-b border-default">
-            <div class="w-56 shrink-0 sticky left-0 z-[5] px-3 py-1 text-sm font-medium truncate bg-elevated border-e border-default">
+            <div class="w-(--tl-label) shrink-0 sticky left-0 z-[5] px-3 py-1 text-sm font-medium truncate bg-elevated border-e border-default">
               {{ g.col.title }}
             </div>
             <div :style="{ width: `${width}px` }" />
@@ -84,7 +85,7 @@ const isWeekend = (date: string) => [0, 6].includes(new Date(`${date}T00:00`).ge
             <UTooltip :text="card.title" :content="{ side: 'right' }">
               <button
                 type="button"
-                class="w-56 shrink-0 sticky left-0 z-[5] px-3 py-1.5 text-sm text-left truncate bg-default border-e border-default hover:underline"
+                class="w-(--tl-label) shrink-0 sticky left-0 z-[5] px-3 py-1.5 text-sm text-left truncate bg-default border-e border-default hover:underline"
                 @click="emit('open', card.id)"
               >
                 {{ card.title }}
@@ -116,7 +117,7 @@ const isWeekend = (date: string) => [0, 6].includes(new Date(`${date}T00:00`).ge
 
         <div
           class="absolute top-0 bottom-0 w-0.5 bg-error/70 pointer-events-none z-[6]"
-          :style="{ left: `calc(14rem + ${(todayOffset + 0.5) * dayWidth}px)` }"
+          :style="{ left: `calc(var(--tl-label) + ${(todayOffset + 0.5) * dayWidth}px)` }"
           aria-hidden="true"
         />
       </div>

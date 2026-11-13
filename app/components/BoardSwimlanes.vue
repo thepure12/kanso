@@ -78,7 +78,7 @@ function onDrop(laneKey: string, columnId: string, e: SortableEvent) {
         :key="col.id"
         class="shrink-0 rounded-lg px-3 py-2 flex items-center gap-2 bg-elevated"
         :class="!frames[col.id] && 'ring ring-default'"
-        :style="[{ width: `${props.columnWidth(col.id)}px` }, col.color ? { backgroundColor: col.color, color: contrastText(col.color) } : {}, frames[col.id] ?? {}]"
+        :style="[{ width: `${props.columnWidth(col.id)}px`, maxWidth: 'calc(100vw - 3rem)' }, col.color ? { backgroundColor: col.color, color: contrastText(col.color) } : {}, frames[col.id] ?? {}]"
       >
         <h2 class="font-medium truncate flex-1">
           {{ col.title }}
@@ -101,6 +101,9 @@ function onDrop(laneKey: string, columnId: string, e: SortableEvent) {
           :group="group(lane.key)"
           :disabled="props.dragDisabled"
           :animation="150"
+          :delay="200"
+          :delay-on-touch-only="true"
+          :touch-start-threshold="5"
           :force-auto-scroll-fallback="true"
           :scroll-sensitivity="80"
           :scroll-speed="16"
@@ -109,7 +112,7 @@ function onDrop(laneKey: string, columnId: string, e: SortableEvent) {
           ghost-class="opacity-40"
           class="shrink-0 rounded-lg bg-elevated/60 flex flex-col gap-2 p-2 min-h-12"
           :class="!frames[col.id] && 'ring ring-default'"
-          :style="[{ width: `${props.columnWidth(col.id)}px` }, frames[col.id] ?? {}]"
+          :style="[{ width: `${props.columnWidth(col.id)}px`, maxWidth: 'calc(100vw - 3rem)' }, frames[col.id] ?? {}]"
           :data-lane="lane.key"
           :data-column="col.id"
           @start="emit('dragging', true)"
