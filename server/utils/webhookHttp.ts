@@ -65,14 +65,20 @@ function safeLookup(allowPrivate: boolean): LookupFunction {
   }
 }
 
-export interface PostResult { ok: boolean, status: number | null, error: string | null }
+export interface PostResult {
+  ok: boolean
+  status: number | null
+  error: string | null
+  /** Start of the response body (500 bytes), for logs. */
+  body?: string
+}
 
 /**
  * POSTs `body` and reports the outcome; never throws. 2xx is success.
  * Redirects are not followed, the whole exchange times out after `timeoutMs`
  * and at most 64 KB of the response is read.
  */
-export function postWebhook(url: string, body: string, headers: Record<string, string>, allowPrivate: boolean, timeoutMs = 5000): Promise<PostResult> {
+export function postWebhook(url: string, body: string | Buffer, headers: Record<string, string>, allowPrivate: boolean, timeoutMs = 5000): Promise<PostResult> {
   const problem = webhookUrlProblem(url, allowPrivate)
   if (problem) return Promise.resolve({ ok: false, status: null, error: problem })
   const u = new URL(url)
@@ -93,13 +99,15 @@ export function postWebhook(url: string, body: string, headers: Record<string, s
     }, (res) => {
       const status = res.statusCode ?? 0
       let size = 0
+      let head = ''
       res.on('data', (chunk: Buffer) => {
+        if (head.length < 500) head += chunk.toString('utf8').slice(0, 500 - head.length)
         size += chunk.length
         if (size > 65_536) res.destroy()
       })
       const settle = () => finish(status >= 200 && status < 300
         ? { ok: true, status, error: null }
-        : { ok: false, status, error: status >= 300 && status < 400 ? `Redirect (HTTP ${status}) not followed` : `HTTP ${status}` })
+        : { ok: false, status, error: status >= 300 && status < 400 ? `Redirect (HTTP ${status}) not followed` : `HTTP ${status}`, body: head })
       res.on('end', settle)
       res.on('close', settle)
       res.on('error', settle)

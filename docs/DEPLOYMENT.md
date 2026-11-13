@@ -87,7 +87,8 @@ proxy, see [Your own reverse proxy](#your-own-reverse-proxy).
 
 For the embedded Postgres, stop both services and copy `~/.local/share/kanso/pg-data` (see
 [Backups (embedded)](#backups-embedded)); with `systemd-pg`, use `pg_dump`. Also keep the `.env` files: without
-`NUXT_SESSION_PASSWORD` (or `NUXT_TOTP_KEY`) two-factor secrets cannot be read.
+`NUXT_SESSION_PASSWORD` (or `NUXT_TOTP_KEY`) two-factor secrets cannot be read, and push subscriptions (keyed by
+`NUXT_SESSION_PASSWORD` unless `NUXT_PUSH_VAPID_*` is set) stop working until each browser visits again.
 
 ## Docker Compose (local)
 

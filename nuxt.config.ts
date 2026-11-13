@@ -29,8 +29,8 @@ export default defineNuxtConfig({
   nitro: {
     experimental: { tasks: true },
     // Daily email digest (server/tasks/notifications/digest.ts), server time;
-    // recurring cards (server/tasks/cards/recurring.ts); board automations (server/tasks/cards/automations.ts); trash purge (server/tasks/cards/trash.ts); webhook retries (server/tasks/webhooks/deliver.ts).
-    scheduledTasks: { '0 7 * * *': ['notifications:digest'], '*/15 * * * *': ['cards:recurring'], '0 * * * *': ['cards:automations'], '30 3 * * *': ['cards:trash'], '* * * * *': ['webhooks:deliver'] },
+    // recurring cards (server/tasks/cards/recurring.ts); board automations (server/tasks/cards/automations.ts); trash purge (server/tasks/cards/trash.ts); webhook retries (server/tasks/webhooks/deliver.ts); push retries (server/tasks/push/deliver.ts).
+    scheduledTasks: { '0 7 * * *': ['notifications:digest'], '*/15 * * * *': ['cards:recurring'], '0 * * * *': ['cards:automations'], '30 3 * * *': ['cards:trash'], '* * * * *': ['webhooks:deliver', 'push:deliver'] },
   },
   // UI text lives in i18n/locales/<code>.json (lazy-loaded). No URL prefixes: the
   // locale comes from the user's saved preference (users.locale, applied by the
@@ -77,6 +77,8 @@ export default defineNuxtConfig({
       navigateFallback: null,
       globPatterns: ['**/*.{js,css,svg,png,ico,woff,woff2}'],
       cleanupOutdatedCaches: true,
+      // Web Push handlers (public/push-sw.js), resolved next to sw.js, so under the base path too.
+      importScripts: ['push-sw.js'],
       // Cache names must match app/utils/pwaCache.ts (userCacheNames). The patterns are
       // serialised into sw.js and cannot see baseURL: they match the path below the
       // service worker's scope (the base path), so they work at the root and under it.
@@ -123,6 +125,10 @@ export default defineNuxtConfig({
     // NUXT_WEBHOOK_ALLOW_PRIVATE=true lets webhooks reach loopback and private
     // addresses. For development and tests only: it opens the server to SSRF.
     webhook: { allowPrivate: false },
+    // Web Push (server/utils/push.ts). VAPID keys as base64url (`npx web-push
+    // generate-vapid-keys`); empty: derived from the session password. subject:
+    // contact for push services (https: or mailto:), empty: site URL or admin email.
+    push: { vapidPublicKey: '', vapidPrivateKey: '', subject: '' },
     mail: { smtpUrl: '', from: '', logLinks: process.env.NODE_ENV !== 'production' },
     public: {
       // Base URL for links in emails, e.g. https://kanban.example.com. Required in production.

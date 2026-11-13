@@ -712,3 +712,38 @@ export const webhookDeliveries = pgTable('webhook_deliveries', {
   nextAttemptAt: timestamp('next_attempt_at', { withTimezone: true }).notNull().defaultNow(),
   createdAt: createdAt(),
 }, t => [index('webhook_deliveries_due_idx').on(t.nextAttemptAt).where(sql`${t.status} = 'pending'`)])
+
+// Web Push: one row per browser that turned push on (see 0068_push_rls.sql).
+// Tied to the sign-in session that subscribed: revoking or deleting the session
+// deletes the subscription, so a signed-out device gets nothing. Written only
+// through app.save_push_subscription (moves an endpoint between users when
+// someone else signs in on the same browser); users read and delete their own.
+// kanban_app cannot read the encryption keys.
+export const pushSubscriptions = pgTable('push_subscriptions', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  sessionId: uuid('session_id').notNull().references(() => userSessions.id, { onDelete: 'cascade' }),
+  endpoint: text('endpoint').notNull().unique(),
+  p256dh: text('p256dh').notNull(),
+  auth: text('auth').notNull(),
+  userAgent: text('user_agent'),
+  createdAt: createdAt(),
+  lastSuccessAt: timestamp('last_success_at', { withTimezone: true }),
+  failureCount: integer('failure_count').notNull().default(0),
+}, t => [
+  index('push_subscriptions_user_idx').on(t.userId),
+  index('push_subscriptions_session_idx').on(t.sessionId),
+  check('push_subscriptions_endpoint', sql`${t.endpoint} ~ '^https?://' and char_length(${t.endpoint}) <= 2000`),
+  check('push_subscriptions_keys', sql`char_length(${t.p256dh}) between 80 and 100 and char_length(${t.auth}) between 16 and 40`),
+])
+
+// Outbox: one row per notification of a user with push subscriptions, queued by
+// a notifications trigger and sent by server/utils/push.ts (on NOTIFY and every
+// minute). No grants: only app.* functions touch it.
+export const pushMessages = pgTable('push_messages', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  notificationId: uuid('notification_id').notNull().unique().references(() => notifications.id, { onDelete: 'cascade' }),
+  attempts: integer('attempts').notNull().default(0),
+  nextAttemptAt: timestamp('next_attempt_at', { withTimezone: true }).notNull().defaultNow(),
+  createdAt: createdAt(),
+}, t => [index('push_messages_due_idx').on(t.nextAttemptAt)])

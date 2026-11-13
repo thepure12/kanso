@@ -181,6 +181,32 @@ async function setDesktop(on: boolean) {
   if (!await desktop.setEnabled(on)) toast.add({ title: t('account.notifications.desktopBlocked'), color: 'warning' })
 }
 
+// Push notifications: this browser's subscription, also when Kanso is closed.
+const push = usePushNotifications()
+const pushBusy = ref(false)
+onMounted(() => push.sync().catch(() => {}))
+const pushHint = computed(() => {
+  if (push.state.value === 'unsupported') return t('account.notifications.pushUnsupported')
+  if (push.state.value === 'denied') return t('account.notifications.desktopBlocked')
+  return t('account.notifications.pushDescription')
+})
+async function setPush(on: boolean) {
+  pushBusy.value = true
+  try {
+    if (!await push.setEnabled(on)) toast.add({ title: push.state.value === 'denied' ? t('account.notifications.desktopBlocked') : t('account.notifications.pushFailed'), color: 'warning' })
+  }
+  catch (err) { showError(err, t('account.notifications.pushFailed')) }
+  finally { pushBusy.value = false }
+}
+async function testPush() {
+  try {
+    const { sent } = await push.test()
+    if (sent) toast.add({ title: t('account.notifications.pushTestSent'), description: t('account.notifications.desktopTestHint') })
+    else toast.add({ title: t('account.notifications.pushTestFailed'), color: 'warning' })
+  }
+  catch (err) { showError(err, t('account.notifications.pushTestFailed')) }
+}
+
 // Language: saved on the account (also used for emails and webhook messages)
 // and applied now; 'auto' clears it and goes back to the browser's language.
 const { setLocale } = useI18n()
@@ -386,6 +412,22 @@ const providerLabel: Record<string, string> = { discord: 'Discord', github: 'Git
           <h2 class="text-lg font-medium">
             {{ t('account.notifications.thisDevice') }}
           </h2>
+          <div class="flex items-start gap-4">
+            <USwitch
+              :model-value="push.state.value === 'on'"
+              :disabled="pushBusy || push.state.value === 'unsupported' || push.state.value === 'denied'"
+              :loading="pushBusy"
+              :label="t('account.notifications.push')"
+              :description="pushHint"
+              class="flex-1"
+              @update:model-value="setPush"
+            />
+            <UButton
+              size="sm" color="neutral" variant="outline" icon="i-lucide-bell-ring"
+              :label="t('account.notifications.desktopTest')" :disabled="push.state.value !== 'on'"
+              @click="testPush"
+            />
+          </div>
           <USwitch
             :model-value="desktop.toasts.value"
             :label="t('account.notifications.toasts')"

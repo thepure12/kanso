@@ -56,7 +56,7 @@ describe('postWebhook', () => {
       expect(await postWebhook(`http://localhost:${(server.address() as AddressInfo).port}/ok`, '{}', {}, false)).toMatchObject({ ok: false, status: null })
       expect(received).toEqual([])
       expect(await postWebhook(`${base}/ok`, '{"a":1}', {}, true)).toEqual({ ok: true, status: 204, error: null })
-      expect(await postWebhook(`${base}/fail`, '{}', {}, true)).toEqual({ ok: false, status: 500, error: 'HTTP 500' })
+      expect(await postWebhook(`${base}/fail`, '{}', {}, true)).toEqual({ ok: false, status: 500, error: 'HTTP 500', body: '' })
       expect(await postWebhook(`${base}/redirect`, '{}', {}, true)).toMatchObject({ ok: false, status: 302 })
       expect(await postWebhook(`${base}/slow`, '{}', {}, true, 100)).toMatchObject({ ok: false, status: null, error: expect.stringMatching(/Timed out/) })
       expect(received).toEqual(['/ok {"a":1}', '/fail {}', '/redirect {}', '/slow {}'])

@@ -277,7 +277,15 @@
       "desktopTestFailed": "Could not show the test notification",
       "desktopTestHint": "If nothing appears, check that your system allows notifications from this browser and that Do Not Disturb is off.",
       "desktopFocused": "Desktop notifications while Kanso is focused",
-      "desktopFocusedDescription": "Also show system notifications while you are looking at Kanso."
+      "desktopFocusedDescription": "Also show system notifications while you are looking at Kanso.",
+      "push": "Push notifications on this device",
+      "pushDescription": "Get notifications even when Kanso is closed. Your browser asks for permission.",
+      "pushUnsupported": "Push notifications are not available in this browser.",
+      "pushFailed": "Could not turn on push notifications",
+      "pushTestTitle": "Test notification",
+      "pushTestBody": "Push notifications work on this device.",
+      "pushTestSent": "Test notification sent",
+      "pushTestFailed": "Could not send the test notification"
     },
     "delete": {
       "title": "Delete account",

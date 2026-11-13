@@ -62,3 +62,8 @@ export async function onUserNotification(userId: string, fn: () => void): Promis
 export async function onWebhooksQueued(fn: () => void): Promise<void> {
   await listen('board_webhooks', () => fn())
 }
+
+/** Calls `fn` whenever push messages are queued (push_messages, see 0068_push_rls.sql). */
+export async function onPushQueued(fn: () => void): Promise<void> {
+  await listen('push_messages', () => fn())
+}

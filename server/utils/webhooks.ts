@@ -95,7 +95,8 @@ export async function pingWebhook(webhookId: string, target: { url: string, form
   }, target.secret, webhookSiteUrl(), serverI18n(target.locale))
   const res = await postWebhook(target.url, body, headers, webhookAllowPrivate())
   await useAuthDb().execute(sql`select app.record_webhook_result(${webhookId}, ${res.ok}, ${res.status}::integer, ${res.error}, false)`)
-  return res
+  // Not the response body: owners must not read what arbitrary URLs answer.
+  return { ok: res.ok, status: res.status, error: res.error }
 }
 
 const w = schema.boardWebhooks

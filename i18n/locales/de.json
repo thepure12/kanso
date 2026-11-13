@@ -277,7 +277,15 @@
       "desktopTestFailed": "Testbenachrichtigung konnte nicht angezeigt werden",
       "desktopTestHint": "Wenn nichts erscheint, prüfe, ob dein System Benachrichtigungen von diesem Browser erlaubt und „Nicht stören“ aus ist.",
       "desktopFocused": "Desktop-Benachrichtigungen, wenn Kanso im Vordergrund ist",
-      "desktopFocusedDescription": "Systembenachrichtigungen auch, während du Kanso ansiehst."
+      "desktopFocusedDescription": "Systembenachrichtigungen auch, während du Kanso ansiehst.",
+      "push": "Push-Benachrichtigungen auf diesem Gerät",
+      "pushDescription": "Benachrichtigungen auch erhalten, wenn Kanso geschlossen ist. Dein Browser fragt nach der Erlaubnis.",
+      "pushUnsupported": "Push-Benachrichtigungen sind in diesem Browser nicht verfügbar.",
+      "pushFailed": "Push-Benachrichtigungen konnten nicht eingeschaltet werden",
+      "pushTestTitle": "Testbenachrichtigung",
+      "pushTestBody": "Push-Benachrichtigungen funktionieren auf diesem Gerät.",
+      "pushTestSent": "Testbenachrichtigung gesendet",
+      "pushTestFailed": "Die Testbenachrichtigung konnte nicht gesendet werden"
     },
     "delete": {
       "title": "Konto löschen",

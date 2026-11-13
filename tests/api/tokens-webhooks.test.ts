@@ -1,13 +1,13 @@
-// HTTP API tests for personal access tokens and board webhooks. Builds and
-// starts the app like boards.test.ts; webhooks may reach a local receiver here
+// HTTP API tests for personal access tokens, board webhooks and Web Push. Builds and
+// starts the app like boards.test.ts; webhooks and push may reach a local receiver here
 // (NUXT_WEBHOOK_ALLOW_PRIVATE).
-import { createHmac, randomUUID } from 'node:crypto'
+import { createDecipheriv, createECDH, createHmac, hkdfSync, randomBytes, randomUUID } from 'node:crypto'
 import { createServer, type IncomingHttpHeaders } from 'node:http'
 import type { AddressInfo } from 'node:net'
 import { setup, url } from '@nuxt/test-utils/e2e'
 import postgres from 'postgres'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import type { ApiToken } from '#shared/types/account'
+import type { ApiToken, PushSettings } from '#shared/types/account'
 import type { BoardDetail, Card } from '#shared/types/board'
 import type { InstanceSettings } from '#shared/types/admin'
 import type { BoardWebhook, WebhookTestResult } from '#shared/types/webhooks'
@@ -205,17 +205,18 @@ describe('api tokens', () => {
 })
 
 describe('webhooks', () => {
-  const received: { path: string, headers: IncomingHttpHeaders, body: string }[] = []
+  const received: { path: string, headers: IncomingHttpHeaders, body: string, raw: Buffer }[] = []
   let receiver: ReturnType<typeof createServer>
   let hookUrl = ''
 
   beforeAll(async () => {
     receiver = createServer((req, res) => {
-      let body = ''
-      req.on('data', (c) => { body += c })
+      const chunks: Buffer[] = []
+      req.on('data', (c: Buffer) => { chunks.push(c) })
       req.on('end', () => {
-        received.push({ path: req.url!, headers: req.headers, body })
-        res.writeHead(req.url === '/fail' ? 500 : 200).end('ok')
+        const raw = Buffer.concat(chunks)
+        received.push({ path: req.url!, headers: req.headers, body: raw.toString(), raw })
+        res.writeHead(req.url === '/fail' ? 500 : req.url!.includes('/gone') ? 410 : 200).end('ok')
       })
     })
     await new Promise<void>(r => receiver.listen(0, '127.0.0.1', r))
@@ -322,5 +323,79 @@ describe('webhooks', () => {
     const on = await alice.req<BoardWebhook>(`/api/webhooks/${hook.id}`, { method: 'PATCH', body: { active: true, events: ['moved'] } })
     expect(on.data).toMatchObject({ active: true, failureCount: 0, events: ['moved'] })
     await alice.req(`/api/webhooks/${hook.id}`, { method: 'DELETE' })
+  })
+
+  // Web Push shares the receiver: a fake push service that records the request,
+  // which the test decrypts like a browser would (RFC 8291 aes128gcm).
+  describe('web push', () => {
+    function browserKeys() {
+      const ecdh = createECDH('prime256v1')
+      ecdh.generateKeys()
+      return { ecdh, p256dh: ecdh.getPublicKey().toString('base64url'), auth: randomBytes(16) }
+    }
+
+    function decrypt(body: Buffer, keys: ReturnType<typeof browserKeys>): unknown {
+      const salt = body.subarray(0, 16)
+      const idLen = body[20]!
+      const serverPublic = body.subarray(21, 21 + idLen)
+      const shared = keys.ecdh.computeSecret(serverPublic)
+      const info = Buffer.concat([Buffer.from('WebPush: info\0'), keys.ecdh.getPublicKey(), serverPublic])
+      const ikm = Buffer.from(hkdfSync('sha256', shared, keys.auth, info, 32))
+      const cek = Buffer.from(hkdfSync('sha256', ikm, salt, Buffer.from('Content-Encoding: aes128gcm\0'), 16))
+      const nonce = Buffer.from(hkdfSync('sha256', ikm, salt, Buffer.from('Content-Encoding: nonce\0'), 12))
+      const ct = body.subarray(21 + idLen)
+      const d = createDecipheriv('aes-128-gcm', cek, nonce)
+      d.setAuthTag(ct.subarray(ct.length - 16))
+      const plain = Buffer.concat([d.update(ct.subarray(0, ct.length - 16)), d.final()])
+      return JSON.parse(plain.subarray(0, plain.lastIndexOf(2)).toString())
+    }
+
+    it('saves a subscription for the session, sends encrypted, VAPID-signed messages and drops dead ones', async () => {
+      const settings = (await alice.req<PushSettings>('/api/account/push')).data
+      expect(Buffer.from(settings.publicKey, 'base64url')).toHaveLength(65)
+      const keys = browserKeys()
+      const endpoint = `${hookUrl}/push/alice`
+      for (const body of [
+        { endpoint, keys: { p256dh: 'short', auth: keys.auth.toString('base64url') } },
+        { endpoint: 'ftp://example.com/x', keys: { p256dh: keys.p256dh, auth: keys.auth.toString('base64url') } },
+      ]) {
+        expect((await alice.req('/api/account/push', { method: 'POST', body })).status, JSON.stringify(body)).toBe(400)
+      }
+      expect((await alice.req('/api/account/push', { method: 'POST', body: { endpoint, keys: { p256dh: keys.p256dh, auth: keys.auth.toString('base64url') } } })).status).toBe(200)
+      expect((await alice.req<PushSettings>('/api/account/push')).data.devices.map(d => d.endpoint)).toEqual([endpoint])
+      expect((await bob.req<PushSettings>('/api/account/push')).data.devices).toEqual([])
+      // Not for API tokens.
+      const token = await newToken(['read', 'write'])
+      expect((await call('/api/account/push', { token: token.token })).status).toBe(403)
+
+      // Test message.
+      expect((await alice.req('/api/account/push/test', { method: 'POST', body: { endpoint } })).data).toEqual({ sent: 1, total: 1 })
+      const test = await waitFor(() => received.find(r => r.path === '/push/alice'))
+      expect(test.headers['content-encoding']).toBe('aes128gcm')
+      expect(test.headers.authorization).toMatch(new RegExp(`^vapid t=[\\w-]+\\.[\\w-]+\\.[\\w-]+, k=${settings.publicKey}$`))
+      expect(Number(test.headers.ttl)).toBeGreaterThan(0)
+      expect(decrypt(test.raw, keys)).toMatchObject({ title: 'Test notification', force: true })
+
+      // A notification: Bob assigns Alice.
+      const card = (await bob.req<Card>(`/api/boards/${board.id}/cards`, { method: 'POST', body: { columnId: board.columns[0]!.id, title: 'Push me' } })).data
+      expect((await bob.req(`/api/cards/${card.id}`, { method: 'PATCH', body: { assigneeIds: [alice.id] } })).status).toBe(200)
+      const pushed = await waitFor(() => received.filter(r => r.path === '/push/alice')[1])
+      const msg = decrypt(pushed.raw, keys) as { title: string, body: string, url: string, readUrl: string, tag: string }
+      expect(msg).toMatchObject({ title: 'Push me', url: `/boards/${board.id}?card=${card.id}` })
+      expect(msg.body).toMatch(/^Bob .+\nToken board$/)
+      expect(msg.readUrl).toMatch(/^\/api\/notifications\/[0-9a-f-]{36}$/)
+      expect(msg.tag).toBe(`kanso-notification-${msg.readUrl.split('/').pop()}`)
+
+      // The push service says the endpoint is gone: the subscription is dropped.
+      const gone = `${hookUrl}/push/gone`
+      expect((await bob.req('/api/account/push', { method: 'POST', body: { endpoint: gone, keys: { p256dh: browserKeys().p256dh, auth: randomBytes(16).toString('base64url') } } })).status).toBe(200)
+      expect((await bob.req('/api/account/push/test', { method: 'POST', body: {} })).data).toEqual({ sent: 0, total: 1 })
+      expect((await bob.req<PushSettings>('/api/account/push')).data.devices).toEqual([])
+      expect((await bob.req('/api/account/push/test', { method: 'POST', body: {} })).status).toBe(404)
+
+      // Turning it off on the device.
+      expect((await alice.req('/api/account/push', { method: 'DELETE', body: { endpoint } })).status).toBe(204)
+      expect((await alice.req<PushSettings>('/api/account/push')).data.devices).toEqual([])
+    })
   })
 })

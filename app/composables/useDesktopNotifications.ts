@@ -59,6 +59,7 @@ const MAX_TOASTS = 3
  */
 export function useDesktopNotifier() {
   const { enabled, whenFocused, toasts, sync } = useDesktopNotifications()
+  const push = usePushNotifications()
   const { user } = useUserSession()
   const i18n = useI18nContext()
   const toast = useToast()
@@ -113,7 +114,9 @@ export function useDesktopNotifier() {
     if (!fresh.length) return
     const desktop = enabled.value && desktopNotificationsSupported() && Notification.permission === 'granted'
     const focused = document.visibilityState === 'visible' && document.hasFocus()
-    if (showDesktopNotification({ focused, desktop, desktopWhenFocused: whenFocused.value })) showDesktop(fresh, open)
+    // With push on, the service worker shows them while Kanso is not focused (public/push-sw.js).
+    const byPush = push.state.value === 'on' && !focused
+    if (!byPush && showDesktopNotification({ focused, desktop, desktopWhenFocused: whenFocused.value })) showDesktop(fresh, open)
     if (toasts.value) showToasts(fresh, open)
   }
 

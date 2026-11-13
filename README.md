@@ -103,7 +103,8 @@ lives in Postgres row-level security policies. The app holds none of its own.
   optional expiry. See [docs/API.md](docs/API.md).
 - **Import** from a Kanso JSON export, a Trello board export or a CSV (Jira, spreadsheets), with a preview first.
   **Export** a board as JSON or its cards as CSV.
-- **Notifications** in the app (live), plus an optional daily email digest.
+- **Notifications** in the app (live), as push notifications on phones and desktops even while Kanso is closed
+  (per device, on the account page; needs https), plus an optional daily email digest.
 
 </details>
 

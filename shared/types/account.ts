@@ -48,3 +48,18 @@ export interface ApiToken {
   expiresAt: string | null
   revokedAt: string | null
 }
+
+/** A browser that receives push notifications (GET /api/account/push). */
+export interface PushDevice {
+  id: string
+  endpoint: string
+  userAgent: string | null
+  createdAt: string
+  lastSuccessAt: string | null
+}
+
+/** GET /api/account/push: the server's VAPID public key and the user's push devices. */
+export interface PushSettings {
+  publicKey: string
+  devices: PushDevice[]
+}
