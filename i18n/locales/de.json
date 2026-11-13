@@ -846,7 +846,7 @@
   "attachments": {
     "title": "Anhänge",
     "upload": "Hochladen",
-    "empty": "Zieh Dateien hierher oder nutze „Hochladen“. Bis zu 10 MB pro Datei.",
+    "empty": "Zieh Dateien hierher, füge sie ein oder nutze „Hochladen“. Bis zu 10 MB pro Datei.",
     "tooBig": "Dateien dürfen höchstens 10 MB groß sein",
     "confirmDelete": "{name} löschen?",
     "cover": "Titelbild",

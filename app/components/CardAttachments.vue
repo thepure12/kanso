@@ -41,6 +41,17 @@ function onDrop(e: DragEvent) {
   if (props.canEdit) upload([...e.dataTransfer?.files ?? []])
 }
 
+// Pasting files or a screenshot anywhere in the open card attaches them.
+function onPaste(e: ClipboardEvent) {
+  if (!props.canEdit || !props.items) return
+  const files = pastedFiles(e.clipboardData, isTextField(e.target))
+  if (!files.length) return
+  e.preventDefault()
+  upload(files)
+}
+onMounted(() => document.addEventListener('paste', onPaste))
+onBeforeUnmount(() => document.removeEventListener('paste', onPaste))
+
 async function remove(a: Attachment) {
   if (await confirm({ title: t('attachments.confirmDelete', { name: a.name }), confirmLabel: t('common.delete') })) props.cd.deleteAttachment(a)
 }

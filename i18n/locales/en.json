@@ -846,7 +846,7 @@
   "attachments": {
     "title": "Attachments",
     "upload": "Upload",
-    "empty": "Drop files here or use Upload. Up to 10 MB each.",
+    "empty": "Drop or paste files here, or use Upload. Up to 10 MB each.",
     "tooBig": "Files must be 10 MB or smaller",
     "confirmDelete": "Delete {name}?",
     "cover": "Cover",
