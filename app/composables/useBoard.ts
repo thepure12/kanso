@@ -90,6 +90,15 @@ export async function useBoard(id: string) {
   const redo = () => step('redo')
   const record = (label: string, undo: () => Promise<void>, redo?: () => Promise<void>) => undoStack.push({ label, undo, redo })
   provide(boardUndoKey, { record, refresh: () => refresh() })
+  // Colours in use, offered as quick picks by the colour pickers. Lazy: the refs below exist by the time it is read.
+  provide(boardColorsKey, computed(() => ({
+    tags: tags.value,
+    columns: columns.value,
+    columnGroups: columnGroups.value,
+    fields: fields.value,
+    columnOutline: board.value?.columnOutline,
+    background: board.value?.background,
+  })))
 
   // Registered before the first await, while the component instance is known.
   const offline = useOffline()

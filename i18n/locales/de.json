@@ -1196,7 +1196,8 @@
     "today": "Heute",
     "changeColour": "Farbe von {name} ändern",
     "useColour": "{colour} verwenden",
-    "hex": "Hex"
+    "hex": "Hex",
+    "boardColours": "Auf diesem Board"
   },
   "boardCard": {
     "delete": "Karte löschen",
@@ -1368,6 +1369,7 @@
     "accent": "Boardfarbe",
     "column": "Spaltenfarbe",
     "custom": "Eigene Farbe",
+    "usedColour": "{colour} · auf diesem Board",
     "width": "Stärke",
     "widthPx": "{n} px",
     "glow": "Leuchten",

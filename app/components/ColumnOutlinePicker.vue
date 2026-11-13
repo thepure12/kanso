@@ -9,9 +9,13 @@ const props = defineProps<{
 const outline = defineModel<ColumnOutline>({ required: true })
 const { t } = useI18n()
 
+// Colours already used on the board, offered after the presets.
+const sources = inject(boardColorsKey, null)
+const used = computed(() => sources ? boardColors(sources.value, columnOutlineColors) : [])
+
 const customColor = computed(() => {
   const c = outline.value.color
-  return c && c !== 'accent' && c !== 'column' && !(columnOutlineColors as readonly string[]).includes(c) ? c : null
+  return c && c !== 'accent' && c !== 'column' && !(columnOutlineColors as readonly string[]).includes(c) && !used.value.includes(c) ? c : null
 })
 const preview = computed(() => columnOutlineStyle(outline.value, false, props.columnColor) ?? {})
 
@@ -78,6 +82,17 @@ const ring = (current: boolean) => current ? 'ring-2 ring-primary' : 'hover:ring
           :aria-pressed="outline.color === c"
           @click="set({ color: c })"
         />
+        <UTooltip v-for="c in used" :key="`used-${c}`" :text="t('columnOutline.usedColour', { colour: c })">
+          <button
+            type="button"
+            class="ring-inset ring-1 ring-black/10"
+            :class="[tile, ring(outline.color === c)]"
+            :style="{ backgroundColor: c }"
+            :aria-label="t('columnOutline.usedColour', { colour: c })"
+            :aria-pressed="outline.color === c"
+            @click="set({ color: c })"
+          />
+        </UTooltip>
         <UTooltip :text="t('columnOutline.custom')">
           <label
             class="flex items-center justify-center cursor-pointer border border-dashed border-accented text-muted hover:text-default"
