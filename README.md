@@ -58,7 +58,7 @@ lives in Postgres row-level security policies. The app holds none of its own.
 <details>
 <summary><b>Cards</b></summary>
 
-- Markdown description, tags, several assignees, start and due date, priority, and an estimate in story points
+- Markdown description, card tags, several assignees, start and due date, priority, and an estimate in story points
   (summed in the column header).
 - Checklists, comments with `@mentions`, file attachments up to 10 MB (stored in Postgres; an image can be the cover),
   time tracking (`1h30m`, `45m` or `1:30`) and an activity log.
@@ -76,8 +76,8 @@ lives in Postgres row-level security policies. The app holds none of its own.
 
 - **Views** (`?view=`, remembered per board): Board, sortable/groupable List with inline status change, month
   Calendar (drag a card to another day) and a read-only Timeline (week/month zoom).
-- **Swimlanes** group the Board view by assignee, priority, tag or a select field.
-- **Filter** a board by text, tag, assignee, priority, due date, start date and select/checkbox field values.
+- **Swimlanes** group the Board view by assignee, priority, card tag or a select field.
+- **Filter** a board by text, card tag, assignee, priority, due date, start date and select/checkbox field values.
 - **Command palette** (Ctrl/Cmd+K): search cards, comments, boards and columns across all your boards, jump to boards
   and run actions. Press **?** for keyboard shortcuts.
 - **My work** (`g m`): the cards assigned to you or that you watch, grouped by due date.
@@ -90,12 +90,12 @@ lives in Postgres row-level security policies. The app holds none of its own.
 <details>
 <summary><b>Automation and integrations</b></summary>
 
-- **Column rules** run when a card enters a column: apply a tag, remove a tag, add an assignee, set the due date.
+- **Column rules** run when a card enters a column: apply a card tag, remove a card tag, add an assignee, set the due date.
   Columns also have a colour and a soft WIP limit.
 - **Board automations** run every hour: archive cards that have sat in the last column for N days, tag stale cards or
   notify their assignees and watchers, raise the priority of cards due within N days. They show up in the activity
   log as "Automation", so notifications and webhooks follow.
-- **Card templates**: "Save as template" keeps a copy (description, tags, checklist, estimate, priority, field values,
+- **Card templates**: "Save as template" keeps a copy (description, card tags, checklist, estimate, priority, field values,
   optionally assignees). A template can **repeat** daily, weekly (chosen weekdays) or monthly, optionally with a due date.
 - **Webhooks** (owners): send card activity as signed JSON, or as Slack or Discord messages. Retried with backoff,
   turned off after 20 failures in a row; only public addresses are reachable.

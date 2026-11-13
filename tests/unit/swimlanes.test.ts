@@ -35,7 +35,7 @@ describe('swimlanes', () => {
     expect(buildLanes(cards, 'priority', ctx).map(l => l.key)).toEqual(['urgent', 'high', 'medium', 'low', 'none'])
     expect(buildLanes(cards, 'field:f', ctx).map(l => l.label)).toEqual(['S', 'L', 'No Size'])
     expect(buildLanes(cards, 'assignee', ctx).map(l => l.key)).toEqual(['u2', 'none'])
-    expect(buildLanes(cards, 'tag', ctx).map(l => l.label)).toEqual(['bug', 'No tag'])
+    expect(buildLanes(cards, 'tag', ctx).map(l => l.label)).toEqual(['bug', 'No card tag'])
   })
 
   it('validates groupings and offers select fields only', () => {

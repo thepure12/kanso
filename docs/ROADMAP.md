@@ -24,9 +24,9 @@ Builds on the MCP endpoint (`POST /api/mcp`, see `docs/API.md`). Candidates:
 Save the current filter, view (board/list/calendar/timeline) and swimlane grouping under a name. Personal (own rows) or
 shared on the board (editors manage, viewers read). New table with RLS and a notify trigger for shared ones.
 
-## Column groups in every view
-The column group picker only narrows the board view (and its swimlanes) today. Apply it to the list, calendar and
-timeline views too, showing only cards in the group's columns, and keep it with saved views.
+## Column tags in every view
+The column tag picker only narrows the board view (and its swimlanes) today. Apply it to the list, calendar and
+timeline views too, showing only cards in the tagged columns, and keep it with saved views.
 
 ## Calendar (iCal) feed
 A per-user secret URL serving start and due dates of the cards from My work as `text/calendar`, for Google Calendar,
