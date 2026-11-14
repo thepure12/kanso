@@ -68,6 +68,7 @@ Errors come back as JSON with `statusCode` and `statusMessage`: `400` invalid in
 | GET | `/api/boards/:id/trash` | Trashed cards, newest first (editors) |
 | DELETE | `/api/boards/:id/trash` | Empty the trash; `/api/boards/:id/trash/:cardId` deletes one card for good |
 | POST | `/api/cards/:id/comments` | Comment `{ body }` (Markdown) |
+| PUT / DELETE | `/api/comments/:id/reactions` | Add or remove your reaction `{ emoji }` (one of 👍 👎 😄 🎉 😕 ❤️ 🚀 👀); returns the comment's reactions |
 | POST | `/api/cards/:id/checklist` | Add a checklist item `{ text }` |
 | POST | `/api/boards/:id/members` | Share `{ email, role }` (owners) |
 | GET | `/api/teams`, `/api/teams/:id` | Teams and a team's boards and members |

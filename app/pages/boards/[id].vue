@@ -855,6 +855,7 @@ const boardMenu = computed(() => {
       :columns="columns"
       :can-edit="canEdit"
       :is-owner="isOwner && !archived"
+      :can-react="!archived && !offline"
       :create-tag="addTag"
       :remote-version="remoteVersion"
       :template="editingTemplate"

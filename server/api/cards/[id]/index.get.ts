@@ -25,10 +25,11 @@ export default defineUserHandler(async (event, tx, userId): Promise<CardDetail> 
     tx.select({ fieldId: fv.fieldId, value: fv.value }).from(fv).where(eq(fv.cardId, id)),
   ])
 
+  const reactions = await loadReactions(tx, comments.map(c => c.id), userId)
   const iso = (d: Date) => d.toISOString()
   return {
     checklist,
-    comments: comments.map(c => ({ ...c, createdAt: iso(c.createdAt), updatedAt: iso(c.updatedAt) })),
+    comments: comments.map(c => ({ ...c, createdAt: iso(c.createdAt), updatedAt: iso(c.updatedAt), reactions: reactions.get(c.id) ?? [] })),
     attachments: attachments.map(a => ({ ...a, createdAt: iso(a.createdAt) })),
     activity: activity.map(a => ({ ...a, kind: a.kind as Activity['kind'], data: a.data as Activity['data'], createdAt: iso(a.createdAt) })),
     timeEntries,

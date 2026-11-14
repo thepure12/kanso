@@ -13,6 +13,6 @@ export default defineUserHandler(async (event, tx, userId): Promise<Comment> => 
   const [me] = await tx.select({ name: users.name, avatarUrl: users.avatarUrl }).from(users).where(eq(users.id, userId))
   return {
     id: c!.id, authorId: userId, authorName: me?.name ?? null, authorAvatarUrl: me?.avatarUrl ?? null, importedAuthor: null,
-    body: c!.body, createdAt: c!.createdAt.toISOString(), updatedAt: c!.updatedAt.toISOString(),
+    body: c!.body, createdAt: c!.createdAt.toISOString(), updatedAt: c!.updatedAt.toISOString(), reactions: [],
   }
 })

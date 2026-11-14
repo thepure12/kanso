@@ -873,10 +873,13 @@
     "imported": "Importiert",
     "edit": "Kommentar bearbeiten",
     "delete": "Kommentar löschen",
+    "react": "Reaktion hinzufügen",
+    "reactedBy": "{names} hat mit {emoji} reagiert | {names} haben mit {emoji} reagiert",
     "errors": {
       "add": "Der Kommentar konnte nicht hinzugefügt werden",
       "save": "Der Kommentar konnte nicht gespeichert werden",
-      "delete": "Der Kommentar konnte nicht gelöscht werden"
+      "delete": "Der Kommentar konnte nicht gelöscht werden",
+      "react": "Die Reaktion konnte nicht gespeichert werden"
     }
   },
   "attachments": {

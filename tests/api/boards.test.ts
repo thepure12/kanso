@@ -553,6 +553,20 @@ describe('card details', () => {
     expect((await bob.req(`/api/comments/${c.id}`, { method: 'PATCH', body: { body: 'edited' } })).status).toBe(200)
     expect((await bob.req(`/api/cards/${cardId}/comments`, { method: 'POST', body: { body: '   ' } })).status).toBe(400)
     expect((await outsider.req(`/api/cards/${cardId}/comments`, { method: 'POST', body: { body: 'x' } })).status).toBe(404)
+
+    // Reactions: grouped per emoji, idempotent, own rows only.
+    expect(c.reactions).toEqual([])
+    const reactions = `/api/comments/${c.id}/reactions`
+    await alice.req(reactions, { method: 'PUT', body: { emoji: '👍' } })
+    await alice.req(reactions, { method: 'PUT', body: { emoji: '👍' } })
+    const { data: both } = await bob.req(reactions, { method: 'PUT', body: { emoji: '👍' } })
+    expect(both).toEqual([{ emoji: '👍', count: 2, mine: true, names: ['Alice', 'Bob'] }])
+    expect((await bob.req(reactions, { method: 'PUT', body: { emoji: '🦄' } })).status).toBe(400)
+    expect((await outsider.req(reactions, { method: 'PUT', body: { emoji: '👍' } })).status).toBe(404)
+    expect((await bob.req(reactions, { method: 'DELETE', body: { emoji: '👍' } })).data).toEqual([{ emoji: '👍', count: 1, mine: false, names: ['Alice'] }])
+    const detail = (await alice.req<CardDetail>(`/api/cards/${cardId}`)).data
+    expect(detail.comments.find(x => x.id === c.id)!.reactions).toEqual([{ emoji: '👍', count: 1, mine: true, names: ['Alice'] }])
+
     expect((await alice.req(`/api/comments/${c.id}`, { method: 'DELETE' })).status).toBe(200)
   })
 

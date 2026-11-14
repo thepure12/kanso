@@ -1,4 +1,4 @@
-import type { Attachment, CardDetail, CardLink, CardLinkKind, ChecklistItem, Comment, TimeEntry, Watcher } from '#shared/types/board'
+import type { Attachment, CardDetail, CardLink, CardLinkKind, ChecklistItem, Comment, CommentReaction, TimeEntry, Watcher } from '#shared/types/board'
 
 /**
  * Checklist, comments, attachments, time entries, watchers, links and activity of one card,
@@ -104,6 +104,27 @@ export function useCardDetail(cardId: Ref<string>) {
       d.comments = d.comments.filter(c => c.id !== comment.id)
       await api(`/api/comments/${comment.id}`, { method: 'DELETE' })
     }, t('comments.errors.delete')),
+
+    /** Adds or removes the current user's reaction (optimistic). */
+    toggleReaction: async (comment: Comment, emoji: string, myName: string) => {
+      const group = comment.reactions.find(r => r.emoji === emoji)
+      const remove = !!group?.mine
+      if (remove) {
+        group!.count--
+        group!.mine = false
+        group!.names = group!.names.filter(n => n !== myName)
+        if (!group!.count) comment.reactions = comment.reactions.filter(r => r !== group)
+      }
+      else if (group) Object.assign(group, { count: group.count + 1, mine: true, names: [...group.names, myName] })
+      else comment.reactions.push({ emoji, count: 1, mine: true, names: [myName] })
+      try {
+        comment.reactions = await api<CommentReaction[]>(`/api/comments/${comment.id}/reactions`, { method: remove ? 'DELETE' : 'PUT', body: { emoji } })
+      }
+      catch (err) {
+        showError(err, t('comments.errors.react'))
+        await load()
+      }
+    },
 
     /** Uploads files (at most 5 per call) and returns the new attachments, or [] on failure. */
     upload: async (files: File[]) => {

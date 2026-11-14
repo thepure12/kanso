@@ -10,6 +10,7 @@ import { type BoardAccent, boardAccents } from '../../shared/boardAccents'
 import type { ColumnOutline } from '../../shared/columnOutline'
 import type { SavedViewConfig } from '../../shared/savedViews'
 import type { NotificationPrefs } from '../../shared/notificationSettings'
+import { reactionEmojis } from '../../shared/reactions'
 
 // Shape of a column outline (shared/columnOutline.ts): exactly color, width, glow.
 const outlineShape = (c: AnyPgColumn) => sql`${c} is null or (
@@ -488,9 +489,25 @@ export const cardComments = pgTable('card_comments', {
   search: tsvector('search').notNull().generatedAlwaysAs(sql`to_tsvector('simple'::regconfig, body)`),
 }, t => [
   cardFk('card_comments_card_board_fk', t),
+  // Target of the composite FK from comment_reactions.
+  unique('card_comments_id_board_unique').on(t.id, t.boardId),
   index('card_comments_card_idx').on(t.cardId),
   index('card_comments_search_idx').using('gin', t.search),
   check('card_comments_imported_author', sql`${t.importedAuthor} is null or (${t.authorId} is null and length(${t.importedAuthor}) between 1 and 100)`),
+])
+
+// One row per person and emoji on a comment. The composite FK pins board_id to
+// the comment's board, which the policies check. Emoji from shared/reactions.ts.
+export const commentReactions = pgTable('comment_reactions', {
+  commentId: uuid('comment_id').notNull(),
+  boardId: uuid('board_id').notNull(),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  emoji: text('emoji').notNull(),
+  createdAt: createdAt(),
+}, t => [
+  primaryKey({ columns: [t.commentId, t.userId, t.emoji] }),
+  foreignKey({ columns: [t.commentId, t.boardId], foreignColumns: [cardComments.id, cardComments.boardId], name: 'comment_reactions_comment_board_fk' }).onDelete('cascade'),
+  check('comment_reactions_emoji_known', sql`${t.emoji} in (${sql.raw(reactionEmojis.map(e => `'${e}'`).join(', '))})`),
 ])
 
 // Files live in Postgres so the same RLS policies guard downloads.

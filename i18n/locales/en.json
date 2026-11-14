@@ -873,10 +873,13 @@
     "imported": "Imported",
     "edit": "Edit comment",
     "delete": "Delete comment",
+    "react": "Add reaction",
+    "reactedBy": "{names} reacted with {emoji} | {names} reacted with {emoji}",
     "errors": {
       "add": "Could not add comment",
       "save": "Could not save comment",
-      "delete": "Could not delete comment"
+      "delete": "Could not delete comment",
+      "react": "Could not update reaction"
     }
   },
   "attachments": {

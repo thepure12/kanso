@@ -254,6 +254,17 @@ export interface Comment {
   body: string
   createdAt: string
   updatedAt: string
+  /** Grouped by emoji, in the order first used. */
+  reactions: CommentReaction[]
+}
+
+export interface CommentReaction {
+  emoji: string
+  count: number
+  /** The current user reacted with this emoji. */
+  mine: boolean
+  /** Who reacted (people the caller can still see). */
+  names: string[]
 }
 
 export interface Attachment {

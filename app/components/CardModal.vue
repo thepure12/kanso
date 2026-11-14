@@ -14,6 +14,8 @@ const props = defineProps<{
   columns: Column[]
   canEdit: boolean
   isOwner: boolean
+  /** Comment reactions: everyone on the board while it is not archived (and online). */
+  canReact?: boolean
   createTag: (tag: Omit<Tag, 'id'>) => Promise<Tag | undefined>
   /** Changes when someone else changed the board; the dialog then reloads its details. */
   remoteVersion: number
@@ -337,6 +339,7 @@ const tabs = computed(() => [
                   :items="cd.detail.value?.comments ?? null"
                   :can-edit="props.canEdit"
                   :is-owner="props.isOwner"
+                  :can-react="props.canReact ?? props.canEdit"
                   :cd="cd"
                   :members="props.members"
                 />
