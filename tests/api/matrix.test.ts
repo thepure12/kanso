@@ -399,6 +399,23 @@ describe('replying from the card', () => {
     })
   })
 
+  it('a reply right after one of the same person\'s leaves the name out', async () => {
+    const res = await send(bob, 'and **more**')
+    expect(res.status).toBe(200)
+    expect(fake.events.get(res.data.id)!.content).toMatchObject({
+      'body': 'and **more**',
+      'formatted_body': '<p>and <strong>more</strong></p>',
+      'app.kanso.author': { id: bob.id, name: 'Bob', continued: true },
+    })
+    const shown = (await carol.req<MatrixThreadView>(`/api/cards/${cardId}/matrix-thread`)).data.messages.find(m => m.id === res.data.id)!
+    expect(shown).toMatchObject({ senderName: 'Bob', kansoAuthorId: bob.id, body: 'and **more**', html: '<p>and <strong>more</strong></p>' })
+    // Someone else in between: the name is back.
+    const other = await send(alice, 'noted')
+    expect(fake.events.get(other.data.id)!.content.body).toBe('Alice\nnoted')
+    const again = await send(bob, 'back')
+    expect(fake.events.get(again.data.id)!.content.body).toBe('Bob\nback')
+  })
+
   it('a retried message is posted once', async () => {
     const id = randomUUID()
     const a = await send(bob, 'once', id)
@@ -549,6 +566,7 @@ describe('linking a Matrix account on the board', () => {
   })
 
   it('unlinking goes back to the name in bold', async () => {
+    post('@dana:matrix.test', 'in between', true)
     expect((await bob.req(`/api/boards/${boardId}/matrix/link`, { method: 'DELETE' })).status).toBe(200)
     expect((await bob.req(`/api/boards/${boardId}/matrix/link`, { method: 'DELETE' })).status).toBe(404)
     const res = await bob.req(`/api/cards/${cardId}/matrix-thread/messages`, { method: 'POST', body: { text: 'plain', clientId: randomUUID() } })

@@ -315,6 +315,8 @@ export interface KansoAuthor {
   id: string
   name: string
   mxid?: string
+  /** The reply follows one of theirs, so it was sent without the author line. */
+  continued?: true
 }
 
 /** matrix.to link of a Matrix user, which clients show as a pill. */
@@ -329,30 +331,53 @@ function authorHtml(author: KansoAuthor) {
 
 /**
  * A reply written in Kanso, sent by the bot into the thread: the author's name
- * on its own line above the text, a pill of their Matrix account when linked;
+ * on its own line above the text, a pill of their Matrix account when linked
+ * (left out when `continued`: the thread's latest message is already theirs);
  * Markdown rendered for formatted_body; the author in KANSO_AUTHOR_KEY so the
  * card's Matrix tab can show their name. Empty `m.mentions`: a pill or name
  * in the text notifies nobody.
  */
-export function threadReplyContent(rootId: string, author: KansoAuthor, text: string) {
+export function threadReplyContent(rootId: string, author: KansoAuthor, text: string, continued = false) {
   const html = (markdown.parse(text) as string).trim()
   const head = authorHtml(author)
+  const { continued: _, ...who } = author
   return {
     'msgtype': 'm.text',
-    'body': `${author.name}\n${text}`,
+    'body': continued ? text : `${author.name}\n${text}`,
     'format': 'org.matrix.custom.html',
-    'formatted_body': html.startsWith('<p>') ? `<p>${head}<br>${html.slice(3)}` : `${head}<br>${html}`,
+    'formatted_body': continued ? html : html.startsWith('<p>') ? `<p>${head}<br>${html.slice(3)}` : `${head}<br>${html}`,
     'm.relates_to': { 'rel_type': 'm.thread', 'event_id': rootId, 'is_falling_back': true, 'm.in_reply_to': { event_id: rootId } },
     'm.mentions': {},
-    [KANSO_AUTHOR_KEY]: author,
+    [KANSO_AUTHOR_KEY]: continued ? { ...who, continued: true } : who,
   }
 }
 
 /** The Kanso author recorded on one of the bot's messages, if any. */
 export function kansoAuthor(e: MatrixEvent): KansoAuthor | null {
-  const a = e.content[KANSO_AUTHOR_KEY] as { id?: unknown, name?: unknown, mxid?: unknown } | undefined
+  const a = e.content[KANSO_AUTHOR_KEY] as { id?: unknown, name?: unknown, mxid?: unknown, continued?: unknown } | undefined
   if (typeof a?.id !== 'string' || typeof a.name !== 'string') return null
-  return typeof a.mxid === 'string' ? { id: a.id, name: a.name, mxid: a.mxid } : { id: a.id, name: a.name }
+  return {
+    id: a.id,
+    name: a.name,
+    ...(typeof a.mxid === 'string' && { mxid: a.mxid }),
+    ...(a.continued === true && { continued: true as const }),
+  }
+}
+
+/**
+ * Whether the thread's latest reply is the bot's, written in Kanso by `userId`;
+ * then a new reply of theirs needs no author line. False when it cannot tell.
+ */
+export async function threadEndsWithAuthor(c: MatrixClient, roomId: string, rootId: string, botUserId: string, userId: string): Promise<boolean> {
+  try {
+    const page = await matrixRequest<{ chunk: MatrixEvent[] }>(c, 'GET',
+      `/rooms/${encodeURIComponent(roomId)}/relations/${encodeURIComponent(rootId)}/m.thread?dir=b&limit=1`, undefined, 'v1')
+    const last = page.chunk[0]
+    return !!last && last.sender === botUserId && !last.unsigned?.redacted_because && kansoAuthor(last)?.id === userId
+  }
+  catch {
+    return false
+  }
 }
 
 /**

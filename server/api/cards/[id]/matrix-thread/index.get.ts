@@ -33,7 +33,7 @@ export default defineUserHandler(async (event, tx, userId): Promise<MatrixThread
         kansoAuthorId: author?.id ?? null,
         kansoUserId: author?.id ?? (fromBot ? null : linked.get(e.sender) ?? null),
         createdAt: new Date(e.origin_server_ts).toISOString(),
-        ...(author ? withoutAuthorPrefix(content, author) : content),
+        ...(author && !author.continued ? withoutAuthorPrefix(content, author) : content),
       }
     })
     return { boardId: thread.boardId, roomId: thread.roomId, eventId: thread.eventId, messages, more, myLink }

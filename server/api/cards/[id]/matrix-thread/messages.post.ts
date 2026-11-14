@@ -28,10 +28,15 @@ export default defineUserHandler(async (event, tx, userId): Promise<MatrixThread
   const { boardMatrixUsers: u, cards } = schema
   const [link] = await tx.select({ mxid: u.mxid }).from(u).innerJoin(cards, eq(cards.boardId, u.boardId))
     .where(and(eq(cards.id, id), eq(u.userId, userId), isNotNull(u.verifiedAt)))
+  const [room] = await tx.select({ botUserId: schema.boardMatrixRooms.botUserId }).from(schema.boardMatrixRooms)
+    .innerJoin(cards, eq(cards.boardId, schema.boardMatrixRooms.boardId)).where(eq(cards.id, id))
   const author: KansoAuthor = { id: userId, name: me?.name ?? 'Kanso', ...(link && { mxid: link.mxid }) }
-  const content = threadReplyContent(target.event_id, author, text)
+  const client = { homeserverUrl: target.homeserver_url, accessToken }
+  // Several replies in a row from one person carry the author line only on the first.
+  const continued = !!room && await threadEndsWithAuthor(client, target.room_id, target.event_id, room.botUserId, userId)
+  const content = threadReplyContent(target.event_id, author, text, continued)
   try {
-    const eventId = await sendMessage({ homeserverUrl: target.homeserver_url, accessToken }, target.room_id, content, `kanso-${userId}-${clientId}`)
+    const eventId = await sendMessage(client, target.room_id, content, `kanso-${userId}-${clientId}`)
     return {
       id: eventId,
       sender: '',
