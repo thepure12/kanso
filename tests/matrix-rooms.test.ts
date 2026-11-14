@@ -1,6 +1,7 @@
 // RLS for board Matrix rooms: members read the connection, effective owners
 // manage it, the sealed token is never readable by kanban_app, and
-// app.matrix_room_credentials hands it to owners only.
+// app.matrix_room_credentials hands it to owners only. Card threads: members
+// read them, editors link and unlink (not while archived).
 import { randomUUID } from 'node:crypto'
 import postgres from 'postgres'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
@@ -21,8 +22,8 @@ async function createUser(name: string) {
 }
 
 type User = { id: string, email: string }
-let owner: User, editor: User, outsider: User
-let boardId: string
+let owner: User, editor: User, viewer: User, outsider: User
+let boardId: string, cardId: string
 
 const connect = (by: User, board = boardId) => as(by.id, sql => sql`
   insert into board_matrix_rooms (board_id, homeserver_url, room_id, bot_user_id, access_token, created_by)
@@ -31,10 +32,13 @@ const connect = (by: User, board = boardId) => as(by.id, sql => sql`
 const rooms = (by: User) => as(by.id, sql => sql`select room_id, bot_user_id from board_matrix_rooms where board_id = ${boardId}`)
 
 beforeAll(async () => {
-  ;[owner, editor, outsider] = await Promise.all(['owner', 'editor', 'outsider'].map(createUser)) as User[]
+  ;[owner, editor, viewer, outsider] = await Promise.all(['owner', 'editor', 'viewer', 'outsider'].map(createUser)) as User[]
   await as(owner.id, async (sql) => {
     ;[{ id: boardId }] = await sql`select id from app.create_board('Matrix board')` as any
     await sql`select app.add_board_member(${boardId}, ${editor.email}, 'editor')`
+    await sql`select app.add_board_member(${boardId}, ${viewer.email}, 'viewer')`
+    const [{ id: col }] = await sql`insert into columns (board_id, title, position) values (${boardId}, 'Todo', 1) returning id`
+    ;[{ id: cardId }] = await sql`insert into cards (board_id, column_id, title, position, created_by) values (${boardId}, ${col}, 'Card', 1, ${owner.id}) returning id` as any
   })
 })
 
@@ -74,5 +78,40 @@ describe('board_matrix_rooms', () => {
     await expect(as(owner.id, sql => sql`update board_matrix_rooms set homeserver_url = 'ftp://x' where board_id = ${boardId}`)).rejects.toMatchObject({ code: '23514' })
     expect(await as(editor.id, sql => sql`delete from board_matrix_rooms where board_id = ${boardId} returning board_id`)).toEqual([])
     expect(await as(owner.id, sql => sql`delete from board_matrix_rooms where board_id = ${boardId} returning board_id`)).toHaveLength(1)
+  })
+})
+
+describe('card_matrix_threads', () => {
+  const link = (by: User, createdBy = by.id) => as(by.id, sql => sql`
+    insert into card_matrix_threads (card_id, board_id, room_id, event_id, created_by)
+    values (${cardId}, ${boardId}, '!room:example', '$root', ${createdBy})`)
+  const threads = (by: User) => as(by.id, sql => sql`select event_id from card_matrix_threads where card_id = ${cardId}`)
+
+  it('editors link a card as themselves; viewers and outsiders cannot', async () => {
+    await expect(link(viewer)).rejects.toMatchObject({ code: '42501' })
+    await expect(link(outsider)).rejects.toMatchObject({ code: '42501' })
+    await expect(link(editor, owner.id)).rejects.toMatchObject({ code: '42501' })
+    await link(editor)
+    await expect(link(owner)).rejects.toMatchObject({ code: '23505' })
+  })
+
+  it('members read the link, outsiders do not', async () => {
+    expect(await threads(viewer)).toEqual([{ event_id: '$root' }])
+    expect(await threads(outsider)).toEqual([])
+  })
+
+  it('app.matrix_room_bot returns the room and token to anyone on the board', async () => {
+    await connect(owner)
+    const bot = { homeserver_url: 'https://matrix.example', room_id: '!room:example', access_token: 'sealed' }
+    expect(await as(viewer.id, sql => sql`select * from app.matrix_room_bot(${boardId})`)).toEqual([bot])
+    expect(await as(outsider.id, sql => sql`select * from app.matrix_room_bot(${boardId})`)).toEqual([])
+  })
+
+  it('nothing changes while the board is archived; viewers never unlink', async () => {
+    expect(await as(viewer.id, sql => sql`delete from card_matrix_threads where card_id = ${cardId} returning card_id`)).toEqual([])
+    await as(owner.id, sql => sql`select app.set_board_archived(${boardId}, true)`)
+    expect(await as(owner.id, sql => sql`delete from card_matrix_threads where card_id = ${cardId} returning card_id`)).toEqual([])
+    await as(owner.id, sql => sql`select app.set_board_archived(${boardId}, false)`)
+    expect(await as(editor.id, sql => sql`delete from card_matrix_threads where card_id = ${cardId} returning card_id`)).toHaveLength(1)
   })
 })

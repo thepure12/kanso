@@ -866,6 +866,7 @@ const boardMenu = computed(() => {
       :remote-version="remoteVersion"
       :template="editingTemplate"
       :link="editingTemplate ? undefined : cardLink"
+      :matrix="board.matrix"
       :recurrence="editingTemplate ? recurrences.find(r => r.templateId === editingCard!.id) ?? null : null"
       @update-tag="updateTag"
       @save="patch => updateCard(editingCard!, patch)"

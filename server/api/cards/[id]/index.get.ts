@@ -4,10 +4,10 @@ import type { Activity, CardDetail, FieldValue } from '#shared/types/board'
 export default defineUserHandler(async (event, tx, userId): Promise<CardDetail> => {
   const { id } = await paramsValidated(event, uuidParam)
   await cardBoardId(tx, id)
-  const { checklistItems: ci, cardComments: cc, cardAttachments: ca, cardActivity: act, cardWatchers: cw, cardFieldValues: fv, users } = schema
+  const { checklistItems: ci, cardComments: cc, cardAttachments: ca, cardActivity: act, cardWatchers: cw, cardFieldValues: fv, cardMatrixThreads: mt, users } = schema
 
   // users rows are visible only while the person shares a board or team with the caller.
-  const [checklist, comments, attachments, activity, timeEntries, watcherRows, links, fieldRows] = await Promise.all([
+  const [checklist, comments, attachments, activity, timeEntries, watcherRows, links, fieldRows, [matrixThread]] = await Promise.all([
     tx.select({ id: ci.id, text: ci.text, done: ci.done, position: ci.position })
       .from(ci).where(eq(ci.cardId, id)).orderBy(asc(ci.position)),
     tx.select({
@@ -23,12 +23,14 @@ export default defineUserHandler(async (event, tx, userId): Promise<CardDetail> 
       .from(cw).leftJoin(users, eq(users.id, cw.userId)).where(eq(cw.cardId, id)).orderBy(asc(cw.createdAt)),
     loadCardLinks(tx, sql`l.card_id = ${id}`),
     tx.select({ fieldId: fv.fieldId, value: fv.value }).from(fv).where(eq(fv.cardId, id)),
+    tx.select({ roomId: mt.roomId, eventId: mt.eventId }).from(mt).where(eq(mt.cardId, id)),
   ])
 
   const reactions = await loadReactions(tx, comments.map(c => c.id), userId)
   const iso = (d: Date) => d.toISOString()
   return {
     checklist,
+    matrixThread: matrixThread ?? null,
     comments: comments.map(c => ({ ...c, createdAt: iso(c.createdAt), updatedAt: iso(c.updatedAt), reactions: reactions.get(c.id) ?? [] })),
     attachments: attachments.map(a => ({ ...a, createdAt: iso(a.createdAt) })),
     activity: activity.map(a => ({ ...a, kind: a.kind as Activity['kind'], data: a.data as Activity['data'], createdAt: iso(a.createdAt) })),

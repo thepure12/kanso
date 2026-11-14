@@ -1,3 +1,4 @@
+import { sql } from 'drizzle-orm'
 import { sealSecret, openSecret, secretKey } from './secretBox'
 import { httpRequest } from './webhookHttp'
 
@@ -147,4 +148,83 @@ async function roomState<T = Record<string, unknown>>(c: MatrixClient, roomId: s
 export function matrixHttpError(e: unknown): never {
   if (e instanceof MatrixError) throw createError({ statusCode: 400, statusMessage: `Matrix: ${e.message}`.slice(0, 300), data: { errcode: e.errcode } })
   throw e
+}
+
+/**
+ * The event in what the user typed: a bare `$event` id, or a matrix.to /
+ * Element permalink (`…#/!room:server/$event`, `…#/room/#alias:server/$event`),
+ * with the room it names. Null when it is none of those.
+ */
+export function parseEventInput(input: string): { room: string | null, eventId: string } | null {
+  const v = input.trim()
+  if (/^\$[^\s/?#]+$/.test(v)) return { room: null, eventId: v }
+  const hash = v.indexOf('#/')
+  if (!/^https:\/\//i.test(v) || hash < 0) return null
+  let parts: string[]
+  try {
+    parts = v.slice(hash + 2).split('?')[0]!.split('/').map(decodeURIComponent)
+  }
+  catch { return null }
+  if (parts[0] === 'room') parts.shift()
+  const [room, eventId] = parts
+  if (!room || !eventId || !/^[!#][^:\s]+:\S+$/.test(room) || !/^\$\S+$/.test(eventId)) return null
+  return { room, eventId }
+}
+
+/** Room id for an id or alias. */
+export async function resolveRoom(c: MatrixClient, room: string): Promise<string> {
+  if (!room.startsWith('#')) return room
+  return (await matrixRequest<{ room_id: string }>(c, 'GET', `/directory/room/${encodeURIComponent(room)}`)).room_id
+}
+
+interface MatrixEvent {
+  event_id: string
+  type: string
+  sender: string
+  origin_server_ts: number
+  content: Record<string, unknown>
+  unsigned?: Record<string, unknown>
+}
+
+/** One event of a room. */
+export function getEvent(c: MatrixClient, roomId: string, eventId: string): Promise<MatrixEvent> {
+  return matrixRequest<MatrixEvent>(c, 'GET', `/rooms/${encodeURIComponent(roomId)}/event/${encodeURIComponent(eventId)}`)
+}
+
+/** The thread root for an event: itself, or the root of the thread it replies in. */
+export async function threadRootOf(c: MatrixClient, roomId: string, eventId: string): Promise<string> {
+  const e = await getEvent(c, roomId, eventId)
+  if (e.type !== 'm.room.message') throw new MatrixError('That event is not a message', null, 'KANSO_NOT_MESSAGE')
+  const rel = e.content['m.relates_to'] as { rel_type?: unknown, event_id?: unknown } | undefined
+  return rel?.rel_type === 'm.thread' && typeof rel.event_id === 'string' ? rel.event_id : e.event_id
+}
+
+/** Sends an m.room.message; `txnId` makes a retry with the same id a no-op. Returns the event id. */
+export async function sendMessage(c: MatrixClient, roomId: string, content: Record<string, unknown>, txnId: string): Promise<string> {
+  const res = await matrixRequest<{ event_id: string }>(c, 'PUT',
+    `/rooms/${encodeURIComponent(roomId)}/send/m.room.message/${encodeURIComponent(txnId)}`, content)
+  return res.event_id
+}
+
+const htmlEscape = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+
+/** Root message for a card's new thread: "<title> · <board>", the title linking to the card when the site URL is known. */
+export function cardThreadRoot(card: { id: string, title: string }, board: { id: string, name: string }, siteUrl: string | null) {
+  const url = siteUrl ? `${siteUrl}/boards/${board.id}?card=${card.id}` : null
+  return {
+    msgtype: 'm.text',
+    body: `${card.title} · ${board.name}${url ? `\n${url}` : ''}`,
+    format: 'org.matrix.custom.html',
+    formatted_body: `${url ? `<a href="${htmlEscape(url)}"><strong>${htmlEscape(card.title)}</strong></a>` : `<strong>${htmlEscape(card.title)}</strong>`} · ${htmlEscape(board.name)}`,
+  }
+}
+
+/** The board's Matrix bot for anyone on the board (app.matrix_room_bot), or a 400 when none is connected. */
+export async function boardMatrixBot(tx: Tx, boardId: string): Promise<MatrixClient & { roomId: string }> {
+  const [row] = await tx.execute<{ homeserver_url: string, room_id: string, access_token: string }>(
+    sql`select * from app.matrix_room_bot(${boardId})`)
+  if (!row) throw createError({ statusCode: 400, statusMessage: 'This board has no Matrix room' })
+  const accessToken = openMatrixToken(row.access_token)
+  if (!accessToken) throw createError({ statusCode: 400, statusMessage: 'Matrix: the stored token cannot be read any more. A board owner has to enter it again.' })
+  return { homeserverUrl: row.homeserver_url, accessToken, roomId: row.room_id }
 }

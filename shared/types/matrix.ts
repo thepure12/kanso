@@ -7,3 +7,10 @@ export interface BoardMatrixRoom {
   /** The bot account, e.g. @kanso-bot:example.org. */
   botUserId: string
 }
+
+/** The Matrix thread a card is linked to (CardDetail.matrixThread). */
+export interface CardMatrixThread {
+  roomId: string
+  /** Root event of the thread. */
+  eventId: string
+}

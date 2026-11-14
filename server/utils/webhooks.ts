@@ -30,7 +30,7 @@ export function webhookAllowPrivate(): boolean {
   return v === true || v === 'true'
 }
 
-function webhookSiteUrl(): string | null {
+export function webhookSiteUrl(): string | null {
   return useRuntimeConfig().public.siteUrl.replace(/\/+$/, '') || null
 }
 

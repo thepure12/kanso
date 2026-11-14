@@ -3,7 +3,7 @@ import type { BoardBackground } from '../boardBackgrounds'
 import type { ColumnOutline } from '../columnOutline'
 import type { BoardNotificationLevel } from '../notificationSettings'
 import type { SavedViewConfig } from '../savedViews'
-import type { BoardMatrixRoom } from './matrix'
+import type { BoardMatrixRoom, CardMatrixThread } from './matrix'
 
 export type BoardRole = 'owner' | 'editor' | 'viewer'
 
@@ -334,6 +334,8 @@ export interface Watcher {
 /** Everything about a card that the board does not load. */
 export interface CardDetail {
   checklist: ChecklistItem[]
+  /** The linked Matrix thread, if any. */
+  matrixThread: CardMatrixThread | null
   comments: Comment[]
   attachments: Attachment[]
   activity: Activity[]

@@ -1261,7 +1261,24 @@
     "disconnect": "Trennen",
     "disconnectConfirm": "Dieses Board von seinem Matrix-Raum trennen?",
     "disconnectFailed": "Der Matrix-Raum konnte nicht getrennt werden",
-    "openRoom": "Raum in Matrix öffnen"
+    "openRoom": "Raum in Matrix öffnen",
+    "thread": {
+      "tab": "Matrix",
+      "none": "Diese Karte hat noch keinen Thread in {room}.",
+      "start": "Thread starten",
+      "linkExisting": "Nachricht verknüpfen",
+      "linkPlaceholder": "https://matrix.to/#/!raum:server/$event",
+      "linkHelp": "Öffne in Element die Optionen der Nachricht und wähle Teilen oder Link kopieren. Eine Antwort in einem Thread verknüpft den ganzen Thread.",
+      "linkSubmit": "Verknüpfen",
+      "linked": "Mit einem Thread in {room} verknüpft.",
+      "open": "In Matrix öffnen",
+      "unlink": "Verknüpfung lösen",
+      "unlinkConfirm": "Verknüpfung mit dem Matrix-Thread lösen? Die Nachrichten bleiben in Matrix.",
+      "otherRoom": "Dieser Thread liegt in einem Raum, mit dem das Board nicht mehr verbunden ist.",
+      "startFailed": "Matrix-Thread konnte nicht gestartet werden",
+      "linkFailed": "Matrix-Nachricht konnte nicht verknüpft werden",
+      "unlinkFailed": "Verknüpfung mit dem Matrix-Thread konnte nicht gelöst werden"
+    }
   },
   "views": {
     "today": "Heute",

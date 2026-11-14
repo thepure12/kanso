@@ -763,6 +763,19 @@ export const boardMatrixRooms = pgTable('board_matrix_rooms', {
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 })
 
+// Matrix thread a card is linked to (see 0077_card_matrix_threads_rls.sql):
+// the root event of a thread in the board's Matrix room at link time.
+// Members read it, editors link and unlink; the server fills room and event
+// after the bot posted or checked them.
+export const cardMatrixThreads = pgTable('card_matrix_threads', {
+  cardId: uuid('card_id').primaryKey(),
+  boardId: uuid('board_id').notNull(),
+  roomId: text('room_id').notNull(),
+  eventId: text('event_id').notNull(),
+  createdBy: uuid('created_by').references(() => users.id, { onDelete: 'set null' }),
+  createdAt: createdAt(),
+}, t => [cardFk('card_matrix_threads_card_board_fk', t)])
+
 // Web Push: one row per browser that turned push on (see 0068_push_rls.sql).
 // Tied to the sign-in session that subscribed: revoking or deleting the session
 // deletes the subscription, so a signed-out device gets nothing. Written only

@@ -2,6 +2,7 @@
 import { priorities, type BoardField, type Card, type CardLink, type CardPatch, type CardRecurrence, type Column, type FieldValue, type Member, type RecurrenceInput, type Tag } from '#shared/types/board'
 import type { CardCounts } from '~/composables/useBoard'
 import { CARD_TITLE_MAX } from '#shared/cards'
+import type { BoardMatrixRoom } from '#shared/types/matrix'
 
 const props = defineProps<{
   card: Card
@@ -28,6 +29,8 @@ const props = defineProps<{
   recurrence?: CardRecurrence | null
   /** Direct link to the card, offered by "Copy link". */
   link?: string
+  /** The board's Matrix room; adds the Matrix tab (not for templates). */
+  matrix?: BoardMatrixRoom | null
 }>()
 const emit = defineEmits<{
   save: [patch: CardPatch]
@@ -261,6 +264,7 @@ const tabs = computed(() => [
     slot: 'comments' as const,
   },
   { label: t('card.activity'), value: 'activity', icon: 'i-lucide-history', slot: 'activity' as const },
+  ...(props.matrix ? [{ label: t('matrix.thread.tab'), value: 'matrix', icon: 'i-lucide-message-square-share', slot: 'matrix' as const }] : []),
 ])
 </script>
 
@@ -353,6 +357,14 @@ const tabs = computed(() => [
               </template>
               <template #activity>
                 <CardActivity :items="cd.detail.value?.activity ?? null" />
+              </template>
+              <template v-if="props.matrix" #matrix>
+                <CardMatrix
+                  :room="props.matrix"
+                  :thread="cd.detail.value ? cd.detail.value.matrixThread : undefined"
+                  :can-edit="props.canEdit"
+                  :cd="cd"
+                />
               </template>
             </UTabs>
           </template>

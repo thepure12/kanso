@@ -1,3 +1,4 @@
+import type { CardMatrixThread } from '#shared/types/matrix'
 import type { Attachment, CardDetail, CardLink, CardLinkKind, ChecklistItem, Comment, CommentReaction, TimeEntry, Watcher } from '#shared/types/board'
 
 /**
@@ -45,6 +46,16 @@ export function useCardDetail(cardId: Ref<string>) {
     detail,
     loading,
     load,
+
+    /** Starts a Matrix thread for the card (bot posts the card), or links the message `link` points to. */
+    linkMatrixThread: (link?: string) => run(async (d) => {
+      d.matrixThread = await api<CardMatrixThread>(`${base()}/matrix-thread`, { method: 'POST', body: link ? { link } : {} })
+    }, link ? t('matrix.thread.linkFailed') : t('matrix.thread.startFailed')),
+
+    unlinkMatrixThread: () => run(async (d) => {
+      await api(`${base()}/matrix-thread`, { method: 'DELETE' })
+      d.matrixThread = null
+    }, t('matrix.thread.unlinkFailed')),
 
     addChecklistItem: (text: string) => run(async (d) => {
       d.checklist.push(await api<ChecklistItem>(`${base()}/checklist`, { method: 'POST', body: { text } }))

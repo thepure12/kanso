@@ -7,14 +7,14 @@ import type { AddressInfo } from 'node:net'
 import { url } from '@nuxt/test-utils/e2e'
 import postgres from 'postgres'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
-import type { BoardDetail } from '#shared/types/board'
+import type { BoardDetail, Card, CardDetail } from '#shared/types/board'
 import type { InstanceSettings } from '#shared/types/admin'
-import type { BoardMatrixRoom } from '#shared/types/matrix'
+import type { BoardMatrixRoom, CardMatrixThread } from '#shared/types/matrix'
 import { signEmailToken } from '../../server/utils/emailToken'
 import { setupApi } from './server'
 
 const adminEmail = `admin-${randomUUID()}@matrix.test`
-await setupApi({ NUXT_ADMIN_EMAIL: adminEmail, NUXT_MAIL_SMTP_URL: '', NUXT_MAIL_LOG_LINKS: 'true', NUXT_WEBHOOK_ALLOW_PRIVATE: 'true' })
+await setupApi({ NUXT_ADMIN_EMAIL: adminEmail, NUXT_MAIL_SMTP_URL: '', NUXT_MAIL_LOG_LINKS: 'true', NUXT_WEBHOOK_ALLOW_PRIVATE: 'true', NUXT_PUBLIC_SITE_URL: 'https://kanso.example' })
 
 let base = ''
 beforeAll(() => { base = url('/').replace(/\/$/, '') })
@@ -60,6 +60,10 @@ const fake = {
   names: new Map([['!team:matrix.test', 'Team room']]),
   aliases: new Map([['#team:matrix.test', '!team:matrix.test'], ['#secret:matrix.test', '!secret:matrix.test']]),
   requests: [] as { method: string, path: string, auth: string | undefined }[],
+  /** Events by id: room and content. */
+  events: new Map<string, { room: string, type: string, content: Record<string, any> }>(),
+  /** Transaction ids already used, with their event id. */
+  txns: new Map<string, string>(),
 }
 
 function reply(res: ServerResponse, status: number, body: unknown) {
@@ -67,7 +71,13 @@ function reply(res: ServerResponse, status: number, body: unknown) {
   res.end(JSON.stringify(body))
 }
 
-function handle(req: IncomingMessage, res: ServerResponse) {
+async function readBody(req: IncomingMessage) {
+  let text = ''
+  for await (const chunk of req) text += chunk
+  return text ? JSON.parse(text) : null
+}
+
+async function handle(req: IncomingMessage, res: ServerResponse) {
   const path = decodeURIComponent(req.url!.replace(/^\/_matrix\/client\/v3/, ''))
   fake.requests.push({ method: req.method!, path, auth: req.headers.authorization })
   if (req.headers.authorization !== `Bearer ${TOKEN}`) return reply(res, 401, { errcode: 'M_UNKNOWN_TOKEN', error: 'Invalid access token passed.' })
@@ -83,6 +93,23 @@ function handle(req: IncomingMessage, res: ServerResponse) {
     fake.joined.add(m[1]!)
     return reply(res, 200, { room_id: m[1] })
   }
+  if (req.method === 'PUT' && (m = /^\/rooms\/([^/]+)\/send\/m\.room\.message\/([^/]+)$/.exec(path))) {
+    const [, room, txn] = m
+    const content = await readBody(req)
+    if (!fake.joined.has(room!)) return reply(res, 403, { errcode: 'M_FORBIDDEN', error: 'User not in room' })
+    let id = fake.txns.get(txn!)
+    if (!id) {
+      id = `$ev${fake.events.size + 1}`
+      fake.txns.set(txn!, id)
+      fake.events.set(id, { room: room!, type: 'm.room.message', content })
+    }
+    return reply(res, 200, { event_id: id })
+  }
+  if ((m = /^\/rooms\/([^/]+)\/event\/([^/]+)$/.exec(path))) {
+    const e = fake.events.get(m[2]!)
+    if (!e || e.room !== m[1]) return reply(res, 404, { errcode: 'M_NOT_FOUND', error: 'Event not found.' })
+    return reply(res, 200, { event_id: m[2], type: e.type, sender: '@someone:matrix.test', origin_server_ts: 1, content: e.content })
+  }
   if ((m = /^\/rooms\/([^/]+)\/state\/([^/]+)\/$/.exec(path))) {
     const [, room, type] = m
     if (type === 'm.room.encryption' && fake.encrypted.has(room!)) return reply(res, 200, { algorithm: 'm.megolm.v1.aes-sha2' })
@@ -92,7 +119,7 @@ function handle(req: IncomingMessage, res: ServerResponse) {
   reply(res, 404, { errcode: 'M_UNRECOGNIZED', error: 'Unrecognized request' })
 }
 
-const homeserver = createServer(handle)
+const homeserver = createServer((req, res) => { void handle(req, res) })
 let homeserverUrl = ''
 
 // ---------------------------------------------------------------- setup
@@ -101,6 +128,7 @@ let admin: Awaited<ReturnType<typeof signUp>>
 let savedSettings: InstanceSettings
 let alice: Awaited<ReturnType<typeof signUp>>
 let bob: Awaited<ReturnType<typeof signUp>>
+let carol: Awaited<ReturnType<typeof signUp>>
 let boardId = ''
 
 beforeAll(async () => {
@@ -109,9 +137,10 @@ beforeAll(async () => {
   admin = await signUp('Admin', adminEmail)
   savedSettings = (await admin.req<InstanceSettings>('/api/admin/settings')).data
   expect((await admin.req('/api/admin/settings', { method: 'PUT', body: { ...savedSettings, signupMode: 'open' } })).status).toBe(200)
-  ;[alice, bob] = await Promise.all([signUp('Alice'), signUp('Bob')])
+  ;[alice, bob, carol] = await Promise.all([signUp('Alice'), signUp('Bob'), signUp('Carol')])
   boardId = (await alice.req<{ id: string }>('/api/boards', { method: 'POST', body: { name: 'Matrix board', template: 'basic' } })).data.id
   expect((await alice.req(`/api/boards/${boardId}/members`, { method: 'POST', body: { email: bob.email, role: 'editor' } })).status).toBe(200)
+  expect((await alice.req(`/api/boards/${boardId}/members`, { method: 'POST', body: { email: carol.email, role: 'viewer' } })).status).toBe(200)
 })
 
 afterAll(async () => {
@@ -195,5 +224,72 @@ describe('connecting a board to a Matrix room', () => {
     expect((await alice.req(`/api/boards/${boardId}/matrix`, { method: 'DELETE' })).status).toBe(200)
     expect(await boardMatrix(alice)).toBeNull()
     expect((await alice.req(`/api/boards/${boardId}/matrix`, { method: 'DELETE' })).status).toBe(404)
+  })
+})
+
+describe('card threads', () => {
+  let card: Card
+  const thread = (who: typeof alice, body: Record<string, unknown> = {}, id = card.id) =>
+    who.req<CardMatrixThread>(`/api/cards/${id}/matrix-thread`, { method: 'POST', body })
+  const unlink = (who: typeof alice, id = card.id) => who.req(`/api/cards/${id}/matrix-thread`, { method: 'DELETE' })
+  const detail = async (who: typeof alice) => (await who.req<CardDetail>(`/api/cards/${card.id}`)).data.matrixThread
+
+  beforeAll(async () => {
+    const b = (await alice.req<BoardDetail>(`/api/boards/${boardId}`)).data
+    card = (await alice.req<Card>(`/api/boards/${boardId}/cards`, { method: 'POST', body: { columnId: b.columns[0]!.id, title: 'Fix <the> login' } })).data
+  })
+
+  it('needs a connected room', async () => {
+    const res = await thread(bob)
+    expect(res.status).toBe(400)
+    expect(res.data.statusMessage).toBe('This board has no Matrix room')
+    expect(await detail(bob)).toBeNull()
+  })
+
+  it('editors start a thread: the bot posts the card as its root', async () => {
+    expect((await put(alice, { room: '#team:matrix.test', accessToken: TOKEN })).status).toBe(200)
+    fake.requests.length = 0
+    expect((await thread(carol)).status).toBe(403)
+    expect(fake.requests).toEqual([])
+
+    const res = await thread(bob)
+    expect(res.status).toBe(200)
+    expect(res.data.roomId).toBe('!team:matrix.test')
+    const root = fake.events.get(res.data.eventId)!
+    expect(root.room).toBe('!team:matrix.test')
+    const url = `https://kanso.example/boards/${boardId}?card=${card.id}`
+    expect(root.content.body).toBe(`Fix <the> login · Matrix board\n${url}`)
+    expect(root.content.formatted_body).toBe(`<a href="${url}"><strong>Fix &lt;the&gt; login</strong></a> · Matrix board`)
+    expect(await detail(carol)).toEqual(res.data)
+    expect((await thread(bob)).status).toBe(409)
+  })
+
+  it('editors unlink; viewers cannot', async () => {
+    expect((await unlink(carol)).status).toBe(404)
+    expect((await unlink(bob)).status).toBe(200)
+    expect(await detail(bob)).toBeNull()
+    expect((await unlink(bob)).status).toBe(404)
+  })
+
+  it('links an existing message, or the root of the thread a reply is in', async () => {
+    fake.events.set('$topic', { room: '!team:matrix.test', type: 'm.room.message', content: { msgtype: 'm.text', body: 'Login is broken' } })
+    fake.events.set('$reply', { room: '!team:matrix.test', type: 'm.room.message', content: { msgtype: 'm.text', body: 'Same here', 'm.relates_to': { rel_type: 'm.thread', event_id: '$topic' } } })
+    const res = await thread(bob, { link: 'https://matrix.to/#/%23team%3Amatrix.test/%24reply?via=matrix.test' })
+    expect(res.status).toBe(200)
+    expect(res.data).toEqual({ roomId: '!team:matrix.test', eventId: '$topic' })
+    expect((await unlink(bob)).status).toBe(200)
+    expect((await thread(bob, { link: '$topic' })).data.eventId).toBe('$topic')
+    expect((await unlink(bob)).status).toBe(200)
+  })
+
+  it('refuses messages from other rooms, unknown events and bad links', async () => {
+    const other = await thread(bob, { link: 'https://matrix.to/#/!elsewhere:matrix.test/$topic' })
+    expect(other.status).toBe(400)
+    expect(other.data.statusMessage).toContain('not in the board')
+    const missing = await thread(bob, { link: '$nope' })
+    expect(missing.status).toBe(400)
+    expect(missing.data.statusMessage).toContain('M_NOT_FOUND')
+    expect((await thread(bob, { link: 'hello' })).status).toBe(400)
+    expect(await detail(bob)).toBeNull()
   })
 })

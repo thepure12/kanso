@@ -1261,7 +1261,24 @@
     "disconnect": "Disconnect",
     "disconnectConfirm": "Disconnect this board from its Matrix room?",
     "disconnectFailed": "Could not disconnect the Matrix room",
-    "openRoom": "Open the room in Matrix"
+    "openRoom": "Open the room in Matrix",
+    "thread": {
+      "tab": "Matrix",
+      "none": "This card has no thread in {room} yet.",
+      "start": "Start a thread",
+      "linkExisting": "Link a message",
+      "linkPlaceholder": "https://matrix.to/#/!room:server/$event",
+      "linkHelp": "In Element, open the message's options and choose Share or Copy link. A reply in a thread links that whole thread.",
+      "linkSubmit": "Link",
+      "linked": "Linked to a thread in {room}.",
+      "open": "Open in Matrix",
+      "unlink": "Unlink",
+      "unlinkConfirm": "Unlink the Matrix thread? The messages stay in Matrix.",
+      "otherRoom": "This thread is in a room the board is no longer connected to.",
+      "startFailed": "Could not start a Matrix thread",
+      "linkFailed": "Could not link the Matrix message",
+      "unlinkFailed": "Could not unlink the Matrix thread"
+    }
   },
   "views": {
     "today": "Today",
