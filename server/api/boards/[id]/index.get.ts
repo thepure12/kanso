@@ -8,6 +8,7 @@ export default defineUserHandler(async (event, tx): Promise<BoardDetail> => {
   const [board] = await tx.select({
     id: boards.id, name: boards.name, teamId: boards.teamId, teamName: teams.name, archivedAt: boards.archivedAt, background: boards.background, accent: boards.accent, columnOutline: boards.columnOutline,
     starred: sql<boolean>`exists(select 1 from board_stars s where s.board_id = ${boards.id} and s.user_id = app.current_user_id())`,
+    notificationLevel: sql<'direct' | 'none' | null>`(select n.level from board_notification_settings n where n.board_id = ${boards.id} and n.user_id = app.current_user_id())`,
   })
     .from(boards).leftJoin(teams, eq(teams.id, boards.teamId)).where(eq(boards.id, id))
   if (!board) notFound('Board not found')
@@ -47,6 +48,7 @@ export default defineUserHandler(async (event, tx): Promise<BoardDetail> => {
     role: me!.role,
     archivedAt: board.archivedAt?.toISOString() ?? null,
     starred: board.starred,
+    notificationLevel: board.notificationLevel ?? 'all',
     background: board.background ?? null,
     accent: board.accent ?? null,
     columnOutline: board.columnOutline ?? null,

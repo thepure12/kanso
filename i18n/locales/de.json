@@ -285,7 +285,26 @@
       "pushTestTitle": "Testbenachrichtigung",
       "pushTestBody": "Push-Benachrichtigungen funktionieren auf diesem Gerät.",
       "pushTestSent": "Testbenachrichtigung gesendet",
-      "pushTestFailed": "Die Testbenachrichtigung konnte nicht gesendet werden"
+      "pushTestFailed": "Die Testbenachrichtigung konnte nicht gesendet werden",
+      "whatNotifies": "Worüber du benachrichtigt wirst",
+      "whatNotifiesDescription": "Wähle pro Ereignis, wo es dich erreicht. In der App umfasst die Glocke, Meldungen in der App und Desktop-Benachrichtigungen; Push und E-Mail senden nur, was in der App ankommt.",
+      "event": "Ereignis",
+      "channelInbox": "In der App",
+      "channelPush": "Push",
+      "channelEmail": "E-Mail",
+      "emailNeedsDigest": "E-Mails kommen in der täglichen Zusammenfassung. Schalte sie unten ein.",
+      "events": {
+        "assigned": "Mir zugewiesen",
+        "mentioned": "Erwähnungen",
+        "commented": "Kommentare",
+        "moved": "Karte verschoben",
+        "due": "Fälligkeit geändert",
+        "archived": "Karte archiviert",
+        "stale": "Karte liegt lange"
+      },
+      "watching": "Karten, die ich beobachte",
+      "watchingDescription": "Benachrichtige mich über Karten, die ich beobachte, aber die mir nicht zugewiesen sind. Zuweisungen und Erwähnungen benachrichtigen immer.",
+      "boardLevels": "Für einzelne Boards kannst du im Glockenmenü des Boards weniger Benachrichtigungen einstellen."
     },
     "delete": {
       "title": "Konto löschen",
@@ -692,7 +711,15 @@
         "priority": "Priorität von {n} Karte geändert | Priorität von {n} Karten geändert",
         "dueDate": "Fälligkeit von {n} Karte geändert | Fälligkeit von {n} Karten geändert"
       }
-    }
+    },
+    "notifications": "Benachrichtigungen",
+    "notifyAll": "Alle Aktivitäten",
+    "notifyAllDescription": "Karten, die dir zugewiesen sind oder die du beobachtest, und Erwähnungen",
+    "notifyDirect": "Erwähnungen und Zuweisungen",
+    "notifyDirectDescription": "Nur wenn dich jemand erwähnt oder dir etwas zuweist",
+    "notifyNone": "Nichts",
+    "notifyNoneDescription": "Keine Benachrichtigungen von diesem Board",
+    "notifyFailed": "Benachrichtigungen konnten nicht geändert werden"
   },
   "archive": {
     "title": "Archivierte Karten",

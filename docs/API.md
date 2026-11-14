@@ -47,6 +47,7 @@ Errors come back as JSON with `statusCode` and `statusMessage`: `400` invalid in
 | POST | `/api/boards` | Create a board `{ name, teamId?, template? }` (`basic`, `scrum`, `bugs`, `empty`) |
 | GET | `/api/boards/:id` | Board with columns, column groups, cards, tags, fields, members and your `role` |
 | PATCH / DELETE | `/api/boards/:id` | Rename `{ name }` / delete (owners) |
+| PUT | `/api/boards/:id/notifications` | Your notifications from this board `{ level: 'all' \| 'direct' \| 'none' }` (`direct` = mentions and being assigned); shown as `notificationLevel` on the board |
 | GET | `/api/boards/:id/export?format=json\|csv` | Export |
 | GET | `/api/boards/:id/activity?before=&limit=` | Activity feed, newest first (cursor paginated) |
 | POST | `/api/boards/:id/columns` | Add a column `{ title, groupId? }` (`groupId` also adds it to that column group) |

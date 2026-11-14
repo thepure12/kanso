@@ -1,4 +1,5 @@
 import type { Locale } from '../i18n'
+import type { NotificationPrefs } from '../notificationSettings'
 
 /** GET /api/me. */
 export interface Me {
@@ -17,6 +18,10 @@ export interface Account {
   /** Linked OAuth providers, e.g. ['github']. */
   providers: string[]
   digestEnabled: boolean
+  /** Channels per notification event; missing = on. */
+  notificationPrefs: NotificationPrefs
+  /** Whether cards the user only watches notify. */
+  notifyWatching: boolean
   locale: Locale | null
   twoFactorEnabled: boolean
   /** Unused two-factor recovery codes. */

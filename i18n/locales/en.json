@@ -285,7 +285,26 @@
       "pushTestTitle": "Test notification",
       "pushTestBody": "Push notifications work on this device.",
       "pushTestSent": "Test notification sent",
-      "pushTestFailed": "Could not send the test notification"
+      "pushTestFailed": "Could not send the test notification",
+      "whatNotifies": "What notifies you",
+      "whatNotifiesDescription": "Choose per event where it reaches you. In app covers the bell, in-app messages and desktop notifications; push and email only send what reaches the app.",
+      "event": "Event",
+      "channelInbox": "In app",
+      "channelPush": "Push",
+      "channelEmail": "Email",
+      "emailNeedsDigest": "Email goes out in the daily digest. Turn it on below.",
+      "events": {
+        "assigned": "Assigned to me",
+        "mentioned": "Mentions",
+        "commented": "Comments",
+        "moved": "Card moved",
+        "due": "Due date changed",
+        "archived": "Card archived",
+        "stale": "Card is stale"
+      },
+      "watching": "Cards I watch",
+      "watchingDescription": "Notify me about cards I watch but am not assigned to. Assignments and mentions always notify.",
+      "boardLevels": "Boards can be set to fewer notifications from the bell menu on each board."
     },
     "delete": {
       "title": "Delete account",
@@ -692,7 +711,15 @@
         "priority": "Changed priority of {n} card | Changed priority of {n} cards",
         "dueDate": "Changed due date of {n} card | Changed due date of {n} cards"
       }
-    }
+    },
+    "notifications": "Notifications",
+    "notifyAll": "All activity",
+    "notifyAllDescription": "Cards you are assigned to or watch, and mentions",
+    "notifyDirect": "Mentions and assignments",
+    "notifyDirectDescription": "Only when someone mentions you or assigns you",
+    "notifyNone": "Nothing",
+    "notifyNoneDescription": "No notifications from this board",
+    "notifyFailed": "Could not change notifications"
   },
   "archive": {
     "title": "Archived cards",

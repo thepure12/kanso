@@ -1291,12 +1291,22 @@ describe('account', () => {
   it('shows and edits the profile and digest setting', async () => {
     const user = await signUp('Profile')
     const acc = await user.req<Account>('/api/account')
-    expect(acc.data).toEqual({ name: 'Profile', email: user.email, hasPassword: true, providers: [], digestEnabled: false, locale: null, twoFactorEnabled: false, recoveryCodesLeft: 0, avatarUrl: null })
+    expect(acc.data).toEqual({ name: 'Profile', email: user.email, hasPassword: true, providers: [], digestEnabled: false, notificationPrefs: {}, notifyWatching: true, locale: null, twoFactorEnabled: false, recoveryCodesLeft: 0, avatarUrl: null })
     expect((await user.req('/api/account', { method: 'PATCH', body: { name: 'Renamed', digestEnabled: true } })).status).toBe(200)
     expect((await user.req<Account>('/api/account')).data).toMatchObject({ name: 'Renamed', digestEnabled: true })
     expect((await user.req('/api/account', { method: 'PATCH', body: {} })).status).toBe(400)
     // Off again: a dev server's scheduled digest would otherwise mail this address.
     await user.req('/api/account', { method: 'PATCH', body: { digestEnabled: false } })
+  })
+
+  it('saves notification settings', async () => {
+    const user = await signUp('Prefs')
+    const prefs = { commented: { push: false }, moved: { inbox: false } }
+    expect((await user.req('/api/account', { method: 'PATCH', body: { notificationPrefs: prefs, notifyWatching: false } })).data)
+      .toMatchObject({ notificationPrefs: prefs, notifyWatching: false })
+    expect((await user.req<Account>('/api/account')).data).toMatchObject({ notificationPrefs: prefs, notifyWatching: false })
+    expect((await user.req('/api/account', { method: 'PATCH', body: { notificationPrefs: { moved: { sms: true } } } })).status).toBe(400)
+    expect((await user.req('/api/account', { method: 'PATCH', body: { notificationPrefs: { nope: {} } } })).status).toBe(400)
   })
 
   it('saves the language, shown by /api/me', async () => {
@@ -1534,6 +1544,19 @@ describe('stars, archive, activity and teams', () => {
     expect((await outsider.req(`/api/boards/${boardId}/star`, { method: 'PUT' })).status).toBe(404)
     expect((await bob.req(`/api/boards/${boardId}/star`, { method: 'DELETE' })).status).toBe(200)
     expect((await bob.req<BoardSummary[]>('/api/boards')).data.find(b => b.id === boardId)?.starred).toBe(false)
+  })
+
+  it('sets the caller notification level for a board', async () => {
+    expect((await bob.req<BoardDetail>(`/api/boards/${boardId}`)).data.notificationLevel).toBe('all')
+    expect((await bob.req(`/api/boards/${boardId}/notifications`, { method: 'PUT', body: { level: 'direct' } })).status).toBe(200)
+    expect((await bob.req<BoardDetail>(`/api/boards/${boardId}`)).data.notificationLevel).toBe('direct')
+    expect((await alice.req<BoardDetail>(`/api/boards/${boardId}`)).data.notificationLevel).toBe('all')
+    expect((await bob.req(`/api/boards/${boardId}/notifications`, { method: 'PUT', body: { level: 'none' } })).status).toBe(200)
+    expect((await bob.req<BoardDetail>(`/api/boards/${boardId}`)).data.notificationLevel).toBe('none')
+    expect((await bob.req(`/api/boards/${boardId}/notifications`, { method: 'PUT', body: { level: 'loud' } })).status).toBe(400)
+    expect((await outsider.req(`/api/boards/${boardId}/notifications`, { method: 'PUT', body: { level: 'none' } })).status).toBe(404)
+    expect((await bob.req(`/api/boards/${boardId}/notifications`, { method: 'PUT', body: { level: 'all' } })).status).toBe(200)
+    expect((await bob.req<BoardDetail>(`/api/boards/${boardId}`)).data.notificationLevel).toBe('all')
   })
 
   it('archives a board read-only; only owners archive and unarchive', async () => {

@@ -1,6 +1,7 @@
 import type { BoardAccent } from '../boardAccents'
 import type { BoardBackground } from '../boardBackgrounds'
 import type { ColumnOutline } from '../columnOutline'
+import type { BoardNotificationLevel } from '../notificationSettings'
 import type { SavedViewConfig } from '../savedViews'
 
 export type BoardRole = 'owner' | 'editor' | 'viewer'
@@ -350,6 +351,8 @@ export interface BoardDetail {
   archivedAt: string | null
   /** Whether the current user starred the board. */
   starred: boolean
+  /** The current user's notifications from this board: all, direct (mentions and being assigned) or none. */
+  notificationLevel: BoardNotificationLevel
   team: { id: string, name: string } | null
   columns: Column[]
   /** Column groups in position order. */

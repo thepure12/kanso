@@ -396,6 +396,13 @@ const providerLabel: Record<string, string> = { discord: 'Discord', github: 'Git
       </div>
 
       <div v-show="tab === 'notifications'" class="space-y-8">
+        <NotificationEventSettings
+          :prefs="account.notificationPrefs"
+          :notify-watching="account.notifyWatching"
+          :digest-enabled="account.digestEnabled"
+          @changed="refresh()"
+        />
+
         <section class="space-y-4">
           <h2 class="text-lg font-medium">
             {{ t('common.email') }}

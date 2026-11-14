@@ -26,6 +26,8 @@ export default defineEventHandler(async (event): Promise<Account> => {
     hasPassword: !!user.passwordHash,
     providers: providers.map(p => p.provider).sort(),
     digestEnabled: user.digestEnabled,
+    notificationPrefs: user.notificationPrefs,
+    notifyWatching: user.notifyWatching,
     locale: isLocale(user.locale) ? user.locale : null,
     twoFactorEnabled: twoFactor,
     recoveryCodesLeft: twoFactor ? codesLeft : 0,

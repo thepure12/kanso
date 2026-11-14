@@ -9,6 +9,7 @@ import type { BoardBackground } from '../../shared/boardBackgrounds'
 import { type BoardAccent, boardAccents } from '../../shared/boardAccents'
 import type { ColumnOutline } from '../../shared/columnOutline'
 import type { SavedViewConfig } from '../../shared/savedViews'
+import type { NotificationPrefs } from '../../shared/notificationSettings'
 
 // Shape of a column outline (shared/columnOutline.ts): exactly color, width, glow.
 const outlineShape = (c: AnyPgColumn) => sql`${c} is null or (
@@ -35,6 +36,9 @@ export const boardFieldKind = pgEnum('board_field_kind', ['text', 'number', 'dat
 
 export const recurrenceRule = pgEnum('recurrence_rule', ['daily', 'weekly', 'monthly'])
 
+// 'all' is the absence of a board_notification_settings row.
+export const boardNotificationLevel = pgEnum('board_notification_level', ['direct', 'none'])
+
 export const boardAutomationKind = pgEnum('board_automation_kind', ['archive_done', 'tag_stale', 'notify_stale', 'raise_priority'])
 
 export const users = pgTable('users', {
@@ -51,6 +55,11 @@ export const users = pgTable('users', {
   digestSentAt: timestamp('digest_sent_at', { withTimezone: true }),
   // UI language ('en', 'de'; null = browser). Also picks the language of mails and webhook messages.
   locale: text('locale'),
+  // Channels per notification event, missing = on (shared/notificationSettings.ts);
+  // shape checked by app.notification_prefs_valid (0070_notification_settings_rls.sql).
+  notificationPrefs: jsonb('notification_prefs').$type<NotificationPrefs>().notNull().default({}),
+  // False: cards the user only watches send nothing (assignments and mentions still do).
+  notifyWatching: boolean('notify_watching').notNull().default(true),
   createdAt: createdAt(),
 })
 
@@ -208,6 +217,14 @@ export const boardStars = pgTable('board_stars', {
   boardId: uuid('board_id').notNull().references(() => boards.id, { onDelete: 'cascade' }),
   createdAt: createdAt(),
 }, t => [primaryKey({ columns: [t.userId, t.boardId] })])
+
+// Per-user notification level for a board; no row = all. Personal like stars.
+export const boardNotificationSettings = pgTable('board_notification_settings', {
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  boardId: uuid('board_id').notNull().references(() => boards.id, { onDelete: 'cascade' }),
+  level: boardNotificationLevel('level').notNull(),
+  createdAt: createdAt(),
+}, t => [primaryKey({ columns: [t.userId, t.boardId] }), index('board_notification_settings_board_idx').on(t.boardId)])
 
 export const boardMembers = pgTable('board_members', {
   boardId: uuid('board_id').notNull().references(() => boards.id, { onDelete: 'cascade' }),

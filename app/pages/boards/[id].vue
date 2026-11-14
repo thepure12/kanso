@@ -525,6 +525,7 @@ const boardMenu = computed(() => {
             </template>
           </UButton>
         </UTooltip>
+        <BoardNotificationMenu :board="board" class="-ms-2" />
         <UBadge v-if="archived" color="warning" variant="subtle" icon="i-lucide-archive" :label="t('board.archivedBadge')" />
         <UTooltip v-else-if="offline" :text="t('pwa.readOnlyHint')">
           <UBadge color="warning" variant="subtle" icon="i-lucide-wifi-off" :label="t('pwa.readOnly')" />
