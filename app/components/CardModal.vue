@@ -256,15 +256,22 @@ function onModKeydown(e: KeyboardEvent) {
 }
 
 const tab = ref('comments')
+// Comments and the Matrix thread in one tab (a personal choice, see useCardConversation).
+const conversationMerged = useCardConversationMerged()
+onMounted(loadCardConversation)
+const merged = computed(() => !!props.matrix && conversationMerged.value)
+watch(merged, (on) => { if (on && tab.value === 'matrix') tab.value = 'comments' })
 const tabs = computed(() => [
-  {
-    label: cd.detail.value?.comments.length ? t('card.commentsCount', { count: cd.detail.value.comments.length }) : t('card.comments'),
-    value: 'comments',
-    icon: 'i-lucide-message-square',
-    slot: 'comments' as const,
-  },
+  merged.value
+    ? { label: t('card.conversation.tab'), value: 'comments', icon: 'i-lucide-messages-square', slot: 'conversation' as const }
+    : {
+        label: cd.detail.value?.comments.length ? t('card.commentsCount', { count: cd.detail.value.comments.length }) : t('card.comments'),
+        value: 'comments',
+        icon: 'i-lucide-message-square',
+        slot: 'comments' as const,
+      },
   { label: t('card.activity'), value: 'activity', icon: 'i-lucide-history', slot: 'activity' as const },
-  ...(props.matrix ? [{ label: t('matrix.thread.tab'), value: 'matrix', icon: 'i-lucide-message-square-share', slot: 'matrix' as const }] : []),
+  ...(props.matrix && !merged.value ? [{ label: t('matrix.thread.tab'), value: 'matrix', icon: 'i-lucide-message-square-share', slot: 'matrix' as const }] : []),
 ])
 </script>
 
@@ -353,6 +360,18 @@ const tabs = computed(() => [
                   :can-react="props.canReact ?? props.canEdit"
                   :cd="cd"
                   :members="props.members"
+                />
+              </template>
+              <template v-if="props.matrix" #conversation>
+                <CardConversation
+                  :items="cd.detail.value?.comments ?? null"
+                  :can-edit="props.canEdit"
+                  :is-owner="props.isOwner"
+                  :can-react="props.canReact ?? props.canEdit"
+                  :cd="cd"
+                  :members="props.members"
+                  :room="props.matrix"
+                  :thread="cd.detail.value ? cd.detail.value.matrixThread : undefined"
                 />
               </template>
               <template #activity>

@@ -848,6 +848,12 @@
       "load": "Could not load card",
       "watch": "Could not watch card",
       "unwatch": "Could not unwatch card"
+    },
+    "conversation": {
+      "tab": "Comments & Matrix",
+      "merge": "Show with comments in one tab",
+      "split": "Show comments and Matrix in separate tabs",
+      "comment": "Comment"
     }
   },
   "checklist": {

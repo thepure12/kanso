@@ -848,6 +848,12 @@
       "load": "Die Karte konnte nicht geladen werden",
       "watch": "Die Karte konnte nicht beobachtet werden",
       "unwatch": "Das Beobachten konnte nicht beendet werden"
+    },
+    "conversation": {
+      "tab": "Kommentare & Matrix",
+      "merge": "Zusammen mit Kommentaren in einem Tab zeigen",
+      "split": "Kommentare und Matrix in getrennten Tabs zeigen",
+      "comment": "Kommentar"
     }
   },
   "checklist": {
