@@ -595,6 +595,7 @@
       "exportJson": "Als JSON exportieren",
       "exportCsv": "Als CSV exportieren",
       "webhooks": "Webhooks",
+      "matrix": "Matrix-Raum",
       "unarchive": "Board aus Archiv holen",
       "background": "Hintergrund und Akzent",
       "rename": "Board umbenennen",
@@ -1237,6 +1238,30 @@
       "field": "Benutzerdefiniertes Feld",
       "stale": "Keine aktuelle Aktivität"
     }
+  },
+  "matrix": {
+    "title": "Matrix-Raum",
+    "description": "Verbinde dieses Board über ein Bot-Konto mit einem Matrix-Raum. Nur Board-Besitzer sehen diese Einstellungen.",
+    "homeserver": "Homeserver",
+    "homeserverHelp": "Der Homeserver des Bots: ein Servername wie matrix.org oder seine Client-API-URL.",
+    "room": "Raum",
+    "roomHelp": "Raum-ID (!…:server), Alias (#…:server) oder ein matrix.to-Link.",
+    "token": "Zugriffstoken des Bots",
+    "tokenHelp": "Wird verschlüsselt gespeichert und nie wieder angezeigt.",
+    "tokenKeep": "Leer lassen, um das gespeicherte Token zu behalten.",
+    "botHint": "Verwende ein eigenes Matrix-Konto für den Bot und lade es in den Raum ein. In Element steht sein Token unter Einstellungen → Hilfe und Info → Zugriffstoken. Verschlüsselte Räume werden nicht unterstützt.",
+    "connect": "Verbinden",
+    "connected": "Mit {room} verbunden",
+    "saveFailed": "Der Matrix-Raum konnte nicht verbunden werden",
+    "bot": "Bot",
+    "test": "Testen",
+    "testOk": "Der Bot erreicht den Raum",
+    "testFailed": "Test der Matrix-Verbindung fehlgeschlagen",
+    "change": "Ändern",
+    "disconnect": "Trennen",
+    "disconnectConfirm": "Dieses Board von seinem Matrix-Raum trennen?",
+    "disconnectFailed": "Der Matrix-Raum konnte nicht getrennt werden",
+    "openRoom": "Raum in Matrix öffnen"
   },
   "views": {
     "today": "Heute",

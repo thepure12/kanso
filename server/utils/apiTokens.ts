@@ -21,14 +21,14 @@ export function bearerToken(header: string | undefined): string | undefined {
  * Route prefixes (h3 route patterns, segment-wise) a token may call. Anything
  * else (account, auth, two-factor, sessions, token management, admin, and
  * routes added later) refuses tokens, so a leaked token cannot take over the
- * account. Webhooks hold secrets and send board data elsewhere: cookie only.
+ * account. Webhooks and Matrix rooms hold secrets and send board data elsewhere: cookie only.
  */
 const tokenRoutes = [
   '/api/boards', '/api/cards', '/api/columns', '/api/tags', '/api/comments', '/api/checklist-items', '/api/column-rules', '/api/automations',
   '/api/attachments', '/api/card-links', '/api/fields', '/api/column-groups', '/api/saved-views', '/api/time-entries', '/api/teams', '/api/notifications',
   '/api/search', '/api/me', '/api/my-work',
 ]
-const tokenDenied = /\/webhooks(\/|$)/
+const tokenDenied = /\/(webhooks|matrix)(\/|$)/
 
 /** Whether a token may call the route with this pattern (event.context.matchedRoute.path, e.g. /api/cards/:id). */
 export function tokenRouteAllowed(pattern: string | undefined): boolean {

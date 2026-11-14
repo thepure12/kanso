@@ -78,45 +78,88 @@ export interface PostResult {
  * Redirects are not followed, the whole exchange times out after `timeoutMs`
  * and at most 64 KB of the response is read.
  */
-export function postWebhook(url: string, body: string | Buffer, headers: Record<string, string>, allowPrivate: boolean, timeoutMs = 5000): Promise<PostResult> {
+export async function postWebhook(url: string, body: string | Buffer, headers: Record<string, string>, allowPrivate: boolean, timeoutMs = 5000): Promise<PostResult> {
+  const r = await httpRequest({ method: 'POST', url, body, headers, allowPrivate, timeoutMs, maxBytes: 65_536, truncate: true })
+  return r.ok ? { ok: true, status: r.status, error: null } : { ok: false, status: r.status, error: r.error, ...(r.body !== undefined && { body: r.body.slice(0, 500) }) }
+}
+
+export interface HttpRequest {
+  method: 'GET' | 'POST' | 'PUT'
+  url: string
+  body?: string | Buffer
+  headers?: Record<string, string>
+  allowPrivate: boolean
+  timeoutMs?: number
+  /** Most response bytes read. */
+  maxBytes?: number
+  /** Past maxBytes: keep what was read (true) or fail with "Response too large" (false). */
+  truncate?: boolean
+}
+
+export interface HttpResult {
+  ok: boolean
+  status: number | null
+  error: string | null
+  /** Response body (utf8), when a response arrived. */
+  body?: string
+}
+
+/**
+ * One HTTP(S) request to a user-supplied URL with the webhook protections:
+ * URL shape check, no private addresses (checked when connecting), no
+ * redirects, a time limit and a size limit. Never throws. 2xx is ok.
+ */
+export function httpRequest(req: HttpRequest): Promise<HttpResult> {
+  const { method, url, body, headers = {}, allowPrivate, timeoutMs = 5000, maxBytes = 1_048_576, truncate = false } = req
   const problem = webhookUrlProblem(url, allowPrivate)
   if (problem) return Promise.resolve({ ok: false, status: null, error: problem })
   const u = new URL(url)
   const mod = u.protocol === 'https:' ? https : http
   return new Promise((resolve) => {
     let done = false
-    const finish = (r: PostResult) => {
+    const finish = (r: HttpResult) => {
       if (done) return
       done = true
       clearTimeout(timer)
       resolve(r)
     }
-    const req = mod.request(u, {
-      method: 'POST',
-      headers: { ...headers, 'content-length': Buffer.byteLength(body).toString() },
+    const r = mod.request(u, {
+      method,
+      headers: body === undefined ? headers : { ...headers, 'content-length': Buffer.byteLength(body).toString() },
       lookup: safeLookup(allowPrivate),
       agent: false,
     }, (res) => {
       const status = res.statusCode ?? 0
+      const chunks: Buffer[] = []
       let size = 0
-      let head = ''
+      let tooLarge = false
       res.on('data', (chunk: Buffer) => {
-        if (head.length < 500) head += chunk.toString('utf8').slice(0, 500 - head.length)
+        if (tooLarge) return
         size += chunk.length
-        if (size > 65_536) res.destroy()
+        if (size > maxBytes) {
+          tooLarge = true
+          chunks.push(chunk.subarray(0, chunk.length - (size - maxBytes)))
+          res.destroy()
+          return
+        }
+        chunks.push(chunk)
       })
-      const settle = () => finish(status >= 200 && status < 300
-        ? { ok: true, status, error: null }
-        : { ok: false, status, error: status >= 300 && status < 400 ? `Redirect (HTTP ${status}) not followed` : `HTTP ${status}`, body: head })
+      const settle = () => {
+        const text = Buffer.concat(chunks).toString('utf8')
+        if (tooLarge && !truncate) return finish({ ok: false, status, error: 'Response too large' })
+        finish(status >= 200 && status < 300
+          ? { ok: true, status, error: null, body: text }
+          : { ok: false, status, error: status >= 300 && status < 400 ? `Redirect (HTTP ${status}) not followed` : `HTTP ${status}`, body: text })
+      }
       res.on('end', settle)
       res.on('close', settle)
       res.on('error', settle)
     })
     const timer = setTimeout(() => {
       finish({ ok: false, status: null, error: `Timed out after ${timeoutMs / 1000}s` })
-      req.destroy()
+      r.destroy()
     }, timeoutMs)
-    req.on('error', err => finish({ ok: false, status: null, error: err.message }))
-    req.end(body)
+    r.on('error', err => finish({ ok: false, status: null, error: err.message }))
+    r.end(body)
   })
 }

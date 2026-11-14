@@ -3,6 +3,7 @@ import type { BoardBackground } from '../boardBackgrounds'
 import type { ColumnOutline } from '../columnOutline'
 import type { BoardNotificationLevel } from '../notificationSettings'
 import type { SavedViewConfig } from '../savedViews'
+import type { BoardMatrixRoom } from './matrix'
 
 export type BoardRole = 'owner' | 'editor' | 'viewer'
 
@@ -364,6 +365,8 @@ export interface BoardDetail {
   starred: boolean
   /** The current user's notifications from this board: all, direct (mentions and being assigned) or none. */
   notificationLevel: BoardNotificationLevel
+  /** The connected Matrix room, if any. */
+  matrix: BoardMatrixRoom | null
   team: { id: string, name: string } | null
   columns: Column[]
   /** Column groups in position order. */

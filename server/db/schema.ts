@@ -747,6 +747,22 @@ export const webhookDeliveries = pgTable('webhook_deliveries', {
   createdAt: createdAt(),
 }, t => [index('webhook_deliveries_due_idx').on(t.nextAttemptAt).where(sql`${t.status} = 'pending'`)])
 
+// Matrix room a board is connected to (see 0075_board_matrix_rooms_rls.sql).
+// The bot's access token is sealed with secretBox (server/utils/matrix.ts);
+// kanban_app may write it but never read it back, the server reads it through
+// app.matrix_room_target. Board members read the rest, owners manage it.
+export const boardMatrixRooms = pgTable('board_matrix_rooms', {
+  boardId: uuid('board_id').primaryKey().references(() => boards.id, { onDelete: 'cascade' }),
+  homeserverUrl: text('homeserver_url').notNull(),
+  roomId: text('room_id').notNull(),
+  roomName: text('room_name'),
+  botUserId: text('bot_user_id').notNull(),
+  accessToken: text('access_token').notNull(),
+  createdBy: uuid('created_by').references(() => users.id, { onDelete: 'set null' }),
+  createdAt: createdAt(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+})
+
 // Web Push: one row per browser that turned push on (see 0068_push_rls.sql).
 // Tied to the sign-in session that subscribed: revoking or deleting the session
 // deletes the subscription, so a signed-out device gets nothing. Written only

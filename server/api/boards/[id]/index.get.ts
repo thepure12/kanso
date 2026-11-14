@@ -13,7 +13,7 @@ export default defineUserHandler(async (event, tx): Promise<BoardDetail> => {
     .from(boards).leftJoin(teams, eq(teams.id, boards.teamId)).where(eq(boards.id, id))
   if (!board) notFound('Board not found')
 
-  const [cols, ruleRows, cardRows, templates, recurrences, automationRows, tagRows, fields, columnGroups, savedViews, members, inviteRows, [me]] = await Promise.all([
+  const [cols, ruleRows, cardRows, templates, recurrences, automationRows, tagRows, fields, columnGroups, savedViews, matrix, members, inviteRows, [me]] = await Promise.all([
     tx.select({ id: columns.id, title: columns.title, position: columns.position, color: columns.color, wipLimit: columns.wipLimit, outline: columns.outline })
       .from(columns).where(eq(columns.boardId, id)).orderBy(asc(columns.position)),
     tx.select({ ...columnRuleFields, columnId: columnRules.columnId })
@@ -29,6 +29,7 @@ export default defineUserHandler(async (event, tx): Promise<BoardDetail> => {
     loadBoardFields(tx, id),
     loadColumnGroups(tx, id),
     loadSavedViews(tx, id),
+    loadMatrixRoom(tx, id),
     tx.execute<Member & Record<string, unknown>>(sql`
       select p.user_id as "userId", p.role, p.board_role as "boardRole", p.team_role as "teamRole",
              u.name, u.email, u.avatar_url as "avatarUrl"
@@ -49,6 +50,7 @@ export default defineUserHandler(async (event, tx): Promise<BoardDetail> => {
     archivedAt: board.archivedAt?.toISOString() ?? null,
     starred: board.starred,
     notificationLevel: board.notificationLevel ?? 'all',
+    matrix,
     background: board.background ?? null,
     accent: board.accent ?? null,
     columnOutline: board.columnOutline ?? null,

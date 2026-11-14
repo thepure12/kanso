@@ -2,6 +2,7 @@
 import { VueDraggable, type SortableEvent } from 'vue-draggable-plus'
 import type { DropdownMenuItem } from '@nuxt/ui'
 import type { BulkCardAction, Card, Column, SavedView } from '#shared/types/board'
+import type { BoardMatrixRoom } from '#shared/types/matrix'
 import { backgroundStyle } from '#shared/boardBackgrounds'
 import { columnOutlineStyle, effectiveColumnOutline } from '#shared/columnOutline'
 import { CARD_TITLE_MAX } from '#shared/cards'
@@ -101,6 +102,10 @@ const activityOpen = ref(false)
 const copyOpen = ref(false)
 const templatesOpen = ref(false)
 const webhooksOpen = ref(false)
+const matrixOpen = ref(false)
+function setMatrixRoom(room: BoardMatrixRoom | null) {
+  if (board.value) board.value.matrix = room
+}
 const automationsOpen = ref(false)
 
 function openTemplate(template: Card) {
@@ -435,6 +440,7 @@ const boardMenu = computed(() => {
       { label: t('board.menu.automations'), icon: 'i-lucide-timer', onSelect: () => { automationsOpen.value = true } },
       ...(editable ? [{ label: t('board.menu.background'), icon: 'i-lucide-image', onSelect: () => { backgroundOpen.value = true } }] : []),
       ...(owner ? [{ label: t('board.menu.webhooks'), icon: 'i-lucide-webhook', onSelect: () => { webhooksOpen.value = true } }] : []),
+      ...(owner ? [{ label: t('board.menu.matrix'), icon: 'i-lucide-message-square-share', onSelect: () => { matrixOpen.value = true } }] : []),
     ]),
     section(t('board.menu.sections.history'), [
       { label: t('board.menu.activity'), icon: 'i-lucide-history', onSelect: () => { activityOpen.value = true } },
@@ -965,6 +971,7 @@ const boardMenu = computed(() => {
       @set-column-outline="setColumnOutline"
     />
     <WebhooksSlideover v-if="isOwner" v-model:open="webhooksOpen" :board-id="board.id" />
+    <MatrixSlideover v-if="isOwner" v-model:open="matrixOpen" :board-id="board.id" :room="board.matrix" @update:room="setMatrixRoom" />
     <CopyBoardModal v-model:open="copyOpen" :board-id="board.id" :board-name="board.name" :team-id="board.team?.id ?? null" />
     <MembersSlideover
       v-model:open="membersOpen"

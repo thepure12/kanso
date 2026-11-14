@@ -595,6 +595,7 @@
       "exportJson": "Export JSON",
       "exportCsv": "Export CSV",
       "webhooks": "Webhooks",
+      "matrix": "Matrix room",
       "unarchive": "Unarchive board",
       "background": "Background and accent",
       "rename": "Rename board",
@@ -1237,6 +1238,30 @@
       "field": "Custom field",
       "stale": "No recent activity"
     }
+  },
+  "matrix": {
+    "title": "Matrix room",
+    "description": "Connect this board to a Matrix room through a bot account. Only board owners see these settings.",
+    "homeserver": "Homeserver",
+    "homeserverHelp": "The bot's homeserver: a server name like matrix.org, or its client API URL.",
+    "room": "Room",
+    "roomHelp": "Room ID (!…:server), alias (#…:server) or a matrix.to link.",
+    "token": "Bot access token",
+    "tokenHelp": "Stored encrypted and never shown again.",
+    "tokenKeep": "Leave empty to keep the stored token.",
+    "botHint": "Use a separate Matrix account for the bot and invite it to the room. In Element, its token is under Settings → Help & About → Access token. Encrypted rooms are not supported.",
+    "connect": "Connect",
+    "connected": "Connected to {room}",
+    "saveFailed": "Could not connect the Matrix room",
+    "bot": "Bot",
+    "test": "Test",
+    "testOk": "The bot can reach the room",
+    "testFailed": "Matrix connection test failed",
+    "change": "Change",
+    "disconnect": "Disconnect",
+    "disconnectConfirm": "Disconnect this board from its Matrix room?",
+    "disconnectFailed": "Could not disconnect the Matrix room",
+    "openRoom": "Open the room in Matrix"
   },
   "views": {
     "today": "Today",
