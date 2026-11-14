@@ -5,6 +5,7 @@ import type { Attachment, Member } from '#shared/types/board'
  * With `members`, typing `@` suggests people and inserts mention tokens (app/utils/mentions.ts).
  * With `upload`, images and files pasted, dropped or picked with the Image button become
  * card attachments, linked at the caret as `attachment:<id>` (app/utils/attachmentLinks.ts).
+ * With `previewWhenFilled`, it opens on Preview unless the text is empty.
  */
 const props = defineProps<{
   placeholder?: string
@@ -12,9 +13,10 @@ const props = defineProps<{
   disabled?: boolean
   members?: Member[]
   upload?: (files: File[]) => Promise<Attachment[]>
+  previewWhenFilled?: boolean
 }>()
 const model = defineModel<string>({ required: true })
-const preview = ref(false)
+const preview = ref(!!props.previewWhenFilled && !!model.value.trim())
 const { t } = useI18n()
 const toast = useToast()
 

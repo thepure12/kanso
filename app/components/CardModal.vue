@@ -289,7 +289,14 @@ const tabs = computed(() => [
               />
             </UFormField>
             <UFormField :label="t('card.description')">
-              <MarkdownEditor v-if="props.canEdit" v-model="form.description" :upload="props.template ? undefined : cd.upload" :placeholder="t('card.descriptionPlaceholder')" />
+              <MarkdownEditor
+                v-if="props.canEdit"
+                :key="props.card.id"
+                v-model="form.description"
+                preview-when-filled
+                :upload="props.template ? undefined : cd.upload"
+                :placeholder="t('card.descriptionPlaceholder')"
+              />
               <MarkdownText v-else-if="form.description" :text="form.description" />
               <p v-else class="text-sm text-muted">
                 {{ t('card.noDescription') }}

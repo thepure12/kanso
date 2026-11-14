@@ -20,4 +20,14 @@ describe('MarkdownEditor', () => {
     await w.find('[role="option"]').trigger('mousedown')
     expect(value).toBe(`Hi @[Greg Beeley](user:${greg.userId}) `)
   })
+
+  it('opens on Preview with previewWhenFilled unless the text is empty', async () => {
+    const filled = await mountSuspended(MarkdownEditor, { props: { modelValue: 'Some **text**', previewWhenFilled: true } })
+    expect(filled.find('textarea').exists()).toBe(false)
+    expect(filled.html()).toContain('<strong>text</strong>')
+    const empty = await mountSuspended(MarkdownEditor, { props: { modelValue: '  ', previewWhenFilled: true } })
+    expect(empty.find('textarea').exists()).toBe(true)
+    const plain = await mountSuspended(MarkdownEditor, { props: { modelValue: 'Some text' } })
+    expect(plain.find('textarea').exists()).toBe(true)
+  })
 })
