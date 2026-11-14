@@ -37,6 +37,19 @@ export interface MatrixThreadMessage {
   /** Matrix HTML (org.matrix.custom.html), unsanitized: the browser sanitizes it. */
   html: string | null
   edited: boolean
+  /** An image (m.image or sticker): served through the card's media route. */
+  image?: MatrixThreadImage
+}
+
+/** An image in a thread message. URLs are app paths without the base path (wrap in appUrl). */
+export interface MatrixThreadImage {
+  /** Full size. */
+  url: string
+  /** At most 800×600, animation kept. */
+  thumbnailUrl: string
+  name: string
+  width: number | null
+  height: number | null
 }
 
 /** A card's Matrix thread with its messages, root first. */

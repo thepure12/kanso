@@ -45,7 +45,7 @@ async function signUp(name: string, email = `${name.toLowerCase()}-${randomUUID(
   const verify = await globalThis.fetch(`${base}/auth/verify?token=${signEmailToken(u!.id, email, process.env.NUXT_SESSION_PASSWORD!)}`, { redirect: 'manual', headers: { 'x-forwarded-for': ip } })
   const cookie = verify.headers.getSetCookie().map(c => c.split(';')[0]).join('; ')
   const req = <T = any>(path: string, init: { method?: string, body?: unknown } = {}) => call<T>(path, { ...init, cookie, ip })
-  return { req, email, id: u!.id as string }
+  return { req, email, cookie, id: u!.id as string }
 }
 
 // ---------------------------------------------------------------- fake homeserver
@@ -83,6 +83,22 @@ async function handle(req: IncomingMessage, res: ServerResponse) {
   const path = decodeURIComponent(rawPath!)
   const params = new URLSearchParams(query)
   fake.requests.push({ method: req.method!, path, auth: req.headers.authorization })
+  // Media: `abc` through authenticated media; `old` only on the legacy unauthenticated path.
+  let media: RegExpExecArray | null
+  if ((media = /^\/_matrix\/media\/v3\/(download|thumbnail)\/matrix\.test\/old$/.exec(path))) {
+    res.writeHead(200, { 'content-type': 'image/gif' })
+    return res.end(media[1] === 'thumbnail' ? 'GIF-thumb' : 'GIF-full')
+  }
+  if (req.headers.authorization === `Bearer ${TOKEN}` && (media = /^\/media\/(download|thumbnail)\/matrix\.test\/(\w+)$/.exec(path))) {
+    if (media[2] === 'old') return reply(res, 404, { errcode: 'M_UNRECOGNIZED', error: 'Unrecognized request' })
+    if (media[2] === 'svg') {
+      res.writeHead(200, { 'content-type': 'image/svg+xml' })
+      return res.end('<svg/>')
+    }
+    if (media[2] !== 'abc') return reply(res, 404, { errcode: 'M_NOT_FOUND', error: 'Not found' })
+    res.writeHead(200, { 'content-type': 'image/png' })
+    return res.end(media[1] === 'thumbnail' ? `PNG-thumb ${params.get('width')}x${params.get('height')}` : 'PNG-full')
+  }
   if (req.headers.authorization !== `Bearer ${TOKEN}`) return reply(res, 401, { errcode: 'M_UNKNOWN_TOKEN', error: 'Invalid access token passed.' })
   let m: RegExpExecArray | null
   if (path === '/account/whoami') return reply(res, 200, { user_id: '@kanso-bot:matrix.test' })
@@ -340,7 +356,7 @@ describe('reading a card thread', () => {
     reply('$r2', { body: 'typo' }, { unsigned: { 'm.relations': { 'm.replace': { content: { 'm.new_content': { msgtype: 'm.text', body: 'fixed text' } } } } } })
     reply('$r3', { body: 'secret' }, { unsigned: { redacted_because: { type: 'm.room.redaction' } } })
     reply('$r4', { body: '> <@x:matrix.test> quoted\n\nanswer', format: 'org.matrix.custom.html', formatted_body: '<mx-reply><blockquote>quoted</blockquote></mx-reply>answer', 'm.relates_to': { 'm.in_reply_to': { event_id: '$r1' } } })
-    reply('$r5', { msgtype: 'm.image', body: 'photo.png', url: 'mxc://matrix.test/abc' })
+    reply('$r5', { msgtype: 'm.image', body: 'photo.png', url: 'mxc://matrix.test/abc', info: { w: 1200, h: 900, mimetype: 'image/png' } })
     for (let i = 0; i < 6; i++) reply(`$bulk${i}`, { body: `bulk ${i}` })
   })
 
@@ -359,7 +375,43 @@ describe('reading a card thread', () => {
     expect(msgs[1]).toMatchObject({ sender: '@stranger:matrix.test', senderName: '@stranger:matrix.test', html: 'Have you tried <em>turning it off</em>' })
     expect(msgs[2]).toMatchObject({ body: 'fixed text', edited: true })
     expect(msgs[3]).toMatchObject({ body: 'answer', html: 'answer' })
-    expect(msgs[4]).toMatchObject({ body: '[photo.png]', html: null })
+    expect(msgs[4]).toMatchObject({ body: '[photo.png]', html: null, image: { name: 'photo.png', width: 1200, height: 900 } })
+    expect(msgs[3]!.image).toBeUndefined()
+  })
+
+  it('serves thread images through the bot, only with the signature the thread GET gave', async () => {
+    const image = (await read(carol)).data.messages.find(m => m.id === '$r5')!.image!
+    const get = (path: string, who = carol) => who.req(path)
+    const thumb = await get(image.thumbnailUrl)
+    expect(thumb).toEqual({ status: 200, data: 'PNG-thumb 800x600' })
+    const full = await globalThis.fetch(base + image.url, { headers: { cookie: '' } })
+    expect(full.status).toBe(401)
+    expect((await get(image.url)).data).toBe('PNG-full')
+
+    // Another mxc URI, or the signature of another card, is refused before Matrix is asked.
+    fake.requests.length = 0
+    expect((await get(image.url.replace('abc', 'xyz'))).status).toBe(400)
+    expect((await get(image.url.replace(cardId, randomUUID()))).status).toBe(400)
+    expect(fake.requests).toEqual([])
+    // Someone who cannot see the board gets nothing.
+    const stranger = await signUp('Stranger')
+    expect((await get(image.url, stranger)).status).toBe(404)
+  })
+
+  it('falls back to legacy media, downloads non-images and shows stickers', async () => {
+    reply('$sticker', { body: 'wave' }, { type: 'm.sticker' })
+    fake.events.get('$sticker')!.content = { body: 'wave', url: 'mxc://matrix.test/old', info: { w: 64 }, 'm.relates_to': { rel_type: 'm.thread', event_id: '$root3' } }
+    reply('$svg', { msgtype: 'm.image', body: 'x.svg', url: 'mxc://matrix.test/svg' })
+    const msgs = (await read(bob)).data.messages
+    const sticker = msgs.find(m => m.id === '$sticker')!
+    expect(sticker).toMatchObject({ body: '[wave]', image: { name: 'wave', width: 64, height: null } })
+    expect((await bob.req(sticker.image!.thumbnailUrl)).data).toBe('GIF-thumb')
+    const svg = await globalThis.fetch(base + msgs.find(m => m.id === '$svg')!.image!.url, { headers: { cookie: bob.cookie, 'x-forwarded-for': randomIp() } })
+    expect(svg.headers.get('content-type')).toBe('application/octet-stream')
+    expect(svg.headers.get('content-disposition')).toBe('attachment')
+    expect(svg.headers.get('x-content-type-options')).toBe('nosniff')
+    fake.events.delete('$sticker')
+    fake.events.delete('$svg')
   })
 
   it('reports Matrix errors as 400', async () => {

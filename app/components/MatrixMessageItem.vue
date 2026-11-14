@@ -11,6 +11,8 @@ const { t, locale } = useI18n()
 const { user } = useUserSession()
 
 const htmlOf = (html: string) => import.meta.client ? sanitizeHtml(html) : ''
+const base = basePath()
+const imageFailed = ref(false)
 </script>
 
 <template>
@@ -26,8 +28,26 @@ const htmlOf = (html: string) => import.meta.client ? sanitizeHtml(html) : ''
       <span class="text-muted">{{ formatDateTime(message.createdAt, locale) }}</span>
       <span v-if="message.edited" class="text-dimmed">{{ t('comments.edited') }}</span>
     </div>
+    <a
+      v-if="message.image && !imageFailed"
+      :href="base + message.image.url"
+      target="_blank"
+      rel="noopener"
+      class="block w-fit max-w-full"
+      :title="message.image.name"
+    >
+      <img
+        :src="base + message.image.thumbnailUrl"
+        :alt="message.image.name"
+        :width="message.image.width ?? undefined"
+        :height="message.image.height ?? undefined"
+        loading="lazy"
+        class="h-auto max-h-72 w-auto max-w-full rounded-md border border-default bg-elevated object-contain"
+        @error="imageFailed = true"
+      >
+    </a>
     <!-- Sanitized by DOMPurify in sanitizeHtml. -->
-    <div v-if="message.html && htmlOf(message.html)" class="markdown text-sm break-words" v-html="htmlOf(message.html)" />
+    <div v-else-if="message.html && htmlOf(message.html)" class="markdown text-sm break-words" v-html="htmlOf(message.html)" />
     <p v-else class="whitespace-pre-wrap break-words text-sm">
       {{ message.body }}
     </p>

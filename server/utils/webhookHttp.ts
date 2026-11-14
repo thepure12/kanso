@@ -102,6 +102,10 @@ export interface HttpResult {
   error: string | null
   /** Response body (utf8), when a response arrived. */
   body?: string
+  /** The same body as bytes (for binary downloads). */
+  bytes?: Buffer
+  /** Response content-type header. */
+  contentType?: string
 }
 
 /**
@@ -145,10 +149,11 @@ export function httpRequest(req: HttpRequest): Promise<HttpResult> {
         chunks.push(chunk)
       })
       const settle = () => {
-        const text = Buffer.concat(chunks).toString('utf8')
+        const bytes = Buffer.concat(chunks)
+        const text = bytes.toString('utf8')
         if (tooLarge && !truncate) return finish({ ok: false, status, error: 'Response too large' })
         finish(status >= 200 && status < 300
-          ? { ok: true, status, error: null, body: text }
+          ? { ok: true, status, error: null, body: text, bytes, contentType: res.headers['content-type'] }
           : { ok: false, status, error: status >= 300 && status < 400 ? `Redirect (HTTP ${status}) not followed` : `HTTP ${status}`, body: text })
       }
       res.on('end', settle)

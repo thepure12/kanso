@@ -1,3 +1,4 @@
+import { createHmac, timingSafeEqual } from 'node:crypto'
 import { sql } from 'drizzle-orm'
 import { Marked } from 'marked'
 import { sealSecret, openSecret, secretKey } from './secretBox'
@@ -277,26 +278,57 @@ function stripReplyFallback(content: Record<string, unknown>, body: string, html
   return { body: i ? lines.slice(i).join('\n') : body, html: html?.replace(/<mx-reply>[\s\S]*?<\/mx-reply>/, '') ?? null }
 }
 
+/** An image in a thread message (m.image or m.sticker), still as its mxc:// URI. */
+export interface ThreadImage {
+  mxc: string
+  name: string
+  width: number | null
+  height: number | null
+}
+
 export interface ThreadMessageContent {
   body: string
   html: string | null
   edited: boolean
+  image?: ThreadImage
+}
+
+/** `mxc://<server>/<media id>` split into its parts; null when it is not one. */
+export function parseMxc(uri: string): { server: string, mediaId: string } | null {
+  const m = /^mxc:\/\/([A-Za-z0-9.\-:[\]]+)\/([A-Za-z0-9_-]+)$/.exec(uri)
+  return m ? { server: m[1]!, mediaId: m[2]! } : null
+}
+
+const dimension = (v: unknown) => typeof v === 'number' && Number.isFinite(v) && v > 0 ? Math.round(v) : null
+
+/** The image of an m.image / m.sticker content; null without a plain mxc URL (encrypted media has `file` instead). */
+function imageOf(content: Record<string, unknown>): ThreadImage | null {
+  if (typeof content.url !== 'string' || !parseMxc(content.url)) return null
+  const info = (content.info ?? {}) as { w?: unknown, h?: unknown }
+  return { mxc: content.url, name: typeof content.body === 'string' ? content.body : '', width: dimension(info.w), height: dimension(info.h) }
 }
 
 /**
  * What to show for a message event: the latest edit's text when the server
  * bundled one, without reply fallback; null for redacted, non-message or
- * encrypted events. Non-text messages show their body (file name) in brackets.
+ * encrypted events. Non-text messages show their body (file name) in brackets;
+ * images (and stickers) also carry `image`.
  */
 export function messageContent(e: MatrixEvent): ThreadMessageContent | null {
-  if (e.type !== 'm.room.message' || e.unsigned?.redacted_because) return null
+  if (e.unsigned?.redacted_because) return null
+  if (e.type === 'm.sticker') {
+    const image = imageOf(e.content)
+    return image ? { body: `[${image.name}]`, html: null, edited: false, image } : null
+  }
+  if (e.type !== 'm.room.message') return null
   const replace = (e.unsigned?.['m.relations'] as { 'm.replace'?: { content?: { 'm.new_content'?: Record<string, unknown> } } } | undefined)?.['m.replace']
   const edit = replace?.content?.['m.new_content']
   const content = edit && typeof edit.body === 'string' ? edit : e.content
   if (typeof content.body !== 'string') return null
   const msgtype = content.msgtype
   if (msgtype === 'm.image' || msgtype === 'm.file' || msgtype === 'm.video' || msgtype === 'm.audio') {
-    return { body: `[${content.body}]`, html: null, edited: !!edit }
+    const image = msgtype === 'm.image' ? imageOf(content) : null
+    return { body: `[${content.body}]`, html: null, edited: !!edit, ...(image && { image }) }
   }
   const html = content.format === 'org.matrix.custom.html' && typeof content.formatted_body === 'string' ? content.formatted_body : null
   const stripped = stripReplyFallback(e.content, content.body, html)
@@ -426,4 +458,59 @@ export async function redactEvent(c: MatrixClient, roomId: string, eventId: stri
     return true
   }
   catch { return false }
+}
+
+/**
+ * Signature of a card's media URL, so the media route only fetches mxc URIs
+ * that the thread GET handed out for that card (not any media the bot can
+ * reach). Keyed by the session password.
+ */
+export function matrixMediaSig(cardId: string, mxc: string): string {
+  return createHmac('sha256', useRuntimeConfig().session.password).update(`matrix-media:${cardId}:${mxc}`).digest('base64url').slice(0, 32)
+}
+
+export function checkMatrixMediaSig(cardId: string, mxc: string, sig: string): boolean {
+  const expected = Buffer.from(matrixMediaSig(cardId, mxc))
+  const given = Buffer.from(sig)
+  return expected.length === given.length && timingSafeEqual(expected, given)
+}
+
+/** Largest media file passed through (full size; thumbnails are much smaller). */
+const MEDIA_MAX_BYTES = 10 * 1024 * 1024
+
+/**
+ * Downloads a media file (or a thumbnail of at most 800×600) as the bot:
+ * authenticated media (`/_matrix/client/v1/media`, Matrix 1.11), falling back
+ * to the older unauthenticated `/_matrix/media/v3` on servers without it.
+ */
+export async function downloadMatrixMedia(c: MatrixClient, mxc: string, thumbnail: boolean): Promise<{ data: Buffer, contentType: string | null }> {
+  const parsed = parseMxc(mxc)
+  if (!parsed) throw new MatrixError('Not a Matrix media URI', null, null)
+  const path = `${thumbnail ? 'thumbnail' : 'download'}/${encodeURIComponent(parsed.server)}/${encodeURIComponent(parsed.mediaId)}`
+    + (thumbnail ? '?width=800&height=600&method=scale&animated=true' : '')
+  const get = (url: string, token: string | null) => httpRequest({
+    method: 'GET',
+    url,
+    headers: { 'user-agent': 'Kanso', ...(token && { authorization: `Bearer ${token}` }) },
+    allowPrivate: webhookAllowPrivate(),
+    timeoutMs: 15_000,
+    maxBytes: MEDIA_MAX_BYTES,
+  })
+  const errcode = (body?: string) => {
+    try {
+      const j = body ? JSON.parse(body) : null
+      return { errcode: typeof j?.errcode === 'string' ? j.errcode as string : null, error: typeof j?.error === 'string' ? j.error as string : null }
+    }
+    catch { return { errcode: null, error: null } }
+  }
+  let res = await get(`${baseUrl(c.homeserverUrl)}/_matrix/client/v1/media/${path}`, c.accessToken)
+  if (!res.ok && (res.status === 404 || res.status === 405) && errcode(res.body).errcode === 'M_UNRECOGNIZED') {
+    res = await get(`${baseUrl(c.homeserverUrl)}/_matrix/media/v3/${path}`, null)
+  }
+  if (!res.ok || !res.bytes) {
+    const e = errcode(res.body)
+    const msg = e.error ?? res.error ?? 'Request failed'
+    throw new MatrixError(e.errcode ? `${e.errcode}: ${msg}` : msg, res.status, e.errcode)
+  }
+  return { data: res.bytes, contentType: res.contentType?.split(';')[0]!.trim().toLowerCase() ?? null }
 }

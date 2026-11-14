@@ -1,5 +1,12 @@
 import { eq } from 'drizzle-orm'
-import type { MatrixThreadMessage, MatrixThreadView } from '#shared/types/matrix'
+import type { MatrixThreadImage, MatrixThreadMessage, MatrixThreadView } from '#shared/types/matrix'
+import type { ThreadImage } from '../../../../utils/matrix'
+
+/** Signed media route URLs for an image of the card's thread. */
+function threadImage(cardId: string, image: ThreadImage): MatrixThreadImage {
+  const url = `/api/cards/${cardId}/matrix-thread/media?mxc=${encodeURIComponent(image.mxc)}&sig=${matrixMediaSig(cardId, image.mxc)}`
+  return { url, thumbnailUrl: `${url}&thumbnail=1`, name: image.name, width: image.width, height: image.height }
+}
 
 /**
  * The card's Matrix thread with its messages, read now from the homeserver
@@ -34,6 +41,7 @@ export default defineUserHandler(async (event, tx, userId): Promise<MatrixThread
         kansoUserId: author?.id ?? (fromBot ? null : linked.get(e.sender) ?? null),
         createdAt: new Date(e.origin_server_ts).toISOString(),
         ...(author && !author.continued ? withoutAuthorPrefix(content, author) : content),
+        image: content.image && threadImage(id, content.image),
       }
     })
     return { boardId: thread.boardId, roomId: thread.roomId, eventId: thread.eventId, messages, more, myLink }
