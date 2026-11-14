@@ -7,13 +7,14 @@ import type { MatrixThreadMessage, MatrixThreadView } from '#shared/types/matrix
  * anyone on the board). No background sync: the dialog polls this while the
  * Matrix tab is open. Matrix problems are a 400 naming the error.
  */
-export default defineUserHandler(async (event, tx): Promise<MatrixThreadView> => {
+export default defineUserHandler(async (event, tx, userId): Promise<MatrixThreadView> => {
   const { id } = await paramsValidated(event, uuidParam)
   const { cardMatrixThreads: t, boardMatrixRooms: r } = schema
   const [thread] = await tx.select({ boardId: t.boardId, roomId: t.roomId, eventId: t.eventId, botUserId: r.botUserId })
     .from(t).leftJoin(r, eq(r.boardId, t.boardId)).where(eq(t.cardId, id))
   if (!thread) notFound('The card has no Matrix thread')
   const bot = await boardMatrixBot(tx, thread.boardId)
+  const [linked, myLink] = await Promise.all([loadBoardMatrixUsers(tx, thread.boardId), loadMyMatrixLink(tx, thread.boardId, userId)])
   try {
     const { root, replies, more } = await loadThreadEvents(bot, thread.roomId, thread.eventId)
     const shown = [root, ...replies].flatMap((e) => {
@@ -30,11 +31,12 @@ export default defineUserHandler(async (event, tx): Promise<MatrixThreadView> =>
         senderName: author?.name ?? names.get(e.sender) ?? e.sender,
         fromBot,
         kansoAuthorId: author?.id ?? null,
+        kansoUserId: author?.id ?? (fromBot ? null : linked.get(e.sender) ?? null),
         createdAt: new Date(e.origin_server_ts).toISOString(),
-        ...(author ? withoutAuthorPrefix(content, author.name) : content),
+        ...(author ? withoutAuthorPrefix(content, author) : content),
       }
     })
-    return { roomId: thread.roomId, eventId: thread.eventId, messages, more }
+    return { boardId: thread.boardId, roomId: thread.roomId, eventId: thread.eventId, messages, more, myLink }
   }
   catch (e) {
     matrixHttpError(e)

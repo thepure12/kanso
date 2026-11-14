@@ -1,6 +1,7 @@
-import { eq, sql } from 'drizzle-orm'
+import { and, eq, isNotNull, sql } from 'drizzle-orm'
 import { z } from 'zod'
 import type { MatrixThreadMessage } from '#shared/types/matrix'
+import type { KansoAuthor } from '../../../../utils/matrix'
 
 const body = z.object({
   text: z.string().trim().min(1).max(10_000),
@@ -23,7 +24,11 @@ export default defineUserHandler(async (event, tx, userId): Promise<MatrixThread
   const accessToken = openMatrixToken(target.access_token)
   if (!accessToken) throw createError({ statusCode: 400, statusMessage: 'Matrix: the stored token cannot be read any more. A board owner has to enter it again.' })
   const [me] = await tx.select({ name: schema.users.name }).from(schema.users).where(eq(schema.users.id, userId))
-  const author = { id: userId, name: me?.name ?? 'Kanso' }
+  // The caller's verified Matrix account on the card's board: the reply starts with a silent pill of it.
+  const { boardMatrixUsers: u, cards } = schema
+  const [link] = await tx.select({ mxid: u.mxid }).from(u).innerJoin(cards, eq(cards.boardId, u.boardId))
+    .where(and(eq(cards.id, id), eq(u.userId, userId), isNotNull(u.verifiedAt)))
+  const author: KansoAuthor = { id: userId, name: me?.name ?? 'Kanso', ...(link && { mxid: link.mxid }) }
   const content = threadReplyContent(target.event_id, author, text)
   try {
     const eventId = await sendMessage({ homeserverUrl: target.homeserver_url, accessToken }, target.room_id, content, `kanso-${userId}-${clientId}`)
@@ -33,6 +38,7 @@ export default defineUserHandler(async (event, tx, userId): Promise<MatrixThread
       senderName: author.name,
       fromBot: true,
       kansoAuthorId: userId,
+      kansoUserId: userId,
       createdAt: new Date().toISOString(),
       body: text,
       html: null,

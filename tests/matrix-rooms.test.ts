@@ -1,7 +1,8 @@
 // RLS for board Matrix rooms: members read the connection, effective owners
 // manage it, the sealed token is never readable by kanban_app, and
 // app.matrix_room_credentials hands it to owners only. Card threads: members
-// read them, editors link and unlink (not while archived).
+// read them, editors link and unlink (not while archived). Matrix accounts:
+// people link their own, verified only by app.confirm_matrix_user.
 import { randomUUID } from 'node:crypto'
 import postgres from 'postgres'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
@@ -113,5 +114,48 @@ describe('card_matrix_threads', () => {
     expect(await as(owner.id, sql => sql`delete from card_matrix_threads where card_id = ${cardId} returning card_id`)).toEqual([])
     await as(owner.id, sql => sql`select app.set_board_archived(${boardId}, false)`)
     expect(await as(editor.id, sql => sql`delete from card_matrix_threads where card_id = ${cardId} returning card_id`)).toHaveLength(1)
+  })
+})
+
+describe('board_matrix_users', () => {
+  const start = (by: User, mxid = '@viewer:example', userId = by.id) => as(by.id, sql => sql`
+    insert into board_matrix_users (board_id, user_id, mxid) values (${boardId}, ${userId}, ${mxid}) returning code`)
+  const confirm = (by: User, code: string) => as(by.id, async sql => (await sql`select app.confirm_matrix_user(${boardId}, ${code}) as ok`)[0]!.ok)
+  const links = (by: User) => as(by.id, sql => sql`select user_id, mxid, code, verified_at is not null as verified from board_matrix_users where board_id = ${boardId} order by mxid, user_id`)
+
+  it('anyone on the board starts a link for themselves; the database picks the code', async () => {
+    await expect(start(outsider)).rejects.toMatchObject({ code: '42501' })
+    await expect(start(viewer, '@viewer:example', editor.id)).rejects.toMatchObject({ code: '42501' })
+    await expect(as(viewer.id, sql => sql`
+      insert into board_matrix_users (board_id, user_id, mxid, code) values (${boardId}, ${viewer.id}, '@viewer:example', 'MINE')`)).rejects.toMatchObject({ code: '42501' })
+    await expect(as(viewer.id, sql => sql`
+      insert into board_matrix_users (board_id, user_id, mxid, verified_at) values (${boardId}, ${viewer.id}, '@viewer:example', now())`)).rejects.toMatchObject({ code: '42501' })
+    await expect(start(viewer, 'not an id')).rejects.toMatchObject({ code: '23514' })
+    const [{ code }] = await start(viewer) as any
+    expect(code).toMatch(/^[0-9A-F]{10}$/)
+  })
+
+  it('pending links are private; app.confirm_matrix_user verifies the caller\'s own with the right code', async () => {
+    expect(await links(editor)).toEqual([])
+    const [{ code }] = await links(viewer) as any
+    expect(await confirm(viewer, 'WRONG')).toBe(false)
+    expect(await confirm(editor, code)).toBe(false)
+    expect(await confirm(viewer, code)).toBe(true)
+    expect(await links(editor)).toEqual([{ user_id: viewer.id, mxid: '@viewer:example', code: null, verified: true }])
+    expect(await links(outsider)).toEqual([])
+  })
+
+  it('a newer proof for the same Matrix ID replaces the other person\'s link', async () => {
+    const [{ code }] = await start(editor) as any
+    expect(await confirm(editor, code)).toBe(true)
+    expect(await links(owner)).toEqual([{ user_id: editor.id, mxid: '@viewer:example', code: null, verified: true }])
+  })
+
+  it('people unlink only themselves; disconnecting the room drops the links', async () => {
+    expect(await as(owner.id, sql => sql`delete from board_matrix_users where board_id = ${boardId} returning user_id`)).toEqual([])
+    await start(owner, '@owner:example')
+    await as(owner.id, sql => sql`delete from board_matrix_rooms where board_id = ${boardId}`)
+    expect(await as(owner.id, sql => sql`select 1 from board_matrix_users where board_id = ${boardId}`)).toEqual([])
+    await connect(owner)
   })
 })

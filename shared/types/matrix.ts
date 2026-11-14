@@ -29,6 +29,8 @@ export interface MatrixThreadMessage {
   fromBot: boolean
   /** Written in Kanso by this person (the bot posted it for them); senderName is then their name. */
   kansoAuthorId: string | null
+  /** The Kanso person behind it: kansoAuthorId, or whoever linked the sender's Matrix ID on the board. */
+  kansoUserId: string | null
   createdAt: string
   /** Plain text. */
   body: string
@@ -39,7 +41,19 @@ export interface MatrixThreadMessage {
 
 /** A card's Matrix thread with its messages, root first. */
 export interface MatrixThreadView extends CardMatrixThread {
+  boardId: string
   messages: MatrixThreadMessage[]
   /** Older replies were left out (the newest 200 are shown). */
   more: boolean
+  /** The caller's Matrix account on this board, if they linked or started linking one. */
+  myLink: MatrixUserLink | null
+}
+
+/** A person's Matrix account on a board (/api/boards/:id/matrix/link). */
+export interface MatrixUserLink {
+  mxid: string
+  verified: boolean
+  /** While pending: the code to send in the board's room from that account. */
+  code: string | null
+  codeExpiresAt: string | null
 }

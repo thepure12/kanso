@@ -1287,12 +1287,26 @@
       "replyHint": "Sent by {bot} with your name in front.",
       "send": "Send",
       "sendFailed": "Could not send the reply",
-      "viaKanso": "via Kanso"
+      "viaKanso": "via Kanso",
+      "you": "You"
     },
     "activity": {
       "post": "Post card activity in card threads",
       "postHelp": "The bot writes what happens to a card (moved, assigned, due date…) into its linked thread.",
       "saveFailed": "Could not save the activity setting"
+    },
+    "account": {
+      "help": "Link your Matrix account to have your replies mention it (silently) instead of only your name.",
+      "start": "Link my Matrix account",
+      "getCode": "Get code",
+      "pending": "Send this message in {room} from {mxid}, then press Check. The code is valid for 15 minutes.",
+      "copy": "Copy",
+      "copied": "Copied",
+      "check": "Check",
+      "done": "Linked {mxid}",
+      "linked": "Linked as {mxid}. Your replies mention it without notifying you.",
+      "unlink": "Unlink",
+      "failed": "Could not link your Matrix account"
     }
   },
   "views": {

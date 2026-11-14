@@ -1287,12 +1287,26 @@
       "replyHint": "Wird von {bot} mit deinem Namen davor gesendet.",
       "send": "Senden",
       "sendFailed": "Die Antwort konnte nicht gesendet werden",
-      "viaKanso": "über Kanso"
+      "viaKanso": "über Kanso",
+      "you": "Du"
     },
     "activity": {
       "post": "Kartenaktivität in Karten-Threads posten",
       "postHelp": "Der Bot schreibt, was mit einer Karte passiert (verschoben, zugewiesen, Fälligkeit …), in ihren verknüpften Thread.",
       "saveFailed": "Die Einstellung zur Aktivität konnte nicht gespeichert werden"
+    },
+    "account": {
+      "help": "Verknüpfe dein Matrix-Konto, damit deine Antworten es (still) erwähnen statt nur deinen Namen.",
+      "start": "Mein Matrix-Konto verknüpfen",
+      "getCode": "Code holen",
+      "pending": "Sende diese Nachricht in {room} von {mxid} und klicke dann auf Prüfen. Der Code gilt 15 Minuten.",
+      "copy": "Kopieren",
+      "copied": "Kopiert",
+      "check": "Prüfen",
+      "done": "{mxid} verknüpft",
+      "linked": "Verknüpft als {mxid}. Deine Antworten erwähnen es, ohne dich zu benachrichtigen.",
+      "unlink": "Trennen",
+      "failed": "Matrix-Konto konnte nicht verknüpft werden"
     }
   },
   "views": {

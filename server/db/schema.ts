@@ -766,6 +766,24 @@ export const boardMatrixRooms = pgTable('board_matrix_rooms', {
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 })
 
+// A board member's Matrix account on that board (see 0082_board_matrix_users_rls.sql).
+// Pending while `code` is set: the user proves the Matrix ID by sending the
+// code in the board's room; app.confirm_matrix_user then sets verified_at and
+// clears the code. Replies from Kanso then mention the account silently.
+// Dropped with the room connection.
+export const boardMatrixUsers = pgTable('board_matrix_users', {
+  boardId: uuid('board_id').notNull().references(() => boardMatrixRooms.boardId, { onDelete: 'cascade' }),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  mxid: text('mxid').notNull(),
+  code: text('code').default(sql`upper(substr(md5(gen_random_uuid()::text), 1, 10))`),
+  codeExpiresAt: timestamp('code_expires_at', { withTimezone: true }).default(sql`now() + interval '15 minutes'`),
+  verifiedAt: timestamp('verified_at', { withTimezone: true }),
+  createdAt: createdAt(),
+}, t => [
+  primaryKey({ columns: [t.boardId, t.userId] }),
+  uniqueIndex('board_matrix_users_mxid_idx').on(t.boardId, t.mxid).where(sql`${t.verifiedAt} IS NOT NULL`),
+])
+
 // Outbox: one row per card activity to post into the card's Matrix thread,
 // queued by a card_activity trigger and sent by server/utils/matrixActivity.ts
 // (on NOTIFY and every minute). Up to 5 attempts. No grants.

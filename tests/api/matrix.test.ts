@@ -9,7 +9,7 @@ import postgres from 'postgres'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import type { BoardDetail, Card, CardDetail } from '#shared/types/board'
 import type { InstanceSettings } from '#shared/types/admin'
-import type { BoardMatrixRoom, CardMatrixThread, MatrixThreadView } from '#shared/types/matrix'
+import type { BoardMatrixRoom, CardMatrixThread, MatrixThreadView, MatrixUserLink } from '#shared/types/matrix'
 import { signEmailToken } from '../../server/utils/emailToken'
 import { setupApi } from './server'
 
@@ -115,6 +115,21 @@ async function handle(req: IncomingMessage, res: ServerResponse) {
     const limit = Number(params.get('limit') ?? 5)
     const chunk = all.slice(start, start + limit).map(([id, e]) => ({ event_id: id, type: e.type, sender: e.sender ?? '@kanso-bot:matrix.test', origin_server_ts: e.ts ?? 1, content: e.content, unsigned: e.unsigned }))
     return reply(res, 200, { chunk, ...(start + limit < all.length && { next_batch: String(start + limit) }) })
+  }
+  if (req.method === 'GET' && (m = /^\/rooms\/([^/]+)\/messages$/.exec(path))) {
+    // Newest first, narrowed by the filter's types and senders.
+    const filter = JSON.parse(params.get('filter') ?? '{}') as { types?: string[], senders?: string[] }
+    const chunk = [...fake.events].filter(([, e]) => e.room === m![1] && (!filter.types || filter.types.includes(e.type))
+      && (!filter.senders || filter.senders.includes(e.sender ?? '@kanso-bot:matrix.test'))).reverse()
+      .slice(0, Number(params.get('limit') ?? 10))
+      .map(([id, e]) => ({ event_id: id, type: e.type, sender: e.sender ?? '@kanso-bot:matrix.test', origin_server_ts: e.ts ?? 1, content: e.content, unsigned: e.unsigned }))
+    return reply(res, 200, { chunk })
+  }
+  if (req.method === 'PUT' && (m = /^\/rooms\/([^/]+)\/redact\/([^/]+)\/[^/]+$/.exec(path))) {
+    const e = fake.events.get(m[2]!)
+    if (!e || e.room !== m[1]) return reply(res, 404, { errcode: 'M_NOT_FOUND', error: 'Event not found.' })
+    e.unsigned = { ...e.unsigned, redacted_because: { type: 'm.room.redaction' } }
+    return reply(res, 200, { event_id: `$redaction-${m[2]}` })
   }
   if ((m = /^\/rooms\/([^/]+)\/state\/m\.room\.member\/(.+)$/.exec(path))) {
     const name = fake.members.get(m[2]!)
@@ -377,8 +392,8 @@ describe('replying from the card', () => {
     const sent = fake.events.get(res.data.id)!
     expect(sent.content).toMatchObject({
       'msgtype': 'm.text',
-      'body': 'Bob: Looks **done** <script>x</script>',
-      'formatted_body': '<p><strong>Bob:</strong> Looks <strong>done</strong> &lt;script&gt;x&lt;/script&gt;</p>',
+      'body': 'Bob\nLooks **done** <script>x</script>',
+      'formatted_body': '<p><strong>Bob</strong><br>Looks <strong>done</strong> &lt;script&gt;x&lt;/script&gt;</p>',
       'm.relates_to': { rel_type: 'm.thread', event_id: rootId },
       'app.kanso.author': { id: bob.id, name: 'Bob' },
     })
@@ -462,5 +477,81 @@ describe('card activity in threads', () => {
     expect((await bob.req(`/api/cards/${other.id}/move`, { method: 'POST', body: { columnId: board.columns[1]!.id, aboveId: null, belowId: null } })).status).toBe(200)
     const [row] = await ownerDb`select count(*)::int as n from matrix_deliveries d join card_activity a on a.id = d.activity_id where a.card_id = ${other.id}`
     expect(row!.n).toBe(0)
+  })
+})
+
+describe('linking a Matrix account on the board', () => {
+  let cardId = ''
+  let rootId = ''
+  const link = (who: typeof alice, mxid: string) => who.req<MatrixUserLink>(`/api/boards/${boardId}/matrix/link`, { method: 'PUT', body: { mxid } })
+  const check = (who: typeof alice) => who.req<MatrixUserLink>(`/api/boards/${boardId}/matrix/link/check`, { method: 'POST' })
+  const post = (sender: string, body: string, thread = false) => {
+    const id = `$user${fake.events.size + 1}`
+    fake.events.set(id, { room: '!team:matrix.test', type: 'm.room.message', sender, ts: Date.now(), content: { msgtype: 'm.text', body, ...(thread && { 'm.relates_to': { rel_type: 'm.thread', event_id: rootId } }) } })
+    return id
+  }
+  const view = (who: typeof alice) => who.req<MatrixThreadView>(`/api/cards/${cardId}/matrix-thread`)
+
+  beforeAll(async () => {
+    const b = (await alice.req<BoardDetail>(`/api/boards/${boardId}`)).data
+    cardId = (await alice.req<Card>(`/api/boards/${boardId}/cards`, { method: 'POST', body: { columnId: b.columns[0]!.id, title: 'Linked people' } })).data.id
+    rootId = (await bob.req<CardMatrixThread>(`/api/cards/${cardId}/matrix-thread`, { method: 'POST', body: {} })).data.eventId
+  })
+
+  it('starts with a code from the database and contacts nobody', async () => {
+    expect((await link(bob, 'bob')).status).toBe(400)
+    const res = await link(bob, '@bob:matrix.test')
+    expect(res.status).toBe(200)
+    expect(res.data).toMatchObject({ mxid: '@bob:matrix.test', verified: false, code: expect.stringMatching(/^[0-9A-F]{10}$/) })
+    expect(fake.requests).toEqual([])
+    expect((await view(bob)).data.myLink).toEqual(res.data)
+    expect((await view(carol)).data.myLink).toBeNull()
+  })
+
+  it('checks that the code came from that Matrix ID, then redacts it', async () => {
+    const { code } = (await view(bob)).data.myLink!
+    const missing = await check(bob)
+    expect(missing.status).toBe(400)
+    expect((missing.data as any).statusMessage).toContain(`kanso-link ${code}`)
+    // Someone else posting Bob's code proves nothing.
+    post('@dana:matrix.test', `kanso-link ${code}`)
+    expect((await check(bob)).status).toBe(400)
+    const mine = post('@bob:matrix.test', `kanso-link ${code!.toLowerCase()}`)
+    const res = await check(bob)
+    expect(res.status).toBe(200)
+    expect(res.data).toEqual({ mxid: '@bob:matrix.test', verified: true, code: null, codeExpiresAt: null })
+    expect(fake.events.get(mine)!.unsigned?.redacted_because).toBeTruthy()
+  })
+
+  it('the tab maps the linked Matrix ID to the Kanso person', async () => {
+    const id = post('@bob:matrix.test', 'from Element', true)
+    const msg = (await view(carol)).data.messages.find(m => m.id === id)!
+    expect(msg).toMatchObject({ fromBot: false, kansoAuthorId: null, kansoUserId: bob.id })
+    expect((await view(carol)).data.messages.find(m => m.sender === '@dana:matrix.test')?.kansoUserId ?? null).toBeNull()
+  })
+
+  it('replies start with a silent mention of the linked account', async () => {
+    const res = await bob.req(`/api/cards/${cardId}/matrix-thread/messages`, { method: 'POST', body: { text: 'hi', clientId: randomUUID() } })
+    expect(res.status).toBe(200)
+    expect(fake.events.get(res.data.id)!.content).toMatchObject({
+      'body': 'Bob\nhi',
+      'formatted_body': '<p><a href="https://matrix.to/#/@bob:matrix.test">Bob</a><br>hi</p>',
+      'm.mentions': {},
+      'app.kanso.author': { id: bob.id, name: 'Bob', mxid: '@bob:matrix.test' },
+    })
+    const shown = (await view(carol)).data.messages.find(m => m.id === res.data.id)!
+    expect(shown).toMatchObject({ senderName: 'Bob', kansoAuthorId: bob.id, body: 'hi', html: '<p>hi</p>' })
+  })
+
+  it('the tab also drops the "Name:" of older replies', async () => {
+    fake.events.set('$old', { room: '!team:matrix.test', type: 'm.room.message', sender: '@kanso-bot:matrix.test', content: { 'msgtype': 'm.text', 'body': 'Bob: earlier', 'format': 'org.matrix.custom.html', 'formatted_body': '<p><strong>Bob:</strong> earlier</p>', 'app.kanso.author': { id: bob.id, name: 'Bob' }, 'm.relates_to': { rel_type: 'm.thread', event_id: rootId } } })
+    expect((await view(carol)).data.messages.find(m => m.id === '$old')).toMatchObject({ body: 'earlier', html: '<p>earlier</p>' })
+  })
+
+  it('unlinking goes back to the name in bold', async () => {
+    expect((await bob.req(`/api/boards/${boardId}/matrix/link`, { method: 'DELETE' })).status).toBe(200)
+    expect((await bob.req(`/api/boards/${boardId}/matrix/link`, { method: 'DELETE' })).status).toBe(404)
+    const res = await bob.req(`/api/cards/${cardId}/matrix-thread/messages`, { method: 'POST', body: { text: 'plain', clientId: randomUUID() } })
+    expect(fake.events.get(res.data.id)!.content.formatted_body).toBe('<p><strong>Bob</strong><br>plain</p>')
   })
 })

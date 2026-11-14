@@ -310,36 +310,95 @@ const markdown = new Marked({ gfm: true, breaks: true, async: false })
 // Raw HTML in the text is shown as typed, not passed on as markup.
 markdown.use({ renderer: { html: ({ text }) => htmlEscape(text) } })
 
+/** The person a Kanso reply was written by; `mxid` when they linked their Matrix account on the board. */
+export interface KansoAuthor {
+  id: string
+  name: string
+  mxid?: string
+}
+
+/** matrix.to link of a Matrix user, which clients show as a pill. */
+const userPermalink = (mxid: string) => `https://matrix.to/#/${mxid}`
+
+/** The author's name in a Kanso reply's HTML: a pill of their Matrix account when linked, else their name in bold. */
+function authorHtml(author: KansoAuthor) {
+  return author.mxid
+    ? `<a href="${htmlEscape(userPermalink(author.mxid))}">${htmlEscape(author.name)}</a>`
+    : `<strong>${htmlEscape(author.name)}</strong>`
+}
+
 /**
- * A reply written in Kanso, sent by the bot into the thread: "Name: text" in
- * the plain body, Markdown rendered for formatted_body, and the author in
- * KANSO_AUTHOR_KEY so the card's Matrix tab can show their name.
+ * A reply written in Kanso, sent by the bot into the thread: the author's name
+ * on its own line above the text, a pill of their Matrix account when linked;
+ * Markdown rendered for formatted_body; the author in KANSO_AUTHOR_KEY so the
+ * card's Matrix tab can show their name. Empty `m.mentions`: a pill or name
+ * in the text notifies nobody.
  */
-export function threadReplyContent(rootId: string, author: { id: string, name: string }, text: string) {
+export function threadReplyContent(rootId: string, author: KansoAuthor, text: string) {
   const html = (markdown.parse(text) as string).trim()
-  const name = `<strong>${htmlEscape(author.name)}:</strong>`
+  const head = authorHtml(author)
   return {
     'msgtype': 'm.text',
-    'body': `${author.name}: ${text}`,
+    'body': `${author.name}\n${text}`,
     'format': 'org.matrix.custom.html',
-    'formatted_body': html.startsWith('<p>') ? `<p>${name} ${html.slice(3)}` : `${name}<br>${html}`,
+    'formatted_body': html.startsWith('<p>') ? `<p>${head}<br>${html.slice(3)}` : `${head}<br>${html}`,
     'm.relates_to': { 'rel_type': 'm.thread', 'event_id': rootId, 'is_falling_back': true, 'm.in_reply_to': { event_id: rootId } },
+    'm.mentions': {},
     [KANSO_AUTHOR_KEY]: author,
   }
 }
 
 /** The Kanso author recorded on one of the bot's messages, if any. */
-export function kansoAuthor(e: MatrixEvent): { id: string, name: string } | null {
-  const a = e.content[KANSO_AUTHOR_KEY] as { id?: unknown, name?: unknown } | undefined
-  return typeof a?.id === 'string' && typeof a.name === 'string' ? { id: a.id, name: a.name } : null
+export function kansoAuthor(e: MatrixEvent): KansoAuthor | null {
+  const a = e.content[KANSO_AUTHOR_KEY] as { id?: unknown, name?: unknown, mxid?: unknown } | undefined
+  if (typeof a?.id !== 'string' || typeof a.name !== 'string') return null
+  return typeof a.mxid === 'string' ? { id: a.id, name: a.name, mxid: a.mxid } : { id: a.id, name: a.name }
 }
 
-/** Drops the "Name:" that threadReplyContent puts in front, since the tab shows the name already. */
-export function withoutAuthorPrefix(c: ThreadMessageContent, name: string): ThreadMessageContent {
-  const plain = `${name}: `
-  const strong = `<strong>${htmlEscape(name)}:</strong>`
-  let html = c.html
-  if (html?.startsWith(`<p>${strong} `)) html = `<p>${html.slice(strong.length + 4)}`
-  else if (html?.startsWith(`${strong}<br>`)) html = html.slice(strong.length + 4)
-  return { ...c, body: c.body.startsWith(plain) ? c.body.slice(plain.length) : c.body, html }
+/**
+ * Drops the author line that threadReplyContent puts in front (or the
+ * "<name>:" of older replies), since the tab shows the name already.
+ */
+export function withoutAuthorPrefix(c: ThreadMessageContent, author: KansoAuthor): ThreadMessageContent {
+  const name = authorHtml(author)
+  let { body, html } = c
+  const firstLine = body.indexOf('\n')
+  if (body.startsWith(`${author.name}: `)) body = body.slice(author.name.length + 2)
+  else if (firstLine >= 0 && body.slice(0, firstLine).includes(author.name)) body = body.slice(firstLine + 1)
+  // Older replies: "<strong>Name:</strong> text" with the colon inside the bold.
+  const old = `<strong>${htmlEscape(author.name)}:</strong>`
+  if (html?.startsWith(`<p>${old} `)) html = `<p>${html.slice(old.length + 4)}`
+  else if (html?.startsWith(`${old}<br>`)) html = html.slice(old.length + 4)
+  else if (html) {
+    const p = html.startsWith('<p>') ? 3 : 0
+    const br = html.indexOf('<br>', p)
+    if (br >= 0 && html.slice(p, br).includes(name)) html = `${p ? '<p>' : ''}${html.slice(br + 4)}`
+  }
+  return { ...c, body, html }
+}
+
+/** How a link code is sent in the room. */
+export const matrixLinkMessage = (code: string) => `kanso-link ${code}`
+
+/**
+ * The newest message in the room from `mxid` (sent since `since`) that
+ * carries `code`, among their last 50 messages; null when there is none.
+ */
+export async function findLinkCode(c: MatrixClient, roomId: string, mxid: string, code: string, since: Date): Promise<MatrixEvent | null> {
+  const filter = JSON.stringify({ types: ['m.room.message'], senders: [mxid] })
+  const page = await matrixRequest<{ chunk: MatrixEvent[] }>(c, 'GET',
+    `/rooms/${encodeURIComponent(roomId)}/messages?dir=b&limit=50&filter=${encodeURIComponent(filter)}`)
+  // A minute of slack for clocks that differ between Kanso and the homeserver.
+  const after = since.getTime() - 60_000
+  return page.chunk.find(e => e.sender === mxid && e.type === 'm.room.message' && e.origin_server_ts >= after
+    && typeof e.content.body === 'string' && e.content.body.toUpperCase().includes(code)) ?? null
+}
+
+/** Redacts an event as the bot; false when that fails (e.g. the bot may not redact others' messages). */
+export async function redactEvent(c: MatrixClient, roomId: string, eventId: string, reason: string): Promise<boolean> {
+  try {
+    await matrixRequest(c, 'PUT', `/rooms/${encodeURIComponent(roomId)}/redact/${encodeURIComponent(eventId)}/${encodeURIComponent(`kanso-redact-${eventId}`)}`, { reason })
+    return true
+  }
+  catch { return false }
 }
