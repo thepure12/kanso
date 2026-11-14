@@ -758,10 +758,28 @@ export const boardMatrixRooms = pgTable('board_matrix_rooms', {
   roomName: text('room_name'),
   botUserId: text('bot_user_id').notNull(),
   accessToken: text('access_token').notNull(),
+  // Post card activity into linked card threads (0079); activity kinds, empty = all.
+  postActivity: boolean('post_activity').notNull().default(false),
+  activityEvents: text('activity_events').array().notNull().default(sql`'{}'`),
   createdBy: uuid('created_by').references(() => users.id, { onDelete: 'set null' }),
   createdAt: createdAt(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 })
+
+// Outbox: one row per card activity to post into the card's Matrix thread,
+// queued by a card_activity trigger and sent by server/utils/matrixActivity.ts
+// (on NOTIFY and every minute). Up to 5 attempts. No grants.
+export const matrixDeliveries = pgTable('matrix_deliveries', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  activityId: uuid('activity_id').notNull().references(() => cardActivity.id, { onDelete: 'cascade' }),
+  boardId: uuid('board_id').notNull().references(() => boards.id, { onDelete: 'cascade' }),
+  // pending | delivered | failed
+  status: text('status').notNull().default('pending'),
+  attempts: integer('attempts').notNull().default(0),
+  lastError: text('last_error'),
+  nextAttemptAt: timestamp('next_attempt_at', { withTimezone: true }).notNull().defaultNow(),
+  createdAt: createdAt(),
+}, t => [index('matrix_deliveries_due_idx').on(t.nextAttemptAt).where(sql`${t.status} = 'pending'`)])
 
 // Matrix thread a card is linked to (see 0077_card_matrix_threads_rls.sql):
 // the root event of a thread in the board's Matrix room at link time.

@@ -6,6 +6,8 @@ export const matrixRoomColumns = {
   roomId: schema.boardMatrixRooms.roomId,
   roomName: schema.boardMatrixRooms.roomName,
   botUserId: schema.boardMatrixRooms.botUserId,
+  postActivity: schema.boardMatrixRooms.postActivity,
+  activityEvents: schema.boardMatrixRooms.activityEvents,
 }
 
 /** The board's Matrix room as its members see it (board_matrix_rooms_select), or null. */

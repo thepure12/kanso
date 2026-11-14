@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import type { BoardMatrixRoom } from '#shared/types/matrix'
+import type { ActivityKind } from '#shared/types/board'
+import { webhookEvents } from '#shared/webhooks'
 
 const props = defineProps<{ boardId: string, room: BoardMatrixRoom | null }>()
 const emit = defineEmits<{ 'update:room': [room: BoardMatrixRoom | null] }>()
@@ -65,6 +67,34 @@ async function disconnect() {
   catch (err) { showError(err, t('matrix.disconnectFailed')) }
 }
 
+/** Card activity in threads: saved as soon as it changes. */
+const activitySaving = ref(false)
+const eventItems = computed(() => webhookEvents.map(k => ({ label: t(`webhooks.eventLabels.${k}`), value: k })))
+// Turning it on starts with everything but comments, which the Matrix tab shows already.
+const defaultEvents = webhookEvents.filter(k => k !== 'commented' && k !== 'mentioned')
+
+async function saveActivity(patch: { postActivity?: boolean, activityEvents?: string[] }) {
+  if (!props.room) return
+  activitySaving.value = true
+  try {
+    emit('update:room', await api<BoardMatrixRoom>(`/api/boards/${props.boardId}/matrix`, { method: 'PATCH', body: patch }))
+  }
+  catch (err) { showError(err, t('matrix.activity.saveFailed')) }
+  finally { activitySaving.value = false }
+}
+
+function setPostActivity(on: boolean) {
+  saveActivity(on && !props.room?.activityEvents.length ? { postActivity: true, activityEvents: defaultEvents } : { postActivity: on })
+}
+
+const allEvents = computed(() => !props.room?.activityEvents.length)
+function setAllEvents(all: boolean) {
+  saveActivity({ activityEvents: all ? [] : defaultEvents })
+}
+function setEvents(events: string[]) {
+  if (events.length) saveActivity({ activityEvents: events })
+}
+
 const matrixToLink = computed(() => props.room ? `https://matrix.to/#/${encodeURIComponent(props.room.roomId)}` : null)
 </script>
 
@@ -115,6 +145,27 @@ const matrixToLink = computed(() => props.room ? `https://matrix.to/#/${encodeUR
             <UButton size="xs" color="neutral" variant="ghost" icon="i-lucide-pencil" :label="t('matrix.change')" @click="startEdit" />
             <UButton size="xs" color="error" variant="ghost" icon="i-lucide-unplug" :label="t('matrix.disconnect')" @click="disconnect" />
           </div>
+        </div>
+
+        <div v-if="room && !editing" class="space-y-3 rounded-md border border-default p-3">
+          <USwitch
+            :model-value="room.postActivity"
+            :label="t('matrix.activity.post')"
+            :description="t('matrix.activity.postHelp')"
+            :disabled="activitySaving"
+            @update:model-value="setPostActivity"
+          />
+          <template v-if="room.postActivity">
+            <USwitch :model-value="allEvents" :label="t('webhooks.allEvents')" :disabled="activitySaving" @update:model-value="setAllEvents" />
+            <UCheckboxGroup
+              v-if="!allEvents"
+              :model-value="(room.activityEvents as ActivityKind[])"
+              :items="eventItems"
+              :disabled="activitySaving"
+              class="grid grid-cols-2 gap-1"
+              @update:model-value="setEvents($event as string[])"
+            />
+          </template>
         </div>
 
         <form v-else class="space-y-3" @submit.prevent="save">

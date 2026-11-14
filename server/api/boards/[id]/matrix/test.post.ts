@@ -13,7 +13,7 @@ export default defineUserHandler(async (event, tx): Promise<BoardMatrixRoom> => 
   if (!c) notFound('No Matrix room connected')
   const accessToken = openMatrixToken(c.access_token)
   if (!accessToken) throw createError({ statusCode: 400, statusMessage: 'Matrix: the stored token cannot be read any more. Enter it again.' })
-  let info: BoardMatrixRoom
+  let info: MatrixRoomInfo
   try {
     info = await checkMatrixRoom({ homeserverUrl: c.homeserver_url, accessToken }, c.room_id)
   }
@@ -23,5 +23,5 @@ export default defineUserHandler(async (event, tx): Promise<BoardMatrixRoom> => 
   const m = schema.boardMatrixRooms
   await tx.update(m).set({ roomName: info.roomName, botUserId: info.botUserId, updatedAt: sql`now()` })
     .where(sql`${m.boardId} = ${id} and (${m.roomName} is distinct from ${info.roomName} or ${m.botUserId} <> ${info.botUserId})`)
-  return info
+  return (await loadMatrixRoom(tx, id))!
 })

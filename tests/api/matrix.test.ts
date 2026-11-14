@@ -200,7 +200,7 @@ describe('connecting a board to a Matrix room', () => {
   it('resolves an alias (also in a matrix.to link), joins the room and stores the token sealed', async () => {
     const res = await put(alice, { room: 'https://matrix.to/#/%23team%3Amatrix.test', accessToken: TOKEN })
     expect(res.status).toBe(200)
-    const room = { homeserverUrl, roomId: '!team:matrix.test', roomName: 'Team room', botUserId: '@kanso-bot:matrix.test' }
+    const room = { homeserverUrl, roomId: '!team:matrix.test', roomName: 'Team room', botUserId: '@kanso-bot:matrix.test', postActivity: false, activityEvents: [] }
     expect(res.data).toEqual(room)
     expect(fake.joined.has('!team:matrix.test')).toBe(true)
     expect(await boardMatrix(bob)).toEqual(room)
@@ -406,5 +406,61 @@ describe('replying from the card', () => {
     expect((await alice.req(`/api/boards/${boardId}/archive`, { method: 'PUT' })).status).toBe(200)
     expect((await send(bob, 'late')).status).toBe(404)
     expect((await alice.req(`/api/boards/${boardId}/archive`, { method: 'DELETE' })).status).toBe(200)
+  })
+})
+
+describe('card activity in threads', () => {
+  let card: Card
+  let board: BoardDetail
+  let rootId = ''
+
+  async function waitFor<T>(fn: () => T | undefined, ms = 10_000): Promise<T> {
+    const end = Date.now() + ms
+    for (;;) {
+      const v = fn()
+      if (v !== undefined) return v
+      if (Date.now() > end) throw new Error('timed out waiting')
+      await new Promise(r => setTimeout(r, 100))
+    }
+  }
+  const notices = () => [...fake.events.values()].filter(e => e.content.msgtype === 'm.notice' && e.content['m.relates_to']?.event_id === rootId)
+  const move = (to: number) => bob.req(`/api/cards/${card.id}/move`, { method: 'POST', body: { columnId: board.columns[to]!.id, aboveId: null, belowId: null } })
+
+  beforeAll(async () => {
+    board = (await alice.req<BoardDetail>(`/api/boards/${boardId}`)).data
+    card = (await alice.req<Card>(`/api/boards/${boardId}/cards`, { method: 'POST', body: { columnId: board.columns[0]!.id, title: 'Active' } })).data
+    rootId = (await bob.req<CardMatrixThread>(`/api/cards/${card.id}/matrix-thread`, { method: 'POST', body: {} })).data.eventId
+  })
+
+  it('posts nothing while the setting is off', async () => {
+    expect((await move(1)).status).toBe(200)
+    await new Promise(r => setTimeout(r, 500))
+    expect(notices()).toEqual([])
+  })
+
+  it('only owners change the setting', async () => {
+    expect((await bob.req(`/api/boards/${boardId}/matrix`, { method: 'PATCH', body: { postActivity: true } })).status).toBe(404)
+    const res = await alice.req<BoardMatrixRoom>(`/api/boards/${boardId}/matrix`, { method: 'PATCH', body: { postActivity: true, activityEvents: ['moved'] } })
+    expect(res.status).toBe(200)
+    expect(res.data).toMatchObject({ postActivity: true, activityEvents: ['moved'] })
+    expect((await alice.req(`/api/boards/${boardId}/matrix`, { method: 'PATCH', body: { activityEvents: ['nope'] } })).status).toBe(400)
+  })
+
+  it('posts chosen kinds into the card thread as a notice', async () => {
+    expect((await move(2)).status).toBe(200)
+    expect((await bob.req(`/api/cards/${card.id}`, { method: 'PATCH', body: { title: 'Renamed' } })).status).toBe(200)
+    const [n] = await waitFor(() => notices().length ? notices() : undefined)
+    expect(n!.content.body).toBe(`Bob moved this card from ${board.columns[1]!.title} to ${board.columns[2]!.title}`)
+    expect(n!.content['m.relates_to']).toMatchObject({ rel_type: 'm.thread', event_id: rootId })
+    await new Promise(r => setTimeout(r, 500))
+    // The rename is not a chosen kind.
+    expect(notices()).toHaveLength(1)
+  })
+
+  it('cards without a thread post nothing', async () => {
+    const other = (await alice.req<Card>(`/api/boards/${boardId}/cards`, { method: 'POST', body: { columnId: board.columns[0]!.id, title: 'Quiet' } })).data
+    expect((await bob.req(`/api/cards/${other.id}/move`, { method: 'POST', body: { columnId: board.columns[1]!.id, aboveId: null, belowId: null } })).status).toBe(200)
+    const [row] = await ownerDb`select count(*)::int as n from matrix_deliveries d join card_activity a on a.id = d.activity_id where a.card_id = ${other.id}`
+    expect(row!.n).toBe(0)
   })
 })

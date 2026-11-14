@@ -1288,6 +1288,11 @@
       "send": "Send",
       "sendFailed": "Could not send the reply",
       "viaKanso": "via Kanso"
+    },
+    "activity": {
+      "post": "Post card activity in card threads",
+      "postHelp": "The bot writes what happens to a card (moved, assigned, due date…) into its linked thread.",
+      "saveFailed": "Could not save the activity setting"
     }
   },
   "views": {

@@ -34,7 +34,7 @@ export default defineUserHandler(async (event, tx, userId): Promise<BoardMatrixR
     accessToken = (stored && openMatrixToken(stored.access_token)) ?? undefined
     if (!accessToken) throw createError({ statusCode: 400, statusMessage: 'accessToken: Required' })
   }
-  let info: BoardMatrixRoom
+  let info: MatrixRoomInfo
   try {
     const homeserverUrl = await resolveHomeserver(input.homeserver)
     info = await checkMatrixRoom({ homeserverUrl, accessToken }, room)
@@ -45,5 +45,5 @@ export default defineUserHandler(async (event, tx, userId): Promise<BoardMatrixR
   await tx.update(m)
     .set({ ...info, accessToken: sealMatrixToken(accessToken), updatedAt: sql`now()` })
     .where(sql`${m.boardId} = ${id}`)
-  return info
+  return (await loadMatrixRoom(tx, id))!
 })

@@ -1288,6 +1288,11 @@
       "send": "Senden",
       "sendFailed": "Die Antwort konnte nicht gesendet werden",
       "viaKanso": "über Kanso"
+    },
+    "activity": {
+      "post": "Kartenaktivität in Karten-Threads posten",
+      "postHelp": "Der Bot schreibt, was mit einer Karte passiert (verschoben, zugewiesen, Fälligkeit …), in ihren verknüpften Thread.",
+      "saveFailed": "Die Einstellung zur Aktivität konnte nicht gespeichert werden"
     }
   },
   "views": {

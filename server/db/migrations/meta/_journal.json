@@ -554,6 +554,20 @@
       "when": 1794679709199,
       "tag": "0078_matrix_thread_reply_rls",
       "breakpoints": true
+    },
+    {
+      "idx": 79,
+      "version": "7",
+      "when": 1794680187320,
+      "tag": "0079_matrix_activity",
+      "breakpoints": true
+    },
+    {
+      "idx": 80,
+      "version": "7",
+      "when": 1794680192240,
+      "tag": "0080_matrix_activity_rls",
+      "breakpoints": true
     }
   ]
 }

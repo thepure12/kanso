@@ -6,6 +6,10 @@ export interface BoardMatrixRoom {
   roomName: string | null
   /** The bot account, e.g. @kanso-bot:example.org. */
   botUserId: string
+  /** The bot posts card activity into linked card threads. */
+  postActivity: boolean
+  /** Activity kinds it posts; empty = all. */
+  activityEvents: string[]
 }
 
 /** The Matrix thread a card is linked to (CardDetail.matrixThread). */

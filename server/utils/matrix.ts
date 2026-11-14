@@ -99,6 +99,7 @@ export function parseRoomInput(input: string): string | null {
   return /^[!#][^:\s]+:[^\s]+$/.test(v) ? v : null
 }
 
+/** What checkMatrixRoom finds out about a connection. */
 export interface MatrixRoomInfo {
   homeserverUrl: string
   roomId: string

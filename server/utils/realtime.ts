@@ -67,3 +67,8 @@ export async function onWebhooksQueued(fn: () => void): Promise<void> {
 export async function onPushQueued(fn: () => void): Promise<void> {
   await listen('push_messages', () => fn())
 }
+
+/** Calls `fn` whenever card activity is queued for Matrix threads (matrix_deliveries, see 0080_matrix_activity_rls.sql). */
+export async function onMatrixQueued(fn: () => void): Promise<void> {
+  await listen('matrix_deliveries', () => fn())
+}
