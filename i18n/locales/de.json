@@ -731,6 +731,7 @@
     "any": "Alle",
     "dueLabel": "Fälligkeit",
     "search": "Karten durchsuchen",
+    "clearSearch": "Suche löschen",
     "tags": "Karten-Tags",
     "assignees": "Zuständige",
     "priority": "Priorität",

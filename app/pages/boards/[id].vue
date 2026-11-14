@@ -199,6 +199,8 @@ const columnGroupsOpen = ref(false)
 const groupByOptions = computed(() => groupByItems(fields.value, t))
 const groupByIcon = computed(() => groupBy.value === 'none' ? 'i-lucide-rows-3' : groupByOptions.value.find(i => i.value === groupBy.value)?.icon ?? 'i-lucide-rows-3')
 // View, swimlane and column tag selects show only their icon on phones, so the toolbar fits one row.
+// On wider screens the swimlane and column tag selects do so at compaction steps 4 and 5 of
+// useToolbarFit (data-c4 / data-c5; class names spelled out so Tailwind finds them).
 const iconOnlyOnPhones = {
   base: 'max-sm:h-8 max-sm:w-8 max-sm:p-0',
   leading: 'max-sm:inset-0 max-sm:p-0 max-sm:justify-center',
@@ -206,6 +208,22 @@ const iconOnlyOnPhones = {
   placeholder: 'max-sm:sr-only',
   trailing: 'max-sm:hidden',
   content: 'min-w-48',
+}
+const iconOnlyAtC4 = {
+  base: `${iconOnlyOnPhones.base} group-data-c4/tb:w-8 group-data-c4/tb:p-0`,
+  leading: `${iconOnlyOnPhones.leading} group-data-c4/tb:inset-0 group-data-c4/tb:p-0 group-data-c4/tb:justify-center`,
+  value: `${iconOnlyOnPhones.value} group-data-c4/tb:sr-only`,
+  placeholder: `${iconOnlyOnPhones.placeholder} group-data-c4/tb:sr-only`,
+  trailing: `${iconOnlyOnPhones.trailing} group-data-c4/tb:hidden`,
+  content: iconOnlyOnPhones.content,
+}
+const iconOnlyAtC5 = {
+  base: `${iconOnlyOnPhones.base} group-data-c5/tb:w-8 group-data-c5/tb:p-0`,
+  leading: `${iconOnlyOnPhones.leading} group-data-c5/tb:inset-0 group-data-c5/tb:p-0 group-data-c5/tb:justify-center`,
+  value: `${iconOnlyOnPhones.value} group-data-c5/tb:sr-only`,
+  placeholder: `${iconOnlyOnPhones.placeholder} group-data-c5/tb:sr-only`,
+  trailing: `${iconOnlyOnPhones.trailing} group-data-c5/tb:hidden`,
+  content: iconOnlyOnPhones.content,
 }
 
 // Saved views: the view, grouping, column group and filter under a name.
@@ -286,6 +304,7 @@ async function addCardAndReveal(columnId: string, title: string) {
 // Board shortcuts (listed in app/utils/shortcuts.ts). defineShortcuts skips them
 // while typing; they also skip while a dialog is open.
 const filters = useTemplateRef<{ focus: () => void }>('filters')
+useToolbarFit(useTemplateRef<HTMLElement>('toolbar'), 5)
 const cardAdds: Record<string, { open: () => void } | null> = {}
 defineShortcuts({
   '/': () => { if (!dialogOpen()) filters.value?.focus() },
@@ -511,7 +530,10 @@ const boardMenu = computed(() => {
           <UBadge color="warning" variant="subtle" icon="i-lucide-wifi-off" :label="t('pwa.readOnly')" />
         </UTooltip>
         <UBadge v-else-if="!canEdit" color="neutral" variant="subtle" icon="i-lucide-eye" :label="t('board.viewOnly')" />
-        <div class="relative order-last basis-full 2xl:order-none 2xl:basis-0 2xl:flex-1 min-w-0 flex flex-wrap items-center gap-2">
+        <!-- Compacts step by step (useToolbarFit) before it wraps: data-c1 short filter count, c2 Views/Filters
+             icon only, c3 view tabs icon only, c4 swimlane select icon only, c5 column tag select icon only.
+             The search box takes up the space left over. -->
+        <div ref="toolbar" class="group/tb relative order-last basis-full 2xl:order-none 2xl:basis-0 2xl:flex-1 min-w-0 flex flex-wrap items-center gap-2">
           <USeparator orientation="vertical" class="h-6 mx-1 hidden 2xl:block" />
           <SavedViewsMenu
             :views="savedViews"
@@ -524,7 +546,7 @@ const boardMenu = computed(() => {
             @apply="applySavedView"
           />
           <!-- Tabs from sm up; a select on phones, where four icon tabs take too much room. -->
-          <UTabs v-model="view" :items="viewItems" :content="false" size="sm" class="hidden sm:flex" :aria-label="t('board.viewLabel')" />
+          <UTabs v-model="view" :items="viewItems" :content="false" size="sm" class="hidden sm:flex" :ui="{ label: 'group-data-c3/tb:sr-only' }" :aria-label="t('board.viewLabel')" />
           <USelect
             v-model="view"
             :items="viewItems"
@@ -539,7 +561,7 @@ const boardMenu = computed(() => {
             :items="groupByOptions"
             :icon="groupByIcon"
             class="shrink-0 sm:w-40"
-            :ui="iconOnlyOnPhones"
+            :ui="iconOnlyAtC4"
             :aria-label="t('board.swimlanes')"
           />
           <USelect
@@ -548,7 +570,7 @@ const boardMenu = computed(() => {
             :items="columnGroupItems"
             icon="i-lucide-columns-3"
             class="shrink-0 sm:w-40"
-            :ui="iconOnlyOnPhones"
+            :ui="iconOnlyAtC5"
             :aria-label="t('columnGroups.show')"
           >
             <template #leading="{ ui }">
@@ -563,7 +585,7 @@ const boardMenu = computed(() => {
             </template>
           </USelect>
           <USeparator orientation="vertical" class="h-6 mx-1 hidden sm:block" />
-          <BoardFilters ref="filters" v-model="filter" class="flex-1 min-w-0" :tags="tags" :fields="fields" :members="board.members" :shown="visibleIds.size" :total="allCards.length" />
+          <BoardFilters ref="filters" v-model="filter" class="flex-1 min-w-0 sm:flex-none sm:grow" :tags="tags" :fields="fields" :members="board.members" :shown="visibleIds.size" :total="allCards.length" />
           <USeparator orientation="vertical" class="h-6 mx-1 hidden 2xl:block" />
         </div>
         <div class="ms-auto flex items-center gap-1 sm:gap-2">

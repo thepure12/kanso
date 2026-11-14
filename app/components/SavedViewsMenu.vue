@@ -118,7 +118,7 @@ async function removeView(view: SavedView) {
       class="shrink-0 max-w-48 max-sm:h-8"
       :aria-label="active ? t('savedViews.activeLabel', { name: active.name }) : t('savedViews.label')"
     >
-      <span class="hidden sm:inline truncate">{{ active?.name ?? t('savedViews.label') }}</span>
+      <span class="hidden sm:inline group-data-c2/tb:hidden truncate">{{ active?.name ?? t('savedViews.label') }}</span>
     </UButton>
   </UDropdownMenu>
 

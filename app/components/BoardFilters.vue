@@ -68,11 +68,12 @@ const dueItems = computed(() => (['any', 'overdue', 'today', 'week', 'none', 'st
 </script>
 
 <template>
-  <!-- On phones the group never wraps inside: it moves to a line of its own when it does not fit. -->
-  <div class="flex flex-wrap items-center gap-2 max-sm:min-w-max">
+  <!-- The group never wraps inside. From sm up the page lets it grow into the toolbar's
+       free space, and the open search box takes that space (up to max-w-96). -->
+  <div class="flex flex-wrap sm:flex-nowrap items-center gap-2 max-sm:min-w-max">
     <UPopover :content="{ align: 'start' }">
       <UButton icon="i-lucide-list-filter" color="neutral" :variant="panelCount ? 'soft' : 'outline'" :aria-label="t('filters.button')">
-        <span class="hidden sm:inline">{{ t('filters.button') }}</span>
+        <span class="hidden sm:inline group-data-c2/tb:hidden">{{ t('filters.button') }}</span>
         <template v-if="panelCount" #trailing>
           <UBadge :label="String(panelCount)" size="sm" variant="solid" />
         </template>
@@ -142,12 +143,16 @@ const dueItems = computed(() => (['any', 'overdue', 'today', 'week', 'none', 'st
       v-model="filter.text"
       icon="i-lucide-search"
       :placeholder="t('filters.search')"
-      class="max-sm:absolute max-sm:inset-x-0 max-sm:top-0 max-sm:z-10 sm:w-48 sm:shrink-0"
+      class="max-sm:absolute max-sm:inset-x-0 max-sm:top-0 max-sm:z-10 sm:w-32 sm:grow sm:max-w-96"
       :aria-label="t('filters.search')"
       @focus="focused = true"
       @blur="onSearchBlur"
       @keydown.esc="onSearchEscape"
-    />
+    >
+      <template v-if="filter.text" #trailing>
+        <UButton size="xs" color="neutral" variant="link" icon="i-lucide-x" class="-me-1" :aria-label="t('filters.clearSearch')" @mousedown.prevent @click="onSearchEscape" />
+      </template>
+    </UInput>
     <UTooltip v-else :text="filter.text.trim() ? `${t('filters.search')}: ${filter.text.trim()}` : t('filters.search')">
       <UButton
         icon="i-lucide-search"
@@ -159,13 +164,14 @@ const dueItems = computed(() => (['any', 'overdue', 'today', 'week', 'none', 'st
     </UTooltip>
     <template v-if="active">
       <span class="text-sm text-muted whitespace-nowrap">
-        <span class="hidden sm:inline">{{ t('filters.shown', { shown: props.shown, total: props.total }, props.total) }}</span>
-        <!-- Short on phones; the full wording stays for screen readers. -->
-        <span class="sm:hidden" aria-hidden="true">{{ props.shown }}/{{ props.total }}</span>
-        <span class="sr-only sm:hidden">{{ t('filters.shown', { shown: props.shown, total: props.total }, props.total) }}</span>
+        <span class="hidden sm:inline group-data-c1/tb:hidden">{{ t('filters.shown', { shown: props.shown, total: props.total }, props.total) }}</span>
+        <!-- Short on phones and in a compacted toolbar (data-c1); the full wording stays for screen readers. -->
+        <span class="sm:hidden group-data-c1/tb:inline" aria-hidden="true">{{ props.shown }}/{{ props.total }}</span>
+        <span class="sr-only sm:hidden group-data-c1/tb:inline">{{ t('filters.shown', { shown: props.shown, total: props.total }, props.total) }}</span>
       </span>
-      <UButton size="sm" color="neutral" variant="ghost" icon="i-lucide-x" :aria-label="t('common.clear')" @click="filter = emptyFilter()">
-        <span class="hidden sm:inline">{{ t('common.clear') }}</span>
+      <!-- While the search box shows, its own x clears the text; this one is for the other filters. -->
+      <UButton v-if="panelCount || !showSearch" size="sm" color="neutral" variant="ghost" icon="i-lucide-x" :aria-label="t('common.clear')" @click="filter = emptyFilter()">
+        <span class="hidden sm:inline group-data-c1/tb:hidden">{{ t('common.clear') }}</span>
       </UButton>
     </template>
   </div>

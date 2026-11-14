@@ -731,6 +731,7 @@
     "any": "Any",
     "dueLabel": "Due date",
     "search": "Search cards",
+    "clearSearch": "Clear search",
     "tags": "Card tags",
     "assignees": "Assignees",
     "priority": "Priority",
