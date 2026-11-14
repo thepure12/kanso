@@ -354,3 +354,57 @@ describe('reading a card thread', () => {
     expect(res.data.statusMessage).toContain('M_NOT_FOUND')
   })
 })
+
+describe('replying from the card', () => {
+  let cardId = ''
+  let rootId = ''
+  const send = (who: typeof alice, text: string, clientId: string = randomUUID()) =>
+    who.req(`/api/cards/${cardId}/matrix-thread/messages`, { method: 'POST', body: { text, clientId } })
+
+  beforeAll(async () => {
+    const b = (await alice.req<BoardDetail>(`/api/boards/${boardId}`)).data
+    cardId = (await alice.req<Card>(`/api/boards/${boardId}/cards`, { method: 'POST', body: { columnId: b.columns[0]!.id, title: 'Talk' } })).data.id
+    rootId = (await bob.req<CardMatrixThread>(`/api/cards/${cardId}/matrix-thread`, { method: 'POST', body: {} })).data.eventId
+  })
+
+  it('editors reply as the bot with their name; viewers cannot', async () => {
+    fake.requests.length = 0
+    expect((await send(carol, 'hi')).status).toBe(404)
+    expect(fake.requests).toEqual([])
+
+    const res = await send(bob, 'Looks **done** <script>x</script>')
+    expect(res.status).toBe(200)
+    const sent = fake.events.get(res.data.id)!
+    expect(sent.content).toMatchObject({
+      'msgtype': 'm.text',
+      'body': 'Bob: Looks **done** <script>x</script>',
+      'formatted_body': '<p><strong>Bob:</strong> Looks <strong>done</strong> &lt;script&gt;x&lt;/script&gt;</p>',
+      'm.relates_to': { rel_type: 'm.thread', event_id: rootId },
+      'app.kanso.author': { id: bob.id, name: 'Bob' },
+    })
+  })
+
+  it('a retried message is posted once', async () => {
+    const id = randomUUID()
+    const a = await send(bob, 'once', id)
+    const b = await send(bob, 'once', id)
+    expect(a.data.id).toBe(b.data.id)
+  })
+
+  it('the tab shows replies under the writer\'s name without the prefix', async () => {
+    const view = (await carol.req<MatrixThreadView>(`/api/cards/${cardId}/matrix-thread`)).data
+    const mine = view.messages.find(m => m.body.startsWith('Looks'))!
+    expect(mine).toMatchObject({ senderName: 'Bob', fromBot: true, kansoAuthorId: bob.id, body: 'Looks **done** <script>x</script>' })
+    expect(mine.html).toBe('<p>Looks <strong>done</strong> &lt;script&gt;x&lt;/script&gt;</p>')
+    // The author key is trusted on the bot's messages only.
+    fake.events.set('$forged', { room: '!team:matrix.test', type: 'm.room.message', sender: '@dana:matrix.test', content: { 'msgtype': 'm.text', 'body': 'Alice: forged', 'app.kanso.author': { id: alice.id, name: 'Alice' }, 'm.relates_to': { rel_type: 'm.thread', event_id: rootId } } })
+    const forged = (await carol.req<MatrixThreadView>(`/api/cards/${cardId}/matrix-thread`)).data.messages.find(m => m.id === '$forged')!
+    expect(forged).toMatchObject({ senderName: 'Dana', kansoAuthorId: null, body: 'Alice: forged' })
+  })
+
+  it('nothing is sent while the board is archived', async () => {
+    expect((await alice.req(`/api/boards/${boardId}/archive`, { method: 'PUT' })).status).toBe(200)
+    expect((await send(bob, 'late')).status).toBe(404)
+    expect((await alice.req(`/api/boards/${boardId}/archive`, { method: 'DELETE' })).status).toBe(200)
+  })
+})

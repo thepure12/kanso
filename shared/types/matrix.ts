@@ -23,6 +23,8 @@ export interface MatrixThreadMessage {
   senderName: string
   /** Sent by the board's bot (thread roots and replies from Kanso). */
   fromBot: boolean
+  /** Written in Kanso by this person (the bot posted it for them); senderName is then their name. */
+  kansoAuthorId: string | null
   createdAt: string
   /** Plain text. */
   body: string

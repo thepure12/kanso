@@ -21,14 +21,19 @@ export default defineUserHandler(async (event, tx): Promise<MatrixThreadView> =>
       return content ? [{ e, content }] : []
     })
     const names = await memberNames(bot, thread.roomId, shown.map(m => m.e.sender))
-    const messages: MatrixThreadMessage[] = shown.map(({ e, content }) => ({
-      id: e.event_id,
-      sender: e.sender,
-      senderName: names.get(e.sender) ?? e.sender,
-      fromBot: e.sender === thread.botUserId,
-      createdAt: new Date(e.origin_server_ts).toISOString(),
-      ...content,
-    }))
+    const messages: MatrixThreadMessage[] = shown.map(({ e, content }) => {
+      const fromBot = e.sender === thread.botUserId
+      const author = fromBot ? kansoAuthor(e) : null
+      return {
+        id: e.event_id,
+        sender: e.sender,
+        senderName: author?.name ?? names.get(e.sender) ?? e.sender,
+        fromBot,
+        kansoAuthorId: author?.id ?? null,
+        createdAt: new Date(e.origin_server_ts).toISOString(),
+        ...(author ? withoutAuthorPrefix(content, author.name) : content),
+      }
+    })
     return { roomId: thread.roomId, eventId: thread.eventId, messages, more }
   }
   catch (e) {

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { BoardMatrixRoom, CardMatrixThread, MatrixThreadView } from '#shared/types/matrix'
+import type { BoardMatrixRoom, CardMatrixThread, MatrixThreadMessage, MatrixThreadView } from '#shared/types/matrix'
 
 const props = defineProps<{
   room: BoardMatrixRoom
@@ -55,6 +55,29 @@ onBeforeUnmount(() => {
 })
 
 const htmlOf = (html: string) => import.meta.client ? sanitizeHtml(html) : ''
+
+/** Reply box: the bot posts it into the thread with the writer's name. */
+const reply = ref('')
+const sending = ref(false)
+// One id per written message, kept until it is sent, so a retry does not post twice.
+let replyId: string | null = null
+watch(reply, () => { replyId = null })
+
+async function send() {
+  const text = reply.value.trim()
+  if (!text || sending.value) return
+  replyId ??= crypto.randomUUID()
+  sending.value = true
+  try {
+    const sent = await api<MatrixThreadMessage>(`/api/cards/${props.cd.cardId.value}/matrix-thread/messages`, { method: 'POST', body: { text, clientId: replyId } })
+    reply.value = ''
+    replyId = null
+    if (view.value) view.value.messages.push(sent)
+    loadMessages(true)
+  }
+  catch (err) { showError(err, t('matrix.thread.sendFailed')) }
+  finally { sending.value = false }
+}
 
 const busy = ref(false)
 const linking = ref(false)
@@ -134,13 +157,13 @@ const roomLabel = computed(() => props.room.roomName ?? props.room.roomId)
             class="-mx-2 flex gap-3 rounded-md px-2 py-1.5"
             :class="i === 0 && m.id === view.eventId ? 'mb-2 border-b border-default pb-3' : ''"
           >
-            <UAvatar :alt="m.senderName" size="sm" class="shrink-0" :icon="m.fromBot ? 'i-lucide-bot' : undefined" />
+            <UAvatar :alt="m.senderName" size="sm" class="shrink-0" :icon="m.fromBot && !m.kansoAuthorId ? 'i-lucide-bot' : undefined" />
             <div class="min-w-0 flex-1 space-y-1">
               <div class="flex flex-wrap items-center gap-x-2 text-xs">
                 <UTooltip :text="m.sender">
                   <span class="font-medium">{{ m.senderName }}</span>
                 </UTooltip>
-                <UBadge v-if="m.fromBot" :label="t('matrix.thread.bot')" color="neutral" variant="subtle" size="sm" />
+                <UBadge v-if="m.fromBot" :label="m.kansoAuthorId ? t('matrix.thread.viaKanso') : t('matrix.thread.bot')" color="neutral" variant="subtle" size="sm" />
                 <span class="text-muted">{{ formatDateTime(m.createdAt, locale) }}</span>
                 <span v-if="m.edited" class="text-dimmed">{{ t('comments.edited') }}</span>
               </div>
@@ -155,6 +178,23 @@ const roomLabel = computed(() => props.room.roomName ?? props.room.roomId)
         <p v-if="view.messages.length <= 1" class="text-sm text-muted">
           {{ t('matrix.thread.noReplies') }}
         </p>
+        <form v-if="canEdit && thread.roomId === room.roomId" class="space-y-2" @submit.prevent="send">
+          <UTextarea
+            v-model="reply"
+            :placeholder="t('matrix.thread.replyPlaceholder')"
+            :rows="2"
+            autoresize
+            :maxrows="10"
+            maxlength="10000"
+            class="w-full"
+          />
+          <div class="flex items-center justify-between gap-2">
+            <p class="text-xs text-muted">
+              {{ t('matrix.thread.replyHint', { bot: room.botUserId }) }}
+            </p>
+            <UButton type="submit" size="sm" icon="i-lucide-send" :label="t('matrix.thread.send')" :loading="sending" :disabled="!reply.trim()" />
+          </div>
+        </form>
       </template>
     </template>
 

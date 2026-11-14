@@ -1282,7 +1282,12 @@
       "loadFailed": "Der Matrix-Thread konnte nicht geladen werden",
       "more": "Nur die neuesten 200 Antworten werden angezeigt. Ältere findest du im Thread in Matrix.",
       "bot": "Bot",
-      "noReplies": "Noch keine Antworten."
+      "noReplies": "Noch keine Antworten.",
+      "replyPlaceholder": "Im Thread antworten … (Markdown, Strg+Enter zum Senden)",
+      "replyHint": "Wird von {bot} mit deinem Namen davor gesendet.",
+      "send": "Senden",
+      "sendFailed": "Die Antwort konnte nicht gesendet werden",
+      "viaKanso": "über Kanso"
     }
   },
   "views": {

@@ -1282,7 +1282,12 @@
       "loadFailed": "Could not load the Matrix thread",
       "more": "Only the newest 200 replies are shown. Open the thread in Matrix for older ones.",
       "bot": "Bot",
-      "noReplies": "No replies yet."
+      "noReplies": "No replies yet.",
+      "replyPlaceholder": "Reply in the thread… (Markdown, Ctrl+Enter to send)",
+      "replyHint": "Sent by {bot} with your name in front.",
+      "send": "Send",
+      "sendFailed": "Could not send the reply",
+      "viaKanso": "via Kanso"
     }
   },
   "views": {

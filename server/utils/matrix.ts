@@ -1,4 +1,5 @@
 import { sql } from 'drizzle-orm'
+import { Marked } from 'marked'
 import { sealSecret, openSecret, secretKey } from './secretBox'
 import { httpRequest } from './webhookHttp'
 
@@ -299,4 +300,45 @@ export function messageContent(e: MatrixEvent): ThreadMessageContent | null {
   const html = content.format === 'org.matrix.custom.html' && typeof content.formatted_body === 'string' ? content.formatted_body : null
   const stripped = stripReplyFallback(e.content, content.body, html)
   return { body: msgtype === 'm.emote' ? `* ${stripped.body}` : stripped.body, html: msgtype === 'm.emote' ? null : stripped.html, edited: !!edit }
+}
+
+/** Event content key carrying the Kanso person a bot message was written by (trusted only on the bot's own messages). */
+export const KANSO_AUTHOR_KEY = 'app.kanso.author'
+
+const markdown = new Marked({ gfm: true, breaks: true, async: false })
+// Raw HTML in the text is shown as typed, not passed on as markup.
+markdown.use({ renderer: { html: ({ text }) => htmlEscape(text) } })
+
+/**
+ * A reply written in Kanso, sent by the bot into the thread: "Name: text" in
+ * the plain body, Markdown rendered for formatted_body, and the author in
+ * KANSO_AUTHOR_KEY so the card's Matrix tab can show their name.
+ */
+export function threadReplyContent(rootId: string, author: { id: string, name: string }, text: string) {
+  const html = (markdown.parse(text) as string).trim()
+  const name = `<strong>${htmlEscape(author.name)}:</strong>`
+  return {
+    'msgtype': 'm.text',
+    'body': `${author.name}: ${text}`,
+    'format': 'org.matrix.custom.html',
+    'formatted_body': html.startsWith('<p>') ? `<p>${name} ${html.slice(3)}` : `${name}<br>${html}`,
+    'm.relates_to': { 'rel_type': 'm.thread', 'event_id': rootId, 'is_falling_back': true, 'm.in_reply_to': { event_id: rootId } },
+    [KANSO_AUTHOR_KEY]: author,
+  }
+}
+
+/** The Kanso author recorded on one of the bot's messages, if any. */
+export function kansoAuthor(e: MatrixEvent): { id: string, name: string } | null {
+  const a = e.content[KANSO_AUTHOR_KEY] as { id?: unknown, name?: unknown } | undefined
+  return typeof a?.id === 'string' && typeof a.name === 'string' ? { id: a.id, name: a.name } : null
+}
+
+/** Drops the "Name:" that threadReplyContent puts in front, since the tab shows the name already. */
+export function withoutAuthorPrefix(c: ThreadMessageContent, name: string): ThreadMessageContent {
+  const plain = `${name}: `
+  const strong = `<strong>${htmlEscape(name)}:</strong>`
+  let html = c.html
+  if (html?.startsWith(`<p>${strong} `)) html = `<p>${html.slice(strong.length + 4)}`
+  else if (html?.startsWith(`${strong}<br>`)) html = html.slice(strong.length + 4)
+  return { ...c, body: c.body.startsWith(plain) ? c.body.slice(plain.length) : c.body, html }
 }
