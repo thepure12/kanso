@@ -1277,7 +1277,12 @@
       "otherRoom": "This thread is in a room the board is no longer connected to.",
       "startFailed": "Could not start a Matrix thread",
       "linkFailed": "Could not link the Matrix message",
-      "unlinkFailed": "Could not unlink the Matrix thread"
+      "unlinkFailed": "Could not unlink the Matrix thread",
+      "refresh": "Refresh",
+      "loadFailed": "Could not load the Matrix thread",
+      "more": "Only the newest 200 replies are shown. Open the thread in Matrix for older ones.",
+      "bot": "Bot",
+      "noReplies": "No replies yet."
     }
   },
   "views": {

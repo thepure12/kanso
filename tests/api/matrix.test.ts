@@ -9,7 +9,7 @@ import postgres from 'postgres'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import type { BoardDetail, Card, CardDetail } from '#shared/types/board'
 import type { InstanceSettings } from '#shared/types/admin'
-import type { BoardMatrixRoom, CardMatrixThread } from '#shared/types/matrix'
+import type { BoardMatrixRoom, CardMatrixThread, MatrixThreadView } from '#shared/types/matrix'
 import { signEmailToken } from '../../server/utils/emailToken'
 import { setupApi } from './server'
 
@@ -61,7 +61,8 @@ const fake = {
   aliases: new Map([['#team:matrix.test', '!team:matrix.test'], ['#secret:matrix.test', '!secret:matrix.test']]),
   requests: [] as { method: string, path: string, auth: string | undefined }[],
   /** Events by id: room and content. */
-  events: new Map<string, { room: string, type: string, content: Record<string, any> }>(),
+  events: new Map<string, { room: string, type: string, content: Record<string, any>, sender?: string, ts?: number, unsigned?: Record<string, any> }>(),
+  members: new Map([['@kanso-bot:matrix.test', 'Kanso'], ['@dana:matrix.test', 'Dana']]),
   /** Transaction ids already used, with their event id. */
   txns: new Map<string, string>(),
 }
@@ -78,7 +79,9 @@ async function readBody(req: IncomingMessage) {
 }
 
 async function handle(req: IncomingMessage, res: ServerResponse) {
-  const path = decodeURIComponent(req.url!.replace(/^\/_matrix\/client\/v3/, ''))
+  const [rawPath, query = ''] = req.url!.replace(/^\/_matrix\/client\/v[13]/, '').split('?')
+  const path = decodeURIComponent(rawPath!)
+  const params = new URLSearchParams(query)
   fake.requests.push({ method: req.method!, path, auth: req.headers.authorization })
   if (req.headers.authorization !== `Bearer ${TOKEN}`) return reply(res, 401, { errcode: 'M_UNKNOWN_TOKEN', error: 'Invalid access token passed.' })
   let m: RegExpExecArray | null
@@ -101,14 +104,26 @@ async function handle(req: IncomingMessage, res: ServerResponse) {
     if (!id) {
       id = `$ev${fake.events.size + 1}`
       fake.txns.set(txn!, id)
-      fake.events.set(id, { room: room!, type: 'm.room.message', content })
+      fake.events.set(id, { room: room!, type: 'm.room.message', content, sender: '@kanso-bot:matrix.test' })
     }
     return reply(res, 200, { event_id: id })
+  }
+  if ((m = /^\/rooms\/([^/]+)\/relations\/([^/]+)\/m\.thread$/.exec(path))) {
+    // Newest first, pages of `limit`; `from` is the index to continue at.
+    const all = [...fake.events].filter(([, e]) => e.room === m![1] && e.content['m.relates_to']?.rel_type === 'm.thread' && e.content['m.relates_to'].event_id === m![2]).reverse()
+    const start = Number(params.get('from') ?? 0)
+    const limit = Number(params.get('limit') ?? 5)
+    const chunk = all.slice(start, start + limit).map(([id, e]) => ({ event_id: id, type: e.type, sender: e.sender ?? '@kanso-bot:matrix.test', origin_server_ts: e.ts ?? 1, content: e.content, unsigned: e.unsigned }))
+    return reply(res, 200, { chunk, ...(start + limit < all.length && { next_batch: String(start + limit) }) })
+  }
+  if ((m = /^\/rooms\/([^/]+)\/state\/m\.room\.member\/(.+)$/.exec(path))) {
+    const name = fake.members.get(m[2]!)
+    return name ? reply(res, 200, { membership: 'join', displayname: name }) : reply(res, 404, { errcode: 'M_NOT_FOUND', error: 'Event not found.' })
   }
   if ((m = /^\/rooms\/([^/]+)\/event\/([^/]+)$/.exec(path))) {
     const e = fake.events.get(m[2]!)
     if (!e || e.room !== m[1]) return reply(res, 404, { errcode: 'M_NOT_FOUND', error: 'Event not found.' })
-    return reply(res, 200, { event_id: m[2], type: e.type, sender: '@someone:matrix.test', origin_server_ts: 1, content: e.content })
+    return reply(res, 200, { event_id: m[2], type: e.type, sender: e.sender ?? '@someone:matrix.test', origin_server_ts: e.ts ?? 1, content: e.content, unsigned: e.unsigned })
   }
   if ((m = /^\/rooms\/([^/]+)\/state\/([^/]+)\/$/.exec(path))) {
     const [, room, type] = m
@@ -291,5 +306,51 @@ describe('card threads', () => {
     expect(missing.data.statusMessage).toContain('M_NOT_FOUND')
     expect((await thread(bob, { link: 'hello' })).status).toBe(400)
     expect(await detail(bob)).toBeNull()
+  })
+})
+
+describe('reading a card thread', () => {
+  let cardId = ''
+  const read = (who: typeof alice) => who.req<MatrixThreadView>(`/api/cards/${cardId}/matrix-thread`)
+  const reply = (id: string, body: Record<string, any>, extra: Record<string, any> = {}) => fake.events.set(id, {
+    room: '!team:matrix.test', type: 'm.room.message', sender: '@dana:matrix.test', ts: Date.UTC(2026, 10, 14, 12, fake.events.size),
+    content: { msgtype: 'm.text', ...body, 'm.relates_to': { rel_type: 'm.thread', event_id: '$root3', ...body['m.relates_to'] } }, ...extra,
+  })
+
+  beforeAll(async () => {
+    const b = (await alice.req<BoardDetail>(`/api/boards/${boardId}`)).data
+    cardId = (await alice.req<Card>(`/api/boards/${boardId}/cards`, { method: 'POST', body: { columnId: b.columns[0]!.id, title: 'Read me' } })).data.id
+    fake.events.set('$root3', { room: '!team:matrix.test', type: 'm.room.message', sender: '@dana:matrix.test', content: { msgtype: 'm.text', body: 'Printer is down' } })
+    reply('$r1', { body: 'Have you tried turning it off', format: 'org.matrix.custom.html', formatted_body: 'Have you tried <em>turning it off</em>' }, { sender: '@stranger:matrix.test' })
+    reply('$r2', { body: 'typo' }, { unsigned: { 'm.relations': { 'm.replace': { content: { 'm.new_content': { msgtype: 'm.text', body: 'fixed text' } } } } } })
+    reply('$r3', { body: 'secret' }, { unsigned: { redacted_because: { type: 'm.room.redaction' } } })
+    reply('$r4', { body: '> <@x:matrix.test> quoted\n\nanswer', format: 'org.matrix.custom.html', formatted_body: '<mx-reply><blockquote>quoted</blockquote></mx-reply>answer', 'm.relates_to': { 'm.in_reply_to': { event_id: '$r1' } } })
+    reply('$r5', { msgtype: 'm.image', body: 'photo.png', url: 'mxc://matrix.test/abc' })
+    for (let i = 0; i < 6; i++) reply(`$bulk${i}`, { body: `bulk ${i}` })
+  })
+
+  it('404 without a thread', async () => {
+    expect((await read(carol)).status).toBe(404)
+  })
+
+  it('shows root and replies oldest first, for viewers too, with names, edits and no redacted messages', async () => {
+    expect((await bob.req(`/api/cards/${cardId}/matrix-thread`, { method: 'POST', body: { link: '$root3' } })).status).toBe(200)
+    const res = await read(carol)
+    expect(res.status).toBe(200)
+    expect(res.data.more).toBe(false)
+    const msgs = res.data.messages
+    expect(msgs.map(m => m.id)).toEqual(['$root3', '$r1', '$r2', '$r4', '$r5', '$bulk0', '$bulk1', '$bulk2', '$bulk3', '$bulk4', '$bulk5'])
+    expect(msgs[0]).toMatchObject({ senderName: 'Dana', body: 'Printer is down', html: null, fromBot: false, edited: false })
+    expect(msgs[1]).toMatchObject({ sender: '@stranger:matrix.test', senderName: '@stranger:matrix.test', html: 'Have you tried <em>turning it off</em>' })
+    expect(msgs[2]).toMatchObject({ body: 'fixed text', edited: true })
+    expect(msgs[3]).toMatchObject({ body: 'answer', html: 'answer' })
+    expect(msgs[4]).toMatchObject({ body: '[photo.png]', html: null })
+  })
+
+  it('reports Matrix errors as 400', async () => {
+    fake.events.delete('$root3')
+    const res = await read(bob)
+    expect(res.status).toBe(400)
+    expect(res.data.statusMessage).toContain('M_NOT_FOUND')
   })
 })

@@ -14,3 +14,26 @@ export interface CardMatrixThread {
   /** Root event of the thread. */
   eventId: string
 }
+
+/** One message of a card's Matrix thread (GET /api/cards/:id/matrix-thread). */
+export interface MatrixThreadMessage {
+  id: string
+  sender: string
+  /** Room display name, else the user id. */
+  senderName: string
+  /** Sent by the board's bot (thread roots and replies from Kanso). */
+  fromBot: boolean
+  createdAt: string
+  /** Plain text. */
+  body: string
+  /** Matrix HTML (org.matrix.custom.html), unsanitized: the browser sanitizes it. */
+  html: string | null
+  edited: boolean
+}
+
+/** A card's Matrix thread with its messages, root first. */
+export interface MatrixThreadView extends CardMatrixThread {
+  messages: MatrixThreadMessage[]
+  /** Older replies were left out (the newest 200 are shown). */
+  more: boolean
+}

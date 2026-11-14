@@ -1277,7 +1277,12 @@
       "otherRoom": "Dieser Thread liegt in einem Raum, mit dem das Board nicht mehr verbunden ist.",
       "startFailed": "Matrix-Thread konnte nicht gestartet werden",
       "linkFailed": "Matrix-Nachricht konnte nicht verknüpft werden",
-      "unlinkFailed": "Verknüpfung mit dem Matrix-Thread konnte nicht gelöst werden"
+      "unlinkFailed": "Verknüpfung mit dem Matrix-Thread konnte nicht gelöst werden",
+      "refresh": "Aktualisieren",
+      "loadFailed": "Der Matrix-Thread konnte nicht geladen werden",
+      "more": "Nur die neuesten 200 Antworten werden angezeigt. Ältere findest du im Thread in Matrix.",
+      "bot": "Bot",
+      "noReplies": "Noch keine Antworten."
     }
   },
   "views": {

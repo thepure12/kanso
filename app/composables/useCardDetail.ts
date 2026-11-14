@@ -43,6 +43,7 @@ export function useCardDetail(cardId: Ref<string>) {
   const sortEntries = (d: CardDetail) => d.timeEntries.sort((a, b) => b.spentOn.localeCompare(a.spentOn) || b.createdAt.localeCompare(a.createdAt))
 
   return {
+    cardId,
     detail,
     loading,
     load,

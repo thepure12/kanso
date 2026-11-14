@@ -10,6 +10,21 @@ let hooked = false
  * `<base>/api/attachments/<id>`. Browser only: DOMPurify needs a DOM.
  */
 export function renderMarkdown(text: string, base = ''): string {
+  hookLinks()
+  return DOMPurify.sanitize(marked.parse(renderMentions(resolveAttachmentLinks(text, base)), { async: false, gfm: true, breaks: true }))
+}
+
+/**
+ * HTML from elsewhere (Matrix messages) made safe to show: DOMPurify, links
+ * open in a new tab, no images or media (they would load from other servers).
+ * Browser only.
+ */
+export function sanitizeHtml(html: string): string {
+  hookLinks()
+  return DOMPurify.sanitize(html, { FORBID_TAGS: ['img', 'video', 'audio', 'picture', 'source', 'style', 'form', 'input', 'button'], FORBID_ATTR: ['style'] })
+}
+
+function hookLinks() {
   if (!hooked) {
     hooked = true
     // Links open in a new tab without access to this page.
@@ -20,5 +35,4 @@ export function renderMarkdown(text: string, base = ''): string {
       }
     })
   }
-  return DOMPurify.sanitize(marked.parse(renderMentions(resolveAttachmentLinks(text, base)), { async: false, gfm: true, breaks: true }))
 }

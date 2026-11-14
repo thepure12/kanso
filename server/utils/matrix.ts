@@ -59,9 +59,9 @@ async function call<T>(method: 'GET' | 'POST' | 'PUT', url: string, token: strin
   return json as T
 }
 
-/** Calls `/_matrix/client/v3<path>` as the bot. */
-export function matrixRequest<T>(c: MatrixClient, method: 'GET' | 'POST' | 'PUT', path: string, body?: unknown): Promise<T> {
-  return call<T>(method, `${baseUrl(c.homeserverUrl)}/_matrix/client/v3${path}`, c.accessToken, body)
+/** Calls `/_matrix/client/<version><path>` as the bot. */
+export function matrixRequest<T>(c: MatrixClient, method: 'GET' | 'POST' | 'PUT', path: string, body?: unknown, version: 'v1' | 'v3' = 'v3'): Promise<T> {
+  return call<T>(method, `${baseUrl(c.homeserverUrl)}/_matrix/client/${version}${path}`, c.accessToken, body)
 }
 
 /**
@@ -177,7 +177,7 @@ export async function resolveRoom(c: MatrixClient, room: string): Promise<string
   return (await matrixRequest<{ room_id: string }>(c, 'GET', `/directory/room/${encodeURIComponent(room)}`)).room_id
 }
 
-interface MatrixEvent {
+export interface MatrixEvent {
   event_id: string
   type: string
   sender: string
@@ -227,4 +227,76 @@ export async function boardMatrixBot(tx: Tx, boardId: string): Promise<MatrixCli
   const accessToken = openMatrixToken(row.access_token)
   if (!accessToken) throw createError({ statusCode: 400, statusMessage: 'Matrix: the stored token cannot be read any more. A board owner has to enter it again.' })
   return { homeserverUrl: row.homeserver_url, accessToken, roomId: row.room_id }
+}
+
+/** Most thread messages loaded (newest kept). */
+const THREAD_LIMIT = 200
+
+/**
+ * A thread's root and its replies, oldest first (at most THREAD_LIMIT
+ * replies, the newest), through the relations API. `more` is true when older
+ * replies were left out.
+ */
+export async function loadThreadEvents(c: MatrixClient, roomId: string, rootId: string): Promise<{ root: MatrixEvent, replies: MatrixEvent[], more: boolean }> {
+  const root = await getEvent(c, roomId, rootId)
+  const replies: MatrixEvent[] = []
+  let from: string | undefined
+  do {
+    const page = await matrixRequest<{ chunk: MatrixEvent[], next_batch?: string }>(c, 'GET',
+      `/rooms/${encodeURIComponent(roomId)}/relations/${encodeURIComponent(rootId)}/m.thread?dir=b&limit=100${from ? `&from=${encodeURIComponent(from)}` : ''}`,
+      undefined, 'v1')
+    replies.push(...page.chunk)
+    from = page.next_batch
+  } while (from && replies.length < THREAD_LIMIT)
+  return { root, replies: replies.slice(0, THREAD_LIMIT).reverse(), more: !!from || replies.length > THREAD_LIMIT }
+}
+
+/** Display names of room members (falls back to the user id), one request per person. */
+export async function memberNames(c: MatrixClient, roomId: string, userIds: string[]): Promise<Map<string, string>> {
+  const names = new Map<string, string>()
+  await Promise.all([...new Set(userIds)].slice(0, 50).map(async (u) => {
+    try {
+      const m = await matrixRequest<{ displayname?: unknown }>(c, 'GET', `/rooms/${encodeURIComponent(roomId)}/state/m.room.member/${encodeURIComponent(u)}`)
+      if (typeof m.displayname === 'string' && m.displayname.trim()) names.set(u, m.displayname.trim())
+    }
+    catch { /* left the room or unknown: the id is shown */ }
+  }))
+  return names
+}
+
+/** Strips a reply fallback ("> <@user> quoted" lines, `<mx-reply>`) from a message that replies to another. */
+function stripReplyFallback(content: Record<string, unknown>, body: string, html: string | null) {
+  const rel = content['m.relates_to'] as { 'm.in_reply_to'?: unknown, 'is_falling_back'?: unknown } | undefined
+  if (!rel?.['m.in_reply_to'] || rel.is_falling_back) return { body, html }
+  const lines = body.split('\n')
+  let i = 0
+  while (i < lines.length && lines[i]!.startsWith('> ')) i++
+  if (i && lines[i] === '') i++
+  return { body: i ? lines.slice(i).join('\n') : body, html: html?.replace(/<mx-reply>[\s\S]*?<\/mx-reply>/, '') ?? null }
+}
+
+export interface ThreadMessageContent {
+  body: string
+  html: string | null
+  edited: boolean
+}
+
+/**
+ * What to show for a message event: the latest edit's text when the server
+ * bundled one, without reply fallback; null for redacted, non-message or
+ * encrypted events. Non-text messages show their body (file name) in brackets.
+ */
+export function messageContent(e: MatrixEvent): ThreadMessageContent | null {
+  if (e.type !== 'm.room.message' || e.unsigned?.redacted_because) return null
+  const replace = (e.unsigned?.['m.relations'] as { 'm.replace'?: { content?: { 'm.new_content'?: Record<string, unknown> } } } | undefined)?.['m.replace']
+  const edit = replace?.content?.['m.new_content']
+  const content = edit && typeof edit.body === 'string' ? edit : e.content
+  if (typeof content.body !== 'string') return null
+  const msgtype = content.msgtype
+  if (msgtype === 'm.image' || msgtype === 'm.file' || msgtype === 'm.video' || msgtype === 'm.audio') {
+    return { body: `[${content.body}]`, html: null, edited: !!edit }
+  }
+  const html = content.format === 'org.matrix.custom.html' && typeof content.formatted_body === 'string' ? content.formatted_body : null
+  const stripped = stripReplyFallback(e.content, content.body, html)
+  return { body: msgtype === 'm.emote' ? `* ${stripped.body}` : stripped.body, html: msgtype === 'm.emote' ? null : stripped.html, edited: !!edit }
 }
