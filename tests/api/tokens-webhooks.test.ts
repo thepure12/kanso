@@ -4,7 +4,7 @@
 import { createDecipheriv, createECDH, createHmac, hkdfSync, randomBytes, randomUUID } from 'node:crypto'
 import { createServer, type IncomingHttpHeaders } from 'node:http'
 import type { AddressInfo } from 'node:net'
-import { setup, url } from '@nuxt/test-utils/e2e'
+import { url } from '@nuxt/test-utils/e2e'
 import postgres from 'postgres'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import type { ApiToken, PushSettings } from '#shared/types/account'
@@ -12,15 +12,12 @@ import type { BoardDetail, Card } from '#shared/types/board'
 import type { InstanceSettings } from '#shared/types/admin'
 import type { BoardWebhook, WebhookTestResult } from '#shared/types/webhooks'
 import { signEmailToken } from '../../server/utils/emailToken'
+import { setupApi } from './server'
 
 const adminEmail = `admin-${randomUUID()}@api.test`
-await setup({
-  server: true,
-  browser: false,
-  env: {
-    NUXT_ADMIN_EMAIL: adminEmail, NUXT_MAIL_SMTP_URL: '', NUXT_MAIL_LOG_LINKS: 'true',
-    NUXT_WEBHOOK_ALLOW_PRIVATE: 'true', NUXT_PUBLIC_SITE_URL: 'https://kanso.example',
-  },
+await setupApi({
+  NUXT_ADMIN_EMAIL: adminEmail, NUXT_MAIL_SMTP_URL: '', NUXT_MAIL_LOG_LINKS: 'true',
+  NUXT_WEBHOOK_ALLOW_PRIVATE: 'true', NUXT_PUBLIC_SITE_URL: 'https://kanso.example',
 })
 
 let base = ''

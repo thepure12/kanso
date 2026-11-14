@@ -1,8 +1,8 @@
-// HTTP API tests: builds the app, starts it, and talks to it as two signed-in
+// HTTP API tests: starts the app (built once by build.ts) and talks to it as two signed-in
 // users. Needs the migrated database, like the db tests.
 import { randomUUID } from 'node:crypto'
 import { readFileSync } from 'node:fs'
-import { setup, url } from '@nuxt/test-utils/e2e'
+import { url } from '@nuxt/test-utils/e2e'
 import postgres from 'postgres'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import type { Attachment, BoardActivityPage, BoardAutomation, BoardDetail, BoardField, BoardSummary, Card, CardDetail, CardLink, CardRecurrence, Column, ColumnGroup, ColumnRule, SavedView, Comment, Person, TeamDetail, TimeEntry, TrashedCard } from '#shared/types/board'
@@ -13,11 +13,12 @@ import type { SearchResults } from '#shared/types/search'
 import type { MyWork } from '#shared/types/myWork'
 import { signEmailToken } from '../../server/utils/emailToken'
 import { base32Decode, totpCode, totpStep } from '../../server/utils/totp'
+import { setupApi } from './server'
 
 // A fresh admin opens sign-up for the run (settings restored afterwards);
 // confirmation links go to the log instead of SMTP.
 const adminEmail = `admin-${randomUUID()}@api.test`
-await setup({ server: true, browser: false, env: { NUXT_ADMIN_EMAIL: adminEmail, NUXT_MAIL_SMTP_URL: '', NUXT_MAIL_LOG_LINKS: 'true' } })
+await setupApi({ NUXT_ADMIN_EMAIL: adminEmail, NUXT_MAIL_SMTP_URL: '', NUXT_MAIL_LOG_LINKS: 'true' })
 
 // test-utils sets its context per test only, so nested beforeAll hooks cannot use
 // its fetch(); capture the server URL once and use the global fetch.

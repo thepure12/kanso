@@ -1,21 +1,18 @@
 // HTTP API tests for the MCP endpoint (POST /api/mcp): token auth, read-only
 // tokens seeing only read tools, and tools acting through the REST routes as
-// the token's user. Builds and starts the app like boards.test.ts.
+// the token's user. Builds and starts the app like boards.test.ts (from the shared build).
 import { randomUUID } from 'node:crypto'
-import { setup, url } from '@nuxt/test-utils/e2e'
+import { url } from '@nuxt/test-utils/e2e'
 import postgres from 'postgres'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import type { ApiToken } from '#shared/types/account'
 import type { BoardDetail } from '#shared/types/board'
 import type { InstanceSettings } from '#shared/types/admin'
 import { signEmailToken } from '../../server/utils/emailToken'
+import { setupApi } from './server'
 
 const adminEmail = `admin-${randomUUID()}@mcp.test`
-await setup({
-  server: true,
-  browser: false,
-  env: { NUXT_ADMIN_EMAIL: adminEmail, NUXT_MAIL_SMTP_URL: '', NUXT_MAIL_LOG_LINKS: 'true' },
-})
+await setupApi({ NUXT_ADMIN_EMAIL: adminEmail, NUXT_MAIL_SMTP_URL: '', NUXT_MAIL_LOG_LINKS: 'true' })
 
 let base = ''
 beforeAll(() => { base = url('/').replace(/\/$/, '') })
