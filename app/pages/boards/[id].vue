@@ -302,8 +302,11 @@ async function revealCard(card: { id: string } | undefined) {
   document.querySelector(`[data-card-id="${card.id}"]`)?.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'smooth' })
 }
 
-async function addCardAndReveal(columnId: string, title: string) {
-  revealCard(await addCard(columnId, title))
+/** Ctrl/Cmd+Enter in the add box (`open`) also opens the new card. */
+async function addCardAndReveal(columnId: string, title: string, open = false) {
+  const card = await addCard(columnId, title)
+  revealCard(card)
+  if (open && card) editingCardId.value = card.id
 }
 
 // Board shortcuts (listed in app/utils/shortcuts.ts). defineShortcuts skips them
@@ -825,7 +828,7 @@ const boardMenu = computed(() => {
             </VueDraggable>
 
             <div v-if="canEdit" class="px-3 pb-3 flex items-start gap-1">
-              <InlineAdd :ref="el => { cardAdds[col.id] = el as { open: () => void } | null }" :label="t('board.addCard')" :placeholder="t('board.cardTitle')" :maxlength="CARD_TITLE_MAX" class="flex-1 min-w-0" @add="title => addCardAndReveal(col.id, title)" />
+              <InlineAdd :ref="el => { cardAdds[col.id] = el as { open: () => void } | null }" :label="t('board.addCard')" :placeholder="t('board.cardTitle')" :maxlength="CARD_TITLE_MAX" openable class="flex-1 min-w-0" @add="(title, open) => addCardAndReveal(col.id, title, open)" />
               <UDropdownMenu v-if="templates.length" :items="templateMenu(col)" :content="{ align: 'end' }">
                 <UTooltip :text="t('board.fromTemplate')">
                   <UButton color="neutral" variant="ghost" icon="i-lucide-file-plus" :aria-label="t('board.addFromTemplate')" />

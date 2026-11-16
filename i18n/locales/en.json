@@ -115,6 +115,7 @@
     "home": "Go to all boards",
     "filter": "Filter cards",
     "newCard": "Add a card to the first column",
+    "addAndOpenCard": "Add the card you are typing and open it",
     "undo": "Undo your last change",
     "redo": "Redo",
     "saveCard": "Save the open card or submit a comment",
