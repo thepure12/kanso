@@ -3,7 +3,8 @@ import type { BoardDetail, Card, CardDetail, FieldValue } from '#shared/types/bo
 /**
  * Compact views of API responses for MCP tools: names instead of ids where an
  * agent needs to read them, ids kept where it needs to act, and display-only
- * data (colours, backgrounds, positions, rules) left out to save context.
+ * data (backgrounds, positions, outlines) left out to save context. Colours of
+ * columns, tags and column tags stay so agents can change them.
  */
 
 /** Activity entries returned per card; the dialog's full history is not needed by agents. */
@@ -55,13 +56,17 @@ export function boardForAgent(board: BoardDetail) {
     yourRole: board.role,
     archived: board.archivedAt !== null,
     team: board.team?.name ?? null,
+    accent: board.accent,
     columns: board.columns.map(c => ({
       id: c.id,
       title: c.title,
+      color: c.color ?? undefined,
       wipLimit: c.wipLimit ?? undefined,
       cards: board.cards.filter(card => card.columnId === c.id).map(card => cardSummary(board, card, blocked)),
     })),
-    tags: board.tags.map(t => ({ id: t.id, name: t.name })),
+    tags: board.tags.map(t => ({ id: t.id, name: t.name, color: t.color })),
+    columnTags: board.columnGroups.map(g => ({ id: g.id, name: g.name, color: g.color, columnIds: g.columnIds })),
+    automations: board.automations,
     members: board.members.map(m => ({ userId: m.userId, name: m.name, email: m.email, role: m.role })),
     fields: board.fields.map(f => ({ id: f.id, name: f.name, kind: f.kind, options: f.kind === 'select' ? f.options.map(o => o.label) : undefined })),
     templates: board.templates.map(t => ({ id: t.id, title: t.title })),

@@ -162,4 +162,39 @@ describe('mcp endpoint', () => {
     expect(bad.isError).toBe(true)
     expect(bad.text).toMatch(/^400/)
   })
+  it('edits board structure: columns, card tags, column tags, automations and the accent', async () => {
+    const col = (await tool(writeToken, 'create_column', { boardId: board.id, title: 'Review' })).json()
+    expect(col.title).toBe('Review')
+    expect((await tool(writeToken, 'update_column', { columnId: col.id, color: '#ff0000', wipLimit: 3, aboveId: null, belowId: board.columns[0]!.id })).json())
+      .toMatchObject({ color: '#ff0000', wipLimit: 3 })
+
+    const tag = (await tool(writeToken, 'create_tag', { boardId: board.id, name: 'Agent' })).json()
+    expect(tag.color).toMatch(/^#[0-9a-f]{6}$/)
+    expect((await tool(writeToken, 'update_tag', { tagId: tag.id, color: '#00AA00' })).json()).toMatchObject({ name: 'Agent', color: '#00aa00' })
+
+    const group = (await tool(writeToken, 'create_column_tag', { boardId: board.id, name: 'Flow', columnIds: [col.id] })).json()
+    expect(group.columnIds).toEqual([col.id])
+    const done = board.columns.at(-1)!.id
+    expect((await tool(writeToken, 'update_column_tag', { columnTagId: group.id, color: '#123456', columnIds: [col.id, done] })).json().columnIds).toHaveLength(2)
+
+    const auto = (await tool(writeToken, 'create_automation', { boardId: board.id, kind: 'tag_stale', days: 7, tagId: tag.id })).json()
+    expect(auto).toMatchObject({ kind: 'tag_stale', days: 7, tagId: tag.id, active: true })
+    expect((await tool(writeToken, 'update_automation', { automationId: auto.id, active: false })).json().active).toBe(false)
+    const badAuto = await tool(writeToken, 'create_automation', { boardId: board.id, kind: 'tag_stale', days: 7 })
+    expect(badAuto.isError).toBe(true)
+    expect(badAuto.text).toMatch(/^400/)
+
+    expect((await tool(writeToken, 'set_board_accent', { boardId: board.id, accent: 'teal' })).isError).toBe(false)
+
+    const view = (await tool(readToken, 'get_board', { boardId: board.id })).json()
+    expect(view.accent).toBe('teal')
+    expect(view.columns[0]).toMatchObject({ id: col.id, color: '#ff0000', wipLimit: 3 })
+    expect(view.tags).toContainEqual({ id: tag.id, name: 'Agent', color: '#00aa00' })
+    expect(view.columnTags).toEqual([{ id: group.id, name: 'Flow', color: '#123456', columnIds: [col.id, done] }])
+    expect(view.automations).toEqual([expect.objectContaining({ id: auto.id, active: false })])
+
+    // Read tokens get none of these tools.
+    const refused = await mcp(readToken, 'tools/call', { name: 'create_tag', arguments: { boardId: board.id, name: 'x' } })
+    expect(refused.body.result?.isError ?? refused.body.error).toBeTruthy()
+  })
 })

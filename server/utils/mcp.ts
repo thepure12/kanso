@@ -1,7 +1,8 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js'
 import { z } from 'zod'
-import { priorities, type BoardDetail, type CardDetail } from '#shared/types/board'
+import { boardAutomationKinds, priorities, type BoardDetail, type CardDetail } from '#shared/types/board'
+import { boardAccents } from '#shared/boardAccents'
 import { CARD_TITLE_MAX } from '#shared/cards'
 
 /**
@@ -26,9 +27,14 @@ type Query = Record<string, string | undefined>
 const instructions = `Kanso is a kanban app. Typical flow: list_boards, then get_board for its columns, cards, tags,
 members and fields (ids needed by the write tools), then get_card for one card's description, checklist, comments
 and links. Use search to find cards by text across boards and my_work for cards assigned to or watched by you.
+Board structure: columns, card tags (labels on cards), column tags (named sets of columns that filter the board view)
+and time-based automations; get_board lists them with their ids and colours.
 Everything runs as the token's user: you only see and change what they can. Dates are YYYY-MM-DD.`
 
 const id = z.uuid()
+const color = z.string().regex(/^#[0-9a-fA-F]{6}$/).describe('#rrggbb')
+/** Default for a new card tag when the agent picks no colour (slate). */
+const DEFAULT_TAG_COLOR = '#64748b'
 
 /** A failure the agent should read, e.g. a lookup that came back empty. */
 class ToolError extends Error {}
@@ -178,6 +184,76 @@ export function createMcpServer(caller: McpCaller): McpServer {
     inputSchema: { itemId: id, done: z.boolean().optional(), text: z.string().min(1).max(500).optional() },
     annotations: write,
   }, ({ itemId, ...body }) => run(() => call(`/api/checklist-items/${itemId}`, { method: 'PATCH', body })))
+
+  server.registerTool('create_column', {
+    description: 'Add a column at the right end of a board. columnTagId also puts it in that column tag.',
+    inputSchema: { boardId: id, title: z.string().min(1).max(100), columnTagId: id.optional() },
+    annotations: write,
+  }, ({ boardId, title, columnTagId }) => run(() => call(`/api/boards/${boardId}/columns`, { method: 'POST', body: { title, groupId: columnTagId } })))
+
+  server.registerTool('update_column', {
+    description: 'Rename a column, set its heading colour or WIP limit (null clears), or move it: aboveId/belowId are the neighbouring column ids after the move (left/right; null = start/end).',
+    inputSchema: {
+      columnId: id,
+      title: z.string().min(1).max(100).optional(),
+      color: color.nullable().optional(),
+      wipLimit: z.number().int().min(1).max(999).nullable().optional(),
+      aboveId: id.nullable().optional(),
+      belowId: id.nullable().optional(),
+    },
+    annotations: write,
+  }, ({ columnId, ...body }) => run(() => call(`/api/columns/${columnId}`, { method: 'PATCH', body })))
+
+  server.registerTool('create_tag', {
+    description: 'Add a card tag (label) to a board. Put it on cards with update_card tagIds or bulk_update_cards addTagIds.',
+    inputSchema: { boardId: id, name: z.string().min(1).max(50), color: color.optional() },
+    annotations: write,
+  }, ({ boardId, name, color }) => run(() => call(`/api/boards/${boardId}/tags`, { method: 'POST', body: { name, color: color ?? DEFAULT_TAG_COLOR } })))
+
+  server.registerTool('update_tag', {
+    description: 'Rename a card tag or change its colour.',
+    inputSchema: { tagId: id, name: z.string().min(1).max(50).optional(), color: color.optional() },
+    annotations: write,
+  }, ({ tagId, ...body }) => run(() => call(`/api/tags/${tagId}`, { method: 'PATCH', body })))
+
+  server.registerTool('create_column_tag', {
+    description: 'Add a column tag: a named set of columns (a column can be in several) that people pick to show only those columns. Name unique per board.',
+    inputSchema: { boardId: id, name: z.string().min(1).max(50), color: color.nullable().optional(), columnIds: z.array(id).max(200).optional() },
+    annotations: write,
+  }, ({ boardId, ...body }) => run(() => call(`/api/boards/${boardId}/column-groups`, { method: 'POST', body })))
+
+  server.registerTool('update_column_tag', {
+    description: 'Rename a column tag, change its colour (null = default), or set its columns: columnIds replaces the whole set (current ids from get_board columnTags).',
+    inputSchema: { columnTagId: id, name: z.string().min(1).max(50).optional(), color: color.nullable().optional(), columnIds: z.array(id).max(200).optional() },
+    annotations: write,
+  }, ({ columnTagId, ...body }) => run(() => call(`/api/column-groups/${columnTagId}`, { method: 'PATCH', body })))
+
+  server.registerTool('create_automation', {
+    description: 'Add a time-based automation (runs hourly on open cards: not archived, not in the last column). '
+      + 'archive_done: archive cards in the last column for `days` days. tag_stale: add tagId to cards without activity for `days` days. '
+      + 'notify_stale: notify assignees and watchers of cards without activity for `days` days. '
+      + 'raise_priority: set `priority` on cards due within `days` days (0 = today) or overdue. days is 1-365 (raise_priority 0-365).',
+    inputSchema: {
+      boardId: id,
+      kind: z.enum(boardAutomationKinds),
+      days: z.number().int().min(0).max(365),
+      tagId: id.optional().describe('tag_stale only'),
+      priority: z.enum(priorities).optional().describe('raise_priority only'),
+    },
+    annotations: write,
+  }, ({ boardId, ...body }) => run(() => call(`/api/boards/${boardId}/automations`, { method: 'POST', body })))
+
+  server.registerTool('update_automation', {
+    description: 'Change an automation\'s days or turn it on or off (active). Kind, tag and priority are fixed.',
+    inputSchema: { automationId: id, days: z.number().int().min(0).max(365).optional(), active: z.boolean().optional() },
+    annotations: write,
+  }, ({ automationId, ...body }) => run(() => call(`/api/automations/${automationId}`, { method: 'PATCH', body })))
+
+  server.registerTool('set_board_accent', {
+    description: 'Set the board\'s accent colour (replaces the app\'s primary colour on that board), or null for the default. Board owners only.',
+    inputSchema: { boardId: id, accent: z.enum(boardAccents).nullable() },
+    annotations: write,
+  }, ({ boardId, accent }) => run(() => call(`/api/boards/${boardId}/accent`, { method: 'PUT', body: { accent } })))
 
   return server
 }

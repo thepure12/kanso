@@ -104,11 +104,15 @@ never the session cookie; `401` without one) and acts as the token's user: each 
 same permissions, validation and scope rules apply, and changes show up live on open boards. `GET` and `DELETE` are
 `405`.
 
-- **Read tools** (every token): `list_boards`, `get_board` (columns with their cards, tags, members, fields, templates),
+- **Read tools** (every token): `list_boards`, `get_board` (columns with their cards and colours, card tags, column
+  tags, automations, accent, members, fields, templates),
   `get_card` (description, checklist, comments, links, attachments, recent activity), `search`, `my_work`,
   `list_notifications`.
 - **Write tools** (listed only for read and write tokens): `create_card`, `update_card`, `move_card`,
-  `bulk_update_cards`, `add_comment`, `add_checklist_item`, `update_checklist_item`.
+  `bulk_update_cards`, `add_comment`, `add_checklist_item`, `update_checklist_item`; board structure:
+  `create_column`, `update_column` (title, colour, WIP limit, order), `create_tag`, `update_tag`, `create_column_tag`,
+  `update_column_tag` (name, colour, columns), `create_automation`, `update_automation`, `set_board_accent`. There are
+  no delete tools for these.
 - API errors come back as tool results with `isError` and the status, e.g. `404 Board not found`.
 
 ```bash
