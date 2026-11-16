@@ -25,8 +25,8 @@ export function useNotifications() {
   }
 
   let events: EventSource | undefined
-  onMounted(() => {
-    refresh()
+  let unhold: (() => void) | undefined
+  function listen() {
     let failed = false
     events = new EventSource(`${base}/api/notifications/events`)
     events.addEventListener('change', () => refresh())
@@ -36,8 +36,20 @@ export function useNotifications() {
       if (failed) refresh()
       failed = false
     })
+  }
+  onMounted(() => {
+    refresh()
+    listen()
+    // Closed while a service worker update waits for the old worker to go idle (app/utils/swUpdate.ts).
+    unhold = holdServiceWorkerStream({
+      release: () => events?.close(),
+      resume: () => { listen(); refresh() },
+    })
   })
-  onBeforeUnmount(() => events?.close())
+  onBeforeUnmount(() => {
+    unhold?.()
+    events?.close()
+  })
 
   async function markRead(n: Notification) {
     if (n.readAt || !inbox.value) return

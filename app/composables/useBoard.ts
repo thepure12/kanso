@@ -121,18 +121,26 @@ export async function useBoard(id: string) {
       failed = false
     })
   }
+  // Closed while a service worker update waits for the old worker to go idle (app/utils/swUpdate.ts).
+  let released = false
+  let unhold: (() => void) | undefined
   onMounted(() => {
     listen()
+    unhold = holdServiceWorkerStream({
+      release: () => { released = true; events?.close() },
+      resume: () => { released = false; listen(); remoteChanged() },
+    })
     // Back online: reopen the stream (the browser may have given up on it or not
     // noticed the drop) and reload what changed meanwhile.
     watch(offline, (isOffline) => {
-      if (isOffline) return
+      if (isOffline || released) return
       events?.close()
       listen()
       remoteChanged()
     })
   })
   onBeforeUnmount(() => {
+    unhold?.()
     events?.close()
     undoStack.clear()
     dismissUndoToast()

@@ -8,7 +8,7 @@ const { t, locale } = useI18n()
 const uiLocale = computed(() => ({ en, de })[locale.value as 'en' | 'de'] ?? en)
 useHead({ htmlAttrs: { lang: () => uiLocale.value.code, dir: () => uiLocale.value.dir } })
 
-// A new service worker waits (registerType 'prompt'); reloading activates it.
+// A new service worker waits (registerType 'prompt'); Reload activates it (app/utils/swUpdate.ts).
 // $pwa is only set in the browser, and the worker only exists in production builds.
 const { $pwa } = useNuxtApp()
 const toast = useToast()
@@ -21,7 +21,7 @@ onMounted(() => {
       description: t('pwa.updateDescription'),
       icon: 'i-lucide-refresh-cw',
       duration: 0,
-      actions: [{ label: t('pwa.reload'), icon: 'i-lucide-rotate-cw', color: 'primary', variant: 'solid', onClick: () => { $pwa.updateServiceWorker(true) } }],
+      actions: [{ label: t('pwa.reload'), icon: 'i-lucide-rotate-cw', color: 'primary', variant: 'solid', onClick: () => applyServiceWorkerUpdate(() => $pwa.updateServiceWorker(true)) }],
     })
   }, { immediate: true })
 })
