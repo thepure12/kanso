@@ -152,6 +152,7 @@ async function handle(req: IncomingMessage, res: ServerResponse) {
     return name ? reply(res, 200, { membership: 'join', displayname: name }) : reply(res, 404, { errcode: 'M_NOT_FOUND', error: 'Event not found.' })
   }
   if ((m = /^\/rooms\/([^/]+)\/event\/([^/]+)$/.exec(path))) {
+    if (!fake.joined.has(m[1]!)) return reply(res, 403, { errcode: 'M_FORBIDDEN', error: `User @kanso-bot:matrix.test not in room ${m[1]}, and room previews are disabled` })
     const e = fake.events.get(m[2]!)
     if (!e || e.room !== m[1]) return reply(res, 404, { errcode: 'M_NOT_FOUND', error: 'Event not found.' })
     return reply(res, 200, { event_id: m[2], type: e.type, sender: e.sender ?? '@someone:matrix.test', origin_server_ts: e.ts ?? 1, content: e.content, unsigned: e.unsigned })
@@ -217,6 +218,7 @@ describe('connecting a board to a Matrix room', () => {
     const wrong = await put(alice, { room: '#team:matrix.test', accessToken: 'nope' })
     expect(wrong.status).toBe(400)
     expect(wrong.data.statusMessage).toBe('Matrix: M_UNKNOWN_TOKEN: Invalid access token passed.')
+    expect(wrong.data.data).toMatchObject({ errcode: 'M_UNKNOWN_TOKEN', problem: 'token' })
     expect(await boardMatrix(alice)).toBeNull()
   })
 
@@ -225,6 +227,7 @@ describe('connecting a board to a Matrix room', () => {
     const res = await put(alice, { room: '#closed:matrix.test', accessToken: TOKEN })
     expect(res.status).toBe(400)
     expect(res.data.statusMessage).toContain('Invite it first')
+    expect(res.data.data).toMatchObject({ problem: 'cannotJoin', bot: '@kanso-bot:matrix.test' })
     expect(await boardMatrix(alice)).toBeNull()
   })
 
@@ -244,6 +247,7 @@ describe('connecting a board to a Matrix room', () => {
     const res = await put(alice, { room: '#secret:matrix.test' })
     expect(res.status).toBe(400)
     expect(res.data.statusMessage).toContain('end-to-end encrypted')
+    expect(res.data.data.problem).toBe('encrypted')
     // The stored token was used, since none was sent.
     expect(fake.requests.every(r => r.auth === `Bearer ${TOKEN}`)).toBe(true)
     expect((await boardMatrix(alice))?.roomId).toBe('!team:matrix.test')
@@ -335,6 +339,7 @@ describe('card threads', () => {
     const missing = await thread(bob, { link: '$nope' })
     expect(missing.status).toBe(400)
     expect(missing.data.statusMessage).toContain('M_NOT_FOUND')
+    expect(missing.data.data).toMatchObject({ problem: 'eventHidden', bot: '@kanso-bot:matrix.test' })
     expect((await thread(bob, { link: 'hello' })).status).toBe(400)
     expect(await detail(bob)).toBeNull()
   })
@@ -414,11 +419,20 @@ describe('reading a card thread', () => {
     fake.events.delete('$svg')
   })
 
-  it('reports Matrix errors as 400', async () => {
+  it('reports Matrix errors as 400 with the problem and the bot', async () => {
+    fake.joined.delete('!team:matrix.test')
+    try {
+      const out = await read(bob)
+      expect(out.status).toBe(400)
+      expect(out.data.statusMessage).toContain('not in room')
+      expect(out.data.data).toMatchObject({ errcode: 'M_FORBIDDEN', problem: 'notInRoom', bot: '@kanso-bot:matrix.test' })
+    }
+    finally { fake.joined.add('!team:matrix.test') }
     fake.events.delete('$root3')
     const res = await read(bob)
     expect(res.status).toBe(400)
     expect(res.data.statusMessage).toContain('M_NOT_FOUND')
+    expect(res.data.data).toMatchObject({ problem: 'eventHidden', bot: '@kanso-bot:matrix.test' })
   })
 })
 

@@ -23,7 +23,7 @@ export default defineUserHandler(async (event, tx, userId): Promise<MatrixUserLi
     found = await findLinkCode(bot, bot.roomId, row.mxid, row.code, row.createdAt)
   }
   catch (e) {
-    matrixHttpError(e)
+    matrixHttpError(e, bot.botUserId)
   }
   if (!found) throw createError({ statusCode: 400, statusMessage: `The code was not found in the room. Send "${matrixLinkMessage(row.code)}" from ${row.mxid}, then check again.` })
   const [confirmed] = await tx.execute<{ ok: boolean }>(sql`select app.confirm_matrix_user(${id}, ${row.code}) as ok`)

@@ -1313,6 +1313,18 @@
       "linked": "Verknüpft als {mxid}. Deine Antworten erwähnen es, ohne dich zu benachrichtigen.",
       "unlink": "Trennen",
       "failed": "Matrix-Konto konnte nicht verknüpft werden"
+    },
+    "errors": {
+      "theBot": "der Bot",
+      "token": "Das Zugriffstoken des Bots ist nicht mehr gültig (abgemeldet oder Konto deaktiviert). Ein Board-Besitzer muss in den Matrix-Einstellungen des Boards ein neues Token eingeben.",
+      "rateLimited": "Der Homeserver drosselt die Anfragen des Bots. Versuche es in einer Minute erneut.",
+      "encrypted": "Der Raum ist Ende-zu-Ende-verschlüsselt, daher kann der Bot seine Nachrichten weder lesen noch senden. Verwende einen Raum ohne Verschlüsselung.",
+      "cannotJoin": "{bot} ist nicht im Raum und kann ihm nicht beitreten. Lade ihn in deinem Matrix-Client in den Raum ein und versuche es erneut.",
+      "eventHidden": "{bot} kann diese Nachricht nicht sehen. Sie wurde gelöscht, oder sie wurde gesendet, bevor der Bot beigetreten ist, und der Verlauf des Raums ist für Mitglieder erst ab ihrem Beitritt sichtbar. Stelle in den Raumeinstellungen ein, dass „Nur Mitglieder (ab Auswahl dieser Option)“ oder mehr den Verlauf lesen dürfen, oder verknüpfe eine neuere Nachricht.",
+      "notInRoom": "{bot} ist nicht mehr im Raum (verlassen, entfernt oder gebannt). Lade ihn erneut ein und klicke dann in den Matrix-Einstellungen des Boards auf Testen, damit er beitritt.",
+      "forbidden": "Der Homeserver erlaubt {bot} nicht, im Raum zu lesen oder zu schreiben. Prüfe, ob er noch Mitglied ist und ob seine Berechtigungsstufe das Senden von Nachrichten erlaubt.",
+      "httpAuth": "Der Webserver des Homeservers hat die Anfrage abgelehnt, bevor Matrix sie gesehen hat. Ein vorgeschalteter Proxy verlangt wahrscheinlich ein Passwort oder lässt nur bestimmte IP-Adressen durch; gib diesen Kanso-Server frei.",
+      "unreachable": "Der Homeserver war nicht erreichbar oder hat nicht geantwortet. Prüfe seine Adresse und versuche es später erneut."
     }
   },
   "views": {

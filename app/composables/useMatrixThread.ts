@@ -32,7 +32,7 @@ export function useMatrixThread(cd: CardDetailApi, thread: () => CardMatrixThrea
       loadError.value = null
     }
     catch (err) {
-      const message = (err as { data?: { statusMessage?: string } }).data?.statusMessage ?? t('matrix.thread.loadFailed')
+      const message = matrixErrorText(err, t) ?? (err as { data?: { statusMessage?: string } }).data?.statusMessage ?? t('matrix.thread.loadFailed')
       if (!quiet || !view.value) loadError.value = message
       if (!quiet) showError(err, t('matrix.thread.loadFailed'))
     }

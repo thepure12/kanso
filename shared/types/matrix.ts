@@ -70,3 +70,9 @@ export interface MatrixUserLink {
   code: string | null
   codeExpiresAt: string | null
 }
+
+/**
+ * Why a Matrix request failed, sent as `data.problem` with a 400 (and
+ * `data.bot`, the bot's Matrix ID when known) so the UI can explain it.
+ */
+export type MatrixProblem = 'token' | 'rateLimited' | 'encrypted' | 'cannotJoin' | 'eventHidden' | 'notInRoom' | 'forbidden' | 'httpAuth' | 'unreachable'

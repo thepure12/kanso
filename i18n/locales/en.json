@@ -1313,6 +1313,18 @@
       "linked": "Linked as {mxid}. Your replies mention it without notifying you.",
       "unlink": "Unlink",
       "failed": "Could not link your Matrix account"
+    },
+    "errors": {
+      "theBot": "the bot",
+      "token": "The bot's access token is no longer valid (it was logged out, or the account was deactivated). A board owner has to enter a new token in the board's Matrix settings.",
+      "rateLimited": "The homeserver is limiting requests from the bot. Try again in a minute.",
+      "encrypted": "The room is end-to-end encrypted, so the bot cannot read or send its messages. Use a room without encryption.",
+      "cannotJoin": "{bot} is not in the room and cannot join it. Invite it to the room in your Matrix client, then try again.",
+      "eventHidden": "{bot} cannot see that message. It was deleted, or it was sent before the bot joined and the room's history is only visible to members from when they joined. In the room settings, set who can read history to \"Members only (since the point in time of selecting this option)\" or wider, or link a newer message.",
+      "notInRoom": "{bot} is no longer in the room (it left, or was removed or banned). Invite it again, then use Test in the board's Matrix settings so it joins.",
+      "forbidden": "The homeserver does not let {bot} read or write in the room. Check that it is still a member and that its power level allows sending messages.",
+      "httpAuth": "The homeserver's web server refused the request before Matrix saw it. A proxy in front of it probably asks for a password or only lets some IP addresses through; allow this Kanso server.",
+      "unreachable": "The homeserver could not be reached or did not answer. Check its address and try again later."
     }
   },
   "views": {

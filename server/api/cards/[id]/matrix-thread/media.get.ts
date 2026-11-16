@@ -32,7 +32,7 @@ export default defineUserHandler(async (event, tx) => {
     media = await downloadMatrixMedia(bot, parsed.data.mxc, !!parsed.data.thumbnail)
   }
   catch (e) {
-    matrixHttpError(e)
+    matrixHttpError(e, bot.botUserId)
   }
   const inline = !!media.contentType && INLINE_TYPES.has(media.contentType)
   setResponseHeaders(event, {

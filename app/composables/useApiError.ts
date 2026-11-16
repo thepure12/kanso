@@ -8,7 +8,7 @@ export function useApiError() {
   const { t } = useI18n()
   return (err: unknown, title = t('common.somethingWentWrong')) => {
     const e = err as { data?: { statusMessage?: string, message?: string, data?: { issues?: ValidationIssue[] } }, statusMessage?: string }
-    toast.add({ title, description: knownIssue(e.data?.data?.issues) || e.data?.statusMessage || e.data?.message || e.statusMessage, color: 'error' })
+    toast.add({ title, description: knownIssue(e.data?.data?.issues) || matrixErrorText(err, t) || e.data?.statusMessage || e.data?.message || e.statusMessage, color: 'error', ui: { description: 'whitespace-pre-line' } })
   }
 
   /** Own wording for validation errors the UI can hit; the server's text is English. */

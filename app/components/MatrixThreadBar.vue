@@ -81,7 +81,7 @@ const roomLabel = computed(() => props.room.roomName ?? props.room.roomId)
       <UButton v-if="canEdit" size="xs" color="neutral" variant="ghost" icon="i-lucide-unlink" :label="t('matrix.thread.unlink')" :loading="busy" @click="unlink" />
     </div>
     <UAlert v-if="thread.roomId !== room.roomId" color="warning" variant="subtle" icon="i-lucide-triangle-alert" :description="t('matrix.thread.otherRoom')" />
-    <UAlert v-if="mt.loadError.value && !mt.view.value" color="error" variant="subtle" icon="i-lucide-circle-alert" :title="t('matrix.thread.loadFailed')" :description="mt.loadError.value" />
+    <UAlert v-if="mt.loadError.value && !mt.view.value" color="error" variant="subtle" icon="i-lucide-circle-alert" :title="t('matrix.thread.loadFailed')" :description="mt.loadError.value" :ui="{ description: 'whitespace-pre-line' }" />
   </template>
 
   <template v-else>

@@ -45,7 +45,7 @@ export default defineUserHandler(async (event, tx, userId): Promise<CardMatrixTh
     }
   }
   catch (e) {
-    matrixHttpError(e)
+    matrixHttpError(e, bot.botUserId)
   }
   await tx.update(t).set({ roomId: bot.roomId, eventId }).where(sql`${t.cardId} = ${id}`)
   return { roomId: bot.roomId, eventId }

@@ -47,6 +47,6 @@ export default defineUserHandler(async (event, tx, userId): Promise<MatrixThread
     return { boardId: thread.boardId, roomId: thread.roomId, eventId: thread.eventId, messages, more, myLink }
   }
   catch (e) {
-    matrixHttpError(e)
+    matrixHttpError(e, thread.botUserId ?? bot.botUserId)
   }
 })

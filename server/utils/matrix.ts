@@ -3,6 +3,7 @@ import { sql } from 'drizzle-orm'
 import { Marked } from 'marked'
 import { sealSecret, openSecret, secretKey } from './secretBox'
 import { httpRequest } from './webhookHttp'
+import type { MatrixProblem } from '#shared/types/matrix'
 
 /**
  * A small Matrix Client-Server API client for the board bot. Requests go
@@ -12,8 +13,37 @@ import { httpRequest } from './webhookHttp'
  */
 
 export class MatrixError extends Error {
-  constructor(message: string, readonly status: number | null, readonly errcode: string | null) {
+  constructor(message: string, readonly status: number | null, readonly errcode: string | null, readonly bot: string | null = null) {
     super(message)
+  }
+}
+
+/**
+ * What went wrong, for an explanation in the UI (`matrix.errors.<problem>`);
+ * null when the error tells nothing more than its own text.
+ */
+export function matrixProblem(e: MatrixError): MatrixProblem | null {
+  switch (e.errcode) {
+    case 'M_UNKNOWN_TOKEN':
+    case 'M_MISSING_TOKEN':
+      return 'token'
+    case 'M_LIMIT_EXCEEDED':
+      return 'rateLimited'
+    case 'KANSO_ENCRYPTED':
+      return 'encrypted'
+    case 'KANSO_CANNOT_JOIN':
+      return 'cannotJoin'
+    case 'KANSO_EVENT_HIDDEN':
+      return 'eventHidden'
+    case 'M_FORBIDDEN':
+      // Synapse: "User @bot:server not in room !room:server", others: "… not in the room", "not a member".
+      return /not (in|joined to) (the )?room|not a member/i.test(e.message) ? 'notInRoom' : 'forbidden'
+    case null:
+      if (e.status === 401 || e.status === 403) return 'httpAuth'
+      if (e.status === null || e.status >= 500) return 'unreachable'
+      return null
+    default:
+      return null
   }
 }
 
@@ -125,7 +155,10 @@ export async function checkMatrixRoom(c: MatrixClient, room: string): Promise<Ma
       await matrixRequest(c, 'POST', `/join/${encodeURIComponent(roomId)}`, {})
     }
     catch (e) {
-      if (e instanceof MatrixError) throw new MatrixError(`The bot ${botUserId} is not in the room and cannot join it (${e.message}). Invite it first.`, e.status, e.errcode)
+      if (e instanceof MatrixError) {
+        const cannotJoin = e.errcode === 'M_FORBIDDEN' || e.errcode === 'M_NOT_FOUND'
+        throw new MatrixError(`The bot ${botUserId} is not in the room and cannot join it (${e.message}). Invite it first.`, e.status, cannotJoin ? 'KANSO_CANNOT_JOIN' : e.errcode, botUserId)
+      }
       throw e
     }
   }
@@ -147,9 +180,18 @@ async function roomState<T = Record<string, unknown>>(c: MatrixClient, roomId: s
   }
 }
 
-/** Throws a 400 carrying the Matrix error, for route handlers. */
-export function matrixHttpError(e: unknown): never {
-  if (e instanceof MatrixError) throw createError({ statusCode: 400, statusMessage: `Matrix: ${e.message}`.slice(0, 300), data: { errcode: e.errcode } })
+/**
+ * Throws a 400 carrying the Matrix error, for route handlers. `data.problem`
+ * (matrixProblem) and `data.bot` let the UI explain it in the user's language.
+ */
+export function matrixHttpError(e: unknown, bot: string | null = null): never {
+  if (e instanceof MatrixError) {
+    throw createError({
+      statusCode: 400,
+      statusMessage: `Matrix: ${e.message}`.slice(0, 300),
+      data: { errcode: e.errcode, problem: matrixProblem(e), bot: e.bot ?? bot },
+    })
+  }
   throw e
 }
 
@@ -189,9 +231,19 @@ export interface MatrixEvent {
   unsigned?: Record<string, unknown>
 }
 
-/** One event of a room. */
-export function getEvent(c: MatrixClient, roomId: string, eventId: string): Promise<MatrixEvent> {
-  return matrixRequest<MatrixEvent>(c, 'GET', `/rooms/${encodeURIComponent(roomId)}/event/${encodeURIComponent(eventId)}`)
+/**
+ * One event of a room. A 404 means it is gone or hidden from the bot (sent
+ * before it joined while the room's history is visible only to members since
+ * joining); it is thrown as KANSO_EVENT_HIDDEN.
+ */
+export async function getEvent(c: MatrixClient, roomId: string, eventId: string): Promise<MatrixEvent> {
+  try {
+    return await matrixRequest<MatrixEvent>(c, 'GET', `/rooms/${encodeURIComponent(roomId)}/event/${encodeURIComponent(eventId)}`)
+  }
+  catch (e) {
+    if (e instanceof MatrixError && e.errcode === 'M_NOT_FOUND') throw new MatrixError(e.message, e.status, 'KANSO_EVENT_HIDDEN')
+    throw e
+  }
 }
 
 /** The thread root for an event: itself, or the root of the thread it replies in. */
@@ -223,13 +275,15 @@ export function cardThreadRoot(card: { id: string, title: string }, board: { id:
 }
 
 /** The board's Matrix bot for anyone on the board (app.matrix_room_bot), or a 400 when none is connected. */
-export async function boardMatrixBot(tx: Tx, boardId: string): Promise<MatrixClient & { roomId: string }> {
-  const [row] = await tx.execute<{ homeserver_url: string, room_id: string, access_token: string }>(
-    sql`select * from app.matrix_room_bot(${boardId})`)
+export async function boardMatrixBot(tx: Tx, boardId: string): Promise<MatrixClient & { roomId: string, botUserId: string | null }> {
+  // bot_user_id from board_matrix_rooms (members read it), for error messages.
+  const [row] = await tx.execute<{ homeserver_url: string, room_id: string, access_token: string, bot_user_id: string | null }>(
+    sql`select b.*, m.bot_user_id from app.matrix_room_bot(${boardId}) b
+        left join board_matrix_rooms m on m.board_id = ${boardId}`)
   if (!row) throw createError({ statusCode: 400, statusMessage: 'This board has no Matrix room' })
   const accessToken = openMatrixToken(row.access_token)
   if (!accessToken) throw createError({ statusCode: 400, statusMessage: 'Matrix: the stored token cannot be read any more. A board owner has to enter it again.' })
-  return { homeserverUrl: row.homeserver_url, accessToken, roomId: row.room_id }
+  return { homeserverUrl: row.homeserver_url, accessToken, roomId: row.room_id, botUserId: row.bot_user_id || null }
 }
 
 /** Most thread messages loaded (newest kept). */
