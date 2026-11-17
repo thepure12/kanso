@@ -1,7 +1,7 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js'
 import { z } from 'zod'
-import { boardAutomationKinds, priorities, type BoardDetail, type CardDetail } from '#shared/types/board'
+import { boardAutomationKinds, priorities, scheduledCardActionKinds, type BoardDetail, type CardDetail } from '#shared/types/board'
 import { boardAccents } from '#shared/boardAccents'
 import { CARD_TITLE_MAX } from '#shared/cards'
 
@@ -139,6 +139,7 @@ export function createMcpServer(caller: McpCaller): McpServer {
       tagIds: z.array(id).optional(),
       assigneeIds: z.array(id).optional(),
       archived: z.boolean().optional(),
+      skipAutomations: z.boolean().optional().describe('true: board and column automations leave the card alone (its own still run)'),
     },
     annotations: write,
   }, ({ cardId, ...body }) => run(() => call(`/api/cards/${cardId}`, { method: 'PATCH', body })))
@@ -230,11 +231,13 @@ export function createMcpServer(caller: McpCaller): McpServer {
 
   server.registerTool('create_automation', {
     description: 'Add a time-based automation (runs hourly on open cards: not archived, not in the last column; '
-      + 'with columnId only on the cards in that column, the last column included). '
+      + 'with columnId only on the cards in that column, the last column included; with cardId only on that card, '
+      + 'also when it skips automations). '
       + 'archive_done: archive cards in the last column (or columnId) for `days` days. tag_stale: add tagId to cards without activity for `days` days. '
       + 'notify_stale: notify assignees and watchers of cards without activity for `days` days. '
       + 'raise_priority: set `priority` on cards due within `days` days (0 = today) or overdue. '
-      + 'move_card: move cards that have been in columnId for `days` days to the end of targetColumnId (column rules run; one per column). '
+      + 'move_card: move cards that have been in columnId (or cardId\'s current column) for `days` days to the end of targetColumnId '
+      + '(column rules run; one per column or card). '
       + 'days is 1-365 (raise_priority 0-365).',
     inputSchema: {
       boardId: id,
@@ -242,7 +245,8 @@ export function createMcpServer(caller: McpCaller): McpServer {
       days: z.number().int().min(0).max(365),
       tagId: id.optional().describe('tag_stale only'),
       priority: z.enum(priorities).optional().describe('raise_priority only'),
-      columnId: id.optional().describe('Limit to the cards in this column; required for move_card'),
+      columnId: id.optional().describe('Limit to the cards in this column; move_card needs it or cardId'),
+      cardId: id.optional().describe('Limit to this card (not with columnId)'),
       targetColumnId: id.optional().describe('move_card only: where the cards go'),
     },
     annotations: write,
@@ -253,6 +257,21 @@ export function createMcpServer(caller: McpCaller): McpServer {
     inputSchema: { automationId: id, days: z.number().int().min(0).max(365).optional(), active: z.boolean().optional() },
     annotations: write,
   }, ({ automationId, ...body }) => run(() => call(`/api/automations/${automationId}`, { method: 'PATCH', body })))
+
+  server.registerTool('schedule_card_action', {
+    description: 'Schedule a one-shot action on a card for a date (runs with the hourly automations, then disappears). '
+      + 'move: to the end of targetColumnId (column rules run). archive. priority: set `priority`. '
+      + 'remind: notify assignees and watchers, with an optional note. get_board lists scheduled actions as scheduledActions.',
+    inputSchema: {
+      cardId: id,
+      kind: z.enum(scheduledCardActionKinds),
+      runOn: z.iso.date().describe('YYYY-MM-DD'),
+      targetColumnId: id.optional().describe('move only'),
+      priority: z.enum(priorities).optional().describe('priority only'),
+      note: z.string().max(500).optional().describe('remind only'),
+    },
+    annotations: write,
+  }, ({ cardId, ...body }) => run(() => call(`/api/cards/${cardId}/scheduled-actions`, { method: 'POST', body })))
 
   server.registerTool('set_board_accent', {
     description: 'Set the board\'s accent colour (replaces the app\'s primary colour on that board), or null for the default. Board owners only.',

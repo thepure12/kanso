@@ -1,14 +1,17 @@
 import { sql } from 'drizzle-orm'
 
 /**
- * Time-based board automations (hourly, nuxt.config.ts). app.run_board_automations
- * only changes cards not yet in the target state and locks each automation while
- * it runs, so reruns and several instances do nothing twice.
+ * Time-based board automations and scheduled card actions (hourly, nuxt.config.ts).
+ * app.run_board_automations only changes cards not yet in the target state and
+ * locks each automation while it runs; app.run_scheduled_card_actions deletes
+ * each action it runs. So reruns and several instances do nothing twice.
  */
 export default defineTask({
   meta: { name: 'cards:automations', description: 'Run time-based board automations' },
   async run() {
-    const rows = await useAuthDb().execute<{ automation_id: string, card_id: string }>(sql`select * from app.run_board_automations()`)
-    return { result: { changed: rows.length } }
+    const db = useAuthDb()
+    const rows = await db.execute<{ automation_id: string, card_id: string }>(sql`select * from app.run_board_automations()`)
+    const scheduled = await db.execute<{ action_id: string }>(sql`select * from app.run_scheduled_card_actions()`)
+    return { result: { changed: rows.length, scheduled: scheduled.length } }
   },
 })

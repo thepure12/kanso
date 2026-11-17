@@ -186,12 +186,19 @@ describe('mcp endpoint', () => {
 
     expect((await tool(writeToken, 'set_board_accent', { boardId: board.id, accent: 'teal' })).isError).toBe(false)
 
+    const card = (await tool(writeToken, 'create_card', { boardId: board.id, columnId: col.id, title: 'Scheduled' })).json()
+    const action = (await tool(writeToken, 'schedule_card_action', { cardId: card.id, kind: 'remind', runOn: '2099-01-01', note: 'ping' })).json()
+    expect(action).toMatchObject({ kind: 'remind', runOn: '2099-01-01', note: 'ping', cardId: card.id })
+    expect((await tool(writeToken, 'update_card', { cardId: card.id, skipAutomations: true })).isError).toBe(false)
+
     const view = (await tool(readToken, 'get_board', { boardId: board.id })).json()
     expect(view.accent).toBe('teal')
     expect(view.columns[0]).toMatchObject({ id: col.id, color: '#ff0000', wipLimit: 3 })
     expect(view.tags).toContainEqual({ id: tag.id, name: 'Agent', color: '#00aa00' })
     expect(view.columnTags).toEqual([{ id: group.id, name: 'Flow', color: '#123456', columnIds: [col.id, done] }])
     expect(view.automations).toEqual([expect.objectContaining({ id: auto.id, active: false })])
+    expect(view.scheduledActions).toEqual([expect.objectContaining({ id: action.id })])
+    expect(view.columns[0].cards[0]).toMatchObject({ id: card.id, skipAutomations: true })
 
     // Read tokens get none of these tools.
     const refused = await mcp(readToken, 'tools/call', { name: 'create_tag', arguments: { boardId: board.id, name: 'x' } })

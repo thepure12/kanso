@@ -24,6 +24,8 @@ export function toHttpError(err: unknown): never {
       if (pgConstraint(err) === 'cards_title_length') throw createError({ statusCode: 400, statusMessage: 'The title is too long' })
       if (pgConstraint(err) === 'cards_estimate_range') throw createError({ statusCode: 400, statusMessage: 'The estimate cannot be negative' })
       if (pgConstraint(err)?.startsWith('card_recurrences_')) throw createError({ statusCode: 400, statusMessage: 'Invalid schedule' })
+      if (pgConstraint(err) === 'board_automations_scope') throw createError({ statusCode: 400, statusMessage: 'Invalid automation' })
+      if (pgConstraint(err) === 'card_scheduled_actions_kind_fields') throw createError({ statusCode: 400, statusMessage: 'Invalid scheduled action' })
       if (pgConstraint(err) === 'board_automations_kind_fields') throw createError({ statusCode: 400, statusMessage: 'Invalid automation' })
       if (pgConstraint(err) === 'card_links_not_self') throw createError({ statusCode: 400, statusMessage: 'A card cannot link to itself' })
       throw createError({ statusCode: 409, statusMessage: 'There must be at least one owner left' })

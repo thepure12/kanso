@@ -42,10 +42,10 @@ const age = (cardId: string, days: number) => owner.begin(sql => [
   sql`update card_activity set created_at = created_at - make_interval(days => ${days}) where card_id = ${cardId}`,
 ])
 
-type Extra = { tagId?: string, priority?: string, columnId?: string, targetColumnId?: string }
+type Extra = { tagId?: string, priority?: string, columnId?: string, targetColumnId?: string, cardId?: string }
 const automate = (userId: string, kind: string, days: number, extra: Extra = {}) =>
-  as(userId, async sql => (await sql`insert into board_automations (board_id, kind, days, tag_id, priority, column_id, target_column_id)
-    values (${boardId}, ${kind}, ${days}, ${extra.tagId ?? null}, ${extra.priority ?? null}, ${extra.columnId ?? null}, ${extra.targetColumnId ?? null})
+  as(userId, async sql => (await sql`insert into board_automations (board_id, kind, days, tag_id, priority, column_id, target_column_id, card_id)
+    values (${boardId}, ${kind}, ${days}, ${extra.tagId ?? null}, ${extra.priority ?? null}, ${extra.columnId ?? null}, ${extra.targetColumnId ?? null}, ${extra.cardId ?? null})
     returning id`)[0]!.id as string)
 
 /** A column between Todo and Done (Done stays last), so a test has its own cards. */
@@ -338,4 +338,136 @@ describe('board automations', () => {
     const [{ id: otherCol }] = await as(boardOwner.id, sql => sql`insert into columns (board_id, title, position) values (${other}, 'X', 1) returning id`) as any
     await rejectsWith(automate(editor.id, 'archive_done', 3, { columnId: otherCol }), '23503')
   })
+
+  it('a card limits an automation to that card, even when it skips automations', async () => {
+    const col = await newColumn('Card scope')
+    const mine = await newCard(col)
+    const other = await newCard(col)
+    await age(mine, 5)
+    await age(other, 5)
+    // Not with a column too.
+    await rejectsWith(automate(editor.id, 'notify_stale', 3, { cardId: mine, columnId: col }), '23514')
+    await as(editor.id, sql => sql`update cards set skip_automations = true where id = ${mine}`)
+    const id = await automate(editor.id, 'tag_stale', 3, { tagId, cardId: mine })
+    try {
+      expect(await run(id)).toEqual([mine])
+    }
+    finally {
+      await remove(id)
+    }
+  })
+
+  it('board and column automations skip cards with skip_automations', async () => {
+    const col = await newColumn('Skip')
+    const skipped = await newCard(col)
+    const normal = await newCard(col)
+    await age(skipped, 5)
+    await age(normal, 5)
+    await as(editor.id, sql => sql`update cards set skip_automations = true where id = ${skipped}`)
+    const board = await automate(editor.id, 'notify_stale', 3)
+    const column = await automate(editor.id, 'tag_stale', 3, { tagId, columnId: col })
+    try {
+      const changed = await auth`select * from app.run_board_automations(${boardId})`
+      const cards = changed.map(r => r.card_id)
+      expect(cards).toContain(normal)
+      expect(cards).not.toContain(skipped)
+    }
+    finally {
+      await remove(board)
+      await remove(column)
+    }
+  })
+
+  it('a card\'s move_card counts the days in its current column and stops in the target', async () => {
+    const col = await newColumn('Card move')
+    const card = await newCard(col)
+    await age(card, 3)
+    const id = await automate(editor.id, 'move_card', 2, { cardId: card, targetColumnId: doneId })
+    try {
+      expect(await run(id)).toEqual([card])
+      expect((await owner`select column_id from cards where id = ${card}`)[0]!.column_id).toBe(doneId)
+      await age(card, 3)
+      expect(await run(id)).toEqual([])
+    }
+    finally {
+      await remove(id)
+    }
+    // move_card needs a column or a card.
+    await rejectsWith(automate(editor.id, 'move_card', 2, { targetColumnId: doneId }), '23514')
+  })
+
+  it('deleting the card deletes its automations', async () => {
+    const card = await newCard(todoId)
+    const id = await automate(editor.id, 'notify_stale', 3, { cardId: card })
+    await owner`delete from cards where id = ${card}`
+    expect((await owner`select id from board_automations where id = ${id}`).length).toBe(0)
+  })
 })
+
+describe('scheduled card actions', () => {
+  type Action = { kind: string, runOn?: string, targetColumnId?: string, priority?: string, note?: string }
+  const schedule = (userId: string, cardId: string, a: Action) =>
+    as(userId, async sql => (await sql`insert into card_scheduled_actions (board_id, card_id, kind, run_on, target_column_id, priority, note, created_by)
+      values (${boardId}, ${cardId}, ${a.kind}, ${a.runOn ?? sql`current_date`}, ${a.targetColumnId ?? null}, ${a.priority ?? null}, ${a.note ?? null}, ${userId})
+      returning id`)[0]!.id as string)
+  const runScheduled = async () => (await auth`select * from app.run_scheduled_card_actions(${boardId})`) as unknown as { action_id: string, card_id: string, kind: string }[]
+  const exists = async (id: string) => (await owner`select 1 from card_scheduled_actions where id = ${id}`).length === 1
+
+  it('editors schedule them, viewers read, outsiders see nothing', async () => {
+    const card = await newCard(todoId)
+    await rejectsWith(schedule(viewer.id, card, { kind: 'archive' }), '42501')
+    const id = await schedule(editor.id, card, { kind: 'archive', runOn: '2099-01-01' })
+    expect((await as(viewer.id, sql => sql`select id from card_scheduled_actions where id = ${id}`)).length).toBe(1)
+    expect((await as(outsider.id, sql => sql`select id from card_scheduled_actions where id = ${id}`)).length).toBe(0)
+    expect((await as(viewer.id, sql => sql`delete from card_scheduled_actions where id = ${id}`)).count).toBe(0)
+    // Another creator, wrong fields, templates.
+    await rejectsWith(as(editor.id, sql => sql`insert into card_scheduled_actions (board_id, card_id, kind, run_on, created_by)
+      values (${boardId}, ${card}, 'archive', current_date, ${boardOwner.id})`), '42501')
+    await rejectsWith(schedule(editor.id, card, { kind: 'move' }), '23514')
+    await rejectsWith(schedule(editor.id, card, { kind: 'archive', priority: 'high' }), '23514')
+    const template = await as(editor.id, async sql => (await sql`insert into cards (board_id, column_id, title, position, is_template, created_by)
+      values (${boardId}, ${todoId}, 'T', 1, true, ${editor.id}) returning id`)[0]!.id as string)
+    await rejectsWith(schedule(editor.id, template, { kind: 'archive' }), '42501')
+    expect((await as(editor.id, sql => sql`delete from card_scheduled_actions where id = ${id}`)).count).toBe(1)
+    await rejectsWith(as(editor.id, sql => sql`select * from app.run_scheduled_card_actions()`), '42501')
+  })
+
+  it('runs due actions once, as Automation, and leaves later ones', async () => {
+    const col = await newColumn('Scheduled')
+    const card = await newCard(col)
+    await as(editor.id, sql => sql`update cards set skip_automations = true where id = ${card}`)
+    const move = await schedule(editor.id, card, { kind: 'move', runOn: '2020-01-01', targetColumnId: doneId })
+    const priority = await schedule(editor.id, card, { kind: 'priority', priority: 'urgent' })
+    const later = await schedule(editor.id, card, { kind: 'archive', runOn: '2099-01-01' })
+    const ran = await runScheduled()
+    expect(ran.filter(r => r.card_id === card).map(r => r.action_id)).toEqual([move, priority])
+    const [row] = await owner`select column_id, priority, archived_at from cards where id = ${card}`
+    expect(row).toMatchObject({ column_id: doneId, priority: 'urgent', archived_at: null })
+    expect(await lastActivity(card)).toMatchObject({ kind: 'priority', actor_id: null, data: { automation: true } })
+    expect(await exists(move)).toBe(false)
+    expect(await exists(later)).toBe(true)
+    expect((await runScheduled()).filter(r => r.card_id === card)).toEqual([])
+  })
+
+  it('remind logs a reminder that notifies assignees', async () => {
+    const card = await newCard(todoId)
+    await as(editor.id, sql => sql`insert into card_assignees (card_id, user_id, board_id) values (${card}, ${boardOwner.id}, ${boardId})`)
+    await schedule(editor.id, card, { kind: 'remind', note: 'Call back' })
+    await runScheduled()
+    expect(await lastActivity(card)).toMatchObject({ kind: 'reminder', actor_id: null, data: { note: 'Call back', automation: true } })
+    const notes = await owner`select n.user_id from notifications n join card_activity a on a.id = n.activity_id
+      where n.card_id = ${card} and a.kind = 'reminder'`
+    expect(notes.map(n => n.user_id)).toContain(boardOwner.id)
+  })
+
+  it('trashed cards keep their actions until purged', async () => {
+    const card = await newCard(todoId)
+    const id = await schedule(editor.id, card, { kind: 'priority', priority: 'low' })
+    await as(editor.id, sql => sql`select app.trash_card(${card})`)
+    await runScheduled()
+    expect(await exists(id)).toBe(true)
+    await owner`delete from cards where id = ${card}`
+    expect(await exists(id)).toBe(false)
+  })
+})
+

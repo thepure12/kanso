@@ -14,7 +14,7 @@
 // direct (only mentions and being assigned) or none.
 import { z } from 'zod'
 
-export const notificationEvents = ['assigned', 'mentioned', 'commented', 'moved', 'due', 'archived', 'stale'] as const
+export const notificationEvents = ['assigned', 'mentioned', 'commented', 'moved', 'due', 'archived', 'stale', 'reminder'] as const
 export type NotificationEvent = (typeof notificationEvents)[number]
 
 export const notificationChannels = ['inbox', 'push', 'email'] as const

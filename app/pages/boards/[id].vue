@@ -10,9 +10,9 @@ import { CARD_TITLE_MAX } from '#shared/cards'
 const route = useRoute()
 const id = route.params.id as string
 const {
-  board, error, refresh, columns, columnGroups, savedViews, lists, tags, fields, templates, recurrences, automations, archived, offline, canEdit, isOwner, dragging, remoteVersion,
+  board, error, refresh, columns, columnGroups, savedViews, lists, tags, fields, templates, recurrences, automations, scheduledActions, archived, offline, canEdit, isOwner, dragging, remoteVersion,
   renameBoard, setArchived, setBackground, setAccent, setColumnOutline, uploadBackground, deleteBoard, addColumn, renameColumn, setColumnAppearance, setColumnWipLimit, sortColumnByPriority, deleteColumn, columnMoved,
-  addColumnRule, deleteColumnRule, addAutomation, updateAutomation, deleteAutomation, addCard, updateCard, setCardCounts, cardLinkChanged, archiveCard, restoreCard, deleteCard, restoreTrashedCard,
+  addColumnRule, deleteColumnRule, addAutomation, updateAutomation, deleteAutomation, addScheduledAction, deleteScheduledAction, addCard, updateCard, setCardCounts, cardLinkChanged, archiveCard, restoreCard, deleteCard, restoreTrashedCard,
   deleteArchivedCard, cardMoved, moveCard, addTag, updateTag, deleteTag,
   addField, updateField, fieldMoved, deleteField, setFieldValue,
   addColumnGroup, updateColumnGroup, columnGroupMoved, deleteColumnGroup, addSavedView, updateSavedView, deleteSavedView,
@@ -109,10 +109,17 @@ function setMatrixRoom(room: BoardMatrixRoom | null) {
 const automationsOpen = ref(false)
 // Column preselected in the automations dialog when opened from a column's menu.
 const automationsColumnId = ref<string | null>(null)
-function openAutomations(columnId: string | null = null) {
+// Card whose automations the dialog shows (opened from the card dialog); null = the board's.
+const automationsCardId = ref<string | null>(null)
+const automationsCard = computed(() => automationsCardId.value ? allCards.value.find(c => c.id === automationsCardId.value) ?? null : null)
+function openAutomations(columnId: string | null = null, cardId: string | null = null) {
   automationsColumnId.value = columnId
+  automationsCardId.value = cardId
   automationsOpen.value = true
 }
+/** Own automations and scheduled actions of a card (shown on the card dialog's button). */
+const cardAutomationCount = (cardId: string) =>
+  automations.value.filter(a => a.cardId === cardId).length + scheduledActions.value.filter(s => s.cardId === cardId).length
 
 function openTemplate(template: Card) {
   templatesOpen.value = false
@@ -884,6 +891,7 @@ const boardMenu = computed(() => {
       :template="editingTemplate"
       :link="editingTemplate ? undefined : cardLink"
       :matrix="board.matrix"
+      :automation-count="editingTemplate ? undefined : cardAutomationCount(editingCard.id)"
       :recurrence="editingTemplate ? recurrences.find(r => r.templateId === editingCard!.id) ?? null : null"
       @update-tag="updateTag"
       @save="patch => updateCard(editingCard!, patch)"
@@ -897,6 +905,7 @@ const boardMenu = computed(() => {
       @link="(link, added) => cardLinkChanged(editingCard!, link, added)"
       @set-field="(field, value) => setFieldValue(editingCard!, field, value)"
       @move="columnId => moveCard(editingCard!, columnId)"
+      @automations="openAutomations(null, editingCard!.id)"
     />
     <ColumnColorModal
       v-if="colouringColumn"
@@ -966,16 +975,24 @@ const boardMenu = computed(() => {
       @open="openTemplate"
       @delete="deleteTemplate"
     />
+    <!-- Mounted on open, so its portal comes after an open card dialog and stacks over it. -->
     <BoardAutomationsModal
+      v-if="automationsOpen"
       v-model:open="automationsOpen"
       :automations="automations"
       :tags="tags"
       :columns="columns"
       :column-id="automationsColumnId"
+      :cards="allCards"
+      :card="automationsCard"
+      :scheduled-actions="scheduledActions"
       :can-edit="canEdit"
       @add="addAutomation"
       @update="updateAutomation"
       @delete="deleteAutomation"
+      @schedule="action => automationsCard && addScheduledAction(automationsCard, action)"
+      @unschedule="deleteScheduledAction"
+      @skip="skip => automationsCard && updateCard(automationsCard, { skipAutomations: skip })"
     />
     <BoardActivitySlideover v-model:open="activityOpen" :board-id="board.id" :version="remoteVersion" />
     <BoardBackgroundModal

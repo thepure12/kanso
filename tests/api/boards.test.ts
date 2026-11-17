@@ -5,7 +5,7 @@ import { readFileSync } from 'node:fs'
 import { url } from '@nuxt/test-utils/e2e'
 import postgres from 'postgres'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import type { Attachment, BoardActivityPage, BoardAutomation, BoardDetail, BoardField, BoardSummary, Card, CardDetail, CardLink, CardRecurrence, Column, ColumnGroup, ColumnRule, SavedView, Comment, Person, TeamDetail, TimeEntry, TrashedCard } from '#shared/types/board'
+import type { Attachment, BoardActivityPage, BoardAutomation, BoardDetail, BoardField, BoardSummary, Card, CardDetail, CardLink, CardRecurrence, Column, ColumnGroup, ColumnRule, SavedView, ScheduledCardAction, Comment, Person, TeamDetail, TimeEntry, TrashedCard } from '#shared/types/board'
 import type { Inbox } from '#shared/types/notifications'
 import type { AdminUser, AuditLogPage, InstanceSettings } from '#shared/types/admin'
 import type { Account, AccountSession } from '#shared/types/account'
@@ -539,6 +539,40 @@ describe('board automations', () => {
     const { data } = await alice.req<BoardDetail>(`/api/boards/${board.id}`)
     expect(data.automations.find(a => a.id === move.id)).toMatchObject({ targetColumnId: col('Done').id })
     for (const a of [scoped, move]) expect((await bob.req(`/api/automations/${a.id}`, { method: 'DELETE' })).status).toBe(200)
+  })
+
+  it('takes a card instead of a column; cards can skip board automations', async () => {
+    const card = await newCard('Own automations')
+    const post = (body: unknown) => bob.req<BoardAutomation>(`/api/boards/${board.id}/automations`, { method: 'POST', body })
+    const { status, data: move } = await post({ kind: 'move_card', days: 2, cardId: card.id, targetColumnId: col('Done').id })
+    expect(status).toBe(200)
+    expect(move).toMatchObject({ kind: 'move_card', cardId: card.id, columnId: null })
+    expect((await post({ kind: 'notify_stale', days: 2, cardId: card.id, columnId: col('Review').id })).status).toBe(400)
+    expect((await post({ kind: 'move_card', days: 2, targetColumnId: col('Done').id })).status).toBe(400)
+
+    const skipped = await bob.req<Card>(`/api/cards/${card.id}`, { method: 'PATCH', body: { skipAutomations: true } })
+    expect(skipped.data.skipAutomations).toBe(true)
+    const { data } = await alice.req<BoardDetail>(`/api/boards/${board.id}`)
+    expect(data.cards.find(c => c.id === card.id)!.skipAutomations).toBe(true)
+    expect(data.automations.find(a => a.id === move.id)).toMatchObject({ cardId: card.id })
+    expect((await bob.req(`/api/automations/${move.id}`, { method: 'DELETE' })).status).toBe(200)
+  })
+
+  it('schedules and deletes one-shot card actions', async () => {
+    const card = await newCard('Scheduled')
+    const post = (who: typeof alice, body: unknown) => who.req<ScheduledCardAction>(`/api/cards/${card.id}/scheduled-actions`, { method: 'POST', body })
+    const { status, data: remind } = await post(bob, { kind: 'remind', runOn: '2099-01-02', note: '  Call back  ' })
+    expect(status).toBe(200)
+    expect(remind).toMatchObject({ kind: 'remind', runOn: '2099-01-02', note: 'Call back', cardId: card.id })
+    const { data: move } = await post(bob, { kind: 'move', runOn: '2099-01-01', targetColumnId: col('Done').id })
+    expect((await post(bob, { kind: 'move', runOn: '2099-01-01' })).status).toBe(400)
+    expect((await post(bob, { kind: 'priority', runOn: 'tomorrow', priority: 'high' })).status).toBe(400)
+    expect((await post(outsider, { kind: 'archive', runOn: '2099-01-01' })).status).toBe(404)
+
+    const { data } = await alice.req<BoardDetail>(`/api/boards/${board.id}`)
+    expect(data.scheduledActions.filter(s => s.cardId === card.id).map(s => s.id)).toEqual([move.id, remind.id])
+    expect((await outsider.req(`/api/scheduled-actions/${move.id}`, { method: 'DELETE' })).status).toBe(404)
+    for (const a of [move, remind]) expect((await bob.req(`/api/scheduled-actions/${a.id}`, { method: 'DELETE' })).status).toBe(200)
   })
 })
 

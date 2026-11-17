@@ -82,8 +82,10 @@ export type NewColumnRuleRequest = NewColumnRule & { applyToExisting?: boolean }
  * Time-based automation of a board, run hourly. "Open" cards are the ones not
  * archived and not in the last column. With `columnId` an automation only looks
  * at the (unarchived) cards in that column, the last column included; it is
- * fixed at creation, and deleting the column deletes the automation. Changes
- * show up in the activity log with no actor and `automation: true`.
+ * fixed at creation, and deleting the column deletes the automation. With
+ * `cardId` (instead of a column) it only looks at that card, also when the card
+ * has skipAutomations; move_card then counts the days in the card's current
+ * column. Changes show up in the activity log with no actor and `automation: true`.
  */
 export type NewBoardAutomation = (
   /** Archives cards that have been in the last column (or in columnId) for `days` days (1-365). */
@@ -94,17 +96,39 @@ export type NewBoardAutomation = (
   | { kind: 'notify_stale', days: number }
   /** Raises open cards due within `days` days (0-365) or overdue to `priority`. */
   | { kind: 'raise_priority', days: number, priority: Priority }
-) & { columnId?: string | null }
-  /** Moves cards that have been in columnId for `days` days (1-365) to the end of targetColumnId; column rules run. One per column. */
-  | { kind: 'move_card', days: number, columnId: string, targetColumnId: string }
+  /**
+   * Moves cards that have been in columnId (or cardId's current column) for `days` days (1-365)
+   * to the end of targetColumnId; column rules run. Needs columnId or cardId; one per column or card.
+   */
+  | { kind: 'move_card', days: number, targetColumnId: string }
+) & { columnId?: string | null, cardId?: string | null }
+
+/**
+ * One-shot action on a card, run on runOn (YYYY-MM-DD, by the hourly automations
+ * task) and then deleted. Shows up in the activity log like an automation.
+ */
+export type NewScheduledCardAction = { runOn: string } & (
+  /** Moves the card to the end of targetColumnId (column rules run). */
+  | { kind: 'move', targetColumnId: string }
+  | { kind: 'archive' }
+  /** Sets the card's priority. */
+  | { kind: 'priority', priority: Priority }
+  /** Logs `reminder`, notifying assignees and watchers; note up to 500 characters. */
+  | { kind: 'remind', note?: string | null }
+)
+export type ScheduledCardActionKind = NewScheduledCardAction['kind']
+export const scheduledCardActionKinds = ['move', 'archive', 'priority', 'remind'] as const satisfies readonly ScheduledCardActionKind[]
+export type ScheduledCardAction = NewScheduledCardAction & { id: string, cardId: string }
 
 export type BoardAutomationKind = NewBoardAutomation['kind']
 export const boardAutomationKinds = ['archive_done', 'tag_stale', 'notify_stale', 'raise_priority', 'move_card'] as const satisfies readonly BoardAutomationKind[]
 
 export type BoardAutomation = NewBoardAutomation & {
   id: string
-  /** null = all open cards of the board. */
+  /** null = all open cards of the board (or cardId). */
   columnId: string | null
+  /** null = not limited to one card. */
+  cardId: string | null
   active: boolean
   lastRunAt: string | null
 }
@@ -177,10 +201,12 @@ export interface Card {
   blockerIds: string[]
   /** Custom field values by field id; fields without a value have no key. */
   fields: Record<string, FieldValue>
+  /** Board and column automations leave the card alone (its own automations and scheduled actions still run). */
+  skipAutomations?: boolean
 }
 
 /** Fields a card PATCH may change. archived moves the card to or from the archive. */
-export type CardPatch = Partial<Pick<Card, 'title' | 'description' | 'assigneeIds' | 'tagIds' | 'startDate' | 'dueDate' | 'priority' | 'estimate' | 'coverAttachmentId'> & { archived: boolean }>
+export type CardPatch = Partial<Pick<Card, 'title' | 'description' | 'assigneeIds' | 'tagIds' | 'startDate' | 'dueDate' | 'priority' | 'estimate' | 'coverAttachmentId' | 'skipAutomations'> & { archived: boolean }>
 
 /**
  * One change applied to several cards at once (POST /api/boards/:id/cards/bulk).
@@ -287,7 +313,7 @@ export interface Attachment {
 export type ActivityKind =
   | 'created' | 'moved' | 'renamed' | 'described' | 'start' | 'due' | 'priority' | 'estimate' | 'archived' | 'restored'
   | 'tagged' | 'untagged' | 'assigned' | 'unassigned' | 'commented' | 'mentioned' | 'attached' | 'detached'
-  | 'linked' | 'unlinked' | 'field' | 'stale'
+  | 'linked' | 'unlinked' | 'field' | 'stale' | 'reminder'
 
 export interface Activity {
   id: string
@@ -299,6 +325,7 @@ export interface Activity {
    * and mentioned also carry `mentions`, an array of user ids (see mentionsOf).
    * field: { field, kind, from, to } with values as text (option labels for
    * select fields, null = no value). stale: { days } (a number).
+   * reminder: { note? } (a scheduled remind action).
    * Activity of a board automation has no actor and `automation: true`.
    */
   data: Record<string, string | null>
@@ -390,6 +417,8 @@ export interface BoardDetail {
   recurrences: CardRecurrence[]
   /** Time-based automations in creation order. */
   automations: BoardAutomation[]
+  /** Scheduled card actions, soonest first. */
+  scheduledActions: ScheduledCardAction[]
   tags: Tag[]
   /** Custom fields in position order. */
   fields: BoardField[]

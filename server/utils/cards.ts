@@ -18,6 +18,7 @@ export async function loadCards(tx: Tx, where: SQL): Promise<Card[]> {
     select c.id, c.column_id as "columnId", c.title, c.description, c.position,
            c.start_date::text as "startDate", c.due_date::text as "dueDate", c.priority,
            c.estimate::float8 as estimate, c.cover_attachment_id as "coverAttachmentId",
+           c.skip_automations as "skipAutomations",
            array(select ct.tag_id::text from card_tags ct join tags t on t.id = ct.tag_id
                  where ct.card_id = c.id order by t.name) as "tagIds",
            array(select ca.user_id::text from card_assignees ca where ca.card_id = c.id order by ca.user_id) as "assigneeIds",

@@ -81,7 +81,9 @@
       "text": "\"{value}\""
     },
     "automation": "Automation",
-    "stale": "flagged this card: no activity for a day | flagged this card: no activity for {n} days"
+    "stale": "flagged this card: no activity for a day | flagged this card: no activity for {n} days",
+    "reminder": "sent a reminder",
+    "reminderNote": "sent a reminder: {note}"
   },
   "notification": {
     "assignedYou": "assigned you to this card",
@@ -301,7 +303,8 @@
         "moved": "Card moved",
         "due": "Due date changed",
         "archived": "Card archived",
-        "stale": "Card is stale"
+        "stale": "Card is stale",
+        "reminder": "Scheduled reminders"
       },
       "watching": "Cards I watch",
       "watchingDescription": "Notify me about cards I watch but am not assigned to. Assignments and mentions always notify.",
@@ -688,7 +691,9 @@
       "deleteColumnGroup": "Could not delete the column tag",
       "addAutomation": "Could not add automation",
       "updateAutomation": "Could not change automation",
-      "deleteAutomation": "Could not delete automation"
+      "deleteAutomation": "Could not delete automation",
+      "addScheduledAction": "Could not schedule the action",
+      "deleteScheduledAction": "Could not delete the scheduled action"
     },
     "bulk": {
       "toolbar": "Bulk actions",
@@ -856,7 +861,8 @@
       "merge": "Show with comments in one tab",
       "split": "Show comments and Matrix in separate tabs",
       "comment": "Comment"
-    }
+    },
+    "automations": "Automations"
   },
   "checklist": {
     "title": "Checklist",
@@ -1253,7 +1259,8 @@
       "linked": "Linked",
       "unlinked": "Unlinked",
       "field": "Custom field",
-      "stale": "No recent activity"
+      "stale": "No recent activity",
+      "reminder": "Reminder"
     }
   },
   "matrix": {
@@ -1658,6 +1665,51 @@
     "delete": "Delete automation",
     "lastRun": "Last run {time}",
     "neverRun": "Not run yet",
-    "tag": "Card tag"
+    "tag": "Card tag",
+    "onlyCard": "Only the card “{card}”",
+    "onlyOneCard": "Only one card",
+    "cardKinds": {
+      "archive_done": "Archive when done",
+      "tag_stale": "Tag when stale",
+      "notify_stale": "Notify when stale",
+      "raise_priority": "Raise priority near due date",
+      "move_card": "Move after time in a column"
+    },
+    "cardText": {
+      "archive_done": "Archive this card after a day in the last column | Archive this card after {n} days in the last column",
+      "tag_stale": "Tag this card when it has had no activity for a day | Tag this card when it has had no activity for {n} days",
+      "notify_stale": "Notify assignees and watchers when this card has had no activity for a day | Notify assignees and watchers when this card has had no activity for {n} days",
+      "raise_priority": "Raise this card to {priority} when it is due today or overdue | Raise this card to {priority} when it is due within a day | Raise this card to {priority} when it is due within {n} days",
+      "move_card": "Move this card to {target} after a day in a column | Move this card to {target} after {n} days in a column"
+    },
+    "card": {
+      "title": "Automations: {card}",
+      "description": "Checked every hour. Changes show up in the activity log as made by Automation.",
+      "skip": "Skip board and column automations",
+      "skipHelp": "Automations of the whole board or of a column leave this card alone. The automations and scheduled actions of this card still run.",
+      "recurring": "Automations of this card"
+    },
+    "scheduled": {
+      "title": "Scheduled actions",
+      "empty": "Nothing scheduled.",
+      "kind": "Action",
+      "kinds": {
+        "move": "Move to a column",
+        "archive": "Archive",
+        "priority": "Set priority",
+        "remind": "Remind assignees and watchers"
+      },
+      "text": {
+        "move": "On {date}: move to {column}",
+        "archive": "On {date}: archive",
+        "priority": "On {date}: set priority to {priority}",
+        "remind": "On {date}: remind assignees and watchers"
+      },
+      "date": "On",
+      "note": "Note",
+      "notePlaceholder": "Optional, sent with the reminder",
+      "add": "Schedule",
+      "delete": "Delete scheduled action"
+    }
   }
 }

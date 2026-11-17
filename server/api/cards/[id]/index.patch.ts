@@ -16,6 +16,8 @@ const body = z.object({
   estimate: estimate.nullable().optional(),
   // An image attachment of this card (checked by trigger), or null.
   coverAttachmentId: z.uuid().nullable().optional(),
+  // Board and column automations leave the card alone.
+  skipAutomations: z.boolean().optional(),
   archived: z.boolean().optional(),
   // Replace the card's whole tag / assignee set.
   tagIds: ids.optional(),

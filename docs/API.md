@@ -23,7 +23,7 @@ When the instance runs under a sub-path, include it in the base URL (`KANSO=http
   sees nothing of other boards (`404`), lists only its boards, cannot create boards or teams (`403`) and acts as a
   team viewer at most (no renaming, member changes or leaving). Deleting a board or losing access to it never widens
   the token.
-- **Allowed routes**: boards, cards, columns, tags, comments, checklist items, column rules, board automations, attachments, card links,
+- **Allowed routes**: boards, cards, columns, tags, comments, checklist items, column rules, board automations, scheduled card actions, attachments, card links,
   fields, column groups, time entries, teams, notifications, search and `/api/me`. Account, sign-in, two-factor, session, token,
   admin and webhook routes refuse tokens (`403`, or `401` for routes that only take the session cookie), so a leaked
   token cannot take over the account.
@@ -56,11 +56,13 @@ Errors come back as JSON with `statusCode` and `statusMessage`: `400` invalid in
 | PATCH / DELETE | `/api/column-groups/:id` | Edit `{ name?, color?, columnIds?, aboveId?, belowId? }` (`columnIds` replaces the members) / delete a group (its columns stay) |
 | POST | `/api/boards/:id/saved-views` | Save a view `{ name, shared?, config: { view, groupBy, columnGroupId, filter } }`: personal (anyone with access) or `shared: true` on the board (editors); a taken name is `409`. Listed as `savedViews` on the board (shared ones and your own) |
 | PATCH / DELETE | `/api/saved-views/:id` | Rename / replace the settings `{ name?, config? }` / delete a saved view |
-| POST | `/api/boards/:id/automations` | Add a time-based automation (editors, checked hourly): `{ kind: 'archive_done' \| 'notify_stale', days }` (1-365), `{ kind: 'tag_stale', days, tagId }` or `{ kind: 'raise_priority', days, priority }` (days 0-365), each with an optional `columnId` (only the cards in that column, the last column too; `archive_done` then counts the days in it); `{ kind: 'move_card', days, columnId, targetColumnId }` moves cards after `days` in `columnId` to the end of `targetColumnId` (column rules run; one per column); the same one twice is `409` |
+| POST | `/api/boards/:id/automations` | Add a time-based automation (editors, checked hourly): `{ kind: 'archive_done' \| 'notify_stale', days }` (1-365), `{ kind: 'tag_stale', days, tagId }` or `{ kind: 'raise_priority', days, priority }` (days 0-365), each with an optional `columnId` (only the cards in that column, the last column too; `archive_done` then counts the days in it) or `cardId` (only that card, also when it skips automations; not both, `400`); `{ kind: 'move_card', days, columnId \| cardId, targetColumnId }` moves cards after `days` in `columnId` (or the card's current column) to the end of `targetColumnId` (column rules run; one per column or card); the same one twice is `409` |
 | PATCH / DELETE | `/api/automations/:id` | Edit `{ days?, active? }` / delete an automation |
+| POST | `/api/cards/:id/scheduled-actions` | Schedule a one-shot action for `runOn` (YYYY-MM-DD; run by the hourly automations task, then deleted; editors): `{ kind: 'move', runOn, targetColumnId }`, `{ kind: 'archive', runOn }`, `{ kind: 'priority', runOn, priority }` or `{ kind: 'remind', runOn, note? }` (notifies assignees and watchers, note up to 500 characters). Listed as `scheduledActions` on the board |
+| DELETE | `/api/scheduled-actions/:id` | Delete a scheduled action |
 | POST | `/api/boards/:id/cards` | Add a card `{ columnId, title, description? }` (title up to 1000 characters) |
 | GET | `/api/cards/:id` | Card with checklist, comments, attachments, links and activity |
-| PATCH | `/api/cards/:id` | Edit `{ title?, description?, startDate?, dueDate?, priority?, estimate?, tagIds?, assigneeIds?, archived? }` |
+| PATCH | `/api/cards/:id` | Edit `{ title?, description?, startDate?, dueDate?, priority?, estimate?, tagIds?, assigneeIds?, archived?, skipAutomations? }` (`skipAutomations`: board and column automations leave the card alone) |
 | POST | `/api/boards/:id/cards/bulk` | Change up to 200 cards at once, all or none `{ cardIds, columnId?, archived?, priority?, dueDate?, addTagIds?, removeTagIds?, addAssigneeIds?, removeAssigneeIds? }`; `columnId` moves them to the end of that column in board order. Returns `{ cards }` (those not archived) |
 | POST | `/api/cards/:id/move` | Move `{ columnId, aboveId, belowId }` (neighbour card ids in the target column, `null` = start/end) |
 | DELETE | `/api/cards/:id` | Move a card to the board's trash (deleted for good after 30 days) |
@@ -105,13 +107,13 @@ same permissions, validation and scope rules apply, and changes show up live on 
 `405`.
 
 - **Read tools** (every token): `list_boards`, `get_board` (columns with their cards and colours, card tags, column
-  tags, automations, accent, members, fields, templates),
+  tags, automations, scheduled card actions, accent, members, fields, templates),
   `get_card` (description, checklist, comments, links, attachments, recent activity), `search`, `my_work`,
   `list_notifications`.
 - **Write tools** (listed only for read and write tokens): `create_card`, `update_card`, `move_card`,
   `bulk_update_cards`, `add_comment`, `add_checklist_item`, `update_checklist_item`; board structure:
   `create_column`, `update_column` (title, colour, WIP limit, order), `create_tag`, `update_tag`, `create_column_tag`,
-  `update_column_tag` (name, colour, columns), `create_automation`, `update_automation`, `set_board_accent`. There are
+  `update_column_tag` (name, colour, columns), `create_automation` (board, column or card), `update_automation`, `schedule_card_action`, `set_board_accent`. There are
   no delete tools for these.
 - API errors come back as tool results with `isError` and the status, e.g. `404 Board not found`.
 

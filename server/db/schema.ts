@@ -41,6 +41,8 @@ export const recurrenceRule = pgEnum('recurrence_rule', ['daily', 'weekly', 'mon
 export const boardNotificationLevel = pgEnum('board_notification_level', ['direct', 'none'])
 
 export const boardAutomationKind = pgEnum('board_automation_kind', ['archive_done', 'tag_stale', 'notify_stale', 'raise_priority', 'move_card'])
+// One-shot action on a card on a date (card_scheduled_actions).
+export const cardActionKind = pgEnum('card_action_kind', ['move', 'archive', 'priority', 'remind'])
 
 export const users = pgTable('users', {
   id: uuid('id').primaryKey().defaultRandom(),
@@ -343,6 +345,9 @@ export const cards = pgTable('cards', {
   // app.trash_card / app.restore_card. See 0058_card_trash_rls.sql.
   deletedAt: timestamp('deleted_at', { withTimezone: true }),
   deletedBy: uuid('deleted_by').references(() => users.id, { onDelete: 'set null' }),
+  // Board and column automations leave the card alone; its own automations and
+  // scheduled actions still run. See 0086_card_automations_rls.sql.
+  skipAutomations: boolean('skip_automations').notNull().default(false),
   // Null once the creator's account is removed.
   createdBy: uuid('created_by').references(() => users.id, { onDelete: 'set null' }),
   createdAt: createdAt(),
@@ -430,6 +435,8 @@ export const columnRules = pgTable('column_rules', {
 // move_card: moves cards that have been in column_id for `days` days to the end of target_column_id.
 // column_id (optional except for move_card, fixed at creation) limits an automation to the cards
 // in that column (the last column too); archive_done then counts the days in that column.
+// card_id (fixed at creation, not with column_id) limits it to one card; move_card then counts
+// the days in the card's current column. Cards with skip_automations only get their own.
 export const boardAutomations = pgTable('board_automations', {
   id: uuid('id').primaryKey().defaultRandom(),
   boardId: uuid('board_id').notNull().references(() => boards.id, { onDelete: 'cascade' }),
@@ -439,21 +446,52 @@ export const boardAutomations = pgTable('board_automations', {
   priority: cardPriority('priority'),
   columnId: uuid('column_id'),
   targetColumnId: uuid('target_column_id'),
+  cardId: uuid('card_id'),
   active: boolean('active').notNull().default(true),
   lastRunAt: timestamp('last_run_at', { withTimezone: true }),
   createdAt: createdAt(),
 }, t => [
-  unique('board_automations_unique').on(t.boardId, t.kind, t.columnId, t.tagId, t.priority).nullsNotDistinct(),
+  unique('board_automations_unique').on(t.boardId, t.kind, t.columnId, t.cardId, t.tagId, t.priority).nullsNotDistinct(),
   foreignKey({ columns: [t.tagId, t.boardId], foreignColumns: [tags.id, tags.boardId], name: 'board_automations_tag_board_fk' }).onDelete('cascade'),
   foreignKey({ columns: [t.columnId, t.boardId], foreignColumns: [columns.id, columns.boardId], name: 'board_automations_column_board_fk' }).onDelete('cascade'),
   foreignKey({ columns: [t.targetColumnId, t.boardId], foreignColumns: [columns.id, columns.boardId], name: 'board_automations_target_board_fk' }).onDelete('cascade'),
+  foreignKey({ columns: [t.cardId, t.boardId], foreignColumns: [cards.id, cards.boardId], name: 'board_automations_card_board_fk' }).onDelete('cascade'),
+  check('board_automations_scope', sql`${t.columnId} is null or ${t.cardId} is null`),
   check('board_automations_kind_fields', sql`case ${t.kind}::text
     when 'archive_done' then ${t.days} between 1 and 365 and ${t.tagId} is null and ${t.priority} is null and ${t.targetColumnId} is null
     when 'tag_stale' then ${t.days} between 1 and 365 and ${t.tagId} is not null and ${t.priority} is null and ${t.targetColumnId} is null
     when 'notify_stale' then ${t.days} between 1 and 365 and ${t.tagId} is null and ${t.priority} is null and ${t.targetColumnId} is null
     when 'raise_priority' then ${t.days} between 0 and 365 and ${t.priority} is not null and ${t.tagId} is null and ${t.targetColumnId} is null
     when 'move_card' then ${t.days} between 1 and 365 and ${t.tagId} is null and ${t.priority} is null
-      and ${t.columnId} is not null and ${t.targetColumnId} is not null and ${t.targetColumnId} <> ${t.columnId}
+      and (${t.columnId} is not null or ${t.cardId} is not null) and ${t.targetColumnId} is not null and ${t.targetColumnId} is distinct from ${t.columnId}
+    else false
+  end`),
+])
+
+// One-shot actions on a card, run on run_on by app.run_scheduled_card_actions()
+// (cards:automations task) and then deleted. move: to the end of target_column_id;
+// archive; priority: sets priority; remind: logs `reminder` {note}, notifying
+// assignees and watchers. See 0086_card_automations_rls.sql.
+export const cardScheduledActions = pgTable('card_scheduled_actions', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  boardId: uuid('board_id').notNull().references(() => boards.id, { onDelete: 'cascade' }),
+  cardId: uuid('card_id').notNull(),
+  kind: cardActionKind('kind').notNull(),
+  runOn: date('run_on').notNull(),
+  targetColumnId: uuid('target_column_id'),
+  priority: cardPriority('priority'),
+  note: text('note'),
+  createdBy: uuid('created_by').references(() => users.id, { onDelete: 'set null' }),
+  createdAt: createdAt(),
+}, t => [
+  index('card_scheduled_actions_run_on_idx').on(t.runOn),
+  foreignKey({ columns: [t.cardId, t.boardId], foreignColumns: [cards.id, cards.boardId], name: 'card_scheduled_actions_card_board_fk' }).onDelete('cascade'),
+  foreignKey({ columns: [t.targetColumnId, t.boardId], foreignColumns: [columns.id, columns.boardId], name: 'card_scheduled_actions_target_board_fk' }).onDelete('cascade'),
+  check('card_scheduled_actions_kind_fields', sql`case ${t.kind}
+    when 'move' then ${t.targetColumnId} is not null and ${t.priority} is null and ${t.note} is null
+    when 'priority' then ${t.priority} is not null and ${t.targetColumnId} is null and ${t.note} is null
+    when 'archive' then ${t.targetColumnId} is null and ${t.priority} is null and ${t.note} is null
+    when 'remind' then ${t.targetColumnId} is null and ${t.priority} is null and coalesce(char_length(${t.note}), 0) <= 500
     else false
   end`),
 ])

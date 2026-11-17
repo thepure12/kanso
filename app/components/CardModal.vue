@@ -31,6 +31,8 @@ const props = defineProps<{
   link?: string
   /** The board's Matrix room; adds the Matrix tab (not for templates). */
   matrix?: BoardMatrixRoom | null
+  /** Own automations and scheduled actions of the card; set (also 0) shows the Automations button. */
+  automationCount?: number
 }>()
 const emit = defineEmits<{
   save: [patch: CardPatch]
@@ -47,6 +49,8 @@ const emit = defineEmits<{
   deleteRecurrence: []
   /** Move the card to the end of another column. */
   move: [columnId: string]
+  /** Open the card's automations. */
+  automations: []
 }>()
 const open = defineModel<boolean>('open', { required: true })
 const { t } = useI18n()
@@ -419,6 +423,17 @@ const tabs = computed(() => [
                 variant="outline"
                 size="sm"
                 @click="copyLink"
+              />
+            </UTooltip>
+            <UTooltip v-if="props.automationCount !== undefined" :text="t('card.automations')">
+              <UButton
+                icon="i-lucide-timer"
+                :label="props.automationCount ? String(props.automationCount) : undefined"
+                :aria-label="t('card.automations')"
+                :color="props.automationCount || props.card.skipAutomations ? 'primary' : 'neutral'"
+                variant="outline"
+                size="sm"
+                @click="emit('automations')"
               />
             </UTooltip>
             <UTooltip v-if="cd.detail.value.watchers.length" :text="t('card.watchers', { names: cd.detail.value.watchers.map(w => w.name).join(', ') })">

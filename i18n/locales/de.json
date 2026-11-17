@@ -81,7 +81,9 @@
       "text": "„{value}“"
     },
     "automation": "Automatisierung",
-    "stale": "hat diese Karte markiert: seit einem Tag keine Aktivität | hat diese Karte markiert: seit {n} Tagen keine Aktivität"
+    "stale": "hat diese Karte markiert: seit einem Tag keine Aktivität | hat diese Karte markiert: seit {n} Tagen keine Aktivität",
+    "reminder": "hat eine Erinnerung gesendet",
+    "reminderNote": "hat eine Erinnerung gesendet: {note}"
   },
   "notification": {
     "assignedYou": "hat dir diese Karte zugewiesen",
@@ -301,7 +303,8 @@
         "moved": "Karte verschoben",
         "due": "Fälligkeit geändert",
         "archived": "Karte archiviert",
-        "stale": "Karte liegt lange"
+        "stale": "Karte liegt lange",
+        "reminder": "Geplante Erinnerungen"
       },
       "watching": "Karten, die ich beobachte",
       "watchingDescription": "Benachrichtige mich über Karten, die ich beobachte, aber die mir nicht zugewiesen sind. Zuweisungen und Erwähnungen benachrichtigen immer.",
@@ -688,7 +691,9 @@
       "deleteColumnGroup": "Spalten-Tag konnte nicht gelöscht werden",
       "addAutomation": "Automatisierung konnte nicht hinzugefügt werden",
       "updateAutomation": "Automatisierung konnte nicht geändert werden",
-      "deleteAutomation": "Automatisierung konnte nicht gelöscht werden"
+      "deleteAutomation": "Automatisierung konnte nicht gelöscht werden",
+      "addScheduledAction": "Aktion konnte nicht geplant werden",
+      "deleteScheduledAction": "Geplante Aktion konnte nicht gelöscht werden"
     },
     "bulk": {
       "toolbar": "Sammelaktionen",
@@ -856,7 +861,8 @@
       "merge": "Zusammen mit Kommentaren in einem Tab zeigen",
       "split": "Kommentare und Matrix in getrennten Tabs zeigen",
       "comment": "Kommentar"
-    }
+    },
+    "automations": "Automatisierungen"
   },
   "checklist": {
     "title": "Checkliste",
@@ -1253,7 +1259,8 @@
       "linked": "Verknüpft",
       "unlinked": "Verknüpfung entfernt",
       "field": "Benutzerdefiniertes Feld",
-      "stale": "Keine aktuelle Aktivität"
+      "stale": "Keine aktuelle Aktivität",
+      "reminder": "Erinnerung"
     }
   },
   "matrix": {
@@ -1658,6 +1665,51 @@
     "delete": "Automatisierung löschen",
     "lastRun": "Zuletzt ausgeführt {time}",
     "neverRun": "Noch nicht ausgeführt",
-    "tag": "Karten-Tag"
+    "tag": "Karten-Tag",
+    "onlyCard": "Nur die Karte „{card}“",
+    "onlyOneCard": "Nur eine Karte",
+    "cardKinds": {
+      "archive_done": "Archivieren, wenn erledigt",
+      "tag_stale": "Markieren, wenn inaktiv",
+      "notify_stale": "Benachrichtigen, wenn inaktiv",
+      "raise_priority": "Priorität vor Fälligkeit erhöhen",
+      "move_card": "Nach einer Zeit in einer Spalte verschieben"
+    },
+    "cardText": {
+      "archive_done": "Diese Karte nach einem Tag in der letzten Spalte archivieren | Diese Karte nach {n} Tagen in der letzten Spalte archivieren",
+      "tag_stale": "Diese Karte markieren, wenn sie einen Tag keine Aktivität hatte | Diese Karte markieren, wenn sie {n} Tage keine Aktivität hatte",
+      "notify_stale": "Zugewiesene und Beobachtende benachrichtigen, wenn diese Karte einen Tag keine Aktivität hatte | Zugewiesene und Beobachtende benachrichtigen, wenn diese Karte {n} Tage keine Aktivität hatte",
+      "raise_priority": "Diese Karte auf {priority} setzen, wenn sie heute fällig oder überfällig ist | Diese Karte auf {priority} setzen, wenn sie innerhalb eines Tages fällig ist | Diese Karte auf {priority} setzen, wenn sie innerhalb von {n} Tagen fällig ist",
+      "move_card": "Diese Karte nach einem Tag in einer Spalte nach {target} verschieben | Diese Karte nach {n} Tagen in einer Spalte nach {target} verschieben"
+    },
+    "card": {
+      "title": "Automatisierungen: {card}",
+      "description": "Wird stündlich geprüft. Änderungen erscheinen im Verlauf als von „Automatisierung“.",
+      "skip": "Board- und Spalten-Automatisierungen überspringen",
+      "skipHelp": "Automatisierungen des ganzen Boards oder einer Spalte lassen diese Karte in Ruhe. Die Automatisierungen und geplanten Aktionen dieser Karte laufen weiter.",
+      "recurring": "Automatisierungen dieser Karte"
+    },
+    "scheduled": {
+      "title": "Geplante Aktionen",
+      "empty": "Nichts geplant.",
+      "kind": "Aktion",
+      "kinds": {
+        "move": "In eine Spalte verschieben",
+        "archive": "Archivieren",
+        "priority": "Priorität setzen",
+        "remind": "Zugewiesene und Beobachtende erinnern"
+      },
+      "text": {
+        "move": "Am {date}: nach {column} verschieben",
+        "archive": "Am {date}: archivieren",
+        "priority": "Am {date}: Priorität auf {priority} setzen",
+        "remind": "Am {date}: Zugewiesene und Beobachtende erinnern"
+      },
+      "date": "Am",
+      "note": "Notiz",
+      "notePlaceholder": "Optional, wird mit der Erinnerung gesendet",
+      "add": "Planen",
+      "delete": "Geplante Aktion löschen"
+    }
   }
 }
