@@ -107,6 +107,12 @@ function setMatrixRoom(room: BoardMatrixRoom | null) {
   if (board.value) board.value.matrix = room
 }
 const automationsOpen = ref(false)
+// Column preselected in the automations dialog when opened from a column's menu.
+const automationsColumnId = ref<string | null>(null)
+function openAutomations(columnId: string | null = null) {
+  automationsColumnId.value = columnId
+  automationsOpen.value = true
+}
 
 function openTemplate(template: Card) {
   templatesOpen.value = false
@@ -410,6 +416,7 @@ function columnMenu(col: Column) {
       setColumnWipLimit(col, value)
     } },
     { label: t('board.column.rules'), icon: 'i-lucide-zap', onSelect: () => { rulesColumn.value = col } },
+    { label: t('board.column.automations'), icon: 'i-lucide-timer', onSelect: () => openAutomations(col.id) },
     { label: t('board.column.sortPriority'), icon: 'i-lucide-arrow-down-wide-narrow', disabled: (lists.value[col.id]?.length ?? 0) < 2, onSelect: () => sortColumnByPriority(col) },
     {
       label: t('columnGroups.menu'),
@@ -446,7 +453,7 @@ const boardMenu = computed(() => {
           ]
         : []),
       { label: t('board.menu.templates'), icon: 'i-lucide-file-stack', onSelect: () => { templatesOpen.value = true } },
-      { label: t('board.menu.automations'), icon: 'i-lucide-timer', onSelect: () => { automationsOpen.value = true } },
+      { label: t('board.menu.automations'), icon: 'i-lucide-timer', onSelect: () => openAutomations() },
       ...(editable ? [{ label: t('board.menu.background'), icon: 'i-lucide-image', onSelect: () => { backgroundOpen.value = true } }] : []),
       ...(owner ? [{ label: t('board.menu.webhooks'), icon: 'i-lucide-webhook', onSelect: () => { webhooksOpen.value = true } }] : []),
       ...(owner ? [{ label: t('board.menu.matrix'), icon: 'i-lucide-message-square-share', onSelect: () => { matrixOpen.value = true } }] : []),
@@ -963,6 +970,8 @@ const boardMenu = computed(() => {
       v-model:open="automationsOpen"
       :automations="automations"
       :tags="tags"
+      :columns="columns"
+      :column-id="automationsColumnId"
       :can-edit="canEdit"
       @add="addAutomation"
       @update="updateAutomation"

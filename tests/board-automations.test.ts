@@ -42,9 +42,15 @@ const age = (cardId: string, days: number) => owner.begin(sql => [
   sql`update card_activity set created_at = created_at - make_interval(days => ${days}) where card_id = ${cardId}`,
 ])
 
-const automate = (userId: string, kind: string, days: number, extra: { tagId?: string, priority?: string } = {}) =>
-  as(userId, async sql => (await sql`insert into board_automations (board_id, kind, days, tag_id, priority)
-    values (${boardId}, ${kind}, ${days}, ${extra.tagId ?? null}, ${extra.priority ?? null}) returning id`)[0]!.id as string)
+type Extra = { tagId?: string, priority?: string, columnId?: string, targetColumnId?: string }
+const automate = (userId: string, kind: string, days: number, extra: Extra = {}) =>
+  as(userId, async sql => (await sql`insert into board_automations (board_id, kind, days, tag_id, priority, column_id, target_column_id)
+    values (${boardId}, ${kind}, ${days}, ${extra.tagId ?? null}, ${extra.priority ?? null}, ${extra.columnId ?? null}, ${extra.targetColumnId ?? null})
+    returning id`)[0]!.id as string)
+
+/** A column between Todo and Done (Done stays last), so a test has its own cards. */
+const newColumn = (title: string) =>
+  as(boardOwner.id, async sql => (await sql`insert into columns (board_id, title, position) values (${boardId}, ${title}, 1.5) returning id`)[0]!.id as string)
 
 /** Runs the test board's automations (never the rest of the database); returns the card ids changed by `automationId`. */
 const run = async (automationId: string) => (await auth`select * from app.run_board_automations(${boardId})`)
@@ -235,5 +241,101 @@ describe('board automations', () => {
     const id = await automate(editor.id, 'tag_stale', 5, { tagId: tmp })
     await as(editor.id, sql => sql`delete from tags where id = ${tmp}`)
     expect((await owner`select id from board_automations where id = ${id}`).length).toBe(0)
+  })
+
+  it('a column limits an automation to the cards in it, last column included', async () => {
+    const review = await newColumn('Review')
+    const inReview = await newCard(review)
+    const elsewhere = await newCard(todoId)
+    const done = await newCard(doneId)
+    for (const c of [inReview, elsewhere, done]) await age(c, 10)
+    const tagReview = await automate(editor.id, 'tag_stale', 5, { tagId, columnId: review })
+    const notifyDone = await automate(editor.id, 'notify_stale', 5, { columnId: doneId })
+    try {
+      // One run does both.
+      const rows = await auth`select * from app.run_board_automations(${boardId})`
+      const changed = (a: string) => rows.filter(r => r.automation_id === a).map(r => r.card_id)
+      expect(changed(tagReview)).toEqual([inReview])
+      // Without a column the last column is never stale; with it, it is.
+      expect(changed(notifyDone)).toContain(done)
+      expect(changed(notifyDone)).not.toContain(elsewhere)
+      // The same kind once per column, and once without one.
+      await rejectsWith(automate(editor.id, 'tag_stale', 3, { tagId, columnId: review }), '23505')
+      const anyColumn = await automate(editor.id, 'tag_stale', 3, { tagId })
+      await remove(anyColumn)
+      // The column is fixed (column grant).
+      await rejectsWith(as(editor.id, sql => sql`update board_automations set column_id = ${todoId} where id = ${tagReview}`), '42501')
+    }
+    finally {
+      await remove(tagReview)
+      await remove(notifyDone)
+    }
+  })
+
+  it('archive_done with a column counts the days in that column', async () => {
+    const parked = await newColumn('Parked')
+    const old = await newCard(parked)
+    const movedToday = await newCard(todoId)
+    for (const c of [old, movedToday]) await age(c, 8)
+    await as(editor.id, sql => sql`update cards set column_id = ${parked} where id = ${movedToday}`)
+    const id = await automate(editor.id, 'archive_done', 7, { columnId: parked })
+    try {
+      expect(await run(id)).toEqual([old])
+    }
+    finally {
+      await remove(id)
+    }
+  })
+
+  it('move_card moves cards after `days` in the column, oldest first, running column rules', async () => {
+    const waiting = await newColumn('Waiting')
+    const target = await newColumn('Escalated')
+    const [{ id: escalatedTag }] = await as(editor.id, sql => sql`insert into tags (board_id, name, color) values (${boardId}, 'escalated', '#0000ff') returning id`) as any
+    await as(editor.id, sql => sql`insert into column_rules (column_id, board_id, kind, tag_id) values (${target}, ${boardId}, 'apply_tag', ${escalatedTag})`)
+    await as(editor.id, sql => sql`insert into column_rules (column_id, board_id, kind) values (${target}, ${boardId}, 'assign_mover')`)
+    const older = await newCard(waiting, 'older')
+    const newer = await newCard(waiting, 'newer')
+    const fresh = await newCard(waiting, 'fresh')
+    const already = await newCard(target, 'already there')
+    await age(older, 5)
+    await age(newer, 4)
+    const id = await automate(editor.id, 'move_card', 3, { columnId: waiting, targetColumnId: target })
+    try {
+      expect(await run(id)).toEqual([older, newer])
+      const rows = await owner`select id from cards where column_id = ${target} order by position`
+      expect(rows.map(r => r.id)).toEqual([already, older, newer])
+      expect((await owner`select column_id from cards where id = ${fresh}`)[0]!.column_id).toBe(waiting)
+      const moved = await owner`select data from card_activity where card_id = ${older} and kind = 'moved'`
+      expect(moved[0]!.data).toMatchObject({ from: 'Waiting', to: 'Escalated', automation: true })
+      // Column rules ran: the tag is applied, assign_mover assigns nobody.
+      expect((await owner`select tag_id from card_tags where card_id = ${older}`).map(r => r.tag_id)).toContain(escalatedTag)
+      expect((await owner`select user_id from card_assignees where card_id = ${older}`).length).toBe(0)
+      // Just arrived in the target: a move back would wait again.
+      expect(await run(id)).toEqual([])
+    }
+    finally {
+      await remove(id)
+    }
+  })
+
+  it('move_card needs two different columns; deleting either deletes it', async () => {
+    const a = await newColumn('A')
+    const b = await newColumn('B')
+    await rejectsWith(automate(editor.id, 'move_card', 3, { columnId: a }), '23514')
+    await rejectsWith(automate(editor.id, 'move_card', 3, { targetColumnId: b }), '23514')
+    await rejectsWith(automate(editor.id, 'move_card', 3, { columnId: a, targetColumnId: a }), '23514')
+    await rejectsWith(automate(editor.id, 'tag_stale', 3, { tagId, targetColumnId: b }), '23514')
+    const id = await automate(editor.id, 'move_card', 3, { columnId: a, targetColumnId: b })
+    // One move per column.
+    await rejectsWith(automate(editor.id, 'move_card', 5, { columnId: a, targetColumnId: todoId }), '23505')
+    await as(boardOwner.id, sql => sql`delete from columns where id = ${b}`)
+    expect((await owner`select id from board_automations where id = ${id}`).length).toBe(0)
+  })
+
+  it('a column of another board is refused', async () => {
+    const [{ id: other }] = await as(boardOwner.id, sql => sql`select id from app.create_board('Other')`) as any
+    boards.push(other)
+    const [{ id: otherCol }] = await as(boardOwner.id, sql => sql`insert into columns (board_id, title, position) values (${other}, 'X', 1) returning id`) as any
+    await rejectsWith(automate(editor.id, 'archive_done', 3, { columnId: otherCol }), '23503')
   })
 })

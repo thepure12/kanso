@@ -582,6 +582,20 @@
       "when": 1794686498189,
       "tag": "0082_board_matrix_users_rls",
       "breakpoints": true
+    },
+    {
+      "idx": 83,
+      "version": "7",
+      "when": 1794939785865,
+      "tag": "0083_column_automations",
+      "breakpoints": true
+    },
+    {
+      "idx": 84,
+      "version": "7",
+      "when": 1794939796614,
+      "tag": "0084_column_automations_rls",
+      "breakpoints": true
     }
   ]
 }

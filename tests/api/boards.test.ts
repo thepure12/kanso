@@ -524,6 +524,22 @@ describe('board automations', () => {
     for (const a of [tagStale, raise]) expect((await alice.req(`/api/automations/${a.id}`, { method: 'DELETE' })).status).toBe(200)
     expect((await alice.req(`/api/automations/${raise.id}`, { method: 'DELETE' })).status).toBe(404)
   })
+
+  it('takes a column, and move_card needs two different ones', async () => {
+    const post = (body: unknown) => bob.req<BoardAutomation>(`/api/boards/${board.id}/automations`, { method: 'POST', body })
+    const review = col('Review').id
+    const { status, data: scoped } = await post({ kind: 'notify_stale', days: 3, columnId: review })
+    expect(status).toBe(200)
+    expect(scoped).toMatchObject({ kind: 'notify_stale', days: 3, columnId: review })
+    const { data: move } = await post({ kind: 'move_card', days: 2, columnId: review, targetColumnId: col('Done').id })
+    expect(move).toMatchObject({ kind: 'move_card', days: 2, columnId: review, targetColumnId: col('Done').id })
+    expect((await post({ kind: 'move_card', days: 2, columnId: review })).status).toBe(400)
+    expect((await post({ kind: 'move_card', days: 2, columnId: review, targetColumnId: review })).status).toBe(400)
+    expect((await post({ kind: 'move_card', days: 4, columnId: review, targetColumnId: col('Backlog').id })).status).toBe(409)
+    const { data } = await alice.req<BoardDetail>(`/api/boards/${board.id}`)
+    expect(data.automations.find(a => a.id === move.id)).toMatchObject({ targetColumnId: col('Done').id })
+    for (const a of [scoped, move]) expect((await bob.req(`/api/automations/${a.id}`, { method: 'DELETE' })).status).toBe(200)
+  })
 })
 
 describe('card details', () => {

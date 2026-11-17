@@ -80,11 +80,13 @@ export type NewColumnRuleRequest = NewColumnRule & { applyToExisting?: boolean }
 
 /**
  * Time-based automation of a board, run hourly. "Open" cards are the ones not
- * archived and not in the last column. Changes show up in the activity log
- * with no actor and `automation: true`.
+ * archived and not in the last column. With `columnId` an automation only looks
+ * at the (unarchived) cards in that column, the last column included; it is
+ * fixed at creation, and deleting the column deletes the automation. Changes
+ * show up in the activity log with no actor and `automation: true`.
  */
-export type NewBoardAutomation =
-  /** Archives cards that have been in the last column for `days` days (1-365). */
+export type NewBoardAutomation = (
+  /** Archives cards that have been in the last column (or in columnId) for `days` days (1-365). */
   | { kind: 'archive_done', days: number }
   /** Adds tagId to open cards without activity for `days` days (1-365). */
   | { kind: 'tag_stale', days: number, tagId: string }
@@ -92,12 +94,17 @@ export type NewBoardAutomation =
   | { kind: 'notify_stale', days: number }
   /** Raises open cards due within `days` days (0-365) or overdue to `priority`. */
   | { kind: 'raise_priority', days: number, priority: Priority }
+) & { columnId?: string | null }
+  /** Moves cards that have been in columnId for `days` days (1-365) to the end of targetColumnId; column rules run. One per column. */
+  | { kind: 'move_card', days: number, columnId: string, targetColumnId: string }
 
 export type BoardAutomationKind = NewBoardAutomation['kind']
-export const boardAutomationKinds = ['archive_done', 'tag_stale', 'notify_stale', 'raise_priority'] as const satisfies readonly BoardAutomationKind[]
+export const boardAutomationKinds = ['archive_done', 'tag_stale', 'notify_stale', 'raise_priority', 'move_card'] as const satisfies readonly BoardAutomationKind[]
 
 export type BoardAutomation = NewBoardAutomation & {
   id: string
+  /** null = all open cards of the board. */
+  columnId: string | null
   active: boolean
   lastRunAt: string | null
 }

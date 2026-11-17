@@ -40,7 +40,7 @@ export const recurrenceRule = pgEnum('recurrence_rule', ['daily', 'weekly', 'mon
 // 'all' is the absence of a board_notification_settings row.
 export const boardNotificationLevel = pgEnum('board_notification_level', ['direct', 'none'])
 
-export const boardAutomationKind = pgEnum('board_automation_kind', ['archive_done', 'tag_stale', 'notify_stale', 'raise_priority'])
+export const boardAutomationKind = pgEnum('board_automation_kind', ['archive_done', 'tag_stale', 'notify_stale', 'raise_priority', 'move_card'])
 
 export const users = pgTable('users', {
   id: uuid('id').primaryKey().defaultRandom(),
@@ -427,6 +427,9 @@ export const columnRules = pgTable('column_rules', {
 // tag_stale: adds tag_id to open cards (not in the last column) without activity for `days` days.
 // notify_stale: logs `stale` on such cards, so assignees and watchers are notified.
 // raise_priority: raises open cards due within `days` days (or overdue) to `priority`.
+// move_card: moves cards that have been in column_id for `days` days to the end of target_column_id.
+// column_id (optional except for move_card, fixed at creation) limits an automation to the cards
+// in that column (the last column too); archive_done then counts the days in that column.
 export const boardAutomations = pgTable('board_automations', {
   id: uuid('id').primaryKey().defaultRandom(),
   boardId: uuid('board_id').notNull().references(() => boards.id, { onDelete: 'cascade' }),
@@ -434,17 +437,23 @@ export const boardAutomations = pgTable('board_automations', {
   days: integer('days').notNull(),
   tagId: uuid('tag_id'),
   priority: cardPriority('priority'),
+  columnId: uuid('column_id'),
+  targetColumnId: uuid('target_column_id'),
   active: boolean('active').notNull().default(true),
   lastRunAt: timestamp('last_run_at', { withTimezone: true }),
   createdAt: createdAt(),
 }, t => [
-  unique('board_automations_unique').on(t.boardId, t.kind, t.tagId, t.priority).nullsNotDistinct(),
+  unique('board_automations_unique').on(t.boardId, t.kind, t.columnId, t.tagId, t.priority).nullsNotDistinct(),
   foreignKey({ columns: [t.tagId, t.boardId], foreignColumns: [tags.id, tags.boardId], name: 'board_automations_tag_board_fk' }).onDelete('cascade'),
+  foreignKey({ columns: [t.columnId, t.boardId], foreignColumns: [columns.id, columns.boardId], name: 'board_automations_column_board_fk' }).onDelete('cascade'),
+  foreignKey({ columns: [t.targetColumnId, t.boardId], foreignColumns: [columns.id, columns.boardId], name: 'board_automations_target_board_fk' }).onDelete('cascade'),
   check('board_automations_kind_fields', sql`case ${t.kind}::text
-    when 'archive_done' then ${t.days} between 1 and 365 and ${t.tagId} is null and ${t.priority} is null
-    when 'tag_stale' then ${t.days} between 1 and 365 and ${t.tagId} is not null and ${t.priority} is null
-    when 'notify_stale' then ${t.days} between 1 and 365 and ${t.tagId} is null and ${t.priority} is null
-    when 'raise_priority' then ${t.days} between 0 and 365 and ${t.priority} is not null and ${t.tagId} is null
+    when 'archive_done' then ${t.days} between 1 and 365 and ${t.tagId} is null and ${t.priority} is null and ${t.targetColumnId} is null
+    when 'tag_stale' then ${t.days} between 1 and 365 and ${t.tagId} is not null and ${t.priority} is null and ${t.targetColumnId} is null
+    when 'notify_stale' then ${t.days} between 1 and 365 and ${t.tagId} is null and ${t.priority} is null and ${t.targetColumnId} is null
+    when 'raise_priority' then ${t.days} between 0 and 365 and ${t.priority} is not null and ${t.tagId} is null and ${t.targetColumnId} is null
+    when 'move_card' then ${t.days} between 1 and 365 and ${t.tagId} is null and ${t.priority} is null
+      and ${t.columnId} is not null and ${t.targetColumnId} is not null and ${t.targetColumnId} <> ${t.columnId}
     else false
   end`),
 ])

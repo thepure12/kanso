@@ -229,22 +229,27 @@ export function createMcpServer(caller: McpCaller): McpServer {
   }, ({ columnTagId, ...body }) => run(() => call(`/api/column-groups/${columnTagId}`, { method: 'PATCH', body })))
 
   server.registerTool('create_automation', {
-    description: 'Add a time-based automation (runs hourly on open cards: not archived, not in the last column). '
-      + 'archive_done: archive cards in the last column for `days` days. tag_stale: add tagId to cards without activity for `days` days. '
+    description: 'Add a time-based automation (runs hourly on open cards: not archived, not in the last column; '
+      + 'with columnId only on the cards in that column, the last column included). '
+      + 'archive_done: archive cards in the last column (or columnId) for `days` days. tag_stale: add tagId to cards without activity for `days` days. '
       + 'notify_stale: notify assignees and watchers of cards without activity for `days` days. '
-      + 'raise_priority: set `priority` on cards due within `days` days (0 = today) or overdue. days is 1-365 (raise_priority 0-365).',
+      + 'raise_priority: set `priority` on cards due within `days` days (0 = today) or overdue. '
+      + 'move_card: move cards that have been in columnId for `days` days to the end of targetColumnId (column rules run; one per column). '
+      + 'days is 1-365 (raise_priority 0-365).',
     inputSchema: {
       boardId: id,
       kind: z.enum(boardAutomationKinds),
       days: z.number().int().min(0).max(365),
       tagId: id.optional().describe('tag_stale only'),
       priority: z.enum(priorities).optional().describe('raise_priority only'),
+      columnId: id.optional().describe('Limit to the cards in this column; required for move_card'),
+      targetColumnId: id.optional().describe('move_card only: where the cards go'),
     },
     annotations: write,
   }, ({ boardId, ...body }) => run(() => call(`/api/boards/${boardId}/automations`, { method: 'POST', body })))
 
   server.registerTool('update_automation', {
-    description: 'Change an automation\'s days or turn it on or off (active). Kind, tag and priority are fixed.',
+    description: 'Change an automation\'s days or turn it on or off (active). Kind, tag, priority and columns are fixed.',
     inputSchema: { automationId: id, days: z.number().int().min(0).max(365).optional(), active: z.boolean().optional() },
     annotations: write,
   }, ({ automationId, ...body }) => run(() => call(`/api/automations/${automationId}`, { method: 'PATCH', body })))

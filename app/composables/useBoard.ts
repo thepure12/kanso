@@ -495,6 +495,8 @@ export async function useBoard(id: string) {
       columns.value = columns.value.filter(c => c.id !== col.id)
       delete lists.value[col.id]
       for (const g of columnGroups.value) g.columnIds = g.columnIds.filter(c => c !== col.id)
+      // Automations of the column (or moving cards into it) are deleted with it.
+      automations.value = automations.value.filter(a => a.columnId !== col.id && !('targetColumnId' in a && a.targetColumnId === col.id))
     }, t('board.errors.deleteColumn')),
 
     addColumnRule: (col: Column, rule: NewColumnRule, applyToExisting = true) => run(async () => {

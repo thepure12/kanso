@@ -576,6 +576,7 @@
       "wipPrompt": "Maximale Anzahl Karten in dieser Spalte (1–999). Leer lassen für kein Limit.",
       "wipInvalid": "Gib eine ganze Zahl von 1 bis 999 ein.",
       "rules": "Regeln",
+      "automations": "Automatisierungen",
       "sortPriority": "Nach Priorität sortieren",
       "deleteConfirm": "„{title}“ und alle Karten darin löschen?",
       "ruleCount": "{count} Regel | {count} Regeln",
@@ -1624,7 +1625,7 @@
   },
   "automations": {
     "title": "Automatisierungen",
-    "description": "Wird stündlich geprüft. Offene Karten sind nicht archiviert und nicht in der letzten Spalte. Änderungen erscheinen im Aktivitätsprotokoll als Automatisierung.",
+    "description": "Wird stündlich geprüft. Offene Karten sind nicht archiviert und nicht in der letzten Spalte; eine auf eine Spalte beschränkte Automatisierung prüft die Karten dieser Spalte. Änderungen erscheinen im Aktivitätsprotokoll als Automatisierung.",
     "empty": "Noch keine Automatisierungen.",
     "readOnly": "Nur Bearbeiter können Automatisierungen ändern.",
     "kind": "Wann",
@@ -1632,14 +1633,23 @@
       "archive_done": "Erledigte Karten archivieren",
       "tag_stale": "Liegengebliebene Karten markieren",
       "notify_stale": "Über liegengebliebene Karten benachrichtigen",
-      "raise_priority": "Priorität vor Fälligkeit erhöhen"
+      "raise_priority": "Priorität vor Fälligkeit erhöhen",
+      "move_card": "Karten nach Zeit in einer Spalte verschieben"
     },
     "text": {
       "archive_done": "Karten in der letzten Spalte nach einem Tag archivieren | Karten in der letzten Spalte nach {n} Tagen archivieren",
       "tag_stale": "Offene Karten ohne Aktivität seit einem Tag mit Karten-Tag versehen | Offene Karten ohne Aktivität seit {n} Tagen mit Karten-Tag versehen",
       "notify_stale": "Zuständige und Beobachter benachrichtigen, wenn eine offene Karte seit einem Tag keine Aktivität hatte | Zuständige und Beobachter benachrichtigen, wenn eine offene Karte seit {n} Tagen keine Aktivität hatte",
-      "raise_priority": "Offene Karten, die heute fällig oder überfällig sind, auf {priority} setzen | Offene Karten, die innerhalb eines Tages fällig sind, auf {priority} setzen | Offene Karten, die innerhalb von {n} Tagen fällig sind, auf {priority} setzen"
+      "raise_priority": "Offene Karten, die heute fällig oder überfällig sind, auf {priority} setzen | Offene Karten, die innerhalb eines Tages fällig sind, auf {priority} setzen | Offene Karten, die innerhalb von {n} Tagen fällig sind, auf {priority} setzen",
+      "archive_column": "Karten in {column} nach einem Tag dort archivieren | Karten in {column} nach {n} Tagen dort archivieren",
+      "move_card": "Karten nach einem Tag in {column} nach {target} verschieben | Karten nach {n} Tagen in {column} nach {target} verschieben"
     },
+    "onlyColumn": "Nur Karten in {column}",
+    "column": "Spalte",
+    "allColumns": "Alle offenen Karten",
+    "fromColumn": "Aus Spalte",
+    "targetColumn": "Verschieben nach",
+    "chooseColumn": "Spalte auswählen",
     "days": "Tage",
     "chooseTag": "Karten-Tag auswählen",
     "noTags": "Auf diesem Board gibt es noch keine Karten-Tags.",
