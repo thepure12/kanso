@@ -133,13 +133,30 @@ export async function useBoard(id: string) {
     // Back online: reopen the stream (the browser may have given up on it or not
     // noticed the drop) and reload what changed meanwhile.
     watch(offline, (isOffline) => {
-      if (isOffline || released) return
+      if (isOffline || released || leaving) return
       events?.close()
       listen()
       remoteChanged()
     })
   })
+  // Close the stream as soon as a navigation away starts, not only at unmount: the next page
+  // mounts after its data loads, and over HTTP/1.1 with several tabs open the browser's six
+  // connections per host can all be streams, so that data would never load. A navigation that
+  // fails or is cancelled reopens it.
+  let leaving = false
+  onBeforeRouteLeave(() => {
+    leaving = true
+    events?.close()
+  })
+  const stopAfterEach = useRouter().afterEach((_to, _from, failure) => {
+    if (!leaving || !failure) return
+    leaving = false
+    if (released) return
+    listen()
+    remoteChanged()
+  })
   onBeforeUnmount(() => {
+    stopAfterEach()
     unhold?.()
     events?.close()
     undoStack.clear()
