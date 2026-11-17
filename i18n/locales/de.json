@@ -900,11 +900,20 @@
     "removeCover": "Titelbild entfernen",
     "setCover": "Als Titelbild verwenden",
     "download": "Herunterladen",
+    "view": "{name} ansehen",
     "delete": "Anhang löschen",
     "errors": {
       "upload": "Das Hochladen ist fehlgeschlagen",
       "delete": "Der Anhang konnte nicht gelöscht werden"
     }
+  },
+  "imageViewer": {
+    "title": "Bild",
+    "position": "{n} von {total}",
+    "openNewTab": "In neuem Tab öffnen",
+    "failed": "Das Bild konnte nicht geladen werden",
+    "previous": "Vorheriges Bild",
+    "next": "Nächstes Bild"
   },
   "cardFields": {
     "yes": "Ja",

@@ -43,6 +43,7 @@
 .markdown th, .markdown td { @apply border border-default px-2 py-1 text-start; }
 .markdown hr { @apply border-default; }
 .markdown img { @apply block my-1 max-h-80 max-w-full rounded; }
+.markdown img:not(a img) { @apply cursor-zoom-in; }
 .markdown .mention { @apply rounded bg-primary/10 px-1 font-medium text-primary; }
 
 /* Slightly shorter app header than the Nuxt UI default (4rem). */

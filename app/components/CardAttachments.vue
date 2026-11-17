@@ -13,6 +13,13 @@ const uploading = ref(false)
 
 const isImage = (a: Attachment) => ['image/png', 'image/jpeg', 'image/gif', 'image/webp'].includes(a.contentType)
 
+const viewImages = useImageViewer()
+/** Opens the viewer on this image, stepping through the card's other image attachments. */
+function view(a: Attachment) {
+  const images = (props.items ?? []).filter(isImage)
+  viewImages(images.map(i => ({ src: appUrl(`/api/attachments/${i.id}`), name: i.name, downloadUrl: appUrl(`/api/attachments/${i.id}?download`) })), images.indexOf(a))
+}
+
 async function upload(files: File[]) {
   const tooBig = files.filter(f => f.size > ATTACHMENT_MAX_BYTES)
   if (tooBig.length) {
@@ -89,9 +96,18 @@ async function remove(a: Attachment) {
     </p>
     <ul class="space-y-1">
       <li v-for="a in props.items" :key="a.id" class="group flex items-center gap-2 text-sm">
-        <img v-if="isImage(a)" :src="appUrl(`/api/attachments/${a.id}`)" alt="" class="size-8 rounded object-cover shrink-0" loading="lazy">
-        <UIcon v-else name="i-lucide-file" class="size-8 p-1.5 text-dimmed shrink-0" />
-        <a :href="appUrl(`/api/attachments/${a.id}`)" target="_blank" rel="noopener" class="truncate hover:underline">{{ a.name }}</a>
+        <template v-if="isImage(a)">
+          <button type="button" class="shrink-0 cursor-zoom-in rounded focus-visible:outline-2 focus-visible:outline-primary" :aria-label="t('attachments.view', { name: a.name })" @click="view(a)">
+            <img :src="appUrl(`/api/attachments/${a.id}`)" alt="" class="size-8 rounded object-cover" loading="lazy">
+          </button>
+          <button type="button" class="truncate text-start hover:underline" @click="view(a)">
+            {{ a.name }}
+          </button>
+        </template>
+        <template v-else>
+          <UIcon name="i-lucide-file" class="size-8 p-1.5 text-dimmed shrink-0" />
+          <a :href="appUrl(`/api/attachments/${a.id}`)" target="_blank" rel="noopener" class="truncate hover:underline">{{ a.name }}</a>
+        </template>
         <span class="text-xs text-muted shrink-0">{{ formatBytes(a.size, locale) }}</span>
         <UBadge v-if="a.id === props.coverId" color="neutral" variant="subtle" size="sm" :label="t('attachments.cover')" class="shrink-0" />
         <UTooltip v-if="props.canEdit && isImage(a)" :text="a.id === props.coverId ? t('attachments.removeCover') : t('attachments.setCover')">

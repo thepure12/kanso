@@ -13,6 +13,10 @@ const { user } = useUserSession()
 const htmlOf = (html: string) => import.meta.client ? sanitizeHtml(html) : ''
 const base = basePath()
 const imageFailed = ref(false)
+const viewImages = useImageViewer()
+function viewImage(image: NonNullable<MatrixThreadMessage['image']>) {
+  viewImages([{ src: base + image.url, name: image.name }])
+}
 </script>
 
 <template>
@@ -28,13 +32,13 @@ const imageFailed = ref(false)
       <span class="text-muted">{{ formatDateTime(message.createdAt, locale) }}</span>
       <span v-if="message.edited" class="text-dimmed">{{ t('comments.edited') }}</span>
     </div>
-    <a
+    <button
       v-if="message.image && !imageFailed"
-      :href="base + message.image.url"
-      target="_blank"
-      rel="noopener"
-      class="block w-fit max-w-full"
+      type="button"
+      class="block w-fit max-w-full cursor-zoom-in rounded-md focus-visible:outline-2 focus-visible:outline-primary"
       :title="message.image.name"
+      :aria-label="t('attachments.view', { name: message.image.name })"
+      @click="viewImage(message.image)"
     >
       <img
         :src="base + message.image.thumbnailUrl"
@@ -45,7 +49,7 @@ const imageFailed = ref(false)
         class="h-auto max-h-72 w-auto max-w-full rounded-md border border-default bg-elevated object-contain"
         @error="imageFailed = true"
       >
-    </a>
+    </button>
     <!-- Sanitized by DOMPurify in sanitizeHtml. -->
     <div v-else-if="message.html && htmlOf(message.html)" class="markdown text-sm break-words" v-html="htmlOf(message.html)" />
     <p v-else class="whitespace-pre-wrap break-words text-sm">

@@ -900,11 +900,20 @@
     "removeCover": "Remove cover",
     "setCover": "Set as cover",
     "download": "Download",
+    "view": "View {name}",
     "delete": "Delete attachment",
     "errors": {
       "upload": "Could not upload",
       "delete": "Could not delete attachment"
     }
+  },
+  "imageViewer": {
+    "title": "Image",
+    "position": "{n} of {total}",
+    "openNewTab": "Open in new tab",
+    "failed": "Could not load the image",
+    "previous": "Previous image",
+    "next": "Next image"
   },
   "cardFields": {
     "yes": "Yes",
