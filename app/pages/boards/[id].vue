@@ -240,6 +240,12 @@ function applySavedView(saved: SavedView) {
   showColumnGroup(next.columnGroupId)
   filter.value = next.filter
 }
+/** Turns off swimlanes, the column tag and every filter; the view (board, list, …) stays. */
+function resetView() {
+  groupBy.value = 'none'
+  showColumnGroup(null)
+  filter.value = emptyFilter()
+}
 
 // Tag and column group chips: names or colour only (personal, all boards).
 const labels = useLabelDisplay()
@@ -554,6 +560,7 @@ const boardMenu = computed(() => {
             :update="updateSavedView"
             :remove="deleteSavedView"
             @apply="applySavedView"
+            @reset="resetView"
           />
           <!-- Tabs from sm up; a select on phones, where four icon tabs take too much room. -->
           <UTabs v-model="view" :items="viewItems" :content="false" size="sm" class="hidden sm:flex" :ui="{ label: 'group-data-c3/tb:sr-only' }" :aria-label="t('board.viewLabel')" />

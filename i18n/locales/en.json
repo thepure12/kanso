@@ -1596,6 +1596,7 @@
     "activeLabel": "Saved view: {name}",
     "shared": "Shared",
     "personal": "Only me",
+    "showEverything": "Show everything",
     "saveCurrent": "Save current view…",
     "manage": "Manage views…",
     "saveTitle": "Save view",

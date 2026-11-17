@@ -1596,6 +1596,7 @@
     "activeLabel": "Gespeicherte Ansicht: {name}",
     "shared": "Geteilt",
     "personal": "Nur ich",
+    "showEverything": "Alles anzeigen",
     "saveCurrent": "Aktuelle Ansicht speichern…",
     "manage": "Ansichten verwalten…",
     "saveTitle": "Ansicht speichern",

@@ -14,7 +14,7 @@ const props = defineProps<{
   update: (view: SavedView, patch: { name?: string, config?: SavedViewConfig }) => Promise<SavedView>
   remove: (view: SavedView) => Promise<unknown>
 }>()
-const emit = defineEmits<{ apply: [view: SavedView] }>()
+const emit = defineEmits<{ apply: [view: SavedView], reset: [] }>()
 const { t } = useI18n()
 const confirm = useConfirm()
 const showError = useApiError()
@@ -25,6 +25,14 @@ const active = computed(() => {
   const matches = props.views.filter(v => sameViewConfig(v.config, props.current))
   return matches.find(v => !v.shared) ?? matches[0] ?? null
 })
+
+/** No swimlanes, column tag or filter: the board shows everything. */
+const showsEverything = computed(() => sameViewConfig(props.current, {
+  view: props.current.view,
+  groupBy: 'none',
+  columnGroupId: null,
+  filter: emptyFilter(),
+}))
 
 const canChange = (v: SavedView) => !props.offline && (!v.shared || props.canShare)
 
@@ -38,7 +46,12 @@ const items = computed<DropdownMenuItem[][]>(() => {
   })
   const shared = props.views.filter(v => v.shared)
   const personal = props.views.filter(v => !v.shared)
-  const groups: DropdownMenuItem[][] = []
+  const groups: DropdownMenuItem[][] = [[{
+    label: t('savedViews.showEverything'),
+    icon: 'i-lucide-filter-x',
+    disabled: showsEverything.value,
+    onSelect: () => emit('reset'),
+  }]]
   if (shared.length) groups.push([{ type: 'label', label: t('savedViews.shared') }, ...shared.map(entry)])
   if (personal.length) groups.push([{ type: 'label', label: t('savedViews.personal') }, ...personal.map(entry)])
   const actions: DropdownMenuItem[] = [
