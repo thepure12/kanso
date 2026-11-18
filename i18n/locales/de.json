@@ -561,6 +561,7 @@
     "role": {
       "owner": "Eigentümer",
       "editor": "Bearbeiter",
+      "commenter": "Kommentator",
       "viewer": "Betrachter"
     },
     "views": {
@@ -1155,11 +1156,13 @@
     "roles": {
       "owner": "Eigentümer",
       "editor": "Bearbeiter",
+      "commenter": "Kommentator",
       "viewer": "Betrachter"
     },
     "roleDescriptions": {
       "owner": "Volle Kontrolle, verwaltet Mitglieder",
       "editor": "Bearbeitet Spalten und Karten",
+      "commenter": "Liest, kommentiert und erfasst Zeit",
       "viewer": "Nur lesen"
     },
     "invited": "{email} eingeladen",
@@ -1186,7 +1189,7 @@
     "limitedHint": "Ein Besitzer hat dich auf einige Spalten und Karten dieses Boards beschränkt. Spalten, Tags und Einstellungen kannst du nicht ändern.",
     "title": "Zugriff von {name}",
     "description": "Lege fest, was diese Person auf diesem Board sieht und bearbeitet. Besitzer sind nie eingeschränkt.",
-    "viewerNote": "Betrachter können höchstens lesen, daher fehlt „Bearbeiten“.",
+    "viewerNote": "Betrachter und Kommentatoren können höchstens lesen, daher fehlt „Bearbeiten“. Kommentatoren kommentieren und erfassen Zeit auf Karten, die sie lesen können.",
     "default": "Standardzugriff",
     "defaultHelp": "Gilt für jede Spalte unten, die auf \"Standard\" steht, und für ihre Karten.",
     "columns": "Spalten",

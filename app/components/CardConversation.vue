@@ -6,9 +6,13 @@ import type { BoardMatrixRoom, CardMatrixThread, MatrixThreadMessage } from '#sh
  * Comments and the card's Matrix thread in one list, newest first, with one
  * composer that writes either a comment or a reply in the thread.
  */
-const props = defineProps<{
+// Absent optional booleans would become false; undefined keeps the fallback.
+const props = withDefaults(defineProps<{
   items: Comment[] | null
+  /** Editing the card: linking the thread, replying in it, uploading files. */
   canEdit: boolean
+  /** Writing comments (card editors and commenters); defaults to canEdit. */
+  canComment?: boolean
   isOwner: boolean
   canReact: boolean
   cd: CardDetailApi
@@ -16,12 +20,13 @@ const props = defineProps<{
   room: BoardMatrixRoom
   /** undefined while the card is loading. */
   thread: CardMatrixThread | null | undefined
-}>()
+}>(), { canComment: undefined })
 const { t } = useI18n()
 
 const mt = useMatrixThread(props.cd, () => props.thread)
 const { view, reply, sending, send } = mt
 const canReply = computed(() => props.canEdit && props.thread?.roomId === props.room.roomId)
+const commentable = computed(() => props.canComment ?? props.canEdit)
 
 type Entry = { kind: 'comment', at: number, comment: Comment } | { kind: 'matrix', at: number, message: MatrixThreadMessage }
 
@@ -65,10 +70,10 @@ async function postComment() {
       </MatrixThreadBar>
     </div>
 
-    <div v-if="canEdit" class="space-y-2">
+    <div v-if="commentable || canReply" class="space-y-2">
       <UTabs v-if="canReply" v-model="target" :items="targetItems" :content="false" size="xs" />
       <form v-if="target === 'comment'" class="space-y-2" @submit.prevent="postComment">
-        <MarkdownEditor v-model="draft" :rows="3" :members="members" :upload="cd.upload" :placeholder="t('comments.placeholder')" />
+        <MarkdownEditor v-model="draft" :rows="3" :members="members" :upload="canEdit ? cd.upload : undefined" :placeholder="t('comments.placeholder')" />
         <div class="flex justify-end">
           <UButton type="submit" size="sm" :label="t('comments.submit')" :disabled="!draft.trim()" />
         </div>
@@ -102,7 +107,8 @@ async function postComment() {
           <CommentItem
             v-if="e.kind === 'comment'"
             :comment="e.comment"
-            :can-edit="canEdit"
+            :can-edit="commentable"
+            :can-upload="canEdit"
             :is-owner="isOwner"
             :can-react="canReact"
             :cd="cd"

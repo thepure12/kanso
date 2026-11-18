@@ -33,7 +33,7 @@ const toast = useToast()
 const { t } = useI18n()
 const listId = useId()
 
-const roles = computed(() => (['owner', 'editor', 'viewer'] as const).map(value => ({
+const roles = computed(() => (['owner', 'editor', 'commenter', 'viewer'] as const).map(value => ({
   label: t(`members.roles.${value}`), value, description: t(`members.roleDescriptions.${value}`),
 })) satisfies { label: string, value: BoardRole, description: string }[])
 

@@ -5,7 +5,7 @@ import type { BoardNotificationLevel } from '../notificationSettings'
 import type { SavedViewConfig } from '../savedViews'
 import type { BoardMatrixRoom, CardMatrixThread } from './matrix'
 
-export type BoardRole = 'owner' | 'editor' | 'viewer'
+export type BoardRole = 'owner' | 'editor' | 'commenter' | 'viewer'
 
 export interface Person {
   userId: string

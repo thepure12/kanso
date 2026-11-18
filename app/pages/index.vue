@@ -187,7 +187,7 @@ async function createTeam() {
   finally { creatingTeam.value = false }
 }
 
-const roleColor = { owner: 'primary', editor: 'success', viewer: 'neutral' } as const
+const roleColor = { owner: 'primary', editor: 'success', commenter: 'info', viewer: 'neutral' } as const
 
 // Team members / settings
 const membersTeamId = ref<string | null>(null)

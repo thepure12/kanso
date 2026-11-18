@@ -4,15 +4,18 @@ import type { CardDetailApi } from '~/composables/useCardDetail'
 import { reactionEmojis } from '#shared/reactions'
 
 /** One card comment as a list item: reactions, edit and delete. */
-const props = defineProps<{
+// Absent optional booleans would become false; undefined keeps the fallback.
+const props = withDefaults(defineProps<{
   comment: Comment
   canEdit: boolean
+  /** Pasting files into the editor uploads attachments: card editors only, not commenters. */
+  canUpload?: boolean
   isOwner: boolean
   /** Viewers may react too; false while the board is archived or offline. */
   canReact: boolean
   cd: CardDetailApi
   members: Member[]
-}>()
+}>(), { canUpload: undefined })
 const { user } = useUserSession()
 const { t, locale } = useI18n()
 
@@ -121,7 +124,7 @@ const reactedBy = (names: string[], emoji: string) =>
         </div>
       </div>
       <form v-if="editing !== null" class="space-y-2" @submit.prevent="saveEdit">
-        <MarkdownEditor v-model="editing" :rows="3" :members="members" :upload="cd.upload" />
+        <MarkdownEditor v-model="editing" :rows="3" :members="members" :upload="canUpload ?? canEdit ? cd.upload : undefined" />
         <div class="flex justify-end gap-2">
           <UButton size="sm" color="neutral" variant="ghost" :label="t('common.cancel')" @click="editing = null" />
           <UButton type="submit" size="sm" :label="t('common.save')" :disabled="!editing.trim()" />

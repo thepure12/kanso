@@ -14,7 +14,7 @@ useHead({ title: () => team.value?.name ?? t('teams.fallbackTitle') })
 const { user } = useUserSession()
 const showError = useApiError()
 const toggleStar = useBoardStar()
-const roleColor = { owner: 'primary', editor: 'success', viewer: 'neutral' } as const
+const roleColor = { owner: 'primary', editor: 'success', commenter: 'info', viewer: 'neutral' } as const
 
 // Cosmetic only: RLS decides what the team's owners and members may do.
 const isOwner = computed(() => team.value?.role === 'owner')

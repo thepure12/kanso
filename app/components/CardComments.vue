@@ -2,15 +2,19 @@
 import type { Comment, Member } from '#shared/types/board'
 import type { CardDetailApi } from '~/composables/useCardDetail'
 
-const props = defineProps<{
+// Absent optional booleans would become false; undefined keeps the fallback.
+const props = withDefaults(defineProps<{
   items: Comment[] | null
+  /** Writing comments and editing one's own (card editors and commenters). */
   canEdit: boolean
+  /** Files in the editor become card attachments: card editors only. Defaults to canEdit. */
+  canUpload?: boolean
   isOwner: boolean
   /** Viewers may react too; false while the board is archived or offline. */
   canReact: boolean
   cd: CardDetailApi
   members: Member[]
-}>()
+}>(), { canUpload: undefined })
 const { t } = useI18n()
 
 const draft = ref('')
@@ -26,7 +30,7 @@ async function post() {
 <template>
   <div class="space-y-4 pt-2">
     <form v-if="props.canEdit" class="space-y-2" @submit.prevent="post">
-      <MarkdownEditor v-model="draft" :rows="3" :members="props.members" :upload="props.cd.upload" :placeholder="t('comments.placeholder')" />
+      <MarkdownEditor v-model="draft" :rows="3" :members="props.members" :upload="props.canUpload ?? props.canEdit ? props.cd.upload : undefined" :placeholder="t('comments.placeholder')" />
       <div class="flex justify-end">
         <UButton type="submit" size="sm" :label="t('comments.submit')" :disabled="!draft.trim()" />
       </div>
@@ -41,6 +45,7 @@ async function post() {
         :key="c.id"
         :comment="c"
         :can-edit="props.canEdit"
+        :can-upload="props.canUpload ?? props.canEdit"
         :is-owner="props.isOwner"
         :can-react="props.canReact"
         :cd="props.cd"

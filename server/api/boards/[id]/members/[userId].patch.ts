@@ -2,7 +2,7 @@ import { and, eq } from 'drizzle-orm'
 import { z } from 'zod'
 
 const params = z.object({ id: z.uuid(), userId: z.uuid() })
-const body = z.object({ role: z.enum(['owner', 'editor', 'viewer']) })
+const body = z.object({ role: z.enum(['owner', 'editor', 'commenter', 'viewer']) })
 
 export default defineUserHandler(async (event, tx) => {
   const { id, userId } = await paramsValidated(event, params)

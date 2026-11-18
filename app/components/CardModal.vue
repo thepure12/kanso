@@ -4,7 +4,8 @@ import type { CardCounts } from '~/composables/useBoard'
 import { CARD_TITLE_MAX } from '#shared/cards'
 import type { BoardMatrixRoom } from '#shared/types/matrix'
 
-const props = defineProps<{
+// Absent optional booleans would become false; undefined keeps the fallback.
+const props = withDefaults(defineProps<{
   card: Card
   members: Member[]
   tags: Tag[]
@@ -14,6 +15,8 @@ const props = defineProps<{
   cards: Card[]
   columns: Column[]
   canEdit: boolean
+  /** Comments and time entries (commenters too); defaults to canEdit. */
+  canComment?: boolean
   /** Creating card tags (board structure); defaults to canEdit. Off for limited members. */
   canCreateTags?: boolean
   /** Columns the card may move into; all when absent (limited members: their editable ones). */
@@ -37,7 +40,7 @@ const props = defineProps<{
   matrix?: BoardMatrixRoom | null
   /** Own automations and scheduled actions of the card; set (also 0) shows the Automations button. */
   automationCount?: number
-}>()
+}>(), { canComment: undefined })
 const emit = defineEmits<{
   save: [patch: CardPatch]
   updateTag: [tag: Tag, patch: Partial<Omit<Tag, 'id'>>]
@@ -356,7 +359,7 @@ const tabs = computed(() => [
             <CardTime
               :items="cd.detail.value?.timeEntries ?? null"
               :total="cd.detail.value?.timeTotal ?? 0"
-              :can-edit="props.canEdit"
+              :can-edit="props.canComment ?? props.canEdit"
               :is-owner="props.isOwner"
               :cd="cd"
             />
@@ -365,7 +368,8 @@ const tabs = computed(() => [
               <template #comments>
                 <CardComments
                   :items="cd.detail.value?.comments ?? null"
-                  :can-edit="props.canEdit"
+                  :can-edit="props.canComment ?? props.canEdit"
+                  :can-upload="props.canEdit"
                   :is-owner="props.isOwner"
                   :can-react="props.canReact ?? props.canEdit"
                   :cd="cd"
@@ -376,6 +380,7 @@ const tabs = computed(() => [
                 <CardConversation
                   :items="cd.detail.value?.comments ?? null"
                   :can-edit="props.canEdit"
+                  :can-comment="props.canComment ?? props.canEdit"
                   :is-owner="props.isOwner"
                   :can-react="props.canReact ?? props.canEdit"
                   :cd="cd"

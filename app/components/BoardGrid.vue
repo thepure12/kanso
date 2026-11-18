@@ -5,7 +5,7 @@ import { backgroundStyle } from '#shared/boardBackgrounds'
 defineProps<{ boards: BoardSummary[] }>()
 const emit = defineEmits<{ star: [board: BoardSummary] }>()
 
-const roleColor = { owner: 'primary', editor: 'success', viewer: 'neutral' } as const
+const roleColor = { owner: 'primary', editor: 'success', commenter: 'info', viewer: 'neutral' } as const
 const { t } = useI18n()
 </script>
 

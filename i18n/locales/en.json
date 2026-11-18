@@ -561,6 +561,7 @@
     "role": {
       "owner": "Owner",
       "editor": "Editor",
+      "commenter": "Commenter",
       "viewer": "Viewer"
     },
     "views": {
@@ -1155,11 +1156,13 @@
     "roles": {
       "owner": "Owner",
       "editor": "Editor",
+      "commenter": "Commenter",
       "viewer": "Viewer"
     },
     "roleDescriptions": {
       "owner": "Full control, manages members",
       "editor": "Edits columns and cards",
+      "commenter": "Reads, comments and logs time",
       "viewer": "Read only"
     },
     "invited": "Invited {email}",
@@ -1186,7 +1189,7 @@
     "limitedHint": "An owner limited you to some columns and cards of this board. You cannot change its columns, tags or settings.",
     "title": "Access of {name}",
     "description": "Choose what this person sees and edits on this board. Owners are never limited.",
-    "viewerNote": "Viewers can at most read, so \"Can edit\" is not offered.",
+    "viewerNote": "Viewers and commenters can at most read, so \"Can edit\" is not offered. Commenters still comment and log time on cards they can read.",
     "default": "Default access",
     "defaultHelp": "Used for every column below that is set to \"Default\", and for the cards in it.",
     "columns": "Columns",

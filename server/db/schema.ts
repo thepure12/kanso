@@ -23,7 +23,7 @@ const outlineShape = (c: AnyPgColumn) => sql`${c} is null or (
 
 const createdAt = () => timestamp('created_at', { withTimezone: true }).notNull().defaultNow()
 
-export const boardRole = pgEnum('board_role', ['owner', 'editor', 'viewer'])
+export const boardRole = pgEnum('board_role', ['owner', 'editor', 'commenter', 'viewer'])
 
 export const columnRuleKind = pgEnum('column_rule_kind', ['apply_tag', 'assign_to', 'remove_tag', 'set_due', 'assign_mover'])
 

@@ -58,4 +58,14 @@ describe('CardConversation', () => {
     expect(w.findAll('[role="tab"]')).toHaveLength(0)
     expect(w.findAll('button').some(b => b.text() === 'Comment')).toBe(true)
   })
+
+  it('lets commenters comment but not reply in the thread', async () => {
+    const w = await mountSuspended(CardConversation, {
+      props: { items: [], canEdit: false, canComment: true, isOwner: false, canReact: true, cd: cd(), members: [], room, thread: { roomId: '!team:example', eventId: '$root' } },
+    })
+    await flushPromises()
+    expect(w.findAll('[role="tab"]')).toHaveLength(0)
+    expect(w.find('textarea').attributes('placeholder')).not.toContain('Reply in the thread')
+    expect(w.findAll('button').some(b => b.text() === 'Comment')).toBe(true)
+  })
 })

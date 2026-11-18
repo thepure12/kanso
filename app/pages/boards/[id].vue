@@ -10,7 +10,7 @@ import { CARD_TITLE_MAX } from '#shared/cards'
 const route = useRoute()
 const id = route.params.id as string
 const {
-  board, error, refresh, columns, columnGroups, savedViews, lists, tags, fields, templates, recurrences, automations, scheduledActions, archived, offline, canEdit, isOwner, limited, canEditCard, canAddToColumn, dragging, remoteVersion,
+  board, error, refresh, columns, columnGroups, savedViews, lists, tags, fields, templates, recurrences, automations, scheduledActions, archived, offline, canEdit, isOwner, limited, canEditCard, canCommentOn, canAddToColumn, dragging, remoteVersion,
   renameBoard, setArchived, setBackground, setAccent, setColumnOutline, uploadBackground, deleteBoard, addColumn, renameColumn, setColumnAppearance, setColumnWipLimit, sortColumnByPriority, deleteColumn, columnMoved,
   addColumnRule, deleteColumnRule, addAutomation, updateAutomation, deleteAutomation, addScheduledAction, deleteScheduledAction, addCard, updateCard, setCardCounts, cardLinkChanged, archiveCard, restoreCard, deleteCard, restoreTrashedCard,
   deleteArchivedCard, cardMoved, moveCard, addTag, updateTag, deleteTag,
@@ -919,6 +919,7 @@ const boardMenu = computed(() => {
       :cards="allCards"
       :columns="columns"
       :can-edit="canEditCard(editingCard)"
+      :can-comment="canCommentOn(editingCard)"
       :can-create-tags="canEdit"
       :move-column-ids="limited ? columns.filter(c => canAddToColumn(c.id)).map(c => c.id) : undefined"
       :is-owner="isOwner && !archived"

@@ -180,6 +180,12 @@ export async function useBoard(id: string) {
     writable.value && cardAccess(board.value?.myAccess, board.value?.role, card) === 'edit'
   const canAddToColumn = (columnId: string) =>
     writable.value && columnAccess(board.value?.myAccess, board.value?.role, columnId) === 'edit'
+  // Comments and time entries: whoever edits the card, and commenters on cards they can read.
+  const canCommentOn = (card: { id: string, columnId: string }) => {
+    if (archived.value || offline.value || !board.value?.role) return false
+    const access = cardAccess(board.value.myAccess, board.value.role, card)
+    return access === 'edit' || (access === 'read' && board.value.role === 'commenter')
+  }
   const isOwner = computed(() => !offline.value && board.value?.role === 'owner')
 
   // Per-column card lists, used as v-model for drag and drop.
@@ -836,7 +842,7 @@ export async function useBoard(id: string) {
   }
 
   return {
-    board, error, refresh, columns, columnGroups, savedViews, lists, tags, fields, templates, recurrences, automations, scheduledActions, archived, offline, canEdit, isOwner, limited, canEditCard, canAddToColumn, dragging, remoteVersion,
+    board, error, refresh, columns, columnGroups, savedViews, lists, tags, fields, templates, recurrences, automations, scheduledActions, archived, offline, canEdit, isOwner, limited, canEditCard, canCommentOn, canAddToColumn, dragging, remoteVersion,
     canUndo: undoStack.canUndo, canRedo: undoStack.canRedo, ...mutations,
   }
 }

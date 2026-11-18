@@ -3,7 +3,7 @@ import { z } from 'zod'
 
 const body = z.object({
   email: z.email(),
-  role: z.enum(['owner', 'editor', 'viewer']),
+  role: z.enum(['owner', 'editor', 'commenter', 'viewer']),
 })
 
 export default defineUserHandler(async (event, tx, callerId) => {

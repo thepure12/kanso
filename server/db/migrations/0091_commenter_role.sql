@@ -1,0 +1,1 @@
+ALTER TYPE "public"."board_role" ADD VALUE 'commenter' BEFORE 'viewer';

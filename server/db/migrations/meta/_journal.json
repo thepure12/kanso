@@ -638,6 +638,20 @@
       "when": 1795024399957,
       "tag": "0090_card_reminders_rls",
       "breakpoints": true
+    },
+    {
+      "idx": 91,
+      "version": "7",
+      "when": 1795025068869,
+      "tag": "0091_commenter_role",
+      "breakpoints": true
+    },
+    {
+      "idx": 92,
+      "version": "7",
+      "when": 1795025073855,
+      "tag": "0092_commenter_role_rls",
+      "breakpoints": true
     }
   ]
 }

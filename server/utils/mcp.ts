@@ -74,7 +74,7 @@ export function createMcpServer(caller: McpCaller): McpServer {
   const write = { readOnlyHint: false, destructiveHint: false, openWorldHint: false } as const
 
   server.registerTool('list_boards', {
-    description: 'Boards you can see, with your role (viewer, editor, owner) and whether they are archived.',
+    description: 'Boards you can see, with your role (viewer, commenter, editor, owner) and whether they are archived.',
     annotations: read,
   }, () => run(async () => (await call<{ id: string, name: string, role: string, archivedAt: string | null, starred: boolean }[]>('/api/boards'))
     .map(b => ({ id: b.id, name: b.name, role: b.role, archived: b.archivedAt !== null, starred: b.starred }))))

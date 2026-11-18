@@ -18,4 +18,10 @@ describe('member access', () => {
     expect(cardAccess(null, 'editor', { id: 'x', columnId: 'c' })).toBe('edit')
     expect(columnAccess(limits, 'owner', 'zzz')).toBe('edit')
   })
+
+  it('caps commenters at read like viewers', () => {
+    expect(cardAccess(limits, 'commenter', { id: 'x', columnId: 'c' })).toBe('read')
+    expect(cardAccess(limits, 'commenter', { id: 'y', columnId: 'a' })).toBe('none')
+    expect(cardAccess(null, 'commenter', { id: 'x', columnId: 'c' })).toBe('read')
+  })
 })
