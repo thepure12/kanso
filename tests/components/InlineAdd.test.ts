@@ -11,7 +11,7 @@ describe('InlineAdd', () => {
     await area.setValue('A long\ntitle')
     expect((area.element as HTMLTextAreaElement).value).toBe('A long title')
     await area.trigger('keydown', { key: 'Enter' })
-    expect(w.emitted('add')).toEqual([['A long title']])
+    expect(w.emitted('add')).toEqual([['A long title', false]])
     expect((area.element as HTMLTextAreaElement).value).toBe('')
   })
 })
