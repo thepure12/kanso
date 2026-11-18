@@ -26,7 +26,8 @@ const pickedCard = ref<string | undefined>()
 watch(open, (isOpen) => {
   if (!isOpen) return
   const a = props.access
-  defaultAccess.value = a?.defaultAccess ?? 'none'
+  // Not limited yet: start from what the member has now, so the dialog shows their real access.
+  defaultAccess.value = a?.defaultAccess ?? (props.member.role === 'viewer' ? 'read' : 'edit')
   columnChoice.value = Object.fromEntries(props.columns.map(c => [c.id, a?.columns[c.id] ?? INHERIT]))
   cardEntries.value = Object.entries(a?.cards ?? {})
     .filter(([id]) => props.cards.some(c => c.id === id))
