@@ -119,9 +119,10 @@ async function totp(secret: string, offset = 0) {
   return totpCode(base32Decode(secret), totpStep() + offset)
 }
 
-/** Collects server-sent event names from an event stream. */
+/** Collects server-sent events (names, and messages with their data) from an event stream. */
 async function listen(path: string, cookie: string) {
   const events: string[] = []
+  const messages: { event: string, data: string }[] = []
   const ctl = new AbortController()
   const res = await fetch(path, { headers: { cookie }, signal: ctl.signal })
   expect(res.status).toBe(200)
@@ -129,12 +130,15 @@ async function listen(path: string, cookie: string) {
     const dec = new TextDecoder()
     try {
       for await (const chunk of res.body as unknown as AsyncIterable<Uint8Array>) {
-        for (const m of dec.decode(chunk).matchAll(/event: (\w+)/g)) events.push(m[1]!)
+        for (const m of dec.decode(chunk).matchAll(/event: (\w+)\ndata: ?(.*)/g)) {
+          events.push(m[1]!)
+          messages.push({ event: m[1]!, data: m[2]! })
+        }
       }
     }
     catch { /* aborted */ }
   })()
-  return { events, stop: () => ctl.abort() }
+  return { events, messages, stop: () => ctl.abort() }
 }
 
 const sleep = (ms: number) => new Promise(r => setTimeout(r, ms))
@@ -1186,14 +1190,14 @@ describe('column outline', () => {
 
 describe('notifications', () => {
   it('notifies the assignee live, links to the card and marks read', async () => {
-    const stream = await listen('/api/notifications/events', bob.cookie())
+    const stream = await listen('/api/events?notifications=1', bob.cookie())
     await sleep(300)
     const card = await newCard('Notify me')
     await alice.req(`/api/cards/${card.id}`, { method: 'PATCH', body: { assigneeIds: [userId('Bob')] } })
     await alice.req(`/api/cards/${card.id}/comments`, { method: 'POST', body: { body: 'over to you' } })
     await sleep(800)
     stream.stop()
-    expect(stream.events).toContain('change')
+    expect(stream.events).toContain('notifications')
 
     const inbox = (await bob.req<Inbox>('/api/notifications')).data
     const mine = inbox.items.filter(n => n.cardId === card.id)
@@ -1218,32 +1222,43 @@ describe('notifications', () => {
 
   it('needs a session', async () => {
     expect((await fetch('/api/notifications')).status).toBe(401)
-    expect((await fetch('/api/notifications/events')).status).toBe(401)
+    expect((await fetch('/api/events?notifications=1')).status).toBe(401)
   })
 })
 
 describe('realtime', () => {
-  it('streams changes by others, skips the own tab, and ends when access is lost', async () => {
-    const stream = await listen(`/api/boards/${boardId}/events?client=${bob.clientId}`, bob.cookie())
+  const changes = (stream: { messages: { event: string, data: string }[] }) =>
+    stream.messages.filter(m => m.event === 'change').map(m => JSON.parse(m.data) as { b: string, c: string[] })
+
+  it('streams changes of several boards with their tabs, and drops a board once access is lost', async () => {
+    const other = (await alice.req<{ id: string }>('/api/boards', { method: 'POST', body: { name: 'Second stream board' } })).data.id
+    extraBoards.push(other)
+    const unknown = '00000000-0000-4000-8000-000000000000'
+    const stream = await listen(`/api/events?boards=${boardId},${other},${unknown}&clients=${bob.clientId},another-tab`, bob.cookie())
     await sleep(300)
+    // The second board is not Bob's, the third does not exist.
+    expect(stream.messages.filter(m => m.event === 'gone').map(m => JSON.parse(m.data).b).sort()).toEqual([other, unknown].sort())
+    expect(stream.events).toContain('ready')
+
     await newCard('Ping')
     await sleep(800)
-    expect(stream.events).toContain('change')
+    expect(changes(stream)).toEqual([{ b: boardId, c: [''] }])
 
-    stream.events.length = 0
+    stream.messages.length = 0
     await bob.req(`/api/boards/${boardId}/cards`, { method: 'POST', body: { columnId: col('Backlog').id, title: 'Own' } })
     await sleep(800)
-    expect(stream.events).not.toContain('change')
+    expect(changes(stream)).toEqual([{ b: boardId, c: [bob.clientId] }])
 
+    stream.messages.length = 0
     await alice.req(`/api/boards/${boardId}/members/${userId('Bob')}`, { method: 'DELETE' })
     await sleep(800)
-    expect(stream.events).toContain('gone')
+    expect(stream.messages.filter(m => m.event === 'gone')).toEqual([{ event: 'gone', data: JSON.stringify({ b: boardId }) }])
     stream.stop()
   })
 
-  it('refuses the stream without access', async () => {
-    expect((await fetch(`/api/boards/${boardId}/events`, { headers: { cookie: outsider.cookie() } })).status).toBe(404)
-    expect((await fetch(`/api/boards/${boardId}/events`)).status).toBe(401)
+  it('needs a session and valid parameters', async () => {
+    expect((await fetch(`/api/events?boards=${boardId}`)).status).toBe(401)
+    expect((await fetch('/api/events?boards=nope', { headers: { cookie: outsider.cookie() } })).status).toBe(400)
   })
 })
 

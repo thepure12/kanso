@@ -142,7 +142,7 @@ Without Caddy, put your own reverse proxy (Apache, nginx, Traefik, ...) in front
 - The proxy must **replace** the client's `X-Forwarded-For` header with the real client address, not append to it.
   The app takes the first address in that header as the client's, and the login and sign-up rate limits are keyed on
   it. A proxy that keeps a client-sent value lets anyone get around them with a new fake address per request.
-- Live updates (`/api/boards/:id/events`, `/api/notifications/events`) are Server-Sent Events: the proxy must pass them
+- Live updates (`/api/events`, one stream per browser) are Server-Sent Events: the proxy must pass them
   on unbuffered and uncompressed. The app sends a ping every 25 s, so the default idle timeouts (60 s) are enough.
 - The proxy must accept request bodies up to about 12 MB (attachments are limited to 10 MB).
 

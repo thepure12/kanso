@@ -103,62 +103,42 @@ export async function useBoard(id: string) {
 
   // Registered before the first await, while the component instance is known.
   const offline = useOffline()
-  const base = basePath()
-  let events: EventSource | undefined
+  const live = useLiveEvents()
+  let unsubscribe: (() => void) | undefined
   function listen() {
-    let failed = false
-    events = new EventSource(`${base}/api/boards/${id}/events?client=${encodeURIComponent(clientId)}`)
-    events.addEventListener('change', () => remoteChanged())
-    events.addEventListener('gone', () => {
-      events?.close()
-      toast.add({ title: t('board.noAccess'), color: 'warning' })
-      navigateTo('/')
-    })
-    // EventSource reconnects by itself; changes made while it was down are unknown.
-    events.addEventListener('error', () => { failed = true })
-    events.addEventListener('open', () => {
-      if (failed) remoteChanged()
-      failed = false
+    unsubscribe?.()
+    // Only for a board that loaded; the server would answer `gone` for any other.
+    if (!board.value) return
+    unsubscribe = live.subscribeBoard(id, {
+      change: () => remoteChanged(),
+      gone: () => {
+        unsubscribe?.()
+        unsubscribe = undefined
+        toast.add({ title: t('board.noAccess'), color: 'warning' })
+        navigateTo('/')
+      },
+      // The stream was down or changed hands (or the device was offline): changes made meanwhile are unknown.
+      resync: () => remoteChanged(),
     })
   }
-  // Closed while a service worker update waits for the old worker to go idle (app/utils/swUpdate.ts).
-  let released = false
-  let unhold: (() => void) | undefined
-  onMounted(() => {
-    listen()
-    unhold = holdServiceWorkerStream({
-      release: () => { released = true; events?.close() },
-      resume: () => { released = false; listen(); remoteChanged() },
-    })
-    // Back online: reopen the stream (the browser may have given up on it or not
-    // noticed the drop) and reload what changed meanwhile.
-    watch(offline, (isOffline) => {
-      if (isOffline || released || leaving) return
-      events?.close()
-      listen()
-      remoteChanged()
-    })
-  })
-  // Close the stream as soon as a navigation away starts, not only at unmount: the next page
-  // mounts after its data loads, and over HTTP/1.1 with several tabs open the browser's six
-  // connections per host can all be streams, so that data would never load. A navigation that
-  // fails or is cancelled reopens it.
+  onMounted(() => listen())
+  // Stop as soon as a navigation away starts, not only at unmount, so a late event does not
+  // reload or redirect a page being left. A navigation that fails or is cancelled resubscribes.
   let leaving = false
   onBeforeRouteLeave(() => {
     leaving = true
-    events?.close()
+    unsubscribe?.()
+    unsubscribe = undefined
   })
   const stopAfterEach = useRouter().afterEach((_to, _from, failure) => {
     if (!leaving || !failure) return
     leaving = false
-    if (released) return
     listen()
     remoteChanged()
   })
   onBeforeUnmount(() => {
     stopAfterEach()
-    unhold?.()
-    events?.close()
+    unsubscribe?.()
     undoStack.clear()
     dismissUndoToast()
   })

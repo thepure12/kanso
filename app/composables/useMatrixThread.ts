@@ -42,7 +42,8 @@ export function useMatrixThread(cd: CardDetailApi, thread: () => CardMatrixThrea
   watch(() => { const c = thread(); return c && `${c.roomId}/${c.eventId}` }, () => loadMessages(true), { immediate: true })
 
   let timer: ReturnType<typeof setInterval> | undefined
-  const onVisible = () => { if (document.visibilityState === 'visible' && thread()) loadMessages(true) }
+  // Skipped while a load is still pending: on a stalled connection the polls would pile up.
+  const onVisible = () => { if (document.visibilityState === 'visible' && thread() && !refreshing.value) loadMessages(true) }
   onMounted(() => {
     timer = setInterval(onVisible, 30_000)
     document.addEventListener('visibilitychange', onVisible)

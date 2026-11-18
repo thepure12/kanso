@@ -7,7 +7,6 @@ import type { Inbox, Notification } from '#shared/types/notifications'
 export function useNotifications() {
   const showError = useApiError()
   const inbox = ref<Inbox | null>(null)
-  const base = basePath()
   const unread = computed(() => inbox.value?.unread ?? 0)
   const router = useRouter()
   const desktop = useDesktopNotifier()
@@ -24,32 +23,14 @@ export function useNotifications() {
     catch { /* the bell stays as it was; the next event retries */ }
   }
 
-  let events: EventSource | undefined
-  let unhold: (() => void) | undefined
-  function listen() {
-    let failed = false
-    events = new EventSource(`${base}/api/notifications/events`)
-    events.addEventListener('change', () => refresh())
-    // EventSource reconnects by itself; notifications sent while it was down are unknown.
-    events.addEventListener('error', () => { failed = true })
-    events.addEventListener('open', () => {
-      if (failed) refresh()
-      failed = false
-    })
-  }
+  const live = useLiveEvents()
+  let unsubscribe: (() => void) | undefined
   onMounted(() => {
     refresh()
-    listen()
-    // Closed while a service worker update waits for the old worker to go idle (app/utils/swUpdate.ts).
-    unhold = holdServiceWorkerStream({
-      release: () => events?.close(),
-      resume: () => { listen(); refresh() },
-    })
+    // resync: the stream was down or changed hands; notifications sent meanwhile are unknown.
+    unsubscribe = live.subscribeNotifications({ change: refresh, resync: refresh })
   })
-  onBeforeUnmount(() => {
-    unhold?.()
-    events?.close()
-  })
+  onBeforeUnmount(() => unsubscribe?.())
 
   async function markRead(n: Notification) {
     if (n.readAt || !inbox.value) return

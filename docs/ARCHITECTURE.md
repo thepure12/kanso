@@ -80,9 +80,13 @@ Policies for these live in `0012_card_features_rls.sql`, `0014_board_notify_copy
 Triggers on every board table send `NOTIFY board_changes` with the board id and the browser tab's id (`x-client-id`
 header, stored in the transaction setting `app.client_id`). The payload holds no board data.
 
-`GET /api/boards/:id/events` is a server-sent event stream: it sends `change` when someone else changed the board, and
-the page refetches the board through RLS. Access is checked again before each event; the stream sends `gone` and
-closes once the user loses access.
+`GET /api/events?boards=&clients=&notifications=1` is one server-sent event stream per browser: it sends `change`
+`{b, c}` when a board changed (`c`: the tabs that made the changes, so each tab skips its own) and the page refetches the
+board through RLS, `notifications` for a new notification, and `gone` `{b}` once the user cannot see a board. Access is
+checked again before each event. One tab holds the `kanso-events` Web Lock, opens the stream for the boards every tab
+shows and relays the events over a BroadcastChannel (`app/utils/liveEvents.ts`); when it closes, the next tab takes
+over. Over HTTP/1.1 a browser allows only six connections per host, so a stream per tab blocked other requests once a
+few tabs were open.
 
 ## Translations
 
