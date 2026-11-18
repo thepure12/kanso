@@ -46,6 +46,8 @@ const emit = defineEmits<{
   updateTag: [tag: Tag, patch: Partial<Omit<Tag, 'id'>>]
   counts: [counts: CardCounts]
   archive: []
+  /** Hide the card from the board until this date (YYYY-MM-DD). */
+  snooze: [until: string]
   delete: []
   /** Open another card (a linked one) instead of this one. */
   openCard: [cardId: string]
@@ -604,6 +606,7 @@ const tabs = computed(() => [
             <div class="flex flex-col gap-1">
               <template v-if="!props.template">
                 <UButton color="neutral" variant="ghost" icon="i-lucide-copy-plus" :label="t('card.saveAsTemplate')" class="justify-start" @click="saveTemplate" />
+                <CardSnoozeButton @snooze="until => { emit('snooze', until); open = false }" />
                 <UButton color="neutral" variant="ghost" icon="i-lucide-archive" :label="t('card.archive')" class="justify-start" @click="emit('archive'); open = false" />
               </template>
               <UButton color="error" variant="ghost" icon="i-lucide-trash" :label="t('common.delete')" class="justify-start" @click="emit('delete'); open = false" />

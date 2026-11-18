@@ -46,6 +46,8 @@ export function describeActivity(a: Pick<Activity, 'kind' | 'data'>, i18n: I18nC
       // data.user_id: a personal reminder, only ever shown to that person.
       if (d.user_id) return d.note ? t('activity.reminderPersonalNote', { note: d.note }) : t('activity.reminderPersonal')
       return d.note ? t('activity.reminderNote', { note: d.note }) : t('activity.reminder')
+    case 'snoozed': return t('activity.snoozed', { date: d.until ? formatDate(d.until, locale) : '' })
+    case 'woke': return t('activity.woke')
   }
   return a.kind
 }

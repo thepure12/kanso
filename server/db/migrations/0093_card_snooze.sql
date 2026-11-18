@@ -1,0 +1,2 @@
+ALTER TABLE "cards" ADD COLUMN "snoozed_until" date;--> statement-breakpoint
+ALTER TABLE "cards" ADD CONSTRAINT "cards_snooze_not_template" CHECK (not ("cards"."is_template" and "cards"."snoozed_until" is not null));

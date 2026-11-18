@@ -85,7 +85,9 @@
     "reminder": "hat eine Erinnerung gesendet",
     "reminderNote": "hat eine Erinnerung gesendet: {note}",
     "reminderPersonal": "hat dich erinnert",
-    "reminderPersonalNote": "hat dich erinnert: {note}"
+    "reminderPersonalNote": "hat dich erinnert: {note}",
+    "snoozed": "hat diese Karte bis {date} zurückgestellt",
+    "woke": "hat diese Karte aus dem Zurückstellen geholt"
   },
   "notification": {
     "assignedYou": "hat dir diese Karte zugewiesen",
@@ -314,7 +316,7 @@
         "due": "Fälligkeit geändert",
         "archived": "Karte archiviert",
         "stale": "Karte liegt lange",
-        "reminder": "Geplante Erinnerungen"
+        "reminder": "Erinnerungen und zurückkehrende Karten"
       },
       "watching": "Karten, die ich beobachte",
       "watchingDescription": "Benachrichtige mich über Karten, die ich beobachte, aber die mir nicht zugewiesen sind. Zuweisungen und Erwähnungen benachrichtigen immer.",
@@ -605,6 +607,7 @@
       "fields": "Eigene Felder",
       "activity": "Aktivität",
       "archived": "Archivierte Karten",
+      "snoozed": "Zurückgestellte Karten",
       "trash": "Papierkorb",
       "templates": "Kartenvorlagen",
       "copy": "Board kopieren",
@@ -643,6 +646,7 @@
       "movedColumn": "Spalte verschoben",
       "sortedColumn": "Spalte sortiert",
       "archivedCard": "Karte archiviert",
+      "snoozedCard": "Karte zurückgestellt",
       "deletedCard": "Karte gelöscht",
       "changedTag": "Karten-Tag geändert",
       "changedField": "{field} geändert",
@@ -679,6 +683,8 @@
       "stopRepeating": "Wiederholung konnte nicht beendet werden",
       "saveCard": "Karte konnte nicht gespeichert werden",
       "archiveCard": "Karte konnte nicht archiviert werden",
+      "snoozeCard": "Karte konnte nicht zurückgestellt werden",
+      "wakeCard": "Karte konnte nicht zurückgeholt werden",
       "restoreCard": "Karte konnte nicht wiederhergestellt werden",
       "deleteCard": "Karte konnte nicht gelöscht werden",
       "addTag": "Karten-Tag konnte nicht hinzugefügt werden",
@@ -747,6 +753,14 @@
     "archivedAt": "archiviert am {date}",
     "restore": "Wiederherstellen",
     "loadFailed": "Archivierte Karten konnten nicht geladen werden"
+  },
+  "snooze": {
+    "title": "Zurückgestellte Karten",
+    "description": "Zurückgestellte Karten sind nicht auf dem Board und kehren am gewählten Tag in ihre Spalte zurück.",
+    "empty": "Keine zurückgestellten Karten.",
+    "until": "bis {date}",
+    "wake": "Jetzt zurückholen",
+    "loadFailed": "Zurückgestellte Karten konnten nicht geladen werden"
   },
   "trash": {
     "title": "Papierkorb",
@@ -860,6 +874,12 @@
     "storyPoints": "Story Points",
     "saveAsTemplate": "Als Vorlage speichern",
     "archive": "Archivieren",
+    "snooze": "Zurückstellen",
+    "snoozeTomorrow": "Morgen",
+    "snoozeNextWeek": "Nächste Woche",
+    "snoozeNextMonth": "In einem Monat",
+    "snoozePick": "Bis zu einem Datum",
+    "snoozeHint": "Bis dahin nicht auf dem Board; Beobachter werden benachrichtigt, wenn sie zurückkommt.",
     "formerMember": "Ehemaliges Mitglied",
     "errors": {
       "titleTooLong": "Der Titel ist zu lang (max. {max} Zeichen)",
@@ -1296,7 +1316,9 @@
       "unlinked": "Verknüpfung entfernt",
       "field": "Benutzerdefiniertes Feld",
       "stale": "Keine aktuelle Aktivität",
-      "reminder": "Erinnerung"
+      "reminder": "Erinnerung",
+      "snoozed": "Zurückgestellt",
+      "woke": "Zurück aus dem Zurückstellen"
     }
   },
   "matrix": {

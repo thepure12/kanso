@@ -13,7 +13,7 @@ const id = route.params.id as string
 const {
   board, error, refresh, columns, columnGroups, savedViews, lists, tags, fields, templates, recurrences, automations, scheduledActions, archived, offline, canEdit, isOwner, limited, canEditCard, canCommentOn, canAddToColumn, dragging, remoteVersion,
   renameBoard, setArchived, setBackground, setAccent, setColumnOutline, uploadBackground, deleteBoard, addColumn, renameColumn, setColumnAppearance, setColumnWipLimit, sortColumnByPriority, deleteColumn, columnMoved,
-  addColumnRule, deleteColumnRule, addAutomation, updateAutomation, deleteAutomation, addScheduledAction, deleteScheduledAction, addCard, updateCard, setCardCounts, cardLinkChanged, archiveCard, restoreCard, deleteCard, restoreTrashedCard,
+  addColumnRule, deleteColumnRule, addAutomation, updateAutomation, deleteAutomation, addScheduledAction, deleteScheduledAction, addCard, updateCard, setCardCounts, cardLinkChanged, archiveCard, snoozeCard, wakeCard, restoreCard, deleteCard, restoreTrashedCard,
   deleteArchivedCard, cardMoved, moveCard, addTag, updateTag, deleteTag,
   addField, updateField, fieldMoved, deleteField, setFieldValue,
   addColumnGroup, updateColumnGroup, columnGroupMoved, deleteColumnGroup, addSavedView, updateSavedView, deleteSavedView,
@@ -126,6 +126,7 @@ const confirmDelete = ref(false)
 const tagsOpen = ref(false)
 const fieldsOpen = ref(false)
 const archiveOpen = ref(false)
+const snoozedOpen = ref(false)
 const trashOpen = ref(false)
 const activityOpen = ref(false)
 const copyOpen = ref(false)
@@ -563,6 +564,7 @@ const boardMenu = computed(() => {
     ]),
     section(t('board.menu.sections.history'), [
       { label: t('board.menu.activity'), icon: 'i-lucide-history', onSelect: () => { activityOpen.value = true } },
+      { label: t('board.menu.snoozed'), icon: 'i-lucide-alarm-clock', onSelect: () => { snoozedOpen.value = true } },
       { label: t('board.menu.archived'), icon: 'i-lucide-archive', onSelect: () => { archiveOpen.value = true } },
       ...(canEdit.value ? [{ label: t('board.menu.trash'), icon: 'i-lucide-trash-2', onSelect: () => { trashOpen.value = true } }] : []),
     ]),
@@ -1001,6 +1003,7 @@ const boardMenu = computed(() => {
       @save="patch => updateCard(editingCard!, patch)"
       @counts="counts => setCardCounts(editingCard!, counts)"
       @archive="archiveCard(editingCard!)"
+      @snooze="until => snoozeCard(editingCard!, until)"
       @delete="editingTemplate ? deleteTemplate(editingCard!) : deleteCard(editingCard!)"
       @save-template="withAssignees => saveAsTemplate(editingCard!, withAssignees)"
       @set-recurrence="input => setRecurrence(editingCard!, input)"
@@ -1062,6 +1065,14 @@ const boardMenu = computed(() => {
       :version="remoteVersion"
       :restore="restoreCard"
       :remove="deleteArchivedCard"
+    />
+    <SnoozedSlideover
+      v-model:open="snoozedOpen"
+      :board-id="board.id"
+      :columns="columns"
+      :can-edit="canEdit"
+      :version="remoteVersion"
+      :wake="wakeCard"
     />
     <TrashSlideover
       v-model:open="trashOpen"

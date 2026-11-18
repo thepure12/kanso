@@ -140,6 +140,7 @@ export function createMcpServer(caller: McpCaller): McpServer {
       assigneeIds: z.array(id).optional(),
       archived: z.boolean().optional(),
       skipAutomations: z.boolean().optional().describe('true: board and column automations leave the card alone (its own still run)'),
+      snoozedUntil: z.iso.date().nullable().optional().describe('Hide the card from the board until this date (it comes back that day, watchers are notified); null brings it back now'),
     },
     annotations: write,
   }, ({ cardId, ...body }) => run(() => call(`/api/cards/${cardId}`, { method: 'PATCH', body })))

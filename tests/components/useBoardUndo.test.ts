@@ -92,6 +92,17 @@ describe('useBoard undo', () => {
     expect(m.refresh).toHaveBeenCalled()
   })
 
+  it('wakes a snoozed card and reloads the board', async () => {
+    const b = await mountBoard()
+    await b.snoozeCard(b.lists.value.c1![0]!, '2099-01-01')
+    expect(ids(b, 'c1')).toEqual(['b'])
+    expect(calls()).toContainEqual(['/api/cards/a', 'PATCH', { snoozedUntil: '2099-01-01' }])
+    m.api.mockClear()
+    await b.undo()
+    expect(calls()).toEqual([['/api/cards/a', 'PATCH', { snoozedUntil: null }]])
+    expect(m.refresh).toHaveBeenCalled()
+  })
+
   it('patches the previous values of an edit', async () => {
     const b = await mountBoard()
     const a = b.lists.value.c1![0]!

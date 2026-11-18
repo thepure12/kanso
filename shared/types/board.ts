@@ -187,7 +187,7 @@ export type FieldValue = string | number | boolean
 export const priorities = ['urgent', 'high', 'medium', 'low'] as const
 export type Priority = (typeof priorities)[number]
 
-/** A card as shown on the board. Archived cards are not part of the board. */
+/** A card as shown on the board. Archived and snoozed cards are not part of the board. */
 export interface Card {
   id: string
   columnId: string
@@ -221,7 +221,11 @@ export interface Card {
   skipAutomations?: boolean
 }
 
-/** Fields a card PATCH may change. archived moves the card to or from the archive. */
+/**
+ * Fields a card PATCH may change in the dialog. archived moves the card to or
+ * from the archive. (The PATCH also takes snoozedUntil, sent by
+ * useBoard.snoozeCard / wakeCard.)
+ */
 export type CardPatch = Partial<Pick<Card, 'title' | 'description' | 'assigneeIds' | 'tagIds' | 'startDate' | 'dueDate' | 'priority' | 'estimate' | 'coverAttachmentId' | 'skipAutomations'> & { archived: boolean }>
 
 /**
@@ -278,6 +282,15 @@ export interface TrashedCard {
   deletedBy: string | null
 }
 
+/** A snoozed card (GET /api/boards/:id/snoozed): hidden from the board until snoozedUntil. */
+export interface SnoozedCard {
+  id: string
+  columnId: string
+  title: string
+  /** YYYY-MM-DD; the hourly task wakes it on that day. */
+  snoozedUntil: string
+}
+
 export interface ArchivedCard {
   id: string
   columnId: string
@@ -329,7 +342,7 @@ export interface Attachment {
 export type ActivityKind =
   | 'created' | 'moved' | 'renamed' | 'described' | 'start' | 'due' | 'priority' | 'estimate' | 'archived' | 'restored'
   | 'tagged' | 'untagged' | 'assigned' | 'unassigned' | 'commented' | 'mentioned' | 'attached' | 'detached'
-  | 'linked' | 'unlinked' | 'field' | 'stale' | 'reminder'
+  | 'linked' | 'unlinked' | 'field' | 'stale' | 'reminder' | 'snoozed' | 'woke'
 
 export interface Activity {
   id: string
@@ -342,6 +355,7 @@ export interface Activity {
    * field: { field, kind, from, to } with values as text (option labels for
    * select fields, null = no value). stale: { days } (a number).
    * reminder: { note? } (a scheduled remind action), or { user_id, note? } (a personal reminder, seen only by that user).
+   * snoozed: { until } (YYYY-MM-DD); woke: {} (snooze cleared, by hand or by the hourly task).
    * Activity of a board automation has no actor and `automation: true`.
    */
   data: Record<string, string | null>

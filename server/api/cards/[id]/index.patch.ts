@@ -18,6 +18,8 @@ const body = z.object({
   coverAttachmentId: z.uuid().nullable().optional(),
   // Board and column automations leave the card alone.
   skipAutomations: z.boolean().optional(),
+  // Hide the card from the board until this date (woken by the hourly task); null wakes it now.
+  snoozedUntil: z.iso.date().nullable().optional(),
   archived: z.boolean().optional(),
   // Replace the card's whole tag / assignee set.
   tagIds: ids.optional(),

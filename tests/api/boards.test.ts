@@ -5,7 +5,7 @@ import { readFileSync } from 'node:fs'
 import { url } from '@nuxt/test-utils/e2e'
 import postgres from 'postgres'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import type { Attachment, BoardActivityPage, BoardAutomation, BoardDetail, BoardField, BoardSummary, Card, CardDetail, CardLink, CardRecurrence, CardReminder, Column, ColumnGroup, ColumnRule, SavedView, ScheduledCardAction, Comment, Person, TeamDetail, TimeEntry, TrashedCard } from '#shared/types/board'
+import type { Attachment, BoardActivityPage, BoardAutomation, BoardDetail, BoardField, BoardSummary, Card, CardDetail, CardLink, CardRecurrence, CardReminder, Column, ColumnGroup, ColumnRule, SavedView, ScheduledCardAction, SnoozedCard, Comment, Person, TeamDetail, TimeEntry, TrashedCard } from '#shared/types/board'
 import type { Inbox } from '#shared/types/notifications'
 import type { AdminUser, AuditLogPage, InstanceSettings } from '#shared/types/admin'
 import type { Account, AccountSession } from '#shared/types/account'
@@ -302,6 +302,23 @@ describe('cards', () => {
     expect(archived.map(a => a.id)).toContain(card.id)
     await alice.req(`/api/cards/${card.id}`, { method: 'PATCH', body: { archived: false } })
     expect((await alice.req<BoardDetail>(`/api/boards/${boardId}`)).data.cards.some(c => c.id === card.id)).toBe(true)
+  })
+
+  it('snoozes and wakes', async () => {
+    const card = await newCard('Snooze me')
+    const onBoard = async () => (await alice.req<BoardDetail>(`/api/boards/${boardId}`)).data.cards.some(c => c.id === card.id)
+    expect((await alice.req(`/api/cards/${card.id}`, { method: 'PATCH', body: { snoozedUntil: '2099-03-01' } })).status).toBe(200)
+    expect(await onBoard()).toBe(false)
+    const snoozed = (await bob.req<SnoozedCard[]>(`/api/boards/${boardId}/snoozed`)).data
+    expect(snoozed.find(c => c.id === card.id)).toMatchObject({ title: 'Snooze me', snoozedUntil: '2099-03-01' })
+    expect((await alice.req(`/api/cards/${card.id}`, { method: 'PATCH', body: { snoozedUntil: 'soon' } })).status).toBe(400)
+    await alice.req(`/api/cards/${card.id}`, { method: 'PATCH', body: { snoozedUntil: null } })
+    expect(await onBoard()).toBe(true)
+    expect((await bob.req<SnoozedCard[]>(`/api/boards/${boardId}/snoozed`)).data.some(c => c.id === card.id)).toBe(false)
+
+    const tpl = (await alice.req<Card>(`/api/cards/${card.id}/template`, { method: 'POST', body: {} })).data
+    expect((await alice.req(`/api/cards/${tpl.id}`, { method: 'PATCH', body: { snoozedUntil: '2099-03-01' } })).status).toBe(400)
+    await alice.req(`/api/cards/${tpl.id}`, { method: 'DELETE' })
   })
 
   it('deletes to the trash, restores, and deletes for good', async () => {

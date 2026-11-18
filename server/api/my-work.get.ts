@@ -5,7 +5,7 @@ import type { MyWork } from '#shared/types/myWork'
 const LIMIT = 500
 
 // Plain SELECTs: RLS limits the cards to boards the caller can see. Templates,
-// archived cards and archived boards are left out (as in due soon and the digest).
+// archived and snoozed cards and archived boards are left out (as in due soon and the digest).
 export default defineUserHandler(async (_event, tx, userId): Promise<MyWork> => {
   const { cards, boards, columns, cardAssignees: ca, cardWatchers: cw } = schema
   const assigned = sql<boolean>`exists (select 1 from ${ca} where ${ca.cardId} = ${cards.id} and ${ca.userId} = ${userId})`
@@ -19,7 +19,7 @@ export default defineUserHandler(async (_event, tx, userId): Promise<MyWork> => 
   }).from(cards)
     .innerJoin(boards, eq(boards.id, cards.boardId))
     .innerJoin(columns, eq(columns.id, cards.columnId))
-    .where(and(isNull(cards.archivedAt), eq(cards.isTemplate, false), isNull(boards.archivedAt), sql`(${assigned} or ${watching})`))
+    .where(and(isNull(cards.archivedAt), isNull(cards.snoozedUntil), eq(cards.isTemplate, false), isNull(boards.archivedAt), sql`(${assigned} or ${watching})`))
     .orderBy(sql`${cards.dueDate} asc nulls last`, sql`${cards.priority} desc nulls last`, asc(boards.name), asc(columns.position), asc(cards.position))
     .limit(LIMIT)
 

@@ -85,7 +85,9 @@
     "reminder": "sent a reminder",
     "reminderNote": "sent a reminder: {note}",
     "reminderPersonal": "reminded you",
-    "reminderPersonalNote": "reminded you: {note}"
+    "reminderPersonalNote": "reminded you: {note}",
+    "snoozed": "snoozed this card until {date}",
+    "woke": "brought this card back from snooze"
   },
   "notification": {
     "assignedYou": "assigned you to this card",
@@ -314,7 +316,7 @@
         "due": "Due date changed",
         "archived": "Card archived",
         "stale": "Card is stale",
-        "reminder": "Scheduled reminders"
+        "reminder": "Reminders and snoozed cards coming back"
       },
       "watching": "Cards I watch",
       "watchingDescription": "Notify me about cards I watch but am not assigned to. Assignments and mentions always notify.",
@@ -605,6 +607,7 @@
       "fields": "Custom fields",
       "activity": "Activity",
       "archived": "Archived cards",
+      "snoozed": "Snoozed cards",
       "trash": "Trash",
       "templates": "Card templates",
       "copy": "Copy board",
@@ -643,6 +646,7 @@
       "movedColumn": "Moved column",
       "sortedColumn": "Sorted column",
       "archivedCard": "Archived card",
+      "snoozedCard": "Snoozed card",
       "deletedCard": "Deleted card",
       "changedTag": "Changed card tag",
       "changedField": "Changed {field}",
@@ -679,6 +683,8 @@
       "stopRepeating": "Could not stop repeating",
       "saveCard": "Could not save card",
       "archiveCard": "Could not archive card",
+      "snoozeCard": "Could not snooze card",
+      "wakeCard": "Could not wake card",
       "restoreCard": "Could not restore card",
       "deleteCard": "Could not delete card",
       "addTag": "Could not add card tag",
@@ -747,6 +753,14 @@
     "archivedAt": "archived {date}",
     "restore": "Restore",
     "loadFailed": "Could not load archived cards"
+  },
+  "snooze": {
+    "title": "Snoozed cards",
+    "description": "Snoozed cards are hidden from the board and come back to their column on the chosen day.",
+    "empty": "No snoozed cards.",
+    "until": "until {date}",
+    "wake": "Wake now",
+    "loadFailed": "Could not load snoozed cards"
   },
   "trash": {
     "title": "Trash",
@@ -860,6 +874,12 @@
     "storyPoints": "Story points",
     "saveAsTemplate": "Save as template",
     "archive": "Archive",
+    "snooze": "Snooze",
+    "snoozeTomorrow": "Tomorrow",
+    "snoozeNextWeek": "Next week",
+    "snoozeNextMonth": "In a month",
+    "snoozePick": "Until a date",
+    "snoozeHint": "Hidden from the board until then; watchers are notified when it comes back.",
     "formerMember": "Former member",
     "errors": {
       "titleTooLong": "Title is too long (max {max} characters)",
@@ -1296,7 +1316,9 @@
       "unlinked": "Unlinked",
       "field": "Custom field",
       "stale": "No recent activity",
-      "reminder": "Reminder"
+      "reminder": "Reminder",
+      "snoozed": "Snoozed",
+      "woke": "Back from snooze"
     }
   },
   "matrix": {

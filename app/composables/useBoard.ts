@@ -407,6 +407,12 @@ export async function useBoard(id: string) {
     }
   }
 
+  async function setCardSnoozed(cardId: string, until: string | null) {
+    if (until) removeCard(findCard(cardId))
+    await api(`/api/cards/${cardId}`, { method: 'PATCH', body: { snoozedUntil: until } })
+    if (!until) await refresh()
+  }
+
   async function setCardArchived(cardId: string, archived: boolean) {
     if (archived) removeCard(findCard(cardId))
     await api(`/api/cards/${cardId}`, { method: 'PATCH', body: { archived } })
@@ -673,6 +679,16 @@ export async function useBoard(id: string) {
       await api(`/api/cards/${card.id}`, { method: 'PATCH', body: { archived: true } })
       record(t('board.undo.archivedCard'), () => setCardArchived(card.id, false), () => setCardArchived(card.id, true))
     }, t('board.errors.archiveCard')),
+
+    /** Hides the card from the board until `until` (YYYY-MM-DD); undo wakes it. */
+    snoozeCard: (card: Card, until: string) => run(async () => {
+      removeCard(card)
+      await api(`/api/cards/${card.id}`, { method: 'PATCH', body: { snoozedUntil: until } })
+      record(t('board.undo.snoozedCard'), () => setCardSnoozed(card.id, null), () => setCardSnoozed(card.id, until))
+    }, t('board.errors.snoozeCard')),
+
+    /** Brings a snoozed card back now (reloads the board to place it). */
+    wakeCard: (cardId: string) => run(() => setCardSnoozed(cardId, null), t('board.errors.wakeCard')),
 
     /** Brings an archived card back to its column (reloads the board to place it). */
     restoreCard: (cardId: string) => run(async () => {

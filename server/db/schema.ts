@@ -348,6 +348,9 @@ export const cards = pgTable('cards', {
   // Board and column automations leave the card alone; its own automations and
   // scheduled actions still run. See 0086_card_automations_rls.sql.
   skipAutomations: boolean('skip_automations').notNull().default(false),
+  // Snoozed: hidden from the board (like archived) until the hourly task wakes
+  // it on this date; automations skip it. Never on templates. See 0094_card_snooze_rls.sql.
+  snoozedUntil: date('snoozed_until'),
   // Null once the creator's account is removed.
   createdBy: uuid('created_by').references(() => users.id, { onDelete: 'set null' }),
   createdAt: createdAt(),
@@ -362,6 +365,7 @@ export const cards = pgTable('cards', {
   foreignKey({ columns: [t.columnId, t.boardId], foreignColumns: [columns.id, columns.boardId], name: 'cards_column_board_fk' }).onDelete('cascade'),
   check('cards_start_before_due', sql`${t.startDate} <= ${t.dueDate}`),
   check('cards_estimate_range', sql`${t.estimate} >= 0`),
+  check('cards_snooze_not_template', sql`not (${t.isTemplate} and ${t.snoozedUntil} is not null)`),
   // CARD_TITLE_MAX (shared/cards.ts).
   check('cards_title_length', sql`char_length(${t.title}) <= 1000`),
 ])

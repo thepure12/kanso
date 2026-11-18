@@ -18,7 +18,7 @@ export default defineUserHandler(async (event, tx): Promise<BoardDetail> => {
       .from(columns).where(eq(columns.boardId, id)).orderBy(asc(columns.position)),
     tx.select({ ...columnRuleFields, columnId: columnRules.columnId })
       .from(columnRules).where(eq(columnRules.boardId, id)).orderBy(asc(columnRules.createdAt)),
-    loadCards(tx, sql`c.board_id = ${id} and c.archived_at is null and not c.is_template`),
+    loadCards(tx, sql`c.board_id = ${id} and c.archived_at is null and c.snoozed_until is null and not c.is_template`),
     loadCards(tx, sql`c.board_id = ${id} and c.archived_at is null and c.is_template`)
       .then(list => list.sort((a, b) => a.title.localeCompare(b.title))),
     loadRecurrences(tx, { boardId: id }),

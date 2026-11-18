@@ -652,6 +652,20 @@
       "when": 1795025073855,
       "tag": "0092_commenter_role_rls",
       "breakpoints": true
+    },
+    {
+      "idx": 93,
+      "version": "7",
+      "when": 1795030142676,
+      "tag": "0093_card_snooze",
+      "breakpoints": true
+    },
+    {
+      "idx": 94,
+      "version": "7",
+      "when": 1795030145602,
+      "tag": "0094_card_snooze_rls",
+      "breakpoints": true
     }
   ]
 }

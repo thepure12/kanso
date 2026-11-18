@@ -64,7 +64,8 @@ Errors come back as JSON with `statusCode` and `statusMessage`: `400` invalid in
 | DELETE | `/api/reminders/:id` | Delete one of your reminders |
 | POST | `/api/boards/:id/cards` | Add a card `{ columnId, title, description? }` (title up to 1000 characters) |
 | GET | `/api/cards/:id` | Card with checklist, comments, attachments, links and activity |
-| PATCH | `/api/cards/:id` | Edit `{ title?, description?, startDate?, dueDate?, priority?, estimate?, tagIds?, assigneeIds?, archived?, skipAutomations? }` (`skipAutomations`: board and column automations leave the card alone) |
+| PATCH | `/api/cards/:id` | Edit `{ title?, description?, startDate?, dueDate?, priority?, estimate?, tagIds?, assigneeIds?, archived?, skipAutomations?, snoozedUntil? }` (`skipAutomations`: board and column automations leave the card alone; `snoozedUntil` YYYY-MM-DD hides the card from the board until that day, `null` brings it back) |
+| GET | `/api/boards/:id/snoozed` | Snoozed cards `[{ id, columnId, title, snoozedUntil }]`, next to wake first |
 | POST | `/api/boards/:id/cards/bulk` | Change up to 200 cards at once, all or none `{ cardIds, columnId?, archived?, priority?, dueDate?, addTagIds?, removeTagIds?, addAssigneeIds?, removeAssigneeIds? }`; `columnId` moves them to the end of that column in board order. Returns `{ cards }` (those not archived) |
 | POST | `/api/cards/:id/move` | Move `{ columnId, aboveId, belowId }` (neighbour card ids in the target column, `null` = start/end) |
 | DELETE | `/api/cards/:id` | Move a card to the board's trash (deleted for good after 30 days) |
