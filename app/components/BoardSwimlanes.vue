@@ -124,6 +124,7 @@ function onDrop(laneKey: string, columnId: string, e: SortableEvent) {
             v-for="card in cells[lane.key]![col.id]"
             v-show="props.visibleIds.has(card.id)"
             :key="card.id"
+            :data-card-id="card.id"
             :card="card"
             :tags="props.tags"
             :fields="props.fields"

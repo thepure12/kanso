@@ -6,6 +6,7 @@ import type { BoardMatrixRoom } from '#shared/types/matrix'
 import { backgroundStyle } from '#shared/boardBackgrounds'
 import { columnOutlineStyle, effectiveColumnOutline } from '#shared/columnOutline'
 import { CARD_TITLE_MAX } from '#shared/cards'
+import type { CardBox } from '~/utils/cardFocus'
 
 const route = useRoute()
 const id = route.params.id as string
@@ -384,6 +385,71 @@ function onEscape(e: KeyboardEvent) {
 }
 onMounted(() => document.addEventListener('keydown', onEscape))
 onBeforeUnmount(() => document.removeEventListener('keydown', onEscape))
+
+// Keyboard card navigation in the board view (also with swimlanes; listed in shortcutGroups).
+// Arrow keys / h j k l move the focus between cards by their place on screen (`neighbourCard`);
+// with nothing focused they start at the first card. On the focused card: `a` assigns or
+// unassigns me, `[` / `]` move it to the end of the previous / next shown column. Enter, `e`
+// and `x` are handled by BoardCard itself. Plain listener rather than defineShortcuts, so keys
+// only count on a card (or on nothing), never in menus, buttons or fields.
+const { user } = useUserSession()
+function cardElements() {
+  return [...document.querySelectorAll<HTMLElement>('[data-card-id]')].filter(el => el.getClientRects().length > 0)
+}
+function cardBox(el: HTMLElement): CardBox {
+  const r = el.getBoundingClientRect()
+  return { id: el.dataset.cardId!, left: r.left, top: r.top, width: r.width, height: r.height }
+}
+function focusCard(cardId: string) {
+  const el = cardElements().find(e => e.dataset.cardId === cardId)
+  if (!el) return
+  el.focus({ preventScroll: true })
+  el.scrollIntoView({ block: 'nearest', inline: 'nearest' })
+}
+async function moveFocusedCard(card: Card, step: 1 | -1) {
+  const index = shownColumns.value.findIndex(c => c.id === card.columnId)
+  const target = index < 0 ? undefined : shownColumns.value[index + step]
+  if (!target || !canEditCard(card) || !canAddToColumn(target.id)) return
+  const moved = moveCard(card, target.id)
+  await nextTick()
+  focusCard(card.id)
+  await moved
+}
+function onCardKey(e: KeyboardEvent) {
+  if (e.defaultPrevented || e.metaKey || (e.ctrlKey && !e.altKey) || view.value !== 'board' || dialogOpen()) return
+  const target = e.target as HTMLElement | null
+  if (target?.closest('input, textarea, select, [contenteditable="true"], [contenteditable="plaintext-only"]')) return
+  // Only the card itself or nothing focused; not a button inside a card or anywhere else.
+  const cardId = target?.dataset.cardId
+  if (!cardId && target !== document.body) return
+  const plain = !e.altKey && !e.shiftKey && !e.ctrlKey
+  const dir = plain ? focusDirection(e.key) : null
+  if (dir) {
+    e.preventDefault()
+    const els = cardElements()
+    if (!cardId) {
+      const first = els.map(cardBox).sort((a, b) => a.left - b.left || a.top - b.top)[0]
+      if (first) focusCard(first.id)
+      return
+    }
+    const next = neighbourCard(cardBox(target!), els.map(cardBox), dir)
+    if (next) focusCard(next)
+    return
+  }
+  const card = cardId ? allCards.value.find(c => c.id === cardId) : undefined
+  if (!card) return
+  if (e.key === '[' || e.key === ']') {
+    e.preventDefault()
+    moveFocusedCard(card, e.key === ']' ? 1 : -1)
+  }
+  else if (e.key === 'a' && plain && user.value && canEditCard(card)) {
+    e.preventDefault()
+    const me = user.value.id
+    updateCard(card, { assigneeIds: card.assigneeIds.includes(me) ? card.assigneeIds.filter(u => u !== me) : [...card.assigneeIds, me] })
+  }
+}
+onMounted(() => document.addEventListener('keydown', onCardKey))
+onBeforeUnmount(() => document.removeEventListener('keydown', onCardKey))
 
 /** Group chips on a column header; none for the group being shown when it is the column's only one. */
 function columnChips(col: Column) {

@@ -125,7 +125,15 @@
     "saveCard": "Save the open card or submit a comment",
     "escape": "Close the dialog, cancel editing or clear the selection",
     "myWork": "Go to my work",
-    "selectCard": "Select a card for bulk changes"
+    "selectCard": "Select a card for bulk changes",
+    "onCard": "On a focused card (board view)",
+    "moveFocus": "Move to the card on the left, below, above or on the right",
+    "moveFocusLetters": "The same with letters",
+    "openCard": "Open the card",
+    "editTitle": "Edit the title",
+    "assignMe": "Assign or unassign me",
+    "toggleSelect": "Select or deselect for bulk changes",
+    "moveCardColumn": "Move the card to the previous or next column"
   },
   "mail": {
     "linkExpiry": "The link expires in {expiry}. If the button does not work, paste this link into your browser:",

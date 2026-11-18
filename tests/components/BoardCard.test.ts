@@ -129,4 +129,26 @@ describe('BoardCard', () => {
     expect(w.find('textarea').exists()).toBe(false)
     expect(w.emitted('open')).toHaveLength(1)
   })
+
+  it('e edits the title and x toggles selection on the focused card; editors only', async () => {
+    const w = await mount(card())
+    await w.trigger('keydown', { key: 'x' })
+    expect(w.emitted('select')).toHaveLength(1)
+    await w.trigger('keydown', { key: 'x', ctrlKey: true })
+    expect(w.emitted('select')).toHaveLength(1)
+    await w.trigger('keydown', { key: 'e' })
+    const input = w.find('textarea')
+    expect(input.exists()).toBe(true)
+    // Keys typed in the title box stay there.
+    await input.trigger('keydown', { key: 'x' })
+    expect(w.emitted('select')).toHaveLength(1)
+    await input.trigger('keydown', { key: 'Escape' })
+    expect(w.find('textarea').exists()).toBe(false)
+
+    const viewer = await mount(card(), false)
+    await viewer.trigger('keydown', { key: 'x' })
+    await viewer.trigger('keydown', { key: 'e' })
+    expect(viewer.emitted('select')).toBeUndefined()
+    expect(viewer.find('textarea').exists()).toBe(false)
+  })
 })

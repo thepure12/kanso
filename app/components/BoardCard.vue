@@ -49,7 +49,12 @@ function onClick(e: MouseEvent | KeyboardEvent) {
   else emit('open')
 }
 
-// Inline title edit: double-click the title (or F2 on the focused card), Enter or blur saves, Escape cancels.
+/** `x` on the focused card toggles its selection (same rules as Ctrl/Cmd+click). */
+function selectByKey() {
+  if (props.canEdit && props.selectable) emit('select')
+}
+
+// Inline title edit: double-click the title (or F2 / `e` on the focused card), Enter or blur saves, Escape cancels.
 // A single click on the title waits for a possible second click before it opens the card.
 // On touch screens a tap opens the card at once (no double-tap edit, so no wait).
 const coarsePointer = useCoarsePointer()
@@ -89,6 +94,12 @@ function finishTitleEdit(save: boolean) {
   const title = titleDraft.value.replace(/\s+/g, ' ').trim().slice(0, CARD_TITLE_MAX)
   if (save && title && title !== props.card.title) emit('rename', title)
 }
+/** Enter / Escape in the title box: also puts the focus back on the card, for keyboard navigation. */
+function finishTitleEditByKey(e: KeyboardEvent, save: boolean) {
+  const card = (e.target as HTMLElement).closest<HTMLElement>('[tabindex="0"]')
+  finishTitleEdit(save)
+  card?.focus({ preventScroll: true })
+}
 const dateLabel = computed(() => formatDateRange(props.card.startDate, props.card.dueDate, i18n))
 const dueAriaLabel = computed(() => {
   const c = props.card
@@ -102,12 +113,14 @@ const dueAriaLabel = computed(() => {
 <template>
   <UCard
     :ui="{ body: 'p-3 sm:p-3' }"
-    class="group relative shrink-0 cursor-pointer hover:ring-primary/50 transition"
+    class="group relative shrink-0 cursor-pointer hover:ring-primary/50 transition outline-none focus-visible:ring-2 focus-visible:ring-primary"
     :class="props.selected && 'ring-2 ring-primary bg-primary/5'"
     tabindex="0"
     @click="onClick"
     @keydown.enter.self="onClick"
     @keydown.f2.self.prevent="startTitleEdit"
+    @keydown.e.exact.self.prevent="startTitleEdit"
+    @keydown.x.exact.self.prevent="selectByKey"
   >
     <UTooltip v-if="props.canEdit && props.selectable" :text="t(props.selected ? 'boardCard.deselect' : 'boardCard.select')">
       <UButton
@@ -156,8 +169,8 @@ const dueAriaLabel = computed(() => {
       :ui="{ base: 'text-sm font-medium px-1 py-0.5' }"
       @click.stop
       @keydown.stop
-      @keydown.enter.exact.prevent="finishTitleEdit(true)"
-      @keydown.esc.prevent="finishTitleEdit(false)"
+      @keydown.enter.exact.prevent="finishTitleEditByKey($event, true)"
+      @keydown.esc.prevent="finishTitleEditByKey($event, false)"
       @blur="finishTitleEdit(true)"
     />
     <p

@@ -29,6 +29,18 @@ export const shortcutGroups: { label: string, items: ShortcutHelp[] }[] = [
       { kbds: ['escape'], description: 'shortcuts.escape' },
     ],
   },
+  {
+    label: 'shortcuts.onCard',
+    items: [
+      { kbds: ['arrowleft', 'arrowdown', 'arrowup', 'arrowright'], description: 'shortcuts.moveFocus' },
+      { kbds: ['h', 'j', 'k', 'l'], description: 'shortcuts.moveFocusLetters' },
+      { kbds: ['enter'], description: 'shortcuts.openCard' },
+      { kbds: ['e'], description: 'shortcuts.editTitle' },
+      { kbds: ['a'], description: 'shortcuts.assignMe' },
+      { kbds: ['x'], description: 'shortcuts.toggleSelect' },
+      { kbds: ['[', ']'], description: 'shortcuts.moveCardColumn' },
+    ],
+  },
 ]
 
 /**

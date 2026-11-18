@@ -125,7 +125,15 @@
     "saveCard": "Offene Karte speichern oder Kommentar absenden",
     "escape": "Dialog schließen, Bearbeitung abbrechen oder Auswahl aufheben",
     "myWork": "Zu meiner Arbeit",
-    "selectCard": "Karte für Sammeländerungen auswählen"
+    "selectCard": "Karte für Sammeländerungen auswählen",
+    "onCard": "Auf einer markierten Karte (Board-Ansicht)",
+    "moveFocus": "Zur Karte links, darunter, darüber oder rechts",
+    "moveFocusLetters": "Dasselbe mit Buchstaben",
+    "openCard": "Karte öffnen",
+    "editTitle": "Titel bearbeiten",
+    "assignMe": "Mich zuweisen oder entfernen",
+    "toggleSelect": "Für Sammeländerungen aus- oder abwählen",
+    "moveCardColumn": "Karte in die vorige oder nächste Spalte verschieben"
   },
   "mail": {
     "linkExpiry": "Der Link ist {expiry} gültig. Falls der Button nicht funktioniert, kopiere diesen Link in deinen Browser:",
