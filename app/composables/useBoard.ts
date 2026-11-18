@@ -170,7 +170,16 @@ export async function useBoard(id: string) {
   // Archived boards are read-only for everyone (enforced by app.can_edit); owners can unarchive.
   // Offline, the board shows the service worker's cached copy and is read-only too.
   const archived = computed(() => !!board.value?.archivedAt)
-  const canEdit = computed(() => !archived.value && !offline.value && (board.value?.role === 'owner' || board.value?.role === 'editor'))
+  // Limited members (board_member_limits) edit cards per card/column but never the board's
+  // structure, so canEdit (columns, tags, rules, ...) is false for them; canEditCard and
+  // canAddToColumn decide per card. The server enforces both (RLS).
+  const limited = computed(() => !!board.value?.myAccess)
+  const writable = computed(() => !archived.value && !offline.value && (board.value?.role === 'owner' || board.value?.role === 'editor'))
+  const canEdit = computed(() => writable.value && !limited.value)
+  const canEditCard = (card: { id: string, columnId: string }) =>
+    writable.value && cardAccess(board.value?.myAccess, board.value?.role, card) === 'edit'
+  const canAddToColumn = (columnId: string) =>
+    writable.value && columnAccess(board.value?.myAccess, board.value?.role, columnId) === 'edit'
   const isOwner = computed(() => !offline.value && board.value?.role === 'owner')
 
   // Per-column card lists, used as v-model for drag and drop.
@@ -827,7 +836,7 @@ export async function useBoard(id: string) {
   }
 
   return {
-    board, error, refresh, columns, columnGroups, savedViews, lists, tags, fields, templates, recurrences, automations, scheduledActions, archived, offline, canEdit, isOwner, dragging, remoteVersion,
+    board, error, refresh, columns, columnGroups, savedViews, lists, tags, fields, templates, recurrences, automations, scheduledActions, archived, offline, canEdit, isOwner, limited, canEditCard, canAddToColumn, dragging, remoteVersion,
     canUndo: undoStack.canUndo, canRedo: undoStack.canRedo, ...mutations,
   }
 }

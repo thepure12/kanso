@@ -13,7 +13,7 @@ export default defineUserHandler(async (event, tx): Promise<BoardDetail> => {
     .from(boards).leftJoin(teams, eq(teams.id, boards.teamId)).where(eq(boards.id, id))
   if (!board) notFound('Board not found')
 
-  const [cols, ruleRows, cardRows, templates, recurrences, automationRows, scheduledRows, tagRows, fields, columnGroups, savedViews, matrix, members, inviteRows, [me]] = await Promise.all([
+  const [cols, ruleRows, cardRows, templates, recurrences, automationRows, scheduledRows, tagRows, fields, columnGroups, savedViews, matrix, members, inviteRows, [me], memberAccess] = await Promise.all([
     tx.select({ id: columns.id, title: columns.title, position: columns.position, color: columns.color, wipLimit: columns.wipLimit, outline: columns.outline })
       .from(columns).where(eq(columns.boardId, id)).orderBy(asc(columns.position)),
     tx.select({ ...columnRuleFields, columnId: columnRules.columnId })
@@ -42,7 +42,8 @@ export default defineUserHandler(async (event, tx): Promise<BoardDetail> => {
     `),
     tx.select({ id: invites.id, email: invites.email, role: invites.role, createdAt: invites.createdAt })
       .from(invites).where(eq(invites.boardId, id)).orderBy(asc(invites.email)),
-    tx.execute<{ role: BoardDetail['role'] }>(sql`select app.board_role(${id}) as role`),
+    tx.execute<{ role: BoardDetail['role'], userId: string }>(sql`select app.board_role(${id}) as role, app.current_user_id() as "userId"`),
+    loadMemberAccess(tx, id),
   ])
 
   const rulesByColumn = Map.groupBy(ruleRows, r => r.columnId)
@@ -71,5 +72,7 @@ export default defineUserHandler(async (event, tx): Promise<BoardDetail> => {
     fields,
     members: [...members],
     invites: inviteRows.map(i => ({ ...i, createdAt: i.createdAt.toISOString() })),
+    myAccess: me!.role === 'owner' ? null : memberAccess[me!.userId] ?? null,
+    memberAccess,
   }
 })

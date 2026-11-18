@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { VueDraggable, type SortableEvent } from 'vue-draggable-plus'
 import type { DropdownMenuItem } from '@nuxt/ui'
-import type { BulkCardAction, Card, Column, SavedView } from '#shared/types/board'
+import type { BulkCardAction, Card, Column, MemberAccess, SavedView } from '#shared/types/board'
 import type { BoardMatrixRoom } from '#shared/types/matrix'
 import { backgroundStyle } from '#shared/boardBackgrounds'
 import { columnOutlineStyle, effectiveColumnOutline } from '#shared/columnOutline'
@@ -10,7 +10,7 @@ import { CARD_TITLE_MAX } from '#shared/cards'
 const route = useRoute()
 const id = route.params.id as string
 const {
-  board, error, refresh, columns, columnGroups, savedViews, lists, tags, fields, templates, recurrences, automations, scheduledActions, archived, offline, canEdit, isOwner, dragging, remoteVersion,
+  board, error, refresh, columns, columnGroups, savedViews, lists, tags, fields, templates, recurrences, automations, scheduledActions, archived, offline, canEdit, isOwner, limited, canEditCard, canAddToColumn, dragging, remoteVersion,
   renameBoard, setArchived, setBackground, setAccent, setColumnOutline, uploadBackground, deleteBoard, addColumn, renameColumn, setColumnAppearance, setColumnWipLimit, sortColumnByPriority, deleteColumn, columnMoved,
   addColumnRule, deleteColumnRule, addAutomation, updateAutomation, deleteAutomation, addScheduledAction, deleteScheduledAction, addCard, updateCard, setCardCounts, cardLinkChanged, archiveCard, restoreCard, deleteCard, restoreTrashedCard,
   deleteArchivedCard, cardMoved, moveCard, addTag, updateTag, deleteTag,
@@ -44,6 +44,34 @@ const panelMembers = computed(() => (board.value?.members ?? []).map(m => ({
   role: m.boardRole,
   note: m.teamRole ? `${board.value!.team!.name} · ${t(`board.role.${m.teamRole}`)}` : undefined,
 })))
+
+// Per-member limits (owners): which non-owners are limited, and the dialog editing them.
+const limitedIds = computed(() => {
+  const b = board.value
+  if (!b) return []
+  return b.members.filter(m => m.role !== 'owner' && b.memberAccess[m.userId]).map(m => m.userId)
+})
+const canLimit = (m: { userId: string }) =>
+  isOwner.value && !archived.value && board.value?.members.find(x => x.userId === m.userId)?.role !== 'owner'
+const limitingUserId = ref<string | null>(null)
+const limitingMember = computed(() => board.value?.members.find(m => m.userId === limitingUserId.value) ?? null)
+const accessOpen = computed({ get: () => !!limitingMember.value, set: (v) => { if (!v) limitingUserId.value = null } })
+const accessSaving = ref(false)
+const accessError = useApiError()
+async function saveAccess(access: MemberAccess | null) {
+  const userId = limitingUserId.value
+  if (!userId) return
+  accessSaving.value = true
+  try {
+    const url = `/api/boards/${id}/members/${userId}/access`
+    if (access) await api(url, { method: 'PUT', body: access })
+    else await api(url, { method: 'DELETE' })
+    limitingUserId.value = null
+  }
+  catch (err) { accessError(err, t('memberAccess.saveFailed')) }
+  finally { accessSaving.value = false }
+  await refresh()
+}
 
 // The open card is tracked by id: a board reload replaces the card objects.
 const editingCardId = ref<string | null>(null)
@@ -151,7 +179,9 @@ let dayTimer: ReturnType<typeof setInterval> | undefined
 onMounted(() => { dayTimer = setInterval(() => { today.value = isoDate() }, 60_000) })
 onBeforeUnmount(() => clearInterval(dayTimer))
 const visibleIds = computed(() => new Set(allCards.value.filter(c => matchesFilter(c, filter.value, today.value)).map(c => c.id)))
-const dragDisabled = computed(() => !canEdit.value || filtering.value)
+// Limited members drag the cards they may edit (others carry .card-locked, filtered
+// out of dragging) into the columns they may edit (group put).
+const dragDisabled = computed(() => (!canEdit.value && !limited.value) || filtering.value)
 /** Shown cards in board order, for the list, calendar and timeline views. */
 const visibleCards = computed(() => columns.value.flatMap(col => (lists.value[col.id] ?? []).filter(c => visibleIds.value.has(c.id))))
 
@@ -559,6 +589,9 @@ const boardMenu = computed(() => {
         <UTooltip v-else-if="offline" :text="t('pwa.readOnlyHint')">
           <UBadge color="warning" variant="subtle" icon="i-lucide-wifi-off" :label="t('pwa.readOnly')" />
         </UTooltip>
+        <UTooltip v-else-if="limited" :text="t('memberAccess.limitedHint')">
+          <UBadge color="warning" variant="subtle" icon="i-lucide-shield" :label="t('memberAccess.limitedBadge')" />
+        </UTooltip>
         <UBadge v-else-if="!canEdit" color="neutral" variant="subtle" icon="i-lucide-eye" :label="t('board.viewOnly')" />
         <!-- Compacts step by step (useToolbarFit) before it wraps: data-c1 short filter count, c2 Views/Filters
              icon only, c3 view tabs icon only, c4 swimlane select icon only, c5 column tag select icon only.
@@ -809,7 +842,7 @@ const boardMenu = computed(() => {
 
             <VueDraggable
               v-model="lists[col.id]!"
-              group="cards"
+              :group="{ name: 'cards', put: canAddToColumn(col.id) }"
               :disabled="dragDisabled"
               :animation="150"
               :delay="200"
@@ -818,7 +851,7 @@ const boardMenu = computed(() => {
               :force-auto-scroll-fallback="true"
               :scroll-sensitivity="80"
               :scroll-speed="16"
-              filter=".card-title-edit"
+              filter=".card-title-edit, .card-locked"
               :prevent-on-filter="false"
               ghost-class="opacity-40"
               class="flex flex-col gap-2 px-3 py-2 min-h-8 overflow-y-auto"
@@ -836,7 +869,9 @@ const boardMenu = computed(() => {
                 :tags="tags"
                 :fields="fields"
                 :members="board.members"
-                :can-edit="canEdit"
+                :can-edit="canEditCard(card)"
+                :selectable="!limited"
+                :class="!canEditCard(card) && 'card-locked'"
                 :today="today"
                 :blocked="blockedIds.has(card.id)"
                 :selected="selected.has(card.id)"
@@ -848,7 +883,7 @@ const boardMenu = computed(() => {
               />
             </VueDraggable>
 
-            <div v-if="canEdit" class="px-3 pb-3 flex items-start gap-1">
+            <div v-if="canAddToColumn(col.id)" class="px-3 pb-3 flex items-start gap-1">
               <InlineAdd :ref="el => { cardAdds[col.id] = el as { open: () => void } | null }" :label="t('board.addCard')" :placeholder="t('board.cardTitle')" :maxlength="CARD_TITLE_MAX" openable class="flex-1 min-w-0" @add="(title, open) => addCardAndReveal(col.id, title, open)" />
               <UDropdownMenu v-if="templates.length" :items="templateMenu(col)" :content="{ align: 'end' }">
                 <UTooltip :text="t('board.fromTemplate')">
@@ -883,7 +918,9 @@ const boardMenu = computed(() => {
       :fields="fields"
       :cards="allCards"
       :columns="columns"
-      :can-edit="canEdit"
+      :can-edit="canEditCard(editingCard)"
+      :can-create-tags="canEdit"
+      :move-column-ids="limited ? columns.filter(c => canAddToColumn(c.id)).map(c => c.id) : undefined"
       :is-owner="isOwner && !archived"
       :can-react="!archived && !offline"
       :create-tag="addTag"
@@ -1019,8 +1056,22 @@ const boardMenu = computed(() => {
       :invites="board.invites"
       :invites-endpoint="`/api/boards/${board.id}/invites`"
       :can-manage="isOwner"
+      :limited-ids="limitedIds"
+      :can-limit="canLimit"
+      @limit="userId => limitingUserId = userId"
       @changed="refresh"
       @left="navigateTo('/')"
+    />
+    <MemberAccessModal
+      v-if="limitingMember"
+      v-model:open="accessOpen"
+      :member="limitingMember"
+      :columns="columns"
+      :cards="allCards"
+      :access="board.memberAccess[limitingMember.userId] ?? null"
+      :saving="accessSaving"
+      @save="saveAccess"
+      @remove="saveAccess(null)"
     />
 
     <UModal v-model:open="confirmDelete" :title="t('board.deleteTitle')" :description="t('board.deleteDescription')">

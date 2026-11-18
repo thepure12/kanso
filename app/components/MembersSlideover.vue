@@ -13,8 +13,10 @@ const props = defineProps<{
   /** Base URL of the invites API, e.g. /api/teams/:id/invites */
   invitesEndpoint: string
   canManage: boolean
+  limitedIds?: string[]
+  canLimit?: (m: PanelMember) => boolean
 }>()
-const emit = defineEmits<{ changed: [], left: [] }>()
+const emit = defineEmits<{ changed: [], left: [], limit: [userId: string] }>()
 const open = defineModel<boolean>('open', { required: true })
 </script>
 
@@ -27,6 +29,9 @@ const open = defineModel<boolean>('open', { required: true })
         :invites="props.invites"
         :invites-endpoint="props.invitesEndpoint"
         :can-manage="props.canManage"
+        :limited-ids="props.limitedIds"
+        :can-limit="props.canLimit"
+        @limit="userId => emit('limit', userId)"
         @changed="emit('changed')"
         @left="emit('left')"
       />

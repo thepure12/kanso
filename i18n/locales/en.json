@@ -1177,6 +1177,29 @@
     "notSignedUp": "Not signed up yet",
     "revoke": "Revoke invite"
   },
+  "memberAccess": {
+    "button": "Limit access",
+    "limited": "Limited",
+    "limitedBadge": "Limited access",
+    "limitedHint": "An owner limited you to some columns and cards of this board. You cannot change its columns, tags or settings.",
+    "title": "Access of {name}",
+    "description": "Choose what this person sees and edits on this board. Owners are never limited.",
+    "viewerNote": "Viewers can at most read, so \"Can edit\" is not offered.",
+    "default": "Everything else",
+    "defaultHelp": "Applies to columns and cards without their own setting.",
+    "columns": "Columns",
+    "cards": "Single cards",
+    "cardsHelp": "A card setting wins over its column. Cards still only move into columns set to \"Can edit\".",
+    "addCard": "Add a card…",
+    "inherit": "As everything else ({level})",
+    "remove": "Remove limits",
+    "saveFailed": "Could not save the access limits",
+    "levels": {
+      "none": "Hidden",
+      "read": "Read only",
+      "edit": "Can edit"
+    }
+  },
   "notifications": {
     "title": "Notifications",
     "toastOpen": "Open",

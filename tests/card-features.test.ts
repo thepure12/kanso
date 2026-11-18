@@ -84,7 +84,8 @@ describe('card_assignees', () => {
   it('cannot point at a card of another board', async () => {
     const id = await newCard()
     const other = await as(outsider.id, async sql => (await sql`select id from app.create_board('Outsider board')`)[0]!.id as string)
-    await rejectsWith(as(outsider.id, sql => sql`insert into card_assignees (card_id, user_id, board_id) values (${id}, ${outsider.id}, ${other})`), '23503')
+    // The policy checks the card's own board (app.can_edit_card), which the outsider cannot edit.
+    await rejectsWith(as(outsider.id, sql => sql`insert into card_assignees (card_id, user_id, board_id) values (${id}, ${outsider.id}, ${other})`), '42501')
     await as(outsider.id, sql => sql`delete from boards where id = ${other}`)
   })
 })

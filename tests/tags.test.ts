@@ -88,8 +88,9 @@ describe('tags', () => {
   it('cards cannot carry another board\'s tag', async () => {
     // Claiming the card's board: FK on (tag_id, board_id) fails.
     await rejectsWith(as(owner.id, sql => sql`insert into card_tags (card_id, tag_id, board_id) values (${cardId}, ${otherTagId}, ${boardId})`), '23503')
-    // Claiming the tag's board: the policy fails first.
-    await rejectsWith(as(owner.id, sql => sql`insert into card_tags (card_id, tag_id, board_id) values (${cardId}, ${otherTagId}, ${otherBoardId})`), '42501')
+    // Claiming the tag's board: the policy checks the card's own board, so the
+    // FK on (card_id, board_id) fails.
+    await rejectsWith(as(owner.id, sql => sql`insert into card_tags (card_id, tag_id, board_id) values (${cardId}, ${otherTagId}, ${otherBoardId})`), '23503')
   })
 
   it('tag cannot move to another board', async () => {

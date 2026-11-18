@@ -1984,6 +1984,55 @@ describe('my work', () => {
   })
 })
 
+describe('member access', () => {
+  it('owners limit a member to columns and cards; the board follows', async () => {
+    const id = (await alice.req<{ id: string }>('/api/boards', { method: 'POST', body: { name: 'Limits', template: 'scrum' } })).data.id
+    extraBoards.push(id)
+    expect((await alice.req(`/api/boards/${id}/members`, { method: 'POST', body: { email: bob.email, role: 'editor' } })).status).toBe(200)
+    const full = (await alice.req<BoardDetail>(`/api/boards/${id}`)).data
+    const [backlog, sprint, progress] = full.columns
+    const add = async (columnId: string, title: string) =>
+      (await alice.req<Card>(`/api/boards/${id}/cards`, { method: 'POST', body: { columnId, title } })).data
+    const mine = await add(backlog!.id, 'Mine')
+    const seen = await add(sprint!.id, 'Seen')
+    const secret = await add(progress!.id, 'Secret')
+    const bobId = full.members.find(m => m.name === 'Bob')!.userId
+    const aliceId = full.members.find(m => m.name === 'Alice')!.userId
+    const url = `/api/boards/${id}/members/${bobId}/access`
+    const access = { defaultAccess: 'none', columns: { [backlog!.id]: 'edit', [sprint!.id]: 'read' }, cards: {} }
+
+    expect((await bob.req(url, { method: 'PUT', body: access })).status).toBe(403)
+    expect((await alice.req(`/api/boards/${id}/members/${aliceId}/access`, { method: 'PUT', body: access })).status).toBe(403)
+    const put = await alice.req(url, { method: 'PUT', body: access })
+    expect(put.status).toBe(200)
+    expect(put.data).toEqual(access)
+
+    const b = (await bob.req<BoardDetail>(`/api/boards/${id}`)).data
+    expect(b.myAccess).toEqual(access)
+    expect(b.columns.map(c => c.id)).toEqual([backlog!.id, sprint!.id])
+    expect(b.cards.map(c => c.title).sort()).toEqual(['Mine', 'Seen'])
+    expect(Object.keys(b.memberAccess)).toEqual([bobId])
+    expect((await bob.req(`/api/cards/${secret.id}`)).status).toBe(404)
+    expect((await bob.req(`/api/cards/${seen.id}`, { method: 'PATCH', body: { title: 'x' } })).status).toBe(404)
+    expect((await bob.req(`/api/cards/${mine.id}`, { method: 'PATCH', body: { title: 'Mine 2' } })).status).toBe(200)
+    expect((await bob.req(`/api/cards/${mine.id}/move`, { method: 'POST', body: { columnId: sprint!.id, aboveId: null, belowId: null } })).status).toBe(403)
+    expect((await bob.req(`/api/boards/${id}/cards`, { method: 'POST', body: { columnId: sprint!.id, title: 'No' } })).status).toBe(403)
+    expect((await bob.req(`/api/boards/${id}/columns`, { method: 'POST', body: { title: 'No' } })).status).toBe(403)
+    const search = await bob.req<SearchResults>(`/api/search?q=Secret`)
+    expect(JSON.stringify(search.data)).not.toContain(secret.id)
+
+    // A card entry wins over its column.
+    expect((await alice.req(url, { method: 'PUT', body: { ...access, cards: { [secret.id]: 'read' } } })).status).toBe(200)
+    expect((await bob.req(`/api/cards/${secret.id}`)).status).toBe(200)
+    expect((await alice.req<BoardDetail>(`/api/boards/${id}`)).data.memberAccess[bobId]!.cards).toEqual({ [secret.id]: 'read' })
+
+    expect((await alice.req(url, { method: 'DELETE' })).status).toBe(204)
+    const after = (await bob.req<BoardDetail>(`/api/boards/${id}`)).data
+    expect(after.myAccess).toBeNull()
+    expect(after.cards).toHaveLength(3)
+  })
+})
+
 describe('pwa', () => {
   it('serves the web app manifest, the service worker and links them', async () => {
     const manifest = await fetch('/manifest.webmanifest')

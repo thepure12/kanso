@@ -14,6 +14,10 @@ const props = defineProps<{
   cards: Card[]
   columns: Column[]
   canEdit: boolean
+  /** Creating card tags (board structure); defaults to canEdit. Off for limited members. */
+  canCreateTags?: boolean
+  /** Columns the card may move into; all when absent (limited members: their editable ones). */
+  moveColumnIds?: string[]
   isOwner: boolean
   /** Comment reactions: everyone on the board while it is not archived (and online). */
   canReact?: boolean
@@ -109,7 +113,9 @@ watch(() => {
   if (form.dueDate === before.dueDate) form.dueDate = now.dueDate
 })
 
-const columnItems = computed(() => props.columns.map(c => ({ label: c.title, value: c.id })))
+const columnItems = computed(() => props.columns
+  .filter(c => !props.moveColumnIds || c.id === props.card.columnId || props.moveColumnIds.includes(c.id))
+  .map(c => ({ label: c.title, value: c.id })))
 const columnTitle = computed(() => props.columns.find(c => c.id === props.card.columnId)?.title ?? '')
 // Archived cards are not in the board's lists, so they cannot be moved from here.
 const canMove = computed(() => props.canEdit && props.cards.some(c => c.id === props.card.id))
@@ -453,7 +459,7 @@ const tabs = computed(() => [
               value-key="id"
               label-key="name"
               multiple
-              :create-item="props.canEdit"
+              :create-item="props.canCreateTags ?? props.canEdit"
               :placeholder="t('card.noTags')"
               class="w-full"
               :disabled="!props.canEdit"

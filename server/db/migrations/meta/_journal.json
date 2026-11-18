@@ -610,6 +610,20 @@
       "when": 1794948107510,
       "tag": "0086_card_automations_rls",
       "breakpoints": true
+    },
+    {
+      "idx": 87,
+      "version": "7",
+      "when": 1795021070945,
+      "tag": "0087_board_member_access",
+      "breakpoints": true
+    },
+    {
+      "idx": 88,
+      "version": "7",
+      "when": 1795021196796,
+      "tag": "0088_board_member_access_rls",
+      "breakpoints": true
     }
   ]
 }

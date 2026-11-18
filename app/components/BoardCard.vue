@@ -16,7 +16,9 @@ const props = withDefaults(defineProps<{
   selected?: boolean
   /** Some card is selected: a click toggles selection instead of opening the card. */
   selecting?: boolean
-}>(), { fields: () => [] })
+  /** Bulk selection is offered (off for people limited to some columns/cards). */
+  selectable?: boolean
+}>(), { fields: () => [], selectable: true })
 const emit = defineEmits<{ open: [], delete: [], select: [], rename: [title: string] }>()
 const { t, locale } = useI18n()
 const i18n = useI18nContext()
@@ -43,7 +45,7 @@ const fieldChips = computed(() => props.fields.flatMap((f) => {
 }))
 /** Ctrl/Cmd/Shift+click (or any click while selecting) toggles selection; editors only. */
 function onClick(e: MouseEvent | KeyboardEvent) {
-  if (props.canEdit && (props.selecting || e.ctrlKey || e.metaKey || e.shiftKey)) emit('select')
+  if (props.canEdit && props.selectable && (props.selecting || e.ctrlKey || e.metaKey || e.shiftKey)) emit('select')
   else emit('open')
 }
 
@@ -107,7 +109,7 @@ const dueAriaLabel = computed(() => {
     @keydown.enter.self="onClick"
     @keydown.f2.self.prevent="startTitleEdit"
   >
-    <UTooltip v-if="props.canEdit" :text="t(props.selected ? 'boardCard.deselect' : 'boardCard.select')">
+    <UTooltip v-if="props.canEdit && props.selectable" :text="t(props.selected ? 'boardCard.deselect' : 'boardCard.select')">
       <UButton
         :icon="props.selected ? 'i-lucide-square-check' : 'i-lucide-square'"
         size="xs"

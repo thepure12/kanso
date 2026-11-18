@@ -893,3 +893,34 @@ export const pushMessages = pgTable('push_messages', {
   nextAttemptAt: timestamp('next_attempt_at', { withTimezone: true }).notNull().defaultNow(),
   createdAt: createdAt(),
 }, t => [index('push_messages_due_idx').on(t.nextAttemptAt)])
+
+// Per-member access limits on a board (see 0088_board_member_access_rls.sql).
+// A row here marks a non-owner as limited on the board: access to each card is
+// the card's entry in board_member_access, else its column's entry, else
+// default_access, capped by the person's role (viewers at most read). Limited
+// people cannot change the board's structure (app.can_edit is false for them).
+// No row = today's role-based access. Owners manage both tables.
+export const boardAccess = pgEnum('board_access', ['none', 'read', 'edit'])
+
+export const boardMemberLimits = pgTable('board_member_limits', {
+  boardId: uuid('board_id').notNull().references(() => boards.id, { onDelete: 'cascade' }),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  defaultAccess: boardAccess('default_access').notNull().default('none'),
+  createdAt: createdAt(),
+}, t => [primaryKey({ columns: [t.boardId, t.userId] }), index('board_member_limits_user_idx').on(t.userId)])
+
+export const boardMemberAccess = pgTable('board_member_access', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  boardId: uuid('board_id').notNull(),
+  userId: uuid('user_id').notNull(),
+  columnId: uuid('column_id'),
+  cardId: uuid('card_id'),
+  access: boardAccess('access').notNull(),
+}, t => [
+  foreignKey({ columns: [t.boardId, t.userId], foreignColumns: [boardMemberLimits.boardId, boardMemberLimits.userId], name: 'board_member_access_limit_fk' }).onDelete('cascade'),
+  foreignKey({ columns: [t.columnId, t.boardId], foreignColumns: [columns.id, columns.boardId], name: 'board_member_access_column_fk' }).onDelete('cascade'),
+  foreignKey({ columns: [t.cardId, t.boardId], foreignColumns: [cards.id, cards.boardId], name: 'board_member_access_card_fk' }).onDelete('cascade'),
+  check('board_member_access_target', sql`num_nonnulls(${t.columnId}, ${t.cardId}) = 1`),
+  uniqueIndex('board_member_access_column_unique').on(t.boardId, t.userId, t.columnId).where(sql`${t.columnId} is not null`),
+  uniqueIndex('board_member_access_card_unique').on(t.boardId, t.userId, t.cardId).where(sql`${t.cardId} is not null`),
+])

@@ -20,8 +20,12 @@ const props = defineProps<{
   /** Base URL of the invites API, e.g. /api/teams/:id/invites */
   invitesEndpoint: string
   canManage: boolean
+  /** Users whose access is limited to some columns/cards (boards only; badge). */
+  limitedIds?: string[]
+  /** Whether the member's access can be limited (boards: owners, for non-owners). Shows the button. */
+  canLimit?: (m: PanelMember) => boolean
 }>()
-const emit = defineEmits<{ changed: [], left: [] }>()
+const emit = defineEmits<{ changed: [], left: [], limit: [userId: string] }>()
 
 const { user } = useUserSession()
 const showError = useApiError()
@@ -217,6 +221,17 @@ async function revoke(inviteId: string) {
           class="flex-1 min-w-0"
         />
         <UBadge v-if="m.note" color="neutral" variant="outline" size="sm" icon="i-lucide-users" :label="m.note" />
+        <UBadge v-if="props.limitedIds?.includes(m.userId)" color="warning" variant="subtle" size="sm" icon="i-lucide-shield" :label="t('memberAccess.limited')" />
+        <UTooltip v-if="props.canLimit?.(m)" :text="t('memberAccess.button')">
+          <UButton
+            color="neutral"
+            variant="ghost"
+            size="sm"
+            icon="i-lucide-shield"
+            :aria-label="t('memberAccess.button')"
+            @click="emit('limit', m.userId)"
+          />
+        </UTooltip>
         <template v-if="m.role">
           <USelect
             v-if="props.canManage"

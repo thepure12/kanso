@@ -22,6 +22,22 @@ export interface Member extends Person {
   teamRole: BoardRole | null
 }
 
+/** Access of a limited member to a card or column (0088_board_member_access_rls.sql). */
+export type BoardAccess = 'none' | 'read' | 'edit'
+
+/**
+ * Limits of a non-owner on a board: a card's access is its entry in `cards`,
+ * else its column's entry in `columns`, else `defaultAccess`, capped by the role
+ * (viewers at most read). Limited people cannot change the board's structure.
+ */
+export interface MemberAccess {
+  defaultAccess: BoardAccess
+  /** Column id → access. */
+  columns: Record<string, BoardAccess>
+  /** Card id → access; wins over the card's column. */
+  cards: Record<string, BoardAccess>
+}
+
 export interface TeamMember extends Person {
   role: BoardRole
 }
@@ -424,6 +440,10 @@ export interface BoardDetail {
   fields: BoardField[]
   members: Member[]
   invites: Invite[]
+  /** The current user's limits on this board; null = not limited (owners never are). */
+  myAccess: MemberAccess | null
+  /** Limits by user id: owners get every member's, others only their own. */
+  memberAccess: Record<string, MemberAccess>
 }
 
 export interface BoardSummary {

@@ -1177,6 +1177,29 @@
     "notSignedUp": "Noch nicht registriert",
     "revoke": "Einladung zurückziehen"
   },
+  "memberAccess": {
+    "button": "Zugriff einschränken",
+    "limited": "Eingeschränkt",
+    "limitedBadge": "Eingeschränkter Zugriff",
+    "limitedHint": "Ein Besitzer hat dich auf einige Spalten und Karten dieses Boards beschränkt. Spalten, Tags und Einstellungen kannst du nicht ändern.",
+    "title": "Zugriff von {name}",
+    "description": "Lege fest, was diese Person auf diesem Board sieht und bearbeitet. Besitzer sind nie eingeschränkt.",
+    "viewerNote": "Betrachter können höchstens lesen, daher fehlt „Bearbeiten“.",
+    "default": "Alles andere",
+    "defaultHelp": "Gilt für Spalten und Karten ohne eigene Einstellung.",
+    "columns": "Spalten",
+    "cards": "Einzelne Karten",
+    "cardsHelp": "Eine Karteneinstellung geht der Spalte vor. Karten lassen sich trotzdem nur in Spalten mit „Bearbeiten“ verschieben.",
+    "addCard": "Karte hinzufügen…",
+    "inherit": "Wie alles andere ({level})",
+    "remove": "Einschränkung aufheben",
+    "saveFailed": "Zugriffsbeschränkung konnte nicht gespeichert werden",
+    "levels": {
+      "none": "Verborgen",
+      "read": "Nur lesen",
+      "edit": "Bearbeiten"
+    }
+  },
   "notifications": {
     "title": "Benachrichtigungen",
     "toastOpen": "Öffnen",
