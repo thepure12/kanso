@@ -135,7 +135,8 @@
     "editTitle": "Edit the title",
     "assignMe": "Assign or unassign me",
     "toggleSelect": "Select or deselect for bulk changes",
-    "moveCardColumn": "Move the card to the previous or next column"
+    "moveCardColumn": "Move the card to the previous or next column",
+    "nextBoardTab": "Next open board tab"
   },
   "mail": {
     "linkExpiry": "The link expires in {expiry}. If the button does not work, paste this link into your browser:",
@@ -1795,5 +1796,9 @@
       "add": "Could not add the reminder",
       "delete": "Could not delete the reminder"
     }
+  },
+  "boardTabs": {
+    "label": "Open boards",
+    "close": "Close {name}"
   }
 }

@@ -135,7 +135,8 @@
     "editTitle": "Titel bearbeiten",
     "assignMe": "Mich zuweisen oder entfernen",
     "toggleSelect": "Für Sammeländerungen aus- oder abwählen",
-    "moveCardColumn": "Karte in die vorige oder nächste Spalte verschieben"
+    "moveCardColumn": "Karte in die vorige oder nächste Spalte verschieben",
+    "nextBoardTab": "Nächster Board-Tab"
   },
   "mail": {
     "linkExpiry": "Der Link ist {expiry} gültig. Falls der Button nicht funktioniert, kopiere diesen Link in deinen Browser:",
@@ -1795,5 +1796,9 @@
       "add": "Erinnerung konnte nicht hinzugefügt werden",
       "delete": "Erinnerung konnte nicht gelöscht werden"
     }
+  },
+  "boardTabs": {
+    "label": "Geöffnete Boards",
+    "close": "{name} schließen"
   }
 }

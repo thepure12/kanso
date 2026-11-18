@@ -52,6 +52,7 @@ export async function useBoard(id: string) {
   const showError = useApiError()
   const toast = useToast()
   const { t } = useI18n()
+  const boardTabs = useBoardTabs()
 
   // Undo stack of this tab's changes (a new one per board page). Undo reapplies
   // the old state through the API, so it fails cleanly when the target is gone.
@@ -115,6 +116,7 @@ export async function useBoard(id: string) {
         unsubscribe?.()
         unsubscribe = undefined
         toast.add({ title: t('board.noAccess'), color: 'warning' })
+        boardTabs.forget(id)
         navigateTo('/')
       },
       // The stream was down or changed hands (or the device was offline): changes made meanwhile are unknown.
@@ -211,6 +213,7 @@ export async function useBoard(id: string) {
     await refresh()
     if (error.value?.statusCode === 404) {
       toast.add({ title: t('board.goneOrNoAccess'), color: 'warning' })
+      boardTabs.forget(id)
       await navigateTo('/')
       return
     }
@@ -484,6 +487,7 @@ export async function useBoard(id: string) {
 
     deleteBoard: () => run(async () => {
       await api(`/api/boards/${id}`, { method: 'DELETE' })
+      boardTabs.forget(id)
       await navigateTo('/')
     }, t('board.errors.deleteBoard')),
 

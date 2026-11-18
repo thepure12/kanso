@@ -10,6 +10,7 @@ import type { CardBox } from '~/utils/cardFocus'
 
 const route = useRoute()
 const id = route.params.id as string
+const boardTabs = useBoardTabs()
 const {
   board, error, refresh, columns, columnGroups, savedViews, lists, tags, fields, templates, recurrences, automations, scheduledActions, archived, offline, canEdit, isOwner, limited, canEditCard, canCommentOn, canAddToColumn, dragging, remoteVersion,
   renameBoard, setArchived, setBackground, setAccent, setColumnOutline, uploadBackground, deleteBoard, addColumn, renameColumn, setColumnAppearance, setColumnWipLimit, sortColumnByPriority, deleteColumn, columnMoved,
@@ -24,11 +25,20 @@ const confirm = useConfirm()
 const ask = usePrompt()
 const i18n = useI18nContext()
 
-if (error.value) throw createError({ statusCode: error.value.statusCode ?? 404, statusMessage: t('board.notFound'), fatal: true })
+if (error.value) {
+  // A board that is gone or out of reach should not stay among the open tabs.
+  boardTabs.forget(id)
+  throw createError({ statusCode: error.value.statusCode ?? 404, statusMessage: t('board.notFound'), fatal: true })
+}
 
 useHead({ title: () => board.value?.name ?? t('board.title') })
 
 const toggleStar = useBoardStar()
+
+// Open board tabs (personal, this device): this board joins them and keeps its name current.
+onMounted(() => watch(() => board.value?.name, (name) => {
+  if (name) boardTabs.remember({ id, name })
+}, { immediate: true }))
 
 const backgroundOpen = ref(false)
 const base = basePath()
@@ -374,6 +384,10 @@ defineShortcuts({
   // Not while typing, so text fields keep their own undo; works in dialogs too.
   'meta_z': () => { undo() },
   'meta_shift_z': () => { redo() },
+  'g-t': () => {
+    const next = dialogOpen() ? null : stepBoardTab(boardTabs.tabs.value, id, 1)
+    if (next) navigateTo(`/boards/${next}`)
+  },
 })
 
 // Escape clears the card selection. Not a defineShortcuts entry: those call preventDefault,
@@ -623,6 +637,7 @@ const boardMenu = computed(() => {
     :style="bgStyle"
   >
     <div class="sm:sticky sm:top-(--ui-header-height) z-20" :class="backed ? 'bg-default/85 backdrop-blur-sm' : 'bg-default/75 backdrop-blur'">
+      <BoardTabs :active-id="id" />
       <div class="flex flex-wrap items-center gap-x-1 gap-y-2 sm:gap-3 px-2 sm:px-6 py-2 sm:py-2.5 border-b border-default">
         <UTooltip :text="t('board.allBoards')">
           <UButton to="/" icon="i-lucide-arrow-left" color="neutral" variant="ghost" :aria-label="t('board.allBoards')" />
