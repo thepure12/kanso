@@ -21,6 +21,13 @@ export default defineNuxtConfig({
   },
   css: ['~/assets/css/main.css'],
   devtools: { enabled: true },
+  // Service worker scripts: always revalidate, so neither the browser's HTTP cache
+  // (it may serve importScripts from it) nor a proxy keeps an old copy. Matched
+  // below the base path.
+  routeRules: {
+    '/sw.js': { headers: { 'cache-control': 'no-cache' } },
+    '/push-sw.js': { headers: { 'cache-control': 'no-cache' } },
+  },
   vite: {
     server: {
       allowedHosts: ['renningert-framework-lan.dm.org', 'renningert-framework-wlan.dm.org'],
