@@ -465,7 +465,7 @@ const tabs = computed(() => [
                 </span>
               </template>
               <template #item-leading="{ item }">
-                <span class="size-3 rounded-full shrink-0" :style="{ backgroundColor: item.color }" />
+                <span class="size-3 rounded-full shrink-0 self-center" :style="{ backgroundColor: item.color }" />
               </template>
               <template #create-item-label="{ item }">
                 {{ t('card.createTag', { name: item }) }}

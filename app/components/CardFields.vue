@@ -69,7 +69,7 @@ const option = (field: BoardField) => field.options.find(o => o.id === props.val
             <span v-if="option(field)" class="size-3 rounded-full" :style="{ backgroundColor: option(field)!.color }" />
           </template>
           <template #item-leading="{ item }">
-            <span v-if="item.color" class="size-3 rounded-full shrink-0" :style="{ backgroundColor: item.color }" />
+            <span v-if="item.color" class="size-3 rounded-full shrink-0 self-center" :style="{ backgroundColor: item.color }" />
           </template>
         </USelect>
         <UInput

@@ -146,7 +146,7 @@ const tagRules = computed<{ kind: TagKind, label: string, key: 'applyTag' | 'rem
               class="flex-1"
             >
               <template #item-leading="{ item }">
-                <span class="size-3 rounded-full shrink-0" :style="{ backgroundColor: item.color }" />
+                <span class="size-3 rounded-full shrink-0 self-center" :style="{ backgroundColor: item.color }" />
               </template>
               <template #empty>
                 {{ props.tags.length ? t('rules.everyTag') : t('rules.noTags') }}

@@ -242,7 +242,7 @@ function schedule() {
             <UFormField v-if="action.kind === 'move'" :label="t('automations.targetColumn')">
               <USelect v-model="action.targetColumnId" :items="actionTargetItems" :placeholder="t('automations.chooseColumn')" class="w-full">
                 <template #item-leading="{ item }">
-                  <span class="size-3 rounded-full shrink-0 bg-elevated" :style="item.color ? { backgroundColor: item.color } : undefined" />
+                  <span class="size-3 rounded-full shrink-0 self-center bg-elevated" :style="item.color ? { backgroundColor: item.color } : undefined" />
                 </template>
               </USelect>
             </UFormField>
@@ -311,14 +311,14 @@ function schedule() {
                   class="w-full"
                 >
                   <template #item-leading="{ item }">
-                    <span v-if="item.value !== ALL" class="size-3 rounded-full shrink-0 bg-elevated" :style="item.color ? { backgroundColor: item.color } : undefined" />
+                    <span v-if="item.value !== ALL" class="size-3 rounded-full shrink-0 self-center bg-elevated" :style="item.color ? { backgroundColor: item.color } : undefined" />
                   </template>
                 </USelect>
               </UFormField>
               <UFormField v-if="draft.kind === 'move_card'" :label="t('automations.targetColumn')" class="flex-1 min-w-40">
                 <USelect v-model="draft.targetColumnId" :items="targetItems" :placeholder="t('automations.chooseColumn')" class="w-full">
                   <template #item-leading="{ item }">
-                    <span class="size-3 rounded-full shrink-0 bg-elevated" :style="item.color ? { backgroundColor: item.color } : undefined" />
+                    <span class="size-3 rounded-full shrink-0 self-center bg-elevated" :style="item.color ? { backgroundColor: item.color } : undefined" />
                   </template>
                 </USelect>
               </UFormField>
@@ -337,7 +337,7 @@ function schedule() {
                   class="w-full"
                 >
                   <template #item-leading="{ item }">
-                    <span class="size-3 rounded-full shrink-0" :style="{ backgroundColor: item.color }" />
+                    <span class="size-3 rounded-full shrink-0 self-center" :style="{ backgroundColor: item.color }" />
                   </template>
                   <template #empty>
                     {{ t('automations.noTags') }}

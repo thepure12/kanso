@@ -93,7 +93,7 @@ const dueItems = computed(() => (['any', 'overdue', 'today', 'week', 'none', 'st
               :search-input="false"
             >
               <template #item-leading="{ item }">
-                <span class="size-3 rounded-full shrink-0" :style="{ backgroundColor: item.color }" />
+                <span class="size-3 rounded-full shrink-0 self-center" :style="{ backgroundColor: item.color }" />
               </template>
             </USelectMenu>
           </UFormField>
@@ -119,7 +119,7 @@ const dueItems = computed(() => (['any', 'overdue', 'today', 'week', 'none', 'st
               @update:model-value="(keys: string[]) => setFieldFilter(field.id, keys)"
             >
               <template #item-leading="{ item }">
-                <span v-if="item.color" class="size-3 rounded-full shrink-0" :style="{ backgroundColor: item.color }" />
+                <span v-if="item.color" class="size-3 rounded-full shrink-0 self-center" :style="{ backgroundColor: item.color }" />
               </template>
             </USelectMenu>
           </UFormField>
