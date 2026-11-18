@@ -42,7 +42,10 @@ export function describeActivity(a: Pick<Activity, 'kind' | 'data'>, i18n: I18nC
     case 'unlinked': return t('activity.unlinked', { card: d.card })
     case 'field': return fieldText(d, i18n)
     case 'stale': return t('activity.stale', { n: Number(d.days) }, Number(d.days))
-    case 'reminder': return d.note ? t('activity.reminderNote', { note: d.note }) : t('activity.reminder')
+    case 'reminder':
+      // data.user_id: a personal reminder, only ever shown to that person.
+      if (d.user_id) return d.note ? t('activity.reminderPersonalNote', { note: d.note }) : t('activity.reminderPersonal')
+      return d.note ? t('activity.reminderNote', { note: d.note }) : t('activity.reminder')
   }
   return a.kind
 }

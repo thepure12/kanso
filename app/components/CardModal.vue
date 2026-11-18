@@ -421,6 +421,7 @@ const tabs = computed(() => [
               size="sm"
               @click="toggleWatch"
             />
+            <CardReminders :items="cd.detail.value.reminders" :due-date="props.card.dueDate" :cd="cd" />
             <UTooltip v-if="props.link" :text="t('card.copyLink')">
               <UButton
                 icon="i-lucide-link"

@@ -341,7 +341,7 @@ export interface Activity {
    * and mentioned also carry `mentions`, an array of user ids (see mentionsOf).
    * field: { field, kind, from, to } with values as text (option labels for
    * select fields, null = no value). stale: { days } (a number).
-   * reminder: { note? } (a scheduled remind action).
+   * reminder: { note? } (a scheduled remind action), or { user_id, note? } (a personal reminder, seen only by that user).
    * Activity of a board automation has no actor and `automation: true`.
    */
   data: Record<string, string | null>
@@ -400,6 +400,22 @@ export interface CardDetail {
   links: CardLink[]
   /** Custom field values by field id, as on Card. */
   fields: Record<string, FieldValue>
+  /** The current user's own reminders on the card, soonest first. */
+  reminders: CardReminder[]
+}
+
+/** A personal "remind me" on a card: at a fixed time, or relative to the due date. */
+export interface CardReminder {
+  id: string
+  /** ISO time it fires; null for a due-date reminder while the card has no due date. */
+  remindAt: string | null
+  /** Due-date reminder: days before the due date (0 = on the day), at dueTime (HH:MM) in timeZone. */
+  beforeDueDays: number | null
+  dueTime: string | null
+  timeZone: string | null
+  note: string | null
+  /** Set once a due-date reminder fired (a later due date re-arms it); fixed-time ones are deleted instead. */
+  sentAt: string | null
 }
 
 export interface BoardDetail {

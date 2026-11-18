@@ -1,5 +1,5 @@
 import type { CardMatrixThread } from '#shared/types/matrix'
-import type { Attachment, CardDetail, CardLink, CardLinkKind, ChecklistItem, Comment, CommentReaction, TimeEntry, Watcher } from '#shared/types/board'
+import type { Attachment, CardDetail, CardLink, CardLinkKind, CardReminder, ChecklistItem, Comment, CommentReaction, TimeEntry, Watcher } from '#shared/types/board'
 
 /**
  * Checklist, comments, attachments, time entries, watchers, links and activity of one card,
@@ -174,6 +174,17 @@ export function useCardDetail(cardId: Ref<string>) {
       d.watchers = watching ? [...d.watchers.filter(w => w.userId !== me.userId), me] : d.watchers.filter(w => w.userId !== me.userId)
       await api(`${base()}/watch`, { method: watching ? 'PUT' : 'DELETE' })
     }, watching ? t('card.errors.watch') : t('card.errors.unwatch')),
+
+    /** Adds a personal reminder: at a time (`at`, ISO) or relative to the due date. */
+    addReminder: (input: { at: string, note: string | null } | { beforeDueDays: number, time: string, timeZone: string, note: string | null }) => run(async (d) => {
+      const created = await api<CardReminder>(`${base()}/reminders`, { method: 'POST', body: input })
+      d.reminders = [...d.reminders, created]
+    }, t('reminders.errors.add')),
+
+    deleteReminder: (r: CardReminder) => run(async (d) => {
+      d.reminders = d.reminders.filter(x => x.id !== r.id)
+      await api(`/api/reminders/${r.id}`, { method: 'DELETE' })
+    }, t('reminders.errors.delete')),
 
     /** Links this card to another one; returns the new link. */
     addLink: async (toCardId: string, kind: CardLinkKind) => {

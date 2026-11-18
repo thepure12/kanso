@@ -83,7 +83,9 @@
     "automation": "Automatisierung",
     "stale": "hat diese Karte markiert: seit einem Tag keine Aktivität | hat diese Karte markiert: seit {n} Tagen keine Aktivität",
     "reminder": "hat eine Erinnerung gesendet",
-    "reminderNote": "hat eine Erinnerung gesendet: {note}"
+    "reminderNote": "hat eine Erinnerung gesendet: {note}",
+    "reminderPersonal": "hat dich erinnert",
+    "reminderPersonalNote": "hat dich erinnert: {note}"
   },
   "notification": {
     "assignedYou": "hat dir diese Karte zugewiesen",
@@ -1733,6 +1735,32 @@
       "notePlaceholder": "Optional, wird mit der Erinnerung gesendet",
       "add": "Planen",
       "delete": "Geplante Aktion löschen"
+    }
+  },
+  "reminders": {
+    "button": "Erinnern",
+    "count": "{count} Erinnerung | {count} Erinnerungen",
+    "private": "Nur du siehst deine Erinnerungen. Sie kommen als Benachrichtigung.",
+    "atTime": "Zu einer Zeit",
+    "beforeDue": "Vor dem Fälligkeitsdatum",
+    "when": "Wann",
+    "inOneHour": "In 1 Stunde",
+    "tomorrowMorning": "Morgen 9:00",
+    "days": "Tage vorher",
+    "time": "Uhrzeit",
+    "note": "Notiz",
+    "notePlaceholder": "Woran erinnert werden soll (optional)",
+    "add": "Erinnerung hinzufügen",
+    "delete": "Erinnerung löschen",
+    "noDueDate": "Diese Karte hat noch kein Fälligkeitsdatum. Die Erinnerung wartet darauf.",
+    "onDueAt": "Am Fälligkeitsdatum um {time}",
+    "beforeDueAt": "{n} Tag vor dem Fälligkeitsdatum um {time} | {n} Tage vor dem Fälligkeitsdatum um {time}",
+    "dayOption": "Am Fälligkeitsdatum",
+    "daysOption": "{n} Tag vorher | {n} Tage vorher",
+    "sent": "Gesendet",
+    "errors": {
+      "add": "Erinnerung konnte nicht hinzugefügt werden",
+      "delete": "Erinnerung konnte nicht gelöscht werden"
     }
   }
 }

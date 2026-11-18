@@ -60,6 +60,8 @@ Errors come back as JSON with `statusCode` and `statusMessage`: `400` invalid in
 | PATCH / DELETE | `/api/automations/:id` | Edit `{ days?, active? }` / delete an automation |
 | POST | `/api/cards/:id/scheduled-actions` | Schedule a one-shot action for `runOn` (YYYY-MM-DD; run by the hourly automations task, then deleted; editors): `{ kind: 'move', runOn, targetColumnId }`, `{ kind: 'archive', runOn }`, `{ kind: 'priority', runOn, priority }` or `{ kind: 'remind', runOn, note? }` (notifies assignees and watchers, note up to 500 characters). Listed as `scheduledActions` on the board |
 | DELETE | `/api/scheduled-actions/:id` | Delete a scheduled action |
+| POST | `/api/cards/:id/reminders` | Personal reminder for you only (anyone who can see the card, viewers too): `{ at, note? }` (ISO time with offset) or `{ beforeDueDays, time, timeZone, note? }` (0-365 days before the due date, `HH:MM` in an IANA zone; waits while the card has no due date, follows due date changes). A time that has passed is refused (400). Sent within a minute as a notification; listed as `reminders` by `GET /api/cards/:id` |
+| DELETE | `/api/reminders/:id` | Delete one of your reminders |
 | POST | `/api/boards/:id/cards` | Add a card `{ columnId, title, description? }` (title up to 1000 characters) |
 | GET | `/api/cards/:id` | Card with checklist, comments, attachments, links and activity |
 | PATCH | `/api/cards/:id` | Edit `{ title?, description?, startDate?, dueDate?, priority?, estimate?, tagIds?, assigneeIds?, archived?, skipAutomations? }` (`skipAutomations`: board and column automations leave the card alone) |

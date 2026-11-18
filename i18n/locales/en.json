@@ -83,7 +83,9 @@
     "automation": "Automation",
     "stale": "flagged this card: no activity for a day | flagged this card: no activity for {n} days",
     "reminder": "sent a reminder",
-    "reminderNote": "sent a reminder: {note}"
+    "reminderNote": "sent a reminder: {note}",
+    "reminderPersonal": "reminded you",
+    "reminderPersonalNote": "reminded you: {note}"
   },
   "notification": {
     "assignedYou": "assigned you to this card",
@@ -1733,6 +1735,32 @@
       "notePlaceholder": "Optional, sent with the reminder",
       "add": "Schedule",
       "delete": "Delete scheduled action"
+    }
+  },
+  "reminders": {
+    "button": "Remind me",
+    "count": "{count} reminder | {count} reminders",
+    "private": "Only you see your reminders. They arrive as notifications.",
+    "atTime": "At a time",
+    "beforeDue": "Before due date",
+    "when": "When",
+    "inOneHour": "In 1 hour",
+    "tomorrowMorning": "Tomorrow 9:00",
+    "days": "Days before",
+    "time": "Time",
+    "note": "Note",
+    "notePlaceholder": "What to remember (optional)",
+    "add": "Add reminder",
+    "delete": "Delete reminder",
+    "noDueDate": "This card has no due date yet. The reminder waits for one.",
+    "onDueAt": "On the due date at {time}",
+    "beforeDueAt": "{n} day before the due date at {time} | {n} days before the due date at {time}",
+    "dayOption": "On the due date",
+    "daysOption": "{n} day before | {n} days before",
+    "sent": "Sent",
+    "errors": {
+      "add": "Could not add the reminder",
+      "delete": "Could not delete the reminder"
     }
   }
 }

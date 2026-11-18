@@ -496,6 +496,33 @@ export const cardScheduledActions = pgTable('card_scheduled_actions', {
   end`),
 ])
 
+// Personal "remind me" on a card (like card_watchers: own rows only). Either at
+// a fixed time (remind_at given) or `before_due_days` days before the card's due
+// date at `due_time` in `time_zone` (remind_at computed by a trigger, recomputed
+// when the due date changes, null without one). app.run_card_reminders()
+// (cards:reminders task, every minute) logs a `reminder` activity {user_id, note}
+// seen and notified only to that user, then sets sent_at. See 0090_card_reminders_rls.sql.
+export const cardReminders = pgTable('card_reminders', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  cardId: uuid('card_id').notNull(),
+  boardId: uuid('board_id').notNull(),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  remindAt: timestamp('remind_at', { withTimezone: true }),
+  beforeDueDays: smallint('before_due_days'),
+  dueTime: text('due_time'),
+  timeZone: text('time_zone'),
+  note: text('note'),
+  sentAt: timestamp('sent_at', { withTimezone: true }),
+  createdAt: createdAt(),
+}, t => [
+  foreignKey({ columns: [t.cardId, t.boardId], foreignColumns: [cards.id, cards.boardId], name: 'card_reminders_card_board_fk' }).onDelete('cascade'),
+  index('card_reminders_card_user_idx').on(t.cardId, t.userId),
+  index('card_reminders_due_idx').on(t.remindAt).where(sql`${t.sentAt} is null`),
+  check('card_reminders_shape', sql`(${t.beforeDueDays} is null and ${t.dueTime} is null and ${t.timeZone} is null and ${t.remindAt} is not null)
+    or (${t.beforeDueDays} between 0 and 365 and ${t.dueTime} ~ '^([01][0-9]|2[0-3]):[0-5][0-9]$' and ${t.timeZone} is not null)`),
+  check('card_reminders_note_length', sql`coalesce(char_length(${t.note}), 0) <= 500`),
+])
+
 // The same composite-FK pattern as card_tags: board_id pins every row to its card's board.
 const cardFk = (name: string, t: { cardId: AnyPgColumn, boardId: AnyPgColumn }) =>
   foreignKey({ columns: [t.cardId, t.boardId], foreignColumns: [cards.id, cards.boardId], name }).onDelete('cascade')

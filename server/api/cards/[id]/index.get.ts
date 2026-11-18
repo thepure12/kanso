@@ -26,7 +26,7 @@ export default defineUserHandler(async (event, tx, userId): Promise<CardDetail> 
     tx.select({ roomId: mt.roomId, eventId: mt.eventId }).from(mt).where(eq(mt.cardId, id)),
   ])
 
-  const reactions = await loadReactions(tx, comments.map(c => c.id), userId)
+  const [reactions, reminders] = await Promise.all([loadReactions(tx, comments.map(c => c.id), userId), loadReminders(tx, id, userId)])
   const iso = (d: Date) => d.toISOString()
   return {
     checklist,
@@ -40,5 +40,6 @@ export default defineUserHandler(async (event, tx, userId): Promise<CardDetail> 
     watching: watcherRows.some(w => w.userId === userId),
     links,
     fields: Object.fromEntries(fieldRows.map(f => [f.fieldId, f.value as FieldValue])),
+    reminders,
   }
 })

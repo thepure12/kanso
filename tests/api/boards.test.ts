@@ -5,7 +5,7 @@ import { readFileSync } from 'node:fs'
 import { url } from '@nuxt/test-utils/e2e'
 import postgres from 'postgres'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import type { Attachment, BoardActivityPage, BoardAutomation, BoardDetail, BoardField, BoardSummary, Card, CardDetail, CardLink, CardRecurrence, Column, ColumnGroup, ColumnRule, SavedView, ScheduledCardAction, Comment, Person, TeamDetail, TimeEntry, TrashedCard } from '#shared/types/board'
+import type { Attachment, BoardActivityPage, BoardAutomation, BoardDetail, BoardField, BoardSummary, Card, CardDetail, CardLink, CardRecurrence, CardReminder, Column, ColumnGroup, ColumnRule, SavedView, ScheduledCardAction, Comment, Person, TeamDetail, TimeEntry, TrashedCard } from '#shared/types/board'
 import type { Inbox } from '#shared/types/notifications'
 import type { AdminUser, AuditLogPage, InstanceSettings } from '#shared/types/admin'
 import type { Account, AccountSession } from '#shared/types/account'
@@ -573,6 +573,28 @@ describe('board automations', () => {
     expect(data.scheduledActions.filter(s => s.cardId === card.id).map(s => s.id)).toEqual([move.id, remind.id])
     expect((await outsider.req(`/api/scheduled-actions/${move.id}`, { method: 'DELETE' })).status).toBe(404)
     for (const a of [move, remind]) expect((await bob.req(`/api/scheduled-actions/${a.id}`, { method: 'DELETE' })).status).toBe(200)
+  })
+
+  it('personal reminders: own only, at a time or before the due date', async () => {
+    const card = await newCard('Remind me')
+    const post = (who: typeof alice, body: unknown) => who.req<CardReminder>(`/api/cards/${card.id}/reminders`, { method: 'POST', body })
+    const at = new Date(Date.now() + 86_400_000).toISOString()
+    const { status, data: fixed } = await post(bob, { at, note: '  Call back  ' })
+    expect(status).toBe(200)
+    expect(fixed).toMatchObject({ remindAt: at, beforeDueDays: null, note: 'Call back', sentAt: null })
+    const { data: relative } = await post(bob, { beforeDueDays: 1, time: '09:00', timeZone: 'Europe/Berlin' })
+    expect(relative).toMatchObject({ remindAt: null, beforeDueDays: 1, dueTime: '09:00', timeZone: 'Europe/Berlin' })
+    expect((await post(bob, { at: new Date(Date.now() - 60_000).toISOString() })).status).toBe(400)
+    expect((await post(bob, { beforeDueDays: 1, time: '25:00', timeZone: 'UTC' })).status).toBe(400)
+    expect((await post(bob, { beforeDueDays: 1, time: '09:00', timeZone: 'Mars/Olympus' })).status).toBe(400)
+    expect((await post(outsider, { at })).status).toBe(404)
+
+    await bob.req(`/api/cards/${card.id}`, { method: 'PATCH', body: { dueDate: '2099-07-10' } })
+    const mine = (await bob.req<CardDetail>(`/api/cards/${card.id}`)).data.reminders
+    expect(mine.map(r => [r.id, r.remindAt])).toEqual([[fixed.id, at], [relative.id, '2099-07-09T07:00:00.000Z']])
+    expect((await alice.req<CardDetail>(`/api/cards/${card.id}`)).data.reminders).toEqual([])
+    expect((await alice.req(`/api/reminders/${fixed.id}`, { method: 'DELETE' })).status).toBe(404)
+    for (const r of [fixed, relative]) expect((await bob.req(`/api/reminders/${r.id}`, { method: 'DELETE' })).status).toBe(200)
   })
 })
 
