@@ -57,9 +57,51 @@ export function holdServiceWorkerStream(holder: StreamHolder) {
   return () => { holders.delete(holder) }
 }
 
+/**
+ * Set in this tab's sessionStorage when Reload is clicked, read (and cleared) on the
+ * next load: if a worker is still waiting then, the update got stuck.
+ */
+const REQUESTED_KEY = 'kanso:sw-update-requested'
+/** Older marks are ignored (the tab was not reloaded by the update). */
+export const REQUESTED_MAX_AGE_MS = 60_000
+
+let requestedOnLoad: boolean | undefined
+
+/** Whether this page load follows a click on Reload; read once per load. */
+export function updateRequestedBeforeLoad(): boolean {
+  if (requestedOnLoad !== undefined) return requestedOnLoad
+  requestedOnLoad = false
+  try {
+    const at = Number(sessionStorage.getItem(REQUESTED_KEY))
+    sessionStorage.removeItem(REQUESTED_KEY)
+    requestedOnLoad = at > 0 && Date.now() - at < REQUESTED_MAX_AGE_MS
+  }
+  catch { /* storage blocked: no recovery, the toast stays */ }
+  return requestedOnLoad
+}
+
+/**
+ * Called when a waiting worker is found. If the page was reloaded by an update and a
+ * worker still waits, the old one never let go (seen in Firefox): unregister the
+ * service worker and reload, as unregistering by hand did. The next load installs
+ * the new worker fresh; the offline caches fill again and push re-subscribes
+ * (usePushNotifications().sync). The mark is gone by then, so this runs once.
+ * Returns true when it recovers (the caller skips the toast).
+ */
+export async function recoverStuckUpdate(): Promise<boolean> {
+  if (!updateRequestedBeforeLoad() || !('serviceWorker' in navigator)) return false
+  const registrations = await navigator.serviceWorker.getRegistrations()
+  if (!registrations.some(r => r.waiting)) return false
+  await Promise.all(registrations.map(r => r.unregister()))
+  window.location.reload()
+  return true
+}
+
 /** Closes every tab's streams, then activates the waiting worker; reloads either way. */
 export function applyServiceWorkerUpdate(update: () => Promise<void> | void) {
   setup()
+  try { sessionStorage.setItem(REQUESTED_KEY, String(Date.now())) }
+  catch { /* storage blocked */ }
   channel?.postMessage('release')
   releaseAll()
   void update()

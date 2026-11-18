@@ -14,8 +14,12 @@ const { $pwa } = useNuxtApp()
 const toast = useToast()
 onMounted(() => {
   if (!$pwa) return
-  watch(() => $pwa.needRefresh, (needRefresh) => {
+  // Read now, before anything else can reload the page.
+  updateRequestedBeforeLoad()
+  watch(() => $pwa.needRefresh, async (needRefresh) => {
     if (!needRefresh) return
+    // Still waiting right after Reload: unregister and reload instead of asking again.
+    if (await recoverStuckUpdate().catch(() => false)) return
     toast.add({
       title: t('pwa.updateTitle'),
       description: t('pwa.updateDescription'),
