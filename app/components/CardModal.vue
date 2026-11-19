@@ -273,7 +273,10 @@ function onModKeydown(e: KeyboardEvent) {
 const tab = ref('comments')
 // Comments and the Matrix thread in one tab (a personal choice, see useCardConversation).
 const conversationMerged = useCardConversationMerged()
-onMounted(loadCardConversation)
+onMounted(() => {
+  loadCardConversation()
+  loadCommentOrder()
+})
 const merged = computed(() => !!props.matrix && conversationMerged.value)
 watch(merged, (on) => { if (on && tab.value === 'matrix') tab.value = 'comments' })
 const tabs = computed(() => [

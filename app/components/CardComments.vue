@@ -17,6 +17,9 @@ const props = withDefaults(defineProps<{
 }>(), { canUpload: undefined })
 const { t } = useI18n()
 
+const order = useCommentOrder()
+const shown = computed(() => props.items && order.value === 'newest' ? [...props.items].reverse() : props.items ?? [])
+
 const draft = ref('')
 
 async function post() {
@@ -28,8 +31,11 @@ async function post() {
 </script>
 
 <template>
-  <div class="space-y-4 pt-2">
-    <form v-if="props.canEdit" class="space-y-2" @submit.prevent="post">
+  <div class="flex flex-col gap-4 pt-2">
+    <div class="-mb-2 flex justify-end">
+      <CommentOrderToggle />
+    </div>
+    <form v-if="props.canEdit" class="space-y-2" :class="order === 'oldest' ? 'order-last' : ''" @submit.prevent="post">
       <MarkdownEditor v-model="draft" :rows="3" :members="props.members" :upload="props.canUpload ?? props.canEdit ? props.cd.upload : undefined" :placeholder="t('comments.placeholder')" />
       <div class="flex justify-end">
         <UButton type="submit" size="sm" :label="t('comments.submit')" :disabled="!draft.trim()" />
@@ -41,7 +47,7 @@ async function post() {
     </p>
     <ul v-else class="space-y-2">
       <CommentItem
-        v-for="c in [...props.items].reverse()"
+        v-for="c in shown"
         :key="c.id"
         :comment="c"
         :can-edit="props.canEdit"

@@ -927,6 +927,10 @@
       "save": "Could not save comment",
       "delete": "Could not delete comment",
       "react": "Could not update reaction"
+    },
+    "order": {
+      "newestFirst": "Show newest comments first",
+      "newestLast": "Show newest comments last"
     }
   },
   "attachments": {

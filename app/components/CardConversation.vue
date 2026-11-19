@@ -3,8 +3,9 @@ import type { Comment, Member } from '#shared/types/board'
 import type { BoardMatrixRoom, CardMatrixThread, MatrixThreadMessage } from '#shared/types/matrix'
 
 /**
- * Comments and the card's Matrix thread in one list, newest first, with one
- * composer that writes either a comment or a reply in the thread.
+ * Comments and the card's Matrix thread in one list, newest first or last
+ * (useCommentOrder), with one composer that writes either a comment or a reply
+ * in the thread (below the list when newest last).
  */
 // Absent optional booleans would become false; undefined keeps the fallback.
 const props = withDefaults(defineProps<{
@@ -28,6 +29,8 @@ const { view, reply, sending, send } = mt
 const canReply = computed(() => props.canEdit && props.thread?.roomId === props.room.roomId)
 const commentable = computed(() => props.canComment ?? props.canEdit)
 
+const order = useCommentOrder()
+
 type Entry = { kind: 'comment', at: number, comment: Comment } | { kind: 'matrix', at: number, message: MatrixThreadMessage }
 
 const entries = computed<Entry[]>(() => {
@@ -36,7 +39,7 @@ const entries = computed<Entry[]>(() => {
   if (props.thread && view.value) {
     for (const m of view.value.messages) list.push({ kind: 'matrix', at: Date.parse(m.createdAt), message: m })
   }
-  return list.sort((a, b) => b.at - a.at)
+  return list.sort((a, b) => order.value === 'oldest' ? a.at - b.at : b.at - a.at)
 })
 const loadingThread = computed(() => !!props.thread && !view.value && !mt.loadError.value)
 
@@ -61,16 +64,17 @@ async function postComment() {
 </script>
 
 <template>
-  <div class="space-y-4 pt-2">
+  <div class="flex flex-col gap-4 pt-2">
     <div class="space-y-3">
       <MatrixThreadBar :room="room" :thread="thread" :can-edit="canEdit" :cd="cd" :mt="mt">
+        <CommentOrderToggle />
         <UTooltip :text="t('card.conversation.split')">
           <UButton size="xs" color="neutral" variant="ghost" icon="i-lucide-split" :aria-label="t('card.conversation.split')" @click="setCardConversationMerged(false)" />
         </UTooltip>
       </MatrixThreadBar>
     </div>
 
-    <div v-if="commentable || canReply" class="space-y-2">
+    <div v-if="commentable || canReply" class="space-y-2" :class="order === 'oldest' ? 'order-1' : ''">
       <UTabs v-if="canReply" v-model="target" :items="targetItems" :content="false" size="xs" />
       <form v-if="target === 'comment'" class="space-y-2" @submit.prevent="postComment">
         <MarkdownEditor v-model="draft" :rows="3" :members="members" :upload="canEdit ? cd.upload : undefined" :placeholder="t('comments.placeholder')" />
@@ -125,6 +129,6 @@ async function postComment() {
       </p>
     </template>
 
-    <MatrixAccountBox v-if="canReply && view" :room="room" :mt="mt" />
+    <MatrixAccountBox v-if="canReply && view" class="order-2" :room="room" :mt="mt" />
   </div>
 </template>

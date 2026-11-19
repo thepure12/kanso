@@ -1,6 +1,7 @@
 import { mountSuspended, registerEndpoint } from '@nuxt/test-utils/runtime'
 import { flushPromises } from '@vue/test-utils'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import CardComments from '~/components/CardComments.vue'
 import CardConversation from '~/components/CardConversation.vue'
 import type { Comment } from '#shared/types/board'
 import type { BoardMatrixRoom, MatrixThreadView } from '#shared/types/matrix'
@@ -67,5 +68,38 @@ describe('CardConversation', () => {
     expect(w.findAll('[role="tab"]')).toHaveLength(0)
     expect(w.find('textarea').attributes('placeholder')).not.toContain('Reply in the thread')
     expect(w.findAll('button').some(b => b.text() === 'Comment')).toBe(true)
+  })
+})
+
+describe('comment order', () => {
+  afterEach(() => setCommentOrder('newest'))
+
+  it('lists the merged conversation oldest first with the composer below when newest last', async () => {
+    setCommentOrder('oldest')
+    const items = [comment('k1', 'First comment', '2026-11-14T12:05:00Z'), comment('k2', 'Second comment', '2026-11-14T12:20:00Z')]
+    const w = await mountSuspended(CardConversation, {
+      props: { items, canEdit: false, canComment: true, isOwner: false, canReact: false, cd: cd(), members: [], room, thread: { roomId: '!team:example', eventId: '$root' } },
+    })
+    await flushPromises()
+    const texts = w.findAll('li').map(li => li.text())
+    expect(texts[0]).toContain('Kanso')
+    expect(texts[3]).toContain('Second comment')
+    expect(w.find('form').classes()).not.toContain('order-1')
+    expect(w.find('form').element.parentElement!.classList).toContain('order-1')
+  })
+
+  it('reverses CardComments and stores the choice', async () => {
+    const items = [comment('k1', 'First comment', '2026-11-14T12:05:00Z'), comment('k2', 'Second comment', '2026-11-14T12:20:00Z')]
+    const w = await mountSuspended(CardComments, {
+      props: { items, canEdit: true, isOwner: false, canReact: false, cd: cd(), members: [] },
+    })
+    expect(w.findAll('li')[0]!.text()).toContain('Second comment')
+    expect(w.find('form').classes()).not.toContain('order-last')
+    await w.find('button[aria-label="Show newest comments last"]').trigger('click')
+    expect(localStorage.getItem('kanban:comment-order')).toBe('oldest')
+    expect(w.findAll('li')[0]!.text()).toContain('First comment')
+    expect(w.find('form').classes()).toContain('order-last')
+    await w.find('button[aria-label="Show newest comments first"]').trigger('click')
+    expect(localStorage.getItem('kanban:comment-order')).toBeNull()
   })
 })

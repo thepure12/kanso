@@ -927,6 +927,10 @@
       "save": "Der Kommentar konnte nicht gespeichert werden",
       "delete": "Der Kommentar konnte nicht gelöscht werden",
       "react": "Die Reaktion konnte nicht gespeichert werden"
+    },
+    "order": {
+      "newestFirst": "Neueste Kommentare zuerst zeigen",
+      "newestLast": "Neueste Kommentare zuletzt zeigen"
     }
   },
   "attachments": {
