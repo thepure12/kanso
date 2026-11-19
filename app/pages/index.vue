@@ -17,7 +17,8 @@ const activeBoards = computed(() => boards.value.filter(b => !b.archivedAt))
 const starredBoards = computed(() => activeBoards.value.filter(b => b.starred))
 const archivedBoards = computed(() => boards.value.filter(b => b.archivedAt))
 const showArchived = ref(false)
-const personalBoards = computed(() => activeBoards.value.filter(b => !b.teamId))
+// Team boards of teams the user is not in (shared with them directly) go here too.
+const personalBoards = computed(() => boardsOutsideTeams(activeBoards.value, teams.value.map(team => team.id)))
 const teamBoards = (teamId: string) => activeBoards.value.filter(b => b.teamId === teamId)
 const toggleStar = useBoardStar()
 const canCreateIn = (team: TeamSummary) => team.role === 'owner' || team.role === 'editor'
