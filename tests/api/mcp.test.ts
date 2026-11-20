@@ -1,7 +1,7 @@
 // HTTP API tests for the MCP endpoint (POST /api/mcp): token auth, read-only
 // tokens seeing only read tools, and tools acting through the REST routes as
 // the token's user. Builds and starts the app like boards.test.ts (from the shared build).
-import { randomUUID } from 'node:crypto'
+import { createHash, randomBytes, randomUUID } from 'node:crypto'
 import { url } from '@nuxt/test-utils/e2e'
 import postgres from 'postgres'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
@@ -18,6 +18,7 @@ let base = ''
 beforeAll(() => { base = url('/').replace(/\/$/, '') })
 const authDb = postgres(process.env.NUXT_AUTH_DATABASE_URL!, { onnotice: () => {} })
 const ownerDb = postgres(process.env.MIGRATION_DATABASE_URL!, { onnotice: () => {} })
+const appDb = postgres(process.env.NUXT_DATABASE_URL!, { onnotice: () => {} })
 
 const randomIp = () => `10.${[0, 0, 0].map(() => Math.floor(Math.random() * 250)).join('.')}`
 
@@ -95,7 +96,7 @@ afterAll(async () => {
   await admin?.req('/api/admin/settings', { method: 'PUT', body: savedSettings })
   await ownerDb`delete from admin_audit_log where data->>'actor_email' like '%@mcp.test' or data->>'target_email' like '%@mcp.test'`
   await ownerDb`delete from users where email = ${adminEmail}`
-  await Promise.all([authDb.end(), ownerDb.end()])
+  await Promise.all([authDb.end(), ownerDb.end(), appDb.end()])
 })
 
 describe('mcp endpoint', () => {
@@ -228,5 +229,46 @@ describe('mcp endpoint', () => {
     const detail = (await tool(token, 'get_card', { boardId: board.id, cardId: card.id })).json()
     expect(detail.recentActivity).toContainEqual(expect.objectContaining({ kind: 'created', actor: 'Claude' }))
     expect((await alice.req(`/api/bots/${bot.id}`, { method: 'DELETE' })).status).toBe(200)
+  })
+})
+
+describe('board bots', () => {
+  /** A bot on the board and a read+write token for it, made through the DB functions as the owner (Bots 1/4). */
+  async function botToken(name: string) {
+    const token = `kb_${randomBytes(32).toString('base64url')}`
+    const hash = createHash('sha256').update(token).digest('hex')
+    const bot = await appDb.begin(async (sql) => {
+      await sql`select set_config('app.user_id', ${alice.id}, true)`
+      const [{ id }] = await sql`select app.create_board_bot(${board.id}, ${name}, 'editor') as id` as any
+      await sql`select app.create_bot_token(${id}, 'agent', ${['read', 'write']}, null, ${hash}, ${token.slice(0, 10)})`
+      return id as string
+    })
+    return { bot: bot as string, token }
+  }
+
+  it('a bot polls list_notifications for mentions and assignments and marks them read', async () => {
+    const { bot, token } = await botToken('Helper')
+    const col = board.columns[0]!.id
+    const card = (await tool(writeToken, 'create_card', { boardId: board.id, columnId: col, title: 'For the agent' })).json()
+    expect((await tool(writeToken, 'add_comment', { cardId: card.id, body: `@[Helper](user:${bot}) can you take this?` })).isError).toBe(false)
+    expect((await tool(writeToken, 'update_card', { cardId: card.id, assigneeIds: [bot] })).isError).toBe(false)
+
+    const inbox = (await tool(token, 'list_notifications')).json()
+    const mine = inbox.items.filter((n: { cardId: string }) => n.cardId === card.id)
+    expect(mine.map((n: { activity: { kind: string } }) => n.activity.kind).sort()).toEqual(['assigned', 'commented'])
+    expect(mine.find((n: { activity: { kind: string } }) => n.activity.kind === 'commented').activity.data.mentions).toEqual([bot])
+    expect(inbox.unread).toBe(2)
+
+    // The bot answers; it does not start watching the card, so Alice's next comment does not reach it.
+    expect((await tool(token, 'add_comment', { cardId: card.id, body: 'On it.' })).isError).toBe(false)
+    expect(await ownerDb`select 1 from card_watchers where user_id = ${bot}`).toHaveLength(0)
+
+    expect((await tool(token, 'mark_notifications_read', { notificationIds: [mine[0].id] })).json()).toEqual({ updated: 1 })
+    expect((await tool(token, 'list_notifications')).json().unread).toBe(1)
+    expect((await tool(token, 'mark_notifications_read')).json()).toEqual({ updated: 1 })
+    expect((await tool(token, 'list_notifications')).json().unread).toBe(0)
+    // Someone else's notification is not found for the bot.
+    const [other] = await ownerDb`select id from notifications where user_id <> ${bot} limit 1`
+    if (other) expect((await tool(token, 'mark_notifications_read', { notificationIds: [other.id] })).text).toMatch(/^404/)
   })
 })

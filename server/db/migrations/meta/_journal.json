@@ -722,6 +722,13 @@
       "when": 1795197038728,
       "tag": "0102_board_bots_rls",
       "breakpoints": true
+    },
+    {
+      "idx": 103,
+      "version": "7",
+      "when": 1795198118226,
+      "tag": "0103_bot_notifications_rls",
+      "breakpoints": true
     }
   ]
 }

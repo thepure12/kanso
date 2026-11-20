@@ -121,8 +121,8 @@ same permissions, validation and scope rules apply, and changes show up live on 
 - **Write tools** (listed only for read and write tokens): `create_card`, `update_card`, `move_card`,
   `bulk_update_cards`, `add_comment`, `create_checklist`, `add_checklist_item`, `update_checklist_item`; board structure:
   `create_column`, `update_column` (title, colour, WIP limit, order), `create_tag`, `update_tag`, `create_column_tag`,
-  `update_column_tag` (name, colour, columns), `create_automation` (board, column or card), `update_automation`, `create_rule`, `update_rule`, `schedule_card_action`, `set_board_accent`. There are
-  no delete tools for these.
+  `update_column_tag` (name, colour, columns), `create_automation` (board, column or card), `update_automation`, `create_rule`, `update_rule`, `schedule_card_action`, `set_board_accent`,
+  `mark_notifications_read` (given ids, or all). There are no delete tools for these.
 - API errors come back as tool results with `isError` and the status, e.g. `404 Board not found`.
 
 ```bash
@@ -160,6 +160,19 @@ curl -s -X POST -b "$COOKIE" -H 'content-type: application/json' \
 curl -s -X POST -b "$COOKIE" -H 'content-type: application/json' \
   -d '{"name":"ci","scopes":["read","write"]}' $KANSO/api/bots/$BOT/tokens
 ```
+
+### Driving an agent from mentions
+
+Give the agent a board bot's token. Bots get inbox notifications like people (no push, email or digest): when
+someone mentions the bot in a comment (`@Name`), assigns it to a card or a checklist item, or comments on or moves a
+card it is assigned to or watches. A bot does not start watching cards it creates or comments on, so its own replies
+do not subscribe it to the whole board; it can watch one explicitly (`PUT /api/cards/:id/watch`).
+
+A simple loop: call `list_notifications` (or `GET /api/notifications`) every few minutes, handle each unread item
+(`cardId`, `boardId`, `activity.kind`: `commented` with the bot in `activity.data.mentions`, `mentioned`, `assigned`,
+...; read the card with `get_card`), reply with `add_comment`, then `mark_notifications_read` with the handled ids
+(`PATCH /api/notifications/:id {read: true}`; `POST /api/notifications/read-all` for all) so the next poll shows only
+new ones.
 
 ## Webhooks
 

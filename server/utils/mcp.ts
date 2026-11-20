@@ -114,6 +114,16 @@ export function createMcpServer(caller: McpCaller): McpServer {
 
   if (!caller.canWrite) return server
 
+  server.registerTool('mark_notifications_read', {
+    description: 'Mark notifications read once handled (ids from list_notifications), so the next poll shows only new ones. Without ids, marks all read.',
+    inputSchema: { notificationIds: z.array(id).min(1).max(50).optional() },
+    annotations: { ...write, idempotentHint: true },
+  }, ({ notificationIds }) => run(async () => {
+    if (!notificationIds) return await call('/api/notifications/read-all', { method: 'POST' })
+    for (const n of notificationIds) await call(`/api/notifications/${n}`, { method: 'PATCH', body: { read: true } })
+    return { updated: notificationIds.length }
+  }))
+
   server.registerTool('create_card', {
     description: 'Add a card at the end of a column. Column rules may add tags, assignees or a due date. Pass templateId (from get_board) to copy a card template; title then overrides its title.',
     inputSchema: {

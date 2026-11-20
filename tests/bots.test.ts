@@ -218,3 +218,75 @@ describe('deleting bots', () => {
     expect(await auth`select * from app.resolve_api_token(${sha(token)})`).toHaveLength(0)
   })
 })
+
+// 0103_bot_notifications_rls.sql: bots get inbox notifications like people,
+// never auto-watch and never get push.
+describe('bot notifications', () => {
+  async function newCard(title: string) {
+    const [c] = await as(editor.id, sql => sql`
+      insert into cards (board_id, column_id, title, position, created_by)
+      values (${boardId}, ${todoId}, ${title}, 10, ${editor.id}) returning id`)
+    return c!.id as string
+  }
+  const botInbox = (bot: string, cardId: string) => owner_`
+    select a.kind from notifications n join card_activity a on a.id = n.activity_id
+    where n.user_id = ${bot} and n.card_id = ${cardId} order by n.created_at`
+
+  it('a bot is notified when mentioned or assigned, and gets no push', async () => {
+    const bot = await newBot(boardId, 'Agent')
+    // A subscription for the bot (bots have no sessions; borrow the owner's) proves push is skipped.
+    const [s] = await owner_`insert into user_sessions (user_id) values (${owner.id}) returning id`
+    await owner_`insert into push_subscriptions (user_id, session_id, endpoint, p256dh, auth)
+      values (${bot}, ${s!.id}, ${`https://push.invalid/${randomUUID()}`}, ${'k'.repeat(87)}, ${'a'.repeat(22)})`
+    const cardId = await newCard('Mention the bot')
+
+    await as(editor.id, sql => sql`
+      insert into card_comments (card_id, board_id, author_id, body)
+      values (${cardId}, ${boardId}, ${editor.id}, ${`please look @[Agent](user:${bot})`})`)
+    await as(editor.id, sql => sql`insert into card_assignees (card_id, board_id, user_id) values (${cardId}, ${boardId}, ${bot})`)
+
+    expect((await botInbox(bot, cardId)).map(r => r.kind)).toEqual(['commented', 'assigned'])
+    expect(await owner_`
+      select 1 from push_messages m join notifications n on n.id = m.notification_id where n.user_id = ${bot}`).toHaveLength(0)
+    await owner_`delete from user_sessions where id = ${s!.id}`
+  })
+
+  it('a bot does not start watching the cards it creates or comments on', async () => {
+    const bot = await newBot(boardId, 'Writer')
+    const { token } = await newBotToken(bot)
+    const other = await newCard('Someone else\'s card')
+    const own = await asToken(token, async (sql) => {
+      const [c] = await sql`insert into cards (board_id, column_id, title, position, created_by) values (${boardId}, ${todoId}, 'Bot card', 11, ${bot}) returning id`
+      await sql`insert into card_comments (card_id, board_id, author_id, body) values (${other}, ${boardId}, ${bot}, 'done')`
+      return c!.id as string
+    })
+    expect(await owner_`select 1 from card_watchers where user_id = ${bot}`).toHaveLength(0)
+    // People still do.
+    expect(await owner_`select user_id from card_watchers where card_id = ${other}`).toEqual([{ user_id: editor.id }])
+
+    // So later comments on those cards do not reach the bot; a watch it asks for does.
+    await as(editor.id, sql => sql`insert into card_comments (card_id, board_id, author_id, body) values (${own}, ${boardId}, ${editor.id}, 'thanks')`)
+    expect(await botInbox(bot, own)).toHaveLength(0)
+    await asToken(token, sql => sql`insert into card_watchers (card_id, board_id, user_id) values (${own}, ${boardId}, ${bot})`)
+    await as(editor.id, sql => sql`insert into card_comments (card_id, board_id, author_id, body) values (${own}, ${boardId}, ${editor.id}, 'again')`)
+    expect((await botInbox(bot, own)).map(r => r.kind)).toEqual(['commented'])
+  })
+
+  it('a bot token reads, marks read and deletes only the bot\'s notifications', async () => {
+    const bot = await newBot(boardId, 'Reader')
+    const { token } = await newBotToken(bot)
+    const cardId = await newCard('Inbox card')
+    await as(editor.id, sql => sql`
+      insert into card_comments (card_id, board_id, author_id, body)
+      values (${cardId}, ${boardId}, ${editor.id}, ${`@[Reader](user:${bot}) and @[Viewer](user:${viewer.id})`})`)
+
+    const seen = await asToken(token, sql => sql`select id, user_id from notifications where card_id = ${cardId}`)
+    expect(seen.map(r => r.user_id)).toEqual([bot])
+    const read = await asToken(token, sql => sql`update notifications set read_at = now() where card_id = ${cardId} returning id`)
+    expect(read).toHaveLength(1)
+    expect(await owner_`select 1 from notifications where card_id = ${cardId} and user_id = ${viewer.id} and read_at is null`).toHaveLength(1)
+    const gone = await asToken(token, sql => sql`delete from notifications where card_id = ${cardId} returning id`)
+    expect(gone).toHaveLength(1)
+    expect(await owner_`select 1 from notifications where card_id = ${cardId}`).toHaveLength(1)
+  })
+})
