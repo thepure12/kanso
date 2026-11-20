@@ -104,6 +104,47 @@ describe('checklist_items', () => {
   })
 })
 
+describe('checklists', () => {
+  it('editors manage named checklists; viewers read only', async () => {
+    const id = await newCard()
+    const [list] = await as(editor.id, sql => sql`insert into checklists (card_id, board_id, name, position) values (${id}, ${boardId}, 'Steps', 1024) returning id`)
+    await as(editor.id, sql => sql`update checklists set name = 'Renamed' where id = ${list!.id}`)
+    expect((await as(viewer.id, sql => sql`select name from checklists where id = ${list!.id}`))[0]?.name).toBe('Renamed')
+    expect((await as(viewer.id, sql => sql`update checklists set name = 'x' where id = ${list!.id}`)).count).toBe(0)
+    await rejectsWith(as(viewer.id, sql => sql`insert into checklists (card_id, board_id, name, position) values (${id}, ${boardId}, 'x', 1)`), '42501')
+    expect((await as(outsider.id, sql => sql`select id from checklists where id = ${list!.id}`))).toHaveLength(0)
+    await rejectsWith(as(editor.id, sql => sql`insert into checklists (card_id, board_id, name, position) values (${id}, ${boardId}, '', 1)`), '23514')
+    // Card and board are fixed.
+    await rejectsWith(as(editor.id, sql => sql`update checklists set card_id = ${id} where id = ${list!.id}`), '42501')
+  })
+
+  it('items belong to a checklist of their own card and go with it', async () => {
+    const id = await newCard()
+    const other = await newCard()
+    const [a, b, foreign] = await as(editor.id, sql => sql`
+      insert into checklists (card_id, board_id, name, position)
+      values (${id}, ${boardId}, 'A', 1), (${id}, ${boardId}, 'B', 2), (${other}, ${boardId}, 'Other', 1) returning id`)
+    const [item] = await as(editor.id, sql => sql`insert into checklist_items (card_id, board_id, checklist_id, text, position)
+      values (${id}, ${boardId}, ${b!.id}, 'Step', 1) returning id, checklist_id`)
+    expect(item!.checklist_id).toBe(b!.id)
+    await rejectsWith(as(editor.id, sql => sql`insert into checklist_items (card_id, board_id, checklist_id, text, position)
+      values (${id}, ${boardId}, ${foreign!.id}, 'x', 1)`), '23503')
+    // Moving between the card's checklists works; to another card's does not.
+    await as(editor.id, sql => sql`update checklist_items set checklist_id = ${a!.id} where id = ${item!.id}`)
+    await rejectsWith(as(editor.id, sql => sql`update checklist_items set checklist_id = ${foreign!.id} where id = ${item!.id}`), '23503')
+    await as(editor.id, sql => sql`delete from checklists where id = ${a!.id}`)
+    expect(await as(editor.id, sql => sql`select id from checklist_items where id = ${item!.id}`)).toHaveLength(0)
+  })
+
+  it('an item without a checklist goes into the card\'s first one, created when missing', async () => {
+    const id = await newCard()
+    const [first] = await as(editor.id, sql => sql`insert into checklist_items (card_id, board_id, text, position) values (${id}, ${boardId}, 'One', 1) returning checklist_id`)
+    const [second] = await as(editor.id, sql => sql`insert into checklist_items (card_id, board_id, text, position) values (${id}, ${boardId}, 'Two', 2) returning checklist_id`)
+    expect(second!.checklist_id).toBe(first!.checklist_id)
+    expect(await as(editor.id, sql => sql`select name from checklists where card_id = ${id}`)).toEqual([{ name: 'Checklist' }])
+  })
+})
+
 describe('card_comments', () => {
   it('editors comment as themselves; authors edit; authors and owners delete', async () => {
     const id = await newCard()
@@ -236,6 +277,8 @@ describe('app.copy_board', () => {
       await sql`insert into card_tags (card_id, tag_id, board_id) values (${id}, ${t!.id}, ${boardId})`
       await sql`insert into card_assignees (card_id, user_id, board_id) values (${id}, ${viewer.id}, ${boardId}), (${id}, ${editor.id}, ${boardId})`
       await sql`insert into checklist_items (card_id, board_id, text, done, position) values (${id}, ${boardId}, 'step', true, 1)`
+      const [later] = await sql`insert into checklists (card_id, board_id, name, position) values (${id}, ${boardId}, 'Later', 2048) returning id`
+      await sql`insert into checklist_items (card_id, board_id, checklist_id, text, position) values (${id}, ${boardId}, ${later!.id}, 'after', 1)`
       await sql`insert into column_rules (board_id, column_id, kind, user_id) values (${boardId}, ${todoId}, 'assign_to', ${viewer.id})`
       await sql`insert into column_rules (board_id, column_id, kind, tag_id) values (${boardId}, ${doneId}, 'apply_tag', ${t!.id})`
       await sql`update cards set archived_at = now() where id = ${archived}`
@@ -257,7 +300,8 @@ describe('app.copy_board', () => {
       const [tag] = await sql`select t.name from card_tags ct join tags t on t.id = ct.tag_id where ct.card_id = ${copied.id}`
       expect(tag?.name).toBe('copy-tag')
       expect((await sql`select user_id from card_assignees where card_id = ${copied.id}`).map(r => r.user_id)).toEqual([editor.id])
-      expect(await sql`select text, done from checklist_items where card_id = ${copied.id}`).toEqual([{ text: 'step', done: true }])
+      expect(await sql`select l.name, i.text, i.done from checklist_items i join checklists l on l.id = i.checklist_id
+        where i.card_id = ${copied.id} order by l.position`).toEqual([{ name: 'Checklist', text: 'step', done: true }, { name: 'Later', text: 'after', done: false }])
       // assign_to viewer dropped (no access); apply_tag points at the copied tag.
       const rules = await sql`select kind, tag_id from column_rules where board_id = ${copy}`
       expect(rules).toHaveLength(1)

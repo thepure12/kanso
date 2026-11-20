@@ -694,6 +694,20 @@
       "when": 1795190998763,
       "tag": "0098_checklist_item_assignees_rls",
       "breakpoints": true
+    },
+    {
+      "idx": 99,
+      "version": "7",
+      "when": 1795196651887,
+      "tag": "0099_named_checklists",
+      "breakpoints": true
+    },
+    {
+      "idx": 100,
+      "version": "7",
+      "when": 1795196660154,
+      "tag": "0100_named_checklists_rls",
+      "breakpoints": true
     }
   ]
 }

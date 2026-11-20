@@ -83,10 +83,14 @@ export function cardForAgent(board: BoardDetail, card: Card, detail: CardDetail)
     boardId: board.id,
     column: column?.title,
     description: card.description,
-    checklist: detail.checklist.map(i => ({
-      id: i.id, text: i.text, done: i.done,
-      ...(i.assigneeId ? { assignee: board.members.find(m => m.userId === i.assigneeId)?.name ?? i.assigneeId } : {}),
-      ...(i.dueDate ? { dueDate: i.dueDate } : {}),
+    checklists: detail.checklists.map(l => ({
+      id: l.id,
+      name: l.name,
+      items: l.items.map(i => ({
+        id: i.id, text: i.text, done: i.done,
+        ...(i.assigneeId ? { assignee: board.members.find(m => m.userId === i.assigneeId)?.name ?? i.assigneeId } : {}),
+        ...(i.dueDate ? { dueDate: i.dueDate } : {}),
+      })),
     })),
     comments: detail.comments.map(c => ({ id: c.id, author: c.authorName ?? c.importedAuthor, body: c.body, createdAt: c.createdAt })),
     links: detail.links.map(l => ({ id: l.id, kind: l.kind, direction: l.direction, card: { id: l.card.id, title: l.card.title, column: l.card.columnTitle } })),

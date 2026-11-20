@@ -17,16 +17,19 @@ function fileName(name: string, ext: string) {
   return `${base}.${ext}`
 }
 
+/** "done/total" for the CSV, empty without items. */
+const checklistCount = (items: { done: boolean }[]) => items.length ? `${items.filter(i => i.done).length}/${items.length}` : ''
+
 /** Downloads the board (everything the user can see, minus attachment contents) as JSON or as a CSV of cards. */
 export default defineUserHandler(async (event, tx) => {
   const { id } = await paramsValidated(event, uuidParam)
   const { format } = await getValidatedQuery(event, q => query.parse(q))
-  const { boards, columns, columnRules, tags, checklistItems: ci, cardComments: cc, cardAttachments: ca, cardLinks, cardFieldValues: fv, users } = schema
+  const { boards, columns, columnRules, tags, checklists: cl, checklistItems: ci, cardComments: cc, cardAttachments: ca, cardLinks, cardFieldValues: fv, users } = schema
 
   const [board] = await tx.select({ name: boards.name }).from(boards).where(eq(boards.id, id))
   if (!board) notFound('Board not found')
 
-  const [cols, rules, tagRows, cards, people, checklist, comments, attachments, links, fields, values, columnGroups] = await Promise.all([
+  const [cols, rules, tagRows, cards, people, lists, checklist, comments, attachments, links, fields, values, columnGroups] = await Promise.all([
     tx.select({ id: columns.id, title: columns.title, color: columns.color, wipLimit: columns.wipLimit, outline: columns.outline })
       .from(columns).where(eq(columns.boardId, id)).orderBy(asc(columns.position)),
     tx.select({ ...columnRuleFields, columnId: columnRules.columnId }).from(columnRules).where(eq(columnRules.boardId, id)),
@@ -42,7 +45,8 @@ export default defineUserHandler(async (event, tx) => {
       order by col.position, c.position
     `),
     tx.select({ id: users.id, name: users.name, email: users.email }).from(users),
-    tx.select({ cardId: ci.cardId, text: ci.text, done: ci.done }).from(ci).where(eq(ci.boardId, id)).orderBy(asc(ci.position)),
+    tx.select({ id: cl.id, cardId: cl.cardId, name: cl.name }).from(cl).where(eq(cl.boardId, id)).orderBy(asc(cl.position), asc(cl.createdAt), asc(cl.id)),
+    tx.select({ checklistId: ci.checklistId, text: ci.text, done: ci.done }).from(ci).where(eq(ci.boardId, id)).orderBy(asc(ci.position)),
     tx.select({ cardId: cc.cardId, authorId: cc.authorId, importedAuthor: cc.importedAuthor, body: cc.body, createdAt: cc.createdAt })
       .from(cc).where(eq(cc.boardId, id)).orderBy(asc(cc.createdAt)),
     tx.select({ cardId: ca.cardId, name: ca.name, contentType: ca.contentType, size: ca.size })
@@ -58,7 +62,8 @@ export default defineUserHandler(async (event, tx) => {
   const tagName = new Map(tagRows.map(t => [t.id, t.name]))
   const person = new Map(people.map(p => [p.id, p]))
   const by = <T extends { cardId: string }>(rows: T[]) => Map.groupBy(rows, r => r.cardId)
-  const [checklistBy, commentsBy, attachmentsBy, valuesBy] = [by(checklist), by(comments), by(attachments), by(values)]
+  const [listsBy, commentsBy, attachmentsBy, valuesBy] = [by(lists), by(comments), by(attachments), by(values)]
+  const itemsBy = Map.groupBy(checklist, i => i.checklistId)
   const fieldById = new Map(fields.map(f => [f.id, f]))
   // Select values by option label, as the import expects.
   const exportValue = (fieldId: string, value: unknown) => {
@@ -79,7 +84,7 @@ export default defineUserHandler(async (event, tx) => {
     createdAt: c.createdAt,
     tags: c.tagIds.map(t => tagName.get(t)!).sort(),
     assignees: c.assigneeIds.map(u => person.get(u)?.email ?? null).filter(e => e !== null),
-    checklist: (checklistBy.get(c.id) ?? []).map(({ text, done }) => ({ text, done })),
+    checklists: (listsBy.get(c.id) ?? []).map(l => ({ name: l.name, items: (itemsBy.get(l.id) ?? []).map(({ text, done }) => ({ text, done })) })),
     comments: (commentsBy.get(c.id) ?? []).map((m) => {
       const author = m.authorId ? person.get(m.authorId) : undefined
       return { author: author?.email ?? null, authorName: author?.name ?? m.importedAuthor, body: m.body, createdAt: m.createdAt }
@@ -94,7 +99,7 @@ export default defineUserHandler(async (event, tx) => {
     const header = ['Column', 'Title', 'Description', 'Tags', 'Assignees', 'Start date', 'Due date', 'Priority', 'Estimate', 'Archived', 'Checklist', 'Comments', 'Attachments', 'Created', ...fields.map(f => f.name)]
     const lines = [header, ...cardList.map(c => [
       c.column, c.title, c.description, c.tags.join(', '), c.assignees.join(', '), c.startDate, c.dueDate, c.priority, c.estimate,
-      c.archived ? 'yes' : 'no', c.checklist.length ? `${c.checklist.filter(i => i.done).length}/${c.checklist.length}` : '',
+      c.archived ? 'yes' : 'no', checklistCount(c.checklists.flatMap(l => l.items)),
       c.comments.length, c.attachments.length, c.createdAt,
       ...fields.map((f) => {
         const v = c.fieldValues[f.name]

@@ -1,14 +1,16 @@
 import { z } from 'zod'
 import { fieldKinds } from './types/board'
-import { CARD_TITLE_MAX } from './cards'
+import { CARD_TITLE_MAX, CHECKLIST_NAME_MAX } from './cards'
 import { columnOutlineSchema } from './columnOutline'
+
+const checklistItemSchema = z.object({ text: z.string().trim().min(1).max(500), done: z.boolean().default(false) })
 
 /**
  * The JSON board export (GET /api/boards/:id/export) and the import
  * (POST /api/boards/import). Everything is referenced by name, title or email,
  * never by id. Unknown fields are ignored on import, and limits match what the
  * API accepts elsewhere. Fields added after version 1 (startDate, estimate,
- * links, fields, fieldValues, comments, columnGroups) are optional, so older exports still import.
+ * links, fields, fieldValues, comments, columnGroups, checklists) are optional, so older exports still import.
  * Links refer to cards by their index in `cards`. A card's fieldValues map
  * field names to values, with select values given by option label. Comments
  * name their author by email (`author`, for older exports) and by display name
@@ -61,7 +63,12 @@ export const boardExportSchema = z.object({
     archived: z.boolean().default(false),
     tags: z.array(z.string()).max(50).default([]),
     assignees: z.array(z.string()).max(50).default([]),
-    checklist: z.array(z.object({ text: z.string().trim().min(1).max(500), done: z.boolean().default(false) })).max(200).default([]),
+    // Older exports: one unnamed checklist (imported as "Checklist"). Ignored when checklists is not empty.
+    checklist: z.array(checklistItemSchema).max(200).default([]),
+    checklists: z.array(z.object({
+      name: z.string().trim().min(1).max(CHECKLIST_NAME_MAX),
+      items: z.array(checklistItemSchema).max(200).default([]),
+    })).max(50).default([]),
     fieldValues: z.record(z.string(), z.union([z.string(), z.number(), z.boolean()])).default({}),
     comments: z.array(z.object({
       author: z.string().max(320).nullish(),

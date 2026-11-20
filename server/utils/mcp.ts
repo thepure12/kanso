@@ -175,9 +175,15 @@ export function createMcpServer(caller: McpCaller): McpServer {
     annotations: write,
   }, ({ cardId, body }) => run(() => call(`/api/cards/${cardId}/comments`, { method: 'POST', body: { body } })))
 
+  server.registerTool('create_checklist', {
+    description: 'Add an empty named checklist at the end of a card\'s checklists. Returns its id for add_checklist_item.',
+    inputSchema: { cardId: id, name: z.string().min(1).max(100) },
+    annotations: write,
+  }, ({ cardId, name }) => run(() => call(`/api/cards/${cardId}/checklists`, { method: 'POST', body: { name } })))
+
   server.registerTool('add_checklist_item', {
-    description: 'Add an item at the end of a card\'s checklist, optionally with an assignee (a board member, user id from get_board) and a due date.',
-    inputSchema: { cardId: id, text: z.string().min(1).max(500), assigneeId: id.optional(), dueDate: z.iso.date().optional() },
+    description: 'Add an item at the end of one of a card\'s checklists (checklistId from get_card or create_checklist); without checklistId, the card\'s first checklist (created as "Checklist" when it has none). Optionally with an assignee (a board member, user id from get_board) and a due date.',
+    inputSchema: { cardId: id, text: z.string().min(1).max(500), checklistId: id.optional(), assigneeId: id.optional(), dueDate: z.iso.date().optional() },
     annotations: write,
   }, ({ cardId, ...body }) => run(() => call(`/api/cards/${cardId}/checklist`, { method: 'POST', body })))
 

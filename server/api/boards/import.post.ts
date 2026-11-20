@@ -154,6 +154,7 @@ async function importBoard(tx: Tx, userId: string, name: string, teamId: string 
   const cardRows: (typeof schema.cards.$inferInsert)[] = []
   const cardTagRows: (typeof schema.cardTags.$inferInsert)[] = []
   const assigneeRows: (typeof schema.cardAssignees.$inferInsert)[] = []
+  const listRows: (typeof schema.checklists.$inferInsert)[] = []
   const checklistRows: (typeof schema.checklistItems.$inferInsert)[] = []
   const valueRows: (typeof schema.cardFieldValues.$inferInsert)[] = []
   const commentRows: (typeof schema.cardComments.$inferInsert)[] = []
@@ -184,7 +185,13 @@ async function importBoard(tx: Tx, userId: string, name: string, teamId: string 
         unmatched.add(a)
       }
     }
-    c.checklist.forEach((item, i) => checklistRows.push({ cardId: id, boardId, text: item.text, done: item.done, position: (i + 1) * 1024 }))
+    // Older exports carry one unnamed checklist.
+    const lists = c.checklists.length ? c.checklists : c.checklist.length ? [{ name: 'Checklist', items: c.checklist }] : []
+    lists.forEach((list, l) => {
+      const checklistId = randomUUID()
+      listRows.push({ id: checklistId, cardId: id, boardId, name: list.name, position: (l + 1) * 1024 })
+      list.items.forEach((item, i) => checklistRows.push({ cardId: id, boardId, checklistId, text: item.text, done: item.done, position: (i + 1) * 1024 }))
+    })
     const valued = new Set<string>()
     for (const [name, raw] of Object.entries(c.fieldValues)) {
       const field = fieldByName.get(name.trim().toLowerCase())
@@ -256,6 +263,7 @@ async function importBoard(tx: Tx, userId: string, name: string, teamId: string 
     [schema.cards, cardRows],
     [schema.cardTags, cardTagRows],
     [schema.cardAssignees, assigneeRows],
+    [schema.checklists, listRows],
     [schema.checklistItems, checklistRows],
     [schema.cardFieldValues, valueRows],
     [schema.cardComments, commentRows],

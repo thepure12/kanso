@@ -5,7 +5,7 @@ import { readFileSync } from 'node:fs'
 import { url } from '@nuxt/test-utils/e2e'
 import postgres from 'postgres'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import type { Attachment, BoardActivityPage, BoardAutomation, BoardDetail, BoardRule, BoardField, BoardSummary, Card, CardDetail, ChecklistItem, CardLink, CardRecurrence, CardReminder, Column, ColumnGroup, ColumnRule, SavedView, ScheduledCardAction, SnoozedCard, Comment, Person, TeamDetail, TimeEntry, TrashedCard } from '#shared/types/board'
+import type { Attachment, BoardActivityPage, BoardAutomation, BoardDetail, BoardRule, BoardField, BoardSummary, Card, CardDetail, CardLink, Checklist, ChecklistItem, CardRecurrence, CardReminder, Column, ColumnGroup, ColumnRule, SavedView, ScheduledCardAction, SnoozedCard, Comment, Person, TeamDetail, TimeEntry, TrashedCard } from '#shared/types/board'
 import type { Inbox } from '#shared/types/notifications'
 import type { AdminUser, AuditLogPage, InstanceSettings } from '#shared/types/admin'
 import type { Account, AccountSession } from '#shared/types/account'
@@ -669,12 +669,46 @@ describe('card details', () => {
     expect((await bob.req(`/api/checklist-items/${a.id}`, { method: 'PATCH', body: {} })).status).toBe(400)
 
     const detail = (await bob.req<CardDetail>(`/api/cards/${cardId}`)).data
-    expect(detail.checklist.map(i => [i.text, i.done])).toEqual([['two', false], ['one', true]])
+    expect(detail.checklists.map(l => [l.name, l.items.map(i => [i.text, i.done])])).toEqual([['Checklist', [['two', false], ['one', true]]]])
     const summary = (await bob.req<BoardDetail>(`/api/boards/${boardId}`)).data.cards.find(c => c.id === cardId)!
     expect(summary.checklist).toEqual({ done: 1, total: 2 })
 
     expect((await outsider.req(`/api/checklist-items/${a.id}`, { method: 'DELETE' })).status).toBe(404)
     expect((await alice.req(`/api/checklist-items/${a.id}`, { method: 'DELETE' })).status).toBe(200)
+  })
+
+  it('named checklists: add, rename, reorder, move items between them, delete', async () => {
+    const card = (await newCard('Named lists')).id
+    const addList = (name: string) => alice.req<Checklist>(`/api/cards/${card}/checklists`, { method: 'POST', body: { name } })
+    const first = (await addList('First')).data
+    const second = (await addList('Second')).data
+    expect(first.items).toEqual([])
+    expect((await addList(' ')).status).toBe(400)
+    expect((await outsider.req(`/api/cards/${card}/checklists`, { method: 'POST', body: { name: 'Outsider' } })).status).toBe(404)
+
+    const add = (text: string, checklistId?: string) =>
+      alice.req<ChecklistItem>(`/api/cards/${card}/checklist`, { method: 'POST', body: { text, checklistId } })
+    const a = (await add('a')).data // no checklistId: the first checklist
+    expect(a.checklistId).toBe(first.id)
+    const b = (await add('b', second.id)).data
+    expect(b.checklistId).toBe(second.id)
+    // A checklist of another card is refused.
+    expect((await add('x', (await alice.req<Checklist>(`/api/cards/${cardId}/checklists`, { method: 'POST', body: { name: 'Elsewhere' } })).data.id)).status).toBe(404)
+
+    // Move a into the second checklist above b, rename and reorder the lists.
+    const moved = (await alice.req<ChecklistItem>(`/api/checklist-items/${a.id}`, { method: 'PATCH', body: { checklistId: second.id, aboveId: null, belowId: b.id } })).data
+    expect(moved.checklistId).toBe(second.id)
+    expect((await alice.req(`/api/checklists/${second.id}`, { method: 'PATCH', body: { name: 'Now', aboveId: null, belowId: first.id } })).status).toBe(200)
+    expect((await outsider.req(`/api/checklists/${second.id}`, { method: 'PATCH', body: { name: 'Outsider' } })).status).toBe(404)
+
+    let detail = (await bob.req<CardDetail>(`/api/cards/${card}`)).data
+    expect(detail.checklists.map(l => [l.name, l.items.map(i => i.text)])).toEqual([['Now', ['a', 'b']], ['First', []]])
+
+    expect((await outsider.req(`/api/checklists/${second.id}`, { method: 'DELETE' })).status).toBe(404)
+    expect((await alice.req(`/api/checklists/${second.id}`, { method: 'DELETE' })).status).toBe(200)
+    detail = (await bob.req<CardDetail>(`/api/cards/${card}`)).data
+    expect(detail.checklists.map(l => [l.name, l.items.length])).toEqual([['First', 0]])
+    expect((await alice.req(`/api/checklist-items/${a.id}`, { method: 'PATCH', body: { done: true } })).status).toBe(404)
   })
 
   it('comments: authors edit their own; owners delete any', async () => {
@@ -1086,7 +1120,8 @@ describe('copy and export', () => {
     expect(json.headers.get('content-disposition')).toContain('API-test.json')
     const parsed = typeof json.data === 'string' ? JSON.parse(json.data) : json.data
     expect(parsed.name).toBe('API test')
-    expect(parsed.cards.find((c: { title: string }) => c.title === 'Details').checklist).toEqual([{ text: 'two', done: false }])
+    expect(parsed.cards.find((c: { title: string }) => c.title === 'Details').checklists)
+      .toEqual([{ name: 'Checklist', items: [{ text: 'two', done: false }] }, { name: 'Elsewhere', items: [] }])
 
     await alice.req(`/api/boards/${boardId}/cards`, { method: 'POST', body: { columnId: col('Backlog').id, title: '=HYPERLINK("x")' } })
     const csv = await bob.req<string>(`/api/boards/${boardId}/export?format=csv`)
@@ -1264,7 +1299,7 @@ describe('notifications', () => {
     expect(item).toMatchObject({ assigneeId: null, dueDate: null })
     const res = await alice.req<ChecklistItem>(`/api/checklist-items/${item.id}`, { method: 'PATCH', body: { assigneeId: userId('Bob'), dueDate: today } })
     expect(res.data).toMatchObject({ id: item.id, assigneeId: userId('Bob'), dueDate: today })
-    expect((await alice.req<CardDetail>(`/api/cards/${card.id}`)).data.checklist).toEqual([res.data])
+    expect((await alice.req<CardDetail>(`/api/cards/${card.id}`)).data.checklists[0]!.items).toEqual([res.data])
 
     const inbox = (await bob.req<Inbox>('/api/notifications')).data
     expect(inbox.items.find(n => n.cardId === card.id)?.activity).toMatchObject({ kind: 'checklist_assigned', data: { item: 'Check it', user: 'Bob' } })
@@ -1566,6 +1601,17 @@ describe('board import', () => {
     expect(copy.columns.find(c => c.title === 'Mover')!.rules).toEqual([{ id: expect.any(String), kind: 'assign_mover' }])
     const imported = copy.cards.find(c => c.title === 'Imported card')!
     expect(imported).toMatchObject({ priority: 'high', assigneeIds: [], checklist: { done: 0, total: 1 }, startDate: '2026-11-01', estimate: 3 })
+    expect(data.cards.find((c: { title: string }) => c.title === 'Imported card').checklists).toEqual([{ name: 'Checklist', items: [{ text: 'Step one', done: false }] }])
+
+    // Older exports carry one unnamed checklist per card.
+    const legacy = await alice.req<{ id: string }>('/api/boards/import', { method: 'POST', body: { name: 'Legacy', data: {
+      version: 1, name: 'Legacy', columns: [{ title: 'A' }], cards: [{ column: 'A', title: 'Old', checklist: [{ text: 'x', done: true }] }],
+    } } })
+    expect(legacy.status).toBe(200)
+    extraBoards.push(legacy.data.id)
+    const old = (await alice.req<BoardDetail>(`/api/boards/${legacy.data.id}`)).data.cards[0]!
+    expect((await alice.req<CardDetail>(`/api/cards/${old.id}`)).data.checklists.map(l => [l.name, l.items.map(i => [i.text, i.done])]))
+      .toEqual([['Checklist', [['x', true]]]])
 
     // Carol's comment comes over under her name and time, written by nobody:
     // no activity, nobody can edit it, the owner can delete it.
@@ -1609,7 +1655,8 @@ describe('board import', () => {
     const size = b.fields.find(f => f.name === 'Size')!
     expect(card.fields[size.id]).toBe(size.options.find(o => o.label === 'Large')!.id)
     expect(Object.keys(card.fields)).toHaveLength(5)
-    const comments = (await alice.req<CardDetail>(`/api/cards/${card.id}`)).data.comments
+    const { comments, checklists } = (await alice.req<CardDetail>(`/api/cards/${card.id}`)).data
+    expect(checklists.map(l => [l.name, l.items.map(i => i.text)])).toEqual([['Steps', ['Reproduce', 'Fix it']], ['Later', ['Write a test']]])
     expect(comments.map(c => [c.importedAuthor, c.body, c.createdAt])).toEqual([
       ['Former Colleague', 'Seen this too', '2026-10-02T08:00:00.000Z'],
       ['Zed Unknown', 'Me too', '2026-10-03T08:00:00.000Z'],

@@ -1,5 +1,5 @@
 import type { CardMatrixThread } from '#shared/types/matrix'
-import type { Attachment, CardDetail, CardLink, CardLinkKind, CardReminder, ChecklistItem, Comment, CommentReaction, TimeEntry, Watcher } from '#shared/types/board'
+import type { Attachment, CardDetail, CardLink, CardLinkKind, CardReminder, Checklist, ChecklistItem, Comment, CommentReaction, TimeEntry, Watcher } from '#shared/types/board'
 
 /**
  * Checklist, comments, attachments, time entries, watchers, links and activity of one card,
@@ -58,8 +58,36 @@ export function useCardDetail(cardId: Ref<string>) {
       d.matrixThread = null
     }, t('matrix.thread.unlinkFailed')),
 
-    addChecklistItem: (text: string) => run(async (d) => {
-      d.checklist.push(await api<ChecklistItem>(`${base()}/checklist`, { method: 'POST', body: { text } }))
+    addChecklist: (name: string) => run(async (d) => {
+      d.checklists.push(await api<Checklist>(`${base()}/checklists`, { method: 'POST', body: { name } }))
+    }, t('checklist.errors.addList')),
+
+    renameChecklist: (list: Checklist, name: string) => run(async () => {
+      list.name = name
+      await api(`/api/checklists/${list.id}`, { method: 'PATCH', body: { name } })
+    }, t('checklist.errors.saveList')),
+
+    /** Persists a checklist's new place after a drag (lists already reordered). */
+    checklistMoved: (index: number) => run(async (d) => {
+      const list = d.checklists[index]!
+      Object.assign(list, await api<Omit<Checklist, 'items'>>(`/api/checklists/${list.id}`, {
+        method: 'PATCH',
+        body: { aboveId: d.checklists[index - 1]?.id ?? null, belowId: d.checklists[index + 1]?.id ?? null },
+      }))
+    }, t('checklist.errors.moveList')),
+
+    /** Deletes a checklist with its items (not undoable). */
+    deleteChecklist: (list: Checklist) => run(async (d) => {
+      d.checklists = d.checklists.filter(l => l.id !== list.id)
+      await api(`/api/checklists/${list.id}`, { method: 'DELETE' })
+    }, t('checklist.errors.deleteList')),
+
+    /** Adds an item at the end of `list`; without one the server picks (or creates) the card's first checklist. */
+    addChecklistItem: (text: string, list?: Checklist) => run(async (d) => {
+      const item = await api<ChecklistItem>(`${base()}/checklist`, { method: 'POST', body: { text, checklistId: list?.id } })
+      const target = d.checklists.find(l => l.id === item.checklistId)
+      if (target) target.items.push(item)
+      else d.checklists = (await api<CardDetail>(`/api/cards/${cardId.value}`)).checklists
     }, t('checklist.errors.add')),
 
     updateChecklistItem: (item: ChecklistItem, patch: Partial<Pick<ChecklistItem, 'text' | 'done' | 'assigneeId' | 'dueDate'>>) => run(async () => {
@@ -67,23 +95,26 @@ export function useCardDetail(cardId: Ref<string>) {
       await api(`/api/checklist-items/${item.id}`, { method: 'PATCH', body: patch })
     }, t('checklist.errors.save')),
 
-    /** Persists an item's new place after a drag (list already reordered). */
-    checklistItemMoved: (index: number) => run(async (d) => {
-      const item = d.checklist[index]!
+    /** Persists an item's new place after a drag (lists already updated): `index` in `list`, which may be another checklist. */
+    checklistItemMoved: (list: Checklist, index: number) => run(async () => {
+      const item = list.items[index]!
       Object.assign(item, await api<ChecklistItem>(`/api/checklist-items/${item.id}`, {
         method: 'PATCH',
-        body: { aboveId: d.checklist[index - 1]?.id ?? null, belowId: d.checklist[index + 1]?.id ?? null },
+        body: { checklistId: list.id, aboveId: list.items[index - 1]?.id ?? null, belowId: list.items[index + 1]?.id ?? null },
       }))
     }, t('checklist.errors.move')),
 
     deleteChecklistItem: (item: ChecklistItem) => run(async (d) => {
-      const i = d.checklist.findIndex(x => x.id === item.id)
-      const above = d.checklist[i - 1]?.id ?? null
-      const below = d.checklist[i + 1]?.id ?? null
-      d.checklist = d.checklist.filter(x => x.id !== item.id)
+      const list = d.checklists.find(l => l.id === item.checklistId)
+      const items = list?.items ?? []
+      const i = items.findIndex(x => x.id === item.id)
+      const above = items[i - 1]?.id ?? null
+      const below = items[i + 1]?.id ?? null
+      if (list) list.items = items.filter(x => x.id !== item.id)
       await api(`/api/checklist-items/${item.id}`, { method: 'DELETE' })
       if (!boardUndo) return
-      // Undo adds it again (a new id) between its old neighbours when they are left, else at the end.
+      // Undo adds it again (a new id) to its checklist, between its old neighbours when they are left, else at the end.
+      // It fails when the checklist is gone.
       const card = cardId.value
       let restoredId: string
       const after = async () => {
@@ -91,7 +122,7 @@ export function useCardDetail(cardId: Ref<string>) {
         if (cardId.value === card) await load()
       }
       boardUndo.record(t('checklist.deletedUndo'), async () => {
-        const body = { text: item.text, assigneeId: item.assigneeId, dueDate: item.dueDate }
+        const body = { text: item.text, checklistId: item.checklistId, assigneeId: item.assigneeId, dueDate: item.dueDate }
         restoredId = (await api<ChecklistItem>(`/api/cards/${card}/checklist`, { method: 'POST', body })).id
         const done = item.done ? { done: true } : {}
         const patch = (body: object) => api(`/api/checklist-items/${restoredId}`, { method: 'PATCH', body })

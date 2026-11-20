@@ -1,19 +1,23 @@
 <script setup lang="ts">
 import { VueDraggable, type SortableEvent } from 'vue-draggable-plus'
 import type { DropdownMenuItem } from '@nuxt/ui'
-import type { ChecklistItem, Member } from '#shared/types/board'
+import type { Checklist, ChecklistItem, Member } from '#shared/types/board'
 import type { CardDetailApi } from '~/composables/useCardDetail'
+import { CHECKLIST_NAME_MAX } from '#shared/cards'
 
+/** One named checklist of a card. Items drag within it and between the card's checklists (`group`). */
 const props = defineProps<{
-  items: ChecklistItem[] | null
+  list: Checklist
   canEdit: boolean
   cd: CardDetailApi
+  group: string
   /** Board members, offered as item assignees. */
   members?: Member[]
   /** Templates have no item assignees or due dates (copies leave them out). */
   template?: boolean
 }>()
 const { t, locale } = useI18n()
+const confirm = useConfirm()
 const today = isoDate()
 const extras = computed(() => !props.template)
 
@@ -39,17 +43,24 @@ function setDue(item: ChecklistItem, value: string) {
   if (dueDate !== item.dueDate) props.cd.updateChecklistItem(item, { dueDate })
 }
 
-const done = computed(() => props.items?.filter(i => i.done).length ?? 0)
-const total = computed(() => props.items?.length ?? 0)
+const done = computed(() => props.list.items.filter(i => i.done).length)
+const total = computed(() => props.list.items.length)
 
-// v-model for drag and drop: the detail's own array.
-const list = computed({
-  get: () => props.items ?? [],
-  set: (v) => { if (props.cd.detail.value) props.cd.detail.value.checklist = v },
+// v-model for drag and drop: the detail's own array of this checklist.
+const items = computed({
+  get: () => props.list.items,
+  set: (v) => {
+    const list = props.cd.detail.value?.checklists.find(l => l.id === props.list.id)
+    if (list) list.items = v
+  },
 })
 
+// Same list (update) or dropped in from another checklist (add); the source list needs nothing.
 function onDrop(e: SortableEvent) {
-  nextTick(() => props.cd.checklistItemMoved(e.newIndex!))
+  nextTick(() => {
+    const list = props.cd.detail.value?.checklists.find(l => l.id === props.list.id)
+    if (list) props.cd.checklistItemMoved(list, e.newIndex!)
+  })
 }
 
 function rename(item: ChecklistItem, e: Event) {
@@ -58,27 +69,62 @@ function rename(item: ChecklistItem, e: Event) {
   if (!text) input.value = item.text
   else if (text !== item.text) props.cd.updateChecklistItem(item, { text })
 }
+
+function renameList(e: Event) {
+  const input = e.target as HTMLInputElement
+  const name = input.value.trim()
+  if (!name) input.value = props.list.name
+  else if (name !== props.list.name) props.cd.renameChecklist(props.list, name)
+}
+
+async function removeList() {
+  if (total.value && !await confirm({ title: t('checklist.deleteListConfirm', { name: props.list.name }, total.value), confirmLabel: t('common.delete') })) return
+  props.cd.deleteChecklist(props.list)
+}
 </script>
 
 <template>
-  <section v-if="props.items && (total || props.canEdit)" class="space-y-2">
-    <div class="flex items-center gap-2">
-      <UIcon name="i-lucide-list-checks" class="size-4 text-dimmed" />
-      <h3 class="text-sm font-medium">
-        {{ t('checklist.title') }}
+  <section class="space-y-2">
+    <div class="group flex items-center gap-2">
+      <UIcon v-if="props.canEdit" name="i-lucide-grip-vertical" class="list-handle size-4 cursor-grab text-dimmed shrink-0" />
+      <UIcon v-else name="i-lucide-list-checks" class="size-4 text-dimmed shrink-0" />
+      <input
+        v-if="props.canEdit"
+        :value="props.list.name"
+        class="flex-1 min-w-0 bg-transparent text-sm font-medium rounded px-1 py-0.5 focus:outline-none focus:ring ring-primary"
+        :maxlength="CHECKLIST_NAME_MAX"
+        :aria-label="t('checklist.name')"
+        @change="renameList"
+        @keydown.enter.prevent="($event.target as HTMLInputElement).blur()"
+      >
+      <h3 v-else class="flex-1 min-w-0 truncate text-sm font-medium">
+        {{ props.list.name }}
       </h3>
       <span v-if="total" class="text-xs text-muted">{{ done }}/{{ total }}</span>
+      <UTooltip v-if="props.canEdit" :text="t('checklist.deleteList')">
+        <UButton
+          icon="i-lucide-trash-2"
+          size="xs"
+          color="neutral"
+          variant="ghost"
+          :aria-label="t('checklist.deleteList')"
+          class="pointer-fine:opacity-0 pointer-fine:group-hover:opacity-100 focus-visible:opacity-100"
+          @click="removeList"
+        />
+      </UTooltip>
     </div>
     <UProgress v-if="total" :model-value="done" :max="total" size="xs" :color="done === total ? 'success' : 'primary'" />
     <VueDraggable
-      v-model="list"
+      v-model="items"
       :disabled="!props.canEdit"
+      :group="props.group"
       handle=".item-handle"
       :animation="150"
-      class="space-y-1"
+      class="space-y-1 min-h-1"
       @update="onDrop"
+      @add="onDrop"
     >
-      <div v-for="item in list" :key="item.id" class="group flex items-center gap-2">
+      <div v-for="item in items" :key="item.id" class="group flex items-center gap-2">
         <UIcon v-if="props.canEdit" name="i-lucide-grip-vertical" class="item-handle size-4 cursor-grab text-dimmed shrink-0" />
         <UCheckbox
           :model-value="item.done"
@@ -172,6 +218,6 @@ function rename(item: ChecklistItem, e: Event) {
         </UTooltip>
       </div>
     </VueDraggable>
-    <InlineAdd v-if="props.canEdit" :label="t('checklist.addItem')" :placeholder="t('checklist.itemPlaceholder')" @add="props.cd.addChecklistItem" />
+    <InlineAdd v-if="props.canEdit" :label="t('checklist.addItem')" :placeholder="t('checklist.itemPlaceholder')" @add="text => props.cd.addChecklistItem(text, props.list)" />
   </section>
 </template>

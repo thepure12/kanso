@@ -4,12 +4,11 @@ import type { Activity, CardDetail, FieldValue } from '#shared/types/board'
 export default defineUserHandler(async (event, tx, userId): Promise<CardDetail> => {
   const { id } = await paramsValidated(event, uuidParam)
   await cardBoardId(tx, id)
-  const { checklistItems: ci, cardComments: cc, cardAttachments: ca, cardActivity: act, cardWatchers: cw, cardFieldValues: fv, cardMatrixThreads: mt, users } = schema
+  const { cardComments: cc, cardAttachments: ca, cardActivity: act, cardWatchers: cw, cardFieldValues: fv, cardMatrixThreads: mt, users } = schema
 
   // users rows are visible only while the person shares a board or team with the caller.
-  const [checklist, comments, attachments, activity, timeEntries, watcherRows, links, fieldRows, [matrixThread]] = await Promise.all([
-    tx.select(checklistItemColumns())
-      .from(ci).where(eq(ci.cardId, id)).orderBy(asc(ci.position)),
+  const [checklists, comments, attachments, activity, timeEntries, watcherRows, links, fieldRows, [matrixThread]] = await Promise.all([
+    loadChecklists(tx, id),
     tx.select({
       id: cc.id, authorId: cc.authorId, authorName: users.name, authorAvatarUrl: users.avatarUrl, importedAuthor: cc.importedAuthor,
       body: cc.body, createdAt: cc.createdAt, updatedAt: cc.updatedAt,
@@ -29,7 +28,7 @@ export default defineUserHandler(async (event, tx, userId): Promise<CardDetail> 
   const [reactions, reminders] = await Promise.all([loadReactions(tx, comments.map(c => c.id), userId), loadReminders(tx, id, userId)])
   const iso = (d: Date) => d.toISOString()
   return {
-    checklist,
+    checklists,
     matrixThread: matrixThread ?? null,
     comments: comments.map(c => ({ ...c, createdAt: iso(c.createdAt), updatedAt: iso(c.updatedAt), reactions: reactions.get(c.id) ?? [] })),
     attachments: attachments.map(a => ({ ...a, createdAt: iso(a.createdAt) })),

@@ -145,12 +145,17 @@ describe('mcp endpoint', () => {
     expect((await tool(writeToken, 'move_card', { cardId: card.id, columnId: doing!.id })).isError).toBe(false)
     expect((await tool(writeToken, 'add_comment', { cardId: card.id, body: 'Looks good' })).isError).toBe(false)
     const item = (await tool(writeToken, 'add_checklist_item', { cardId: card.id, text: 'Check it' })).json()
+    const later = (await tool(writeToken, 'create_checklist', { cardId: card.id, name: 'Later' })).json()
+    const laterItem = (await tool(writeToken, 'add_checklist_item', { cardId: card.id, checklistId: later.id, text: 'Then this' })).json()
     expect((await tool(writeToken, 'update_checklist_item', { itemId: item.id, done: true })).isError).toBe(false)
 
     const detail = (await tool(readToken, 'get_card', { boardId: board.id, cardId: card.id })).json()
     expect(detail).toMatchObject({ title: 'Written by an agent', priority: 'high', dueDate: '2030-01-02', column: doing!.title })
     expect(detail.comments[0]).toMatchObject({ author: 'Alice', body: 'Looks good' })
-    expect(detail.checklist).toEqual([{ id: item.id, text: 'Check it', done: true }])
+    expect(detail.checklists).toEqual([
+      { id: item.checklistId, name: 'Checklist', items: [{ id: item.id, text: 'Check it', done: true }] },
+      { id: later.id, name: 'Later', items: [{ id: laterItem.id, text: 'Then this', done: false }] },
+    ])
     expect(detail.recentActivity.map((a: { kind: string }) => a.kind)).toEqual(expect.arrayContaining(['created', 'moved', 'commented']))
 
     // Write tools are not listed for read tokens, and calling one anyway fails.

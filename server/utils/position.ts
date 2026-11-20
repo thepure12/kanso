@@ -3,19 +3,20 @@ import { and, asc, eq, inArray, max } from 'drizzle-orm'
 const STEP = 1024
 const MIN_GAP = 1e-6
 
-type Kind = 'card' | 'column' | 'checklist' | 'field' | 'columnGroup'
+type Kind = 'card' | 'column' | 'checklist' | 'checklistItem' | 'field' | 'columnGroup'
 
 function scope(kind: Kind) {
   switch (kind) {
     case 'card': return { table: schema.cards, scopeCol: schema.cards.columnId }
     case 'column': return { table: schema.columns, scopeCol: schema.columns.boardId }
-    case 'checklist': return { table: schema.checklistItems, scopeCol: schema.checklistItems.cardId }
+    case 'checklist': return { table: schema.checklists, scopeCol: schema.checklists.cardId }
+    case 'checklistItem': return { table: schema.checklistItems, scopeCol: schema.checklistItems.checklistId }
     case 'field': return { table: schema.boardFields, scopeCol: schema.boardFields.boardId }
     case 'columnGroup': return { table: schema.columnGroups, scopeCol: schema.columnGroups.boardId }
   }
 }
 
-/** Position after the last item in a column (cards), board (columns, fields, column groups) or card (checklist items). */
+/** Position after the last item in a column (cards), board (columns, fields, column groups), card (checklists) or checklist (items). */
 export async function endPosition(tx: Tx, kind: Kind, scopeId: string): Promise<number> {
   const { table, scopeCol } = scope(kind)
   const [row] = await tx.select({ max: max(table.position) }).from(table).where(eq(scopeCol, scopeId))

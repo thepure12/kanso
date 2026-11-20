@@ -61,7 +61,10 @@ describe('trelloToBoard', () => {
     expect(card).toMatchObject({
       description: 'Users **cannot** sign in.', startDate: '2026-11-01', dueDate: '2026-11-20', archived: false,
       tags: ['Bug', 'Green dark'], assignees: ['Alice', 'Zed Unknown'],
-      checklist: [{ text: 'Reproduce', done: true }, { text: 'Fix it', done: false }, { text: 'Write a test', done: false }],
+      checklists: [
+        { name: 'Steps', items: [{ text: 'Reproduce', done: true }, { text: 'Fix it', done: false }] },
+        { name: 'Later', items: [{ text: 'Write a test', done: false }] },
+      ],
     })
     expect(parsed.cards[2]).toMatchObject({ archived: true, tags: ['Idea'] })
     expect(parsed.tags).toEqual([{ name: 'Bug', color: '#ef4444' }, { name: 'Green dark', color: '#15803d' }, { name: 'Idea', color: '#64748b' }])

@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import { type BoardExport, MAX_IMPORT_COMMENTS } from '../boardExport'
-import { CARD_TITLE_MAX } from '../cards'
+import { CARD_TITLE_MAX, CHECKLIST_NAME_MAX } from '../cards'
 import type { FieldKind } from '../types/board'
 import { clip, noSkips, toDate, type ConvertResult } from './common'
 
@@ -34,6 +34,7 @@ const trelloSchema = z.object({
   labels: z.array(z.object({ id, name: z.string().nullish(), color: z.string().nullish() })).default([]),
   checklists: z.array(z.object({
     idCard: id,
+    name: z.string().nullish(),
     pos: z.number().default(0),
     checkItems: z.array(z.object({ name: z.string(), state: z.string().default('incomplete'), pos: z.number().default(0) })).default([]),
   })).default([]),
@@ -94,8 +95,8 @@ const fieldKinds: Record<string, FieldKind> = { text: 'text', number: 'number', 
  * Converts a Trello board export into our export shape. Open lists become
  * columns (in Trello's order) and cards keep their order; cards in archived
  * lists are dropped, archived cards are imported as archived. Labels become
- * tags (a nameless label is named after its colour), checklists are joined
- * into the card's one checklist, and members become assignees by full name
+ * tags (a nameless label is named after its colour), checklists keep their
+ * names and order, and members become assignees by full name
  * (the export has no emails). Custom fields map to board fields where the
  * kind exists. Comments keep their author's name and time (oldest first);
  * comments on dropped cards and attachments are counted, not imported.
@@ -201,10 +202,13 @@ export function trelloToBoard(json: unknown): ConvertResult {
       archived: c.closed,
       tags: [...new Set(c.idLabels.map(l => labelName.get(l)).filter(n => n !== undefined))],
       assignees: [...new Set(c.idMembers.map(m => memberName.get(m)).filter(n => !!n))] as string[],
-      checklist: (checklists.get(c.id) ?? []).flatMap(list => [...list.checkItems].sort((a, b) => a.pos - b.pos))
-        .map(i => ({ text: clip(i.name, 500), done: i.state === 'complete' }))
-        .filter(i => i.text)
-        .slice(0, 200),
+      checklists: (checklists.get(c.id) ?? []).slice(0, 50).map(list => ({
+        name: clip(list.name ?? '', CHECKLIST_NAME_MAX) || 'Checklist',
+        items: [...list.checkItems].sort((a, b) => a.pos - b.pos)
+          .map(i => ({ text: clip(i.name, 500), done: i.state === 'complete' }))
+          .filter(i => i.text)
+          .slice(0, 200),
+      })),
       fieldValues,
       comments: cardComments.slice(0, MAX_IMPORT_COMMENTS).map(m => ({
         authorName: commentName(m),

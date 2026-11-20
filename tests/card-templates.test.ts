@@ -48,7 +48,9 @@ async function richTemplate(srcColumn = todoId) {
     await sql`update cards set description = 'Body', priority = 'high', estimate = 3, due_date = current_date + 3 where id = ${src}`
     await sql`insert into card_tags (card_id, tag_id, board_id) values (${src}, ${tagA}, ${boardId})`
     await sql`insert into card_assignees (card_id, user_id, board_id) values (${src}, ${editor.id}, ${boardId})`
-    await sql`insert into checklist_items (card_id, board_id, text, done, position) values (${src}, ${boardId}, 'One', true, 1), (${src}, ${boardId}, 'Two', false, 2)`
+    await sql`insert into checklist_items (card_id, board_id, text, done, position) values (${src}, ${boardId}, 'One', true, 1)`
+    const [later] = await sql`insert into checklists (card_id, board_id, name, position) values (${src}, ${boardId}, 'Later', 2048) returning id`
+    await sql`insert into checklist_items (card_id, board_id, checklist_id, text, done, position) values (${src}, ${boardId}, ${later!.id}, 'Two', false, 1)`
     await sql`insert into card_field_values (card_id, board_id, field_id, value) values (${src}, ${boardId}, ${fieldId}, '"x"')`
   })
   return copyCard(editor.id, src, todoId, true, true)
@@ -58,7 +60,8 @@ const cardState = (id: string) => as(boardOwner.id, async (sql) => {
   const [c] = await sql`select title, description, priority, estimate::float8 as estimate, due_date::text as due, is_template, column_id,
     array(select tag_id::text from card_tags where card_id = c.id order by tag_id) as tags,
     array(select user_id::text from card_assignees where card_id = c.id) as assignees,
-    array(select text || ':' || done from checklist_items where card_id = c.id order by position) as checklist,
+    array(select l.name || '/' || i.text || ':' || i.done from checklist_items i join checklists l on l.id = i.checklist_id
+      where i.card_id = c.id order by l.position, i.position) as checklist,
     array(select value #>> '{}' from card_field_values where card_id = c.id) as fields,
     (select count(*)::int from card_activity where card_id = c.id) as activity,
     (select count(*)::int from card_watchers where card_id = c.id) as watchers
@@ -95,7 +98,7 @@ describe('templates', () => {
       const tpl = await richTemplate(doneId)
       expect(await cardState(tpl)).toMatchObject({
         title: 'Weekly report', description: 'Body', priority: 'high', estimate: 3, due: null, is_template: true, column_id: todoId,
-        tags: [tagA], assignees: [editor.id], checklist: ['One:false', 'Two:false'], fields: ['x'], activity: 0, watchers: 0,
+        tags: [tagA], assignees: [editor.id], checklist: ['Checklist/One:false', 'Later/Two:false'], fields: ['x'], activity: 0, watchers: 0,
       })
       // Assignees only when asked for.
       const src = await newCard()
@@ -126,7 +129,7 @@ describe('templates', () => {
       const card = await copyCard(editor.id, tpl, doneId, false, true, 2)
       const [today] = await owner`select (current_date + 7)::text as due`
       expect(await cardState(card)).toMatchObject({
-        is_template: false, column_id: doneId, tags: [tagB], assignees: [editor.id], checklist: ['One:false', 'Two:false'],
+        is_template: false, column_id: doneId, tags: [tagB], assignees: [editor.id], checklist: ['Checklist/One:false', 'Later/Two:false'],
         fields: ['x'], estimate: 3, priority: 'high', due: today!.due, watchers: 1,
       })
       expect((await cardState(card)).activity).toBeGreaterThan(0)
@@ -251,7 +254,7 @@ describe('recurrences', () => {
     // Two runners at once: the row is claimed by one of them.
     const results = (await Promise.all([run(), run()])).flat().filter(r => r.recurrence === rec.id)
     expect(results.length).toBe(1)
-    expect(await cardState(results[0]!.card)).toMatchObject({ is_template: false, column_id: doneId, tags: [tagA], assignees: [editor.id], checklist: ['One:false', 'Two:false'] })
+    expect(await cardState(results[0]!.card)).toMatchObject({ is_template: false, column_id: doneId, tags: [tagA], assignees: [editor.id], checklist: ['Checklist/One:false', 'Later/Two:false'] })
     const [created] = await owner`select created_by from cards where id = ${results[0]!.card}`
     expect(created!.created_by).toBe(editor.id)
     const [row] = await owner`select next_run_at::date::text as next, last_run_at is not null as ran, active from card_recurrences where id = ${rec.id}`

@@ -598,10 +598,26 @@ export const cardAssignees = pgTable('card_assignees', {
   cardFk('card_assignees_card_board_fk', t),
 ])
 
+// Named checklists of a card; items belong to one of them (same card, composite FK).
+export const checklists = pgTable('checklists', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  cardId: uuid('card_id').notNull(),
+  boardId: uuid('board_id').notNull(),
+  name: text('name').notNull(),
+  position: doublePrecision('position').notNull(),
+  createdAt: createdAt(),
+}, t => [
+  cardFk('checklists_card_board_fk', t),
+  unique('checklists_id_card_id_unique').on(t.id, t.cardId),
+  index('checklists_card_idx').on(t.cardId),
+  check('checklists_name_length', sql`char_length(${t.name}) between 1 and 100`),
+])
+
 export const checklistItems = pgTable('checklist_items', {
   id: uuid('id').primaryKey().defaultRandom(),
   cardId: uuid('card_id').notNull(),
   boardId: uuid('board_id').notNull(),
+  checklistId: uuid('checklist_id').notNull(),
   text: text('text').notNull(),
   done: boolean('done').notNull().default(false),
   position: doublePrecision('position').notNull(),
@@ -611,7 +627,9 @@ export const checklistItems = pgTable('checklist_items', {
   createdAt: createdAt(),
 }, t => [
   cardFk('checklist_items_card_board_fk', t),
+  foreignKey({ columns: [t.checklistId, t.cardId], foreignColumns: [checklists.id, checklists.cardId], name: 'checklist_items_checklist_card_fk' }).onDelete('cascade'),
   index('checklist_items_card_idx').on(t.cardId),
+  index('checklist_items_checklist_idx').on(t.checklistId),
   index('checklist_items_assignee_idx').on(t.assigneeId).where(sql`${t.assigneeId} is not null`),
 ])
 

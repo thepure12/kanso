@@ -135,7 +135,7 @@ watch(() => [open.value, props.card.id, props.remoteVersion] as const, ([isOpen]
 watch(() => cd.detail.value, (d) => {
   if (!d) return
   emit('counts', {
-    checklist: { done: d.checklist.filter(i => i.done).length, total: d.checklist.length },
+    checklist: checklistCounts(d.checklists),
     commentCount: d.comments.length,
     attachmentCount: d.attachments.length,
     timeMinutes: d.timeTotal,
@@ -333,7 +333,7 @@ const tabs = computed(() => [
             </UFormField>
           </form>
 
-          <CardChecklist :items="cd.detail.value?.checklist ?? null" :can-edit="props.canEdit" :cd="cd" :members="props.members" :template="props.template" />
+          <CardChecklists :lists="cd.detail.value?.checklists ?? null" :can-edit="props.canEdit" :cd="cd" :members="props.members" :template="props.template" />
           <CardRecurrenceForm
             v-if="props.template"
             :recurrence="props.recurrence ?? null"

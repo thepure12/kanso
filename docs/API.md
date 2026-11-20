@@ -23,7 +23,7 @@ When the instance runs under a sub-path, include it in the base URL (`KANSO=http
   sees nothing of other boards (`404`), lists only its boards, cannot create boards or teams (`403`) and acts as a
   team viewer at most (no renaming, member changes or leaving). Deleting a board or losing access to it never widens
   the token.
-- **Allowed routes**: boards, cards, columns, tags, comments, checklist items, column rules, board automations, board rules, scheduled card actions, attachments, card links,
+- **Allowed routes**: boards, cards, columns, tags, comments, checklists, checklist items, column rules, board automations, board rules, scheduled card actions, attachments, card links,
   fields, column groups, time entries, teams, notifications, search and `/api/me`. Account, sign-in, two-factor, session, token,
   admin and webhook routes refuse tokens (`403`, or `401` for routes that only take the session cookie), so a leaked
   token cannot take over the account.
@@ -65,7 +65,7 @@ Errors come back as JSON with `statusCode` and `statusMessage`: `400` invalid in
 | POST | `/api/cards/:id/reminders` | Personal reminder for you only (anyone who can see the card, viewers too): `{ at, note? }` (ISO time with offset) or `{ beforeDueDays, time, timeZone, note? }` (0-365 days before the due date, `HH:MM` in an IANA zone; waits while the card has no due date, follows due date changes). A time that has passed is refused (400). Sent within a minute as a notification; listed as `reminders` by `GET /api/cards/:id` |
 | DELETE | `/api/reminders/:id` | Delete one of your reminders |
 | POST | `/api/boards/:id/cards` | Add a card `{ columnId, title, description? }` (title up to 1000 characters) |
-| GET | `/api/cards/:id` | Card with checklist, comments, attachments, links and activity |
+| GET | `/api/cards/:id` | Card with checklists, comments, attachments, links and activity |
 | PATCH | `/api/cards/:id` | Edit `{ title?, description?, startDate?, dueDate?, priority?, estimate?, tagIds?, assigneeIds?, archived?, skipAutomations?, snoozedUntil? }` (`skipAutomations`: board and column automations leave the card alone; `snoozedUntil` YYYY-MM-DD hides the card from the board until that day, `null` brings it back) |
 | GET | `/api/boards/:id/snoozed` | Snoozed cards `[{ id, columnId, title, snoozedUntil }]`, next to wake first |
 | POST | `/api/boards/:id/cards/bulk` | Change up to 200 cards at once, all or none `{ cardIds, columnId?, archived?, priority?, dueDate?, addTagIds?, removeTagIds?, addAssigneeIds?, removeAssigneeIds? }`; `columnId` moves them to the end of that column in board order. Returns `{ cards }` (those not archived) |
@@ -76,7 +76,10 @@ Errors come back as JSON with `statusCode` and `statusMessage`: `400` invalid in
 | DELETE | `/api/boards/:id/trash` | Empty the trash; `/api/boards/:id/trash/:cardId` deletes one card for good |
 | POST | `/api/cards/:id/comments` | Comment `{ body }` (Markdown) |
 | PUT / DELETE | `/api/comments/:id/reactions` | Add or remove your reaction `{ emoji }` (one of 👍 👎 😄 🎉 😕 ❤️ 🚀 👀); returns the comment's reactions |
-| POST | `/api/cards/:id/checklist` | Add a checklist item `{ text, assigneeId?, dueDate? }` (the assignee must be able to see the card, else `403`; they are notified) |
+| POST | `/api/cards/:id/checklists` | Add a named checklist `{ name }` (1-100 characters) at the end |
+| PATCH / DELETE | `/api/checklists/:id` | Rename `{ name }` or reorder `{ aboveId, belowId }` a checklist; delete it with its items |
+| POST | `/api/cards/:id/checklist` | Add a checklist item `{ text, checklistId?, assigneeId?, dueDate? }`; without `checklistId` it goes into the card's first checklist (one named "Checklist" is created when there is none); the assignee must be able to see the card, else `403`, and is notified |
+| PATCH / DELETE | `/api/checklist-items/:id` | Change `{ text, done, assigneeId?, dueDate? }` (null clears), move `{ checklistId?, aboveId?, belowId? }` (to another checklist of the card: at its end without neighbours), or delete an item |
 | POST | `/api/boards/:id/members` | Share `{ email, role }` (owners; role `owner`, `editor`, `commenter` or `viewer`) |
 | GET | `/api/teams`, `/api/teams/:id` | Teams and a team's boards and members |
 | GET | `/api/search?q=` | Search cards, comments, boards and columns |
@@ -113,10 +116,10 @@ same permissions, validation and scope rules apply, and changes show up live on 
 
 - **Read tools** (every token): `list_boards`, `get_board` (columns with their cards and colours, card tags, column
   tags, automations, rules, scheduled card actions, accent, members, fields, templates),
-  `get_card` (description, checklist, comments, links, attachments, recent activity), `search`, `my_work`,
+  `get_card` (description, checklists with their items, comments, links, attachments, recent activity), `search`, `my_work`,
   `list_notifications`.
 - **Write tools** (listed only for read and write tokens): `create_card`, `update_card`, `move_card`,
-  `bulk_update_cards`, `add_comment`, `add_checklist_item`, `update_checklist_item`; board structure:
+  `bulk_update_cards`, `add_comment`, `create_checklist`, `add_checklist_item`, `update_checklist_item`; board structure:
   `create_column`, `update_column` (title, colour, WIP limit, order), `create_tag`, `update_tag`, `create_column_tag`,
   `update_column_tag` (name, colour, columns), `create_automation` (board, column or card), `update_automation`, `create_rule`, `update_rule`, `schedule_card_action`, `set_board_accent`. There are
   no delete tools for these.

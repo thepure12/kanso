@@ -350,6 +350,7 @@ export interface ArchivedCard {
 
 export interface ChecklistItem {
   id: string
+  checklistId: string
   text: string
   done: boolean
   position: number
@@ -357,6 +358,14 @@ export interface ChecklistItem {
   assigneeId: string | null
   /** YYYY-MM-DD */
   dueDate: string | null
+}
+
+/** A named checklist of a card with its items in order. */
+export interface Checklist {
+  id: string
+  name: string
+  position: number
+  items: ChecklistItem[]
 }
 
 /** Author fields are null when the author can no longer be seen (left the board or deleted). */
@@ -453,7 +462,8 @@ export interface Watcher {
 
 /** Everything about a card that the board does not load. */
 export interface CardDetail {
-  checklist: ChecklistItem[]
+  /** In order, each with its items in order. */
+  checklists: Checklist[]
   /** The linked Matrix thread, if any. */
   matrixThread: CardMatrixThread | null
   comments: Comment[]
