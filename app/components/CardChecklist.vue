@@ -84,23 +84,24 @@ async function removeList() {
 </script>
 
 <template>
-  <section class="space-y-2">
+  <!-- Each checklist is a framed box with a bold heading, so lists and their items are easy to tell apart. -->
+  <section class="rounded-lg border border-default bg-elevated/30 p-3 space-y-2">
     <div class="group flex items-center gap-2">
       <UIcon v-if="props.canEdit" name="i-lucide-grip-vertical" class="list-handle size-4 cursor-grab text-dimmed shrink-0" />
-      <UIcon v-else name="i-lucide-list-checks" class="size-4 text-dimmed shrink-0" />
+      <UIcon name="i-lucide-list-checks" class="size-4 text-primary shrink-0" />
       <input
         v-if="props.canEdit"
         :value="props.list.name"
-        class="flex-1 min-w-0 bg-transparent text-sm font-medium rounded px-1 py-0.5 focus:outline-none focus:ring ring-primary"
+        class="flex-1 min-w-0 bg-transparent text-sm font-semibold rounded px-1 py-0.5 focus:outline-none focus:ring ring-primary"
         :maxlength="CHECKLIST_NAME_MAX"
         :aria-label="t('checklist.name')"
         @change="renameList"
         @keydown.enter.prevent="($event.target as HTMLInputElement).blur()"
       >
-      <h3 v-else class="flex-1 min-w-0 truncate text-sm font-medium">
+      <h3 v-else class="flex-1 min-w-0 truncate text-sm font-semibold">
         {{ props.list.name }}
       </h3>
-      <span v-if="total" class="text-xs text-muted">{{ done }}/{{ total }}</span>
+      <span v-if="total" class="text-xs text-muted tabular-nums">{{ done }}/{{ total }}</span>
       <UTooltip v-if="props.canEdit" :text="t('checklist.deleteList')">
         <UButton
           icon="i-lucide-trash-2"
@@ -125,7 +126,7 @@ async function removeList() {
       @add="onDrop"
     >
       <div v-for="item in items" :key="item.id" class="group flex items-center gap-2">
-        <UIcon v-if="props.canEdit" name="i-lucide-grip-vertical" class="item-handle size-4 cursor-grab text-dimmed shrink-0" />
+        <UIcon v-if="props.canEdit" name="i-lucide-grip-vertical" class="item-handle size-4 cursor-grab text-dimmed shrink-0 pointer-fine:opacity-0 pointer-fine:group-hover:opacity-100" />
         <UCheckbox
           :model-value="item.done"
           :disabled="!props.canEdit"

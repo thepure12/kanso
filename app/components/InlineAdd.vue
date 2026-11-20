@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /** `openable`: Ctrl/Cmd+Enter adds with `open` true (else it bubbles, e.g. to the card dialog's save). */
-const props = defineProps<{ label: string, placeholder: string, maxlength?: number, openable?: boolean }>()
+const props = defineProps<{ label: string, placeholder: string, maxlength?: number, openable?: boolean, icon?: string }>()
 const emit = defineEmits<{ add: [value: string, open: boolean] }>()
 const { t } = useI18n()
 
@@ -49,5 +49,5 @@ function onEnter(e: KeyboardEvent) {
       </UTooltip>
     </div>
   </form>
-  <UButton v-else color="neutral" variant="ghost" icon="i-lucide-plus" :label="props.label" block class="justify-start" @click="editing = true" />
+  <UButton v-else color="neutral" variant="ghost" :icon="props.icon ?? 'i-lucide-plus'" :label="props.label" block class="justify-start" @click="editing = true" />
 </template>

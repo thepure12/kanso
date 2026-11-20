@@ -32,10 +32,10 @@ function onDrop(e: SortableEvent) {
 <template>
   <div v-if="props.lists && (props.lists.length || props.canEdit)" class="space-y-4">
     <!-- No checklist yet: adding an item creates one named "Checklist" (server). -->
-    <section v-if="!props.lists.length" class="space-y-2">
+    <section v-if="!props.lists.length" class="rounded-lg border border-dashed border-default p-3 space-y-2">
       <div class="flex items-center gap-2">
         <UIcon name="i-lucide-list-checks" class="size-4 text-dimmed" />
-        <h3 class="text-sm font-medium">
+        <h3 class="text-sm font-semibold">
           {{ t('checklist.title') }}
         </h3>
       </div>
@@ -54,6 +54,7 @@ function onDrop(e: SortableEvent) {
     </VueDraggable>
     <InlineAdd
       v-if="props.canEdit"
+      icon="i-lucide-list-plus"
       :label="t('checklist.addList')"
       :placeholder="t('checklist.namePlaceholder')"
       :maxlength="CHECKLIST_NAME_MAX"
