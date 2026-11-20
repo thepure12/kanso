@@ -5,7 +5,7 @@ import { readFileSync } from 'node:fs'
 import { url } from '@nuxt/test-utils/e2e'
 import postgres from 'postgres'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import type { Attachment, BoardActivityPage, BoardAutomation, BoardDetail, BoardRule, BoardField, BoardSummary, Card, CardDetail, CardLink, CardRecurrence, CardReminder, Column, ColumnGroup, ColumnRule, SavedView, ScheduledCardAction, SnoozedCard, Comment, Person, TeamDetail, TimeEntry, TrashedCard } from '#shared/types/board'
+import type { Attachment, BoardActivityPage, BoardAutomation, BoardDetail, BoardRule, BoardField, BoardSummary, Card, CardDetail, ChecklistItem, CardLink, CardRecurrence, CardReminder, Column, ColumnGroup, ColumnRule, SavedView, ScheduledCardAction, SnoozedCard, Comment, Person, TeamDetail, TimeEntry, TrashedCard } from '#shared/types/board'
 import type { Inbox } from '#shared/types/notifications'
 import type { AdminUser, AuditLogPage, InstanceSettings } from '#shared/types/admin'
 import type { Account, AccountSession } from '#shared/types/account'
@@ -1257,6 +1257,28 @@ describe('notifications', () => {
       { boardId, boardName: 'API test', cardId: card.id, cardTitle: 'Due soon', dueDate: today })
   })
 
+  it('assigns checklist items, notifies the assignee and lists open ones due soon', async () => {
+    const card = await newCard('Item card')
+    const today = new Date().toISOString().slice(0, 10)
+    const item = (await alice.req<ChecklistItem>(`/api/cards/${card.id}/checklist`, { method: 'POST', body: { text: 'Check it' } })).data
+    expect(item).toMatchObject({ assigneeId: null, dueDate: null })
+    const res = await alice.req<ChecklistItem>(`/api/checklist-items/${item.id}`, { method: 'PATCH', body: { assigneeId: userId('Bob'), dueDate: today } })
+    expect(res.data).toMatchObject({ id: item.id, assigneeId: userId('Bob'), dueDate: today })
+    expect((await alice.req<CardDetail>(`/api/cards/${card.id}`)).data.checklist).toEqual([res.data])
+
+    const inbox = (await bob.req<Inbox>('/api/notifications')).data
+    expect(inbox.items.find(n => n.cardId === card.id)?.activity).toMatchObject({ kind: 'checklist_assigned', data: { item: 'Check it', user: 'Bob' } })
+    expect(inbox.dueSoon).toContainEqual(
+      { boardId, boardName: 'API test', cardId: card.id, cardTitle: 'Item card', dueDate: today, itemId: item.id, item: 'Check it' })
+
+    await alice.req(`/api/checklist-items/${item.id}`, { method: 'PATCH', body: { done: true } })
+    expect((await bob.req<Inbox>('/api/notifications')).data.dueSoon.some(d => d.itemId === item.id)).toBe(false)
+    // Only people on the board.
+    expect((await alice.req(`/api/checklist-items/${item.id}`, { method: 'PATCH', body: { assigneeId: randomUUID() } })).status).toBe(403)
+    expect((await alice.req<ChecklistItem>(`/api/checklist-items/${item.id}`, { method: 'PATCH', body: { assigneeId: null, dueDate: null } })).data)
+      .toMatchObject({ assigneeId: null, dueDate: null })
+  })
+
   it('needs a session', async () => {
     expect((await fetch('/api/notifications')).status).toBe(401)
     expect((await fetch('/api/events?notifications=1')).status).toBe(401)
@@ -2049,7 +2071,14 @@ describe('my work', () => {
     await bob.req(`/api/cards/${watched.id}/watch`, { method: 'PUT' })
     const finished = await add('Finished', done!.id)
     await add('Archived', todo!.id, { assigneeIds: [bobId], archived: true })
-    await add('Not mine', todo!.id, {})
+    const notMine = await add('Not mine', todo!.id, {})
+    const viaItem = await add('Item for Bob', todo!.id, {})
+    const item = (await alice.req<ChecklistItem>(`/api/cards/${viaItem.id}/checklist`, { method: 'POST', body: { text: 'Review', assigneeId: bobId, dueDate: '2026-01-01' } })).data
+    expect(item).toMatchObject({ text: 'Review', assigneeId: bobId, dueDate: '2026-01-01', done: false })
+    // Done items and other people's items do not count.
+    await alice.req(`/api/cards/${notMine.id}/checklist`, { method: 'POST', body: { text: 'Mine', assigneeId: detail.members.find(m => m.name === 'Alice')!.userId } })
+    const doneItem = (await alice.req<ChecklistItem>(`/api/cards/${notMine.id}/checklist`, { method: 'POST', body: { text: 'Done', assigneeId: bobId } })).data
+    await alice.req(`/api/checklist-items/${doneItem.id}`, { method: 'PATCH', body: { done: true } })
     await alice.req(`/api/cards/${assigned.id}/template`, { method: 'POST', body: { withAssignees: true } })
 
     const mine = async (u: typeof bob) => {
@@ -2058,15 +2087,18 @@ describe('my work', () => {
       return res.data.cards.filter(c => c.boardId === id)
     }
     const cards = await mine(bob)
-    expect(cards.map(c => c.title)).toEqual(['Assigned', 'Watched', 'Finished'])
+    expect(cards.map(c => c.title)).toEqual(['Assigned', 'Watched', 'Item for Bob', 'Finished'])
+    expect(cards.find(c => c.id === viaItem.id)).toMatchObject({
+      assigned: false, watching: false, checklistItems: [{ id: item.id, text: 'Review', dueDate: '2026-01-01' }],
+    })
     expect(cards[0]).toEqual({
       id: assigned.id, title: 'Assigned', boardId: id, boardName: 'My work', columnId: todo!.id, columnTitle: 'To do',
-      startDate: null, dueDate: '2026-01-02', priority: 'high', estimate: null, assigned: true, watching: false, done: false,
+      startDate: null, dueDate: '2026-01-02', priority: 'high', estimate: null, assigned: true, watching: false, done: false, checklistItems: [],
     })
     expect(cards.find(c => c.id === finished.id)).toMatchObject({ done: true, columnTitle: 'Done' })
     expect(cards.find(c => c.id === watched.id)).toMatchObject({ assigned: false, watching: true })
     // Alice watches the cards she created; the outsider sees nothing of the board.
-    expect((await mine(alice)).map(c => c.title).sort()).toEqual(['Assigned', 'Finished', 'Not mine', 'Watched'])
+    expect((await mine(alice)).map(c => c.title).sort()).toEqual(['Assigned', 'Finished', 'Item for Bob', 'Not mine', 'Watched'])
     expect(await mine(outsider)).toEqual([])
 
     // Archived boards drop out.

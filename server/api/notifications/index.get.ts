@@ -5,11 +5,12 @@ import type { Inbox } from '#shared/types/notifications'
 const LIMIT = 50
 
 export default defineUserHandler(async (_event, tx, userId): Promise<Inbox> => {
-  const { notifications: n, cardActivity: act, cards, boards, users, cardAssignees: ca } = schema
+  const { notifications: n, cardActivity: act, cards, boards, users, cardAssignees: ca, checklistItems: ci } = schema
 
   // RLS limits notifications to the caller's own, on boards they can still see.
   // Due soon leaves out archived boards (as the digest does).
-  const [items, [unread], dueSoon] = await Promise.all([
+  const open = and(isNull(cards.archivedAt), eq(cards.isTemplate, false), isNull(boards.archivedAt))
+  const [items, [unread], dueCards, dueItems] = await Promise.all([
     tx.select({
       id: n.id, boardId: n.boardId, boardName: boards.name, cardId: n.cardId, cardTitle: cards.title, readAt: n.readAt,
       activityId: act.id, actorId: act.actorId, actorName: users.name, kind: act.kind, data: act.data, createdAt: act.createdAt,
@@ -24,9 +25,17 @@ export default defineUserHandler(async (_event, tx, userId): Promise<Inbox> => {
       .from(ca)
       .innerJoin(cards, eq(cards.id, ca.cardId))
       .innerJoin(boards, eq(boards.id, cards.boardId))
-      .where(and(eq(ca.userId, userId), isNull(cards.archivedAt), eq(cards.isTemplate, false), isNull(boards.archivedAt), lte(cards.dueDate, sql`current_date + 1`)))
+      .where(and(eq(ca.userId, userId), open, lte(cards.dueDate, sql`current_date + 1`)))
       .orderBy(asc(cards.dueDate)),
+    // Open checklist items assigned to the caller.
+    tx.select({ boardId: cards.boardId, boardName: boards.name, cardId: cards.id, cardTitle: cards.title, dueDate: ci.dueDate, itemId: ci.id, item: ci.text })
+      .from(ci)
+      .innerJoin(cards, eq(cards.id, ci.cardId))
+      .innerJoin(boards, eq(boards.id, cards.boardId))
+      .where(and(eq(ci.assigneeId, userId), eq(ci.done, false), open, lte(ci.dueDate, sql`current_date + 1`)))
+      .orderBy(asc(ci.dueDate)),
   ])
+  const dueSoon = [...dueCards, ...dueItems].sort((a, b) => a.dueDate!.localeCompare(b.dueDate!))
 
   return {
     items: items.map(i => ({

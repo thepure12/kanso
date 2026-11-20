@@ -1,10 +1,43 @@
 <script setup lang="ts">
 import { VueDraggable, type SortableEvent } from 'vue-draggable-plus'
-import type { ChecklistItem } from '#shared/types/board'
+import type { DropdownMenuItem } from '@nuxt/ui'
+import type { ChecklistItem, Member } from '#shared/types/board'
 import type { CardDetailApi } from '~/composables/useCardDetail'
 
-const props = defineProps<{ items: ChecklistItem[] | null, canEdit: boolean, cd: CardDetailApi }>()
-const { t } = useI18n()
+const props = defineProps<{
+  items: ChecklistItem[] | null
+  canEdit: boolean
+  cd: CardDetailApi
+  /** Board members, offered as item assignees. */
+  members?: Member[]
+  /** Templates have no item assignees or due dates (copies leave them out). */
+  template?: boolean
+}>()
+const { t, locale } = useI18n()
+const today = isoDate()
+const extras = computed(() => !props.template)
+
+const memberOf = (id: string | null) => (id ? props.members?.find(m => m.userId === id) : undefined)
+
+function assigneeItems(item: ChecklistItem): DropdownMenuItem[][] {
+  const set = (assigneeId: string | null) => {
+    if (assigneeId !== item.assigneeId) props.cd.updateChecklistItem(item, { assigneeId })
+  }
+  return [
+    (props.members ?? []).map(m => ({
+      label: m.name,
+      avatar: { src: m.avatarUrl ?? undefined, alt: m.name },
+      icon: m.userId === item.assigneeId ? 'i-lucide-check' : undefined,
+      onSelect: () => set(m.userId),
+    })),
+    ...(item.assigneeId ? [[{ label: t('checklist.unassign'), icon: 'i-lucide-user-x', onSelect: () => set(null) }]] : []),
+  ]
+}
+
+function setDue(item: ChecklistItem, value: string) {
+  const dueDate = value || null
+  if (dueDate !== item.dueDate) props.cd.updateChecklistItem(item, { dueDate })
+}
 
 const done = computed(() => props.items?.filter(i => i.done).length ?? 0)
 const total = computed(() => props.items?.length ?? 0)
@@ -64,6 +97,68 @@ function rename(item: ChecklistItem, e: Event) {
           @keydown.enter.prevent="($event.target as HTMLInputElement).blur()"
         >
         <span v-else class="flex-1 text-sm" :class="item.done && 'line-through text-muted'">{{ item.text }}</span>
+        <template v-if="extras">
+          <UPopover v-if="props.canEdit">
+            <UButton
+              size="xs"
+              color="neutral"
+              variant="ghost"
+              :icon="item.dueDate ? undefined : 'i-lucide-calendar'"
+              :label="item.dueDate ? formatDate(item.dueDate, locale) : undefined"
+              :aria-label="item.dueDate ? t('checklist.dueOn', { date: formatDate(item.dueDate, locale) }) : t('checklist.setDue')"
+              :class="[
+                item.dueDate && !item.done && item.dueDate < today && 'text-error',
+                !item.dueDate && 'pointer-fine:opacity-0 pointer-fine:group-hover:opacity-100 focus-visible:opacity-100',
+              ]"
+            />
+            <template #content>
+              <div class="flex items-center gap-2 p-2">
+                <UInput
+                  type="date"
+                  size="sm"
+                  :model-value="item.dueDate ?? ''"
+                  :aria-label="t('checklist.dueDate')"
+                  @change="setDue(item, ($event.target as HTMLInputElement).value)"
+                />
+                <UButton
+                  v-if="item.dueDate"
+                  size="sm"
+                  color="neutral"
+                  variant="ghost"
+                  icon="i-lucide-x"
+                  :aria-label="t('checklist.clearDue')"
+                  @click="setDue(item, '')"
+                />
+              </div>
+            </template>
+          </UPopover>
+          <span
+            v-else-if="item.dueDate"
+            class="text-xs shrink-0"
+            :class="!item.done && item.dueDate < today ? 'text-error' : 'text-muted'"
+          >{{ formatDate(item.dueDate, locale) }}</span>
+
+          <UDropdownMenu v-if="props.canEdit" :items="assigneeItems(item)" :content="{ align: 'end' }">
+            <UButton
+              size="xs"
+              color="neutral"
+              variant="ghost"
+              :icon="item.assigneeId ? undefined : 'i-lucide-user-plus'"
+              :aria-label="item.assigneeId ? t('checklist.assignedTo', { name: memberOf(item.assigneeId)?.name ?? t('common.someone') }) : t('checklist.assign')"
+              :class="!item.assigneeId && 'pointer-fine:opacity-0 pointer-fine:group-hover:opacity-100 focus-visible:opacity-100'"
+            >
+              <UAvatar
+                v-if="item.assigneeId"
+                size="2xs"
+                :src="memberOf(item.assigneeId)?.avatarUrl ?? undefined"
+                :alt="memberOf(item.assigneeId)?.name ?? '?'"
+              />
+            </UButton>
+          </UDropdownMenu>
+          <UTooltip v-else-if="item.assigneeId" :text="memberOf(item.assigneeId)?.name ?? t('common.someone')">
+            <UAvatar size="2xs" :src="memberOf(item.assigneeId)?.avatarUrl ?? undefined" :alt="memberOf(item.assigneeId)?.name ?? '?'" />
+          </UTooltip>
+        </template>
         <UTooltip v-if="props.canEdit" :text="t('checklist.deleteItem')">
           <UButton
             icon="i-lucide-x"

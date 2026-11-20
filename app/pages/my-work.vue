@@ -2,7 +2,7 @@
 import type { MyWork } from '#shared/types/myWork'
 import type { MyWorkScope } from '~/utils/myWork'
 
-const { t } = useI18n()
+const { t, locale } = useI18n()
 const i18n = useI18nContext()
 useHead({ title: () => t('myWork.title') })
 
@@ -75,6 +75,13 @@ const groups = computed(() => groupMyWork(filterMyWork(data.value?.cards ?? [], 
               <UIcon v-if="c.assigned" name="i-lucide-user-check" class="size-4 text-muted" :aria-label="t('myWork.assignedToYou')" />
               <UIcon v-if="c.watching" name="i-lucide-eye" class="size-4 text-muted" :aria-label="t('myWork.youWatch')" />
             </span>
+            <ul v-if="c.checklistItems.length" class="basis-full space-y-0.5 ps-1" :aria-label="t('myWork.checklistItems')">
+              <li v-for="i in c.checklistItems" :key="i.id" class="flex items-center gap-2 text-sm text-muted">
+                <UIcon name="i-lucide-square" class="size-3.5 shrink-0" />
+                <span class="truncate">{{ i.text }}</span>
+                <span v-if="i.dueDate" class="ms-auto text-xs shrink-0" :class="i.dueDate < today ? 'text-error' : ''">{{ formatDate(i.dueDate, locale) }}</span>
+              </li>
+            </ul>
           </NuxtLink>
         </li>
       </ul>

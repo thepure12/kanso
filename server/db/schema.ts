@@ -605,10 +605,14 @@ export const checklistItems = pgTable('checklist_items', {
   text: text('text').notNull(),
   done: boolean('done').notNull().default(false),
   position: doublePrecision('position').notNull(),
+  // Optional person (a board member, checked by trigger) and due date of one item.
+  assigneeId: uuid('assignee_id').references(() => users.id, { onDelete: 'set null' }),
+  dueDate: date('due_date'),
   createdAt: createdAt(),
 }, t => [
   cardFk('checklist_items_card_board_fk', t),
   index('checklist_items_card_idx').on(t.cardId),
+  index('checklist_items_assignee_idx').on(t.assigneeId).where(sql`${t.assigneeId} is not null`),
 ])
 
 export const cardComments = pgTable('card_comments', {

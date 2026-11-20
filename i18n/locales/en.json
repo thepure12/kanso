@@ -87,11 +87,13 @@
     "reminderPersonal": "reminded you",
     "reminderPersonalNote": "reminded you: {note}",
     "snoozed": "snoozed this card until {date}",
-    "woke": "brought this card back from snooze"
+    "woke": "brought this card back from snooze",
+    "checklistAssigned": "assigned {user} to checklist item “{item}”"
   },
   "notification": {
     "assignedYou": "assigned you to this card",
-    "mentionedYou": "mentioned you in a comment"
+    "mentionedYou": "mentioned you in a comment",
+    "checklistAssignedYou": "assigned you to checklist item “{item}”"
   },
   "language": {
     "label": "Language",
@@ -916,7 +918,14 @@
       "save": "Could not save item",
       "move": "Could not move item",
       "delete": "Could not delete item"
-    }
+    },
+    "assign": "Assign item",
+    "unassign": "Remove assignee",
+    "assignedTo": "Assigned to {name}",
+    "setDue": "Set due date",
+    "dueOn": "Due {date}",
+    "dueDate": "Due date",
+    "clearDue": "Remove due date"
   },
   "comments": {
     "placeholder": "Write a comment (Markdown, {'@'} to mention)",
@@ -1329,7 +1338,8 @@
       "stale": "No recent activity",
       "reminder": "Reminder",
       "snoozed": "Snoozed",
-      "woke": "Back from snooze"
+      "woke": "Back from snooze",
+      "checklist_assigned": "Checklist item assigned"
     }
   },
   "matrix": {
@@ -1630,7 +1640,7 @@
   },
   "myWork": {
     "title": "My work",
-    "description": "Cards assigned to you or that you watch, on all your boards.",
+    "description": "Cards assigned to you, with checklist items for you, or that you watch, on all your boards.",
     "all": "All",
     "assigned": "Assigned",
     "watching": "Watching",
@@ -1647,7 +1657,8 @@
       "later": "Later",
       "none": "No due date"
     },
-    "refresh": "Refresh"
+    "refresh": "Refresh",
+    "checklistItems": "Your checklist items"
   },
   "columnGroups": {
     "title": "Column tags",

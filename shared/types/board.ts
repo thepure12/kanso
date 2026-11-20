@@ -353,6 +353,10 @@ export interface ChecklistItem {
   text: string
   done: boolean
   position: number
+  /** A board member responsible for this item, or null. */
+  assigneeId: string | null
+  /** YYYY-MM-DD */
+  dueDate: string | null
 }
 
 /** Author fields are null when the author can no longer be seen (left the board or deleted). */
@@ -393,6 +397,7 @@ export type ActivityKind =
   | 'created' | 'moved' | 'renamed' | 'described' | 'start' | 'due' | 'priority' | 'estimate' | 'archived' | 'restored'
   | 'tagged' | 'untagged' | 'assigned' | 'unassigned' | 'commented' | 'mentioned' | 'attached' | 'detached'
   | 'linked' | 'unlinked' | 'field' | 'stale' | 'reminder' | 'snoozed' | 'woke'
+  | 'checklist_assigned'
 
 export interface Activity {
   id: string
@@ -405,6 +410,7 @@ export interface Activity {
    * field: { field, kind, from, to } with values as text (option labels for
    * select fields, null = no value). stale: { days } (a number).
    * reminder: { note? } (a scheduled remind action), or { user_id, note? } (a personal reminder, seen only by that user).
+   * checklist_assigned: { user, user_id, item } (a checklist item's assignee was set; only that person is notified).
    * snoozed: { until } (YYYY-MM-DD); woke: {} (snooze cleared, by hand or by the hourly task).
    * Activity of a board automation has no actor and `automation: true`.
    */

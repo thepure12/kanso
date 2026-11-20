@@ -333,7 +333,7 @@ const tabs = computed(() => [
             </UFormField>
           </form>
 
-          <CardChecklist :items="cd.detail.value?.checklist ?? null" :can-edit="props.canEdit" :cd="cd" />
+          <CardChecklist :items="cd.detail.value?.checklist ?? null" :can-edit="props.canEdit" :cd="cd" :members="props.members" :template="props.template" />
           <CardRecurrenceForm
             v-if="props.template"
             :recurrence="props.recurrence ?? null"

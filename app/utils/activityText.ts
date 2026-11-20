@@ -48,6 +48,7 @@ export function describeActivity(a: Pick<Activity, 'kind' | 'data'>, i18n: I18nC
       return d.note ? t('activity.reminderNote', { note: d.note }) : t('activity.reminder')
     case 'snoozed': return t('activity.snoozed', { date: d.until ? formatDate(d.until, locale) : '' })
     case 'woke': return t('activity.woke')
+    case 'checklist_assigned': return t('activity.checklistAssigned', { user: d.user ?? t('common.someone'), item: d.item ?? '' })
   }
   return a.kind
 }
@@ -83,6 +84,7 @@ export function mentionsOf(a: Pick<Activity, 'data'>): string[] {
 /** The same text for the recipient (`userId`) of a notification: assignments and mentions name them. */
 export function describeNotification(a: Pick<Activity, 'kind' | 'data'>, i18n: I18nContext, userId?: string): string {
   if (a.kind === 'assigned') return i18n.t('notification.assignedYou')
+  if (a.kind === 'checklist_assigned') return i18n.t('notification.checklistAssignedYou', { item: a.data.item ?? '' })
   if (a.kind === 'mentioned' || (a.kind === 'commented' && userId && mentionsOf(a).includes(userId))) return i18n.t('notification.mentionedYou')
   return describeActivity(a, i18n)
 }

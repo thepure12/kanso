@@ -76,7 +76,7 @@ Errors come back as JSON with `statusCode` and `statusMessage`: `400` invalid in
 | DELETE | `/api/boards/:id/trash` | Empty the trash; `/api/boards/:id/trash/:cardId` deletes one card for good |
 | POST | `/api/cards/:id/comments` | Comment `{ body }` (Markdown) |
 | PUT / DELETE | `/api/comments/:id/reactions` | Add or remove your reaction `{ emoji }` (one of 👍 👎 😄 🎉 😕 ❤️ 🚀 👀); returns the comment's reactions |
-| POST | `/api/cards/:id/checklist` | Add a checklist item `{ text }` |
+| POST | `/api/cards/:id/checklist` | Add a checklist item `{ text, assigneeId?, dueDate? }` (the assignee must be able to see the card, else `403`; they are notified) |
 | POST | `/api/boards/:id/members` | Share `{ email, role }` (owners; role `owner`, `editor`, `commenter` or `viewer`) |
 | GET | `/api/teams`, `/api/teams/:id` | Teams and a team's boards and members |
 | GET | `/api/search?q=` | Search cards, comments, boards and columns |

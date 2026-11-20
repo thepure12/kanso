@@ -8,7 +8,7 @@ export default defineUserHandler(async (event, tx, userId): Promise<CardDetail> 
 
   // users rows are visible only while the person shares a board or team with the caller.
   const [checklist, comments, attachments, activity, timeEntries, watcherRows, links, fieldRows, [matrixThread]] = await Promise.all([
-    tx.select({ id: ci.id, text: ci.text, done: ci.done, position: ci.position })
+    tx.select(checklistItemColumns())
       .from(ci).where(eq(ci.cardId, id)).orderBy(asc(ci.position)),
     tx.select({
       id: cc.id, authorId: cc.authorId, authorName: users.name, authorAvatarUrl: users.avatarUrl, importedAuthor: cc.importedAuthor,

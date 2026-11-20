@@ -87,11 +87,13 @@
     "reminderPersonal": "hat dich erinnert",
     "reminderPersonalNote": "hat dich erinnert: {note}",
     "snoozed": "hat diese Karte bis {date} zurückgestellt",
-    "woke": "hat diese Karte aus dem Zurückstellen geholt"
+    "woke": "hat diese Karte aus dem Zurückstellen geholt",
+    "checklistAssigned": "hat {user} den Checklistenpunkt „{item}“ zugewiesen"
   },
   "notification": {
     "assignedYou": "hat dir diese Karte zugewiesen",
-    "mentionedYou": "hat dich in einem Kommentar erwähnt"
+    "mentionedYou": "hat dich in einem Kommentar erwähnt",
+    "checklistAssignedYou": "hat dir den Checklistenpunkt „{item}“ zugewiesen"
   },
   "language": {
     "label": "Sprache",
@@ -916,7 +918,14 @@
       "save": "Der Eintrag konnte nicht gespeichert werden",
       "move": "Der Eintrag konnte nicht verschoben werden",
       "delete": "Der Eintrag konnte nicht gelöscht werden"
-    }
+    },
+    "assign": "Punkt zuweisen",
+    "unassign": "Zuweisung entfernen",
+    "assignedTo": "{name} zugewiesen",
+    "setDue": "Fälligkeit setzen",
+    "dueOn": "Fällig am {date}",
+    "dueDate": "Fälligkeitsdatum",
+    "clearDue": "Fälligkeit entfernen"
   },
   "comments": {
     "placeholder": "Kommentar schreiben (Markdown, {'@'} zum Erwähnen)",
@@ -1329,7 +1338,8 @@
       "stale": "Keine aktuelle Aktivität",
       "reminder": "Erinnerung",
       "snoozed": "Zurückgestellt",
-      "woke": "Zurück aus dem Zurückstellen"
+      "woke": "Zurück aus dem Zurückstellen",
+      "checklist_assigned": "Checklistenpunkt zugewiesen"
     }
   },
   "matrix": {
@@ -1630,7 +1640,7 @@
   },
   "myWork": {
     "title": "Meine Arbeit",
-    "description": "Karten, die dir zugewiesen sind oder die du beobachtest, auf allen deinen Boards.",
+    "description": "Karten, die dir zugewiesen sind, mit Checklistenpunkten für dich oder die du beobachtest, auf allen deinen Boards.",
     "all": "Alle",
     "assigned": "Zugewiesen",
     "watching": "Beobachtet",
@@ -1647,7 +1657,8 @@
       "later": "Später",
       "none": "Ohne Fälligkeit"
     },
-    "refresh": "Aktualisieren"
+    "refresh": "Aktualisieren",
+    "checklistItems": "Deine Checklistenpunkte"
   },
   "columnGroups": {
     "title": "Spalten-Tags",

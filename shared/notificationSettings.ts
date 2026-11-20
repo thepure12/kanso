@@ -40,6 +40,7 @@ export function notificationEvent(kind: string, data: Record<string, unknown> | 
   const mentions = Array.isArray(data?.mentions) ? data.mentions : []
   if (kind === 'mentioned' || (kind === 'commented' && mentions.includes(userId))) return 'mentioned'
   if (kind === 'woke') return 'reminder'
+  if (kind === 'checklist_assigned') return 'assigned'
   return (notificationEvents as readonly string[]).includes(kind) ? kind as NotificationEvent : null
 }
 

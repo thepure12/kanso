@@ -680,6 +680,20 @@
       "when": 1795189623333,
       "tag": "0096_board_rules_rls",
       "breakpoints": true
+    },
+    {
+      "idx": 97,
+      "version": "7",
+      "when": 1795190990616,
+      "tag": "0097_checklist_item_assignees",
+      "breakpoints": true
+    },
+    {
+      "idx": 98,
+      "version": "7",
+      "when": 1795190998763,
+      "tag": "0098_checklist_item_assignees_rls",
+      "breakpoints": true
     }
   ]
 }

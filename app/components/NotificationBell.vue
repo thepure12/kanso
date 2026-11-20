@@ -37,11 +37,13 @@ async function select(n: Notification) {
           <div v-if="inbox.dueSoon.length" class="border-b border-default">
             <p class="px-3 pt-2 text-xs font-medium text-muted">{{ t('notifications.dueSoon') }}</p>
             <NuxtLink
-              v-for="d in inbox.dueSoon" :key="d.cardId" :to="cardLink(d.boardId, d.cardId)"
+              v-for="d in inbox.dueSoon" :key="d.itemId ?? d.cardId" :to="cardLink(d.boardId, d.cardId)"
               class="flex items-center gap-2 px-3 py-2 text-sm hover:bg-elevated" @click="open = false"
             >
               <UIcon name="i-lucide-calendar-clock" :class="d.dueDate < today ? 'text-error' : 'text-warning'" class="size-4 shrink-0" />
-              <span class="truncate flex-1">{{ d.cardTitle }}</span>
+              <span class="truncate flex-1">
+                {{ d.cardTitle }}<span v-if="d.item" class="text-muted"> › <UIcon name="i-lucide-list-checks" class="size-3 align-middle" /> {{ d.item }}</span>
+              </span>
               <span class="text-xs text-muted shrink-0">{{ formatDate(d.dueDate, locale) }}</span>
             </NuxtLink>
           </div>

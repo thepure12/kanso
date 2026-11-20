@@ -176,14 +176,17 @@ export function createMcpServer(caller: McpCaller): McpServer {
   }, ({ cardId, body }) => run(() => call(`/api/cards/${cardId}/comments`, { method: 'POST', body: { body } })))
 
   server.registerTool('add_checklist_item', {
-    description: 'Add an item at the end of a card\'s checklist.',
-    inputSchema: { cardId: id, text: z.string().min(1).max(500) },
+    description: 'Add an item at the end of a card\'s checklist, optionally with an assignee (a board member, user id from get_board) and a due date.',
+    inputSchema: { cardId: id, text: z.string().min(1).max(500), assigneeId: id.optional(), dueDate: z.iso.date().optional() },
     annotations: write,
-  }, ({ cardId, text }) => run(() => call(`/api/cards/${cardId}/checklist`, { method: 'POST', body: { text } })))
+  }, ({ cardId, ...body }) => run(() => call(`/api/cards/${cardId}/checklist`, { method: 'POST', body })))
 
   server.registerTool('update_checklist_item', {
-    description: 'Tick or untick a checklist item, or change its text (item ids from get_card).',
-    inputSchema: { itemId: id, done: z.boolean().optional(), text: z.string().min(1).max(500).optional() },
+    description: 'Tick or untick a checklist item, change its text, or set its assignee (a board member, user id from get_board) or due date; null clears them (item ids from get_card). The assignee is notified.',
+    inputSchema: {
+      itemId: id, done: z.boolean().optional(), text: z.string().min(1).max(500).optional(),
+      assigneeId: id.nullable().optional(), dueDate: z.iso.date().nullable().optional(),
+    },
     annotations: write,
   }, ({ itemId, ...body }) => run(() => call(`/api/checklist-items/${itemId}`, { method: 'PATCH', body })))
 

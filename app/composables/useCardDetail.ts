@@ -62,7 +62,7 @@ export function useCardDetail(cardId: Ref<string>) {
       d.checklist.push(await api<ChecklistItem>(`${base()}/checklist`, { method: 'POST', body: { text } }))
     }, t('checklist.errors.add')),
 
-    updateChecklistItem: (item: ChecklistItem, patch: Partial<Pick<ChecklistItem, 'text' | 'done'>>) => run(async () => {
+    updateChecklistItem: (item: ChecklistItem, patch: Partial<Pick<ChecklistItem, 'text' | 'done' | 'assigneeId' | 'dueDate'>>) => run(async () => {
       Object.assign(item, patch)
       await api(`/api/checklist-items/${item.id}`, { method: 'PATCH', body: patch })
     }, t('checklist.errors.save')),
@@ -91,7 +91,8 @@ export function useCardDetail(cardId: Ref<string>) {
         if (cardId.value === card) await load()
       }
       boardUndo.record(t('checklist.deletedUndo'), async () => {
-        restoredId = (await api<ChecklistItem>(`/api/cards/${card}/checklist`, { method: 'POST', body: { text: item.text } })).id
+        const body = { text: item.text, assigneeId: item.assigneeId, dueDate: item.dueDate }
+        restoredId = (await api<ChecklistItem>(`/api/cards/${card}/checklist`, { method: 'POST', body })).id
         const done = item.done ? { done: true } : {}
         const patch = (body: object) => api(`/api/checklist-items/${restoredId}`, { method: 'PATCH', body })
         // A neighbour deleted meanwhile: keep it at the end.
