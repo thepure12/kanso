@@ -1,7 +1,8 @@
 import type { SavedViewConfig } from '#shared/savedViews'
-import type { BoardField, ColumnGroup, Member, Tag } from '#shared/types/board'
+import type { AssigneeGroup, BoardField, ColumnGroup, Member, Tag } from '#shared/types/board'
 import type { CardFilter } from './cardFilter'
 import { isFilterableField } from './fields'
+import { assigneeGroupKey } from './assigneeGroups'
 import { isValidGroupBy, type GroupBy } from './swimlanes'
 
 export interface ViewState {
@@ -16,6 +17,7 @@ export interface ViewContext {
   members: Pick<Member, 'userId'>[]
   fields: BoardField[]
   columnGroups: Pick<ColumnGroup, 'id'>[]
+  assigneeGroups?: Pick<AssigneeGroup, 'id'>[]
 }
 
 /** A deep copy of the current settings, in the shape stored in saved_views.config. */
@@ -43,7 +45,7 @@ export function currentViewConfig(state: ViewState): SavedViewConfig {
  */
 export function sanitizeViewConfig(config: SavedViewConfig, ctx: ViewContext): ViewState {
   const tagIds = new Set(ctx.tags.map(t => t.id))
-  const userIds = new Set(ctx.members.map(m => m.userId))
+  const userIds = new Set([...ctx.members.map(m => m.userId), ...(ctx.assigneeGroups ?? []).map(g => assigneeGroupKey(g.id))])
   const f = config.filter
   const fields: Record<string, string[]> = {}
   for (const [fieldId, values] of Object.entries(f.fields)) {

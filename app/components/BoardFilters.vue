@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { priorities, type BoardField, type Member, type Tag } from '#shared/types/board'
+import { priorities, type AssigneeGroup, type BoardField, type Member, type Tag } from '#shared/types/board'
 
-const props = defineProps<{ tags: Tag[], fields: BoardField[], members: Member[], shown: number, total: number }>()
+const props = defineProps<{ tags: Tag[], fields: BoardField[], members: Member[], assigneeGroups?: AssigneeGroup[], shown: number, total: number }>()
 const filter = defineModel<CardFilter>({ required: true })
 const { t } = useI18n()
 
@@ -42,6 +42,8 @@ defineExpose({ focus: openSearch })
 
 const memberItems = computed(() => [
   { label: t('filters.unassigned'), value: 'none', icon: 'i-lucide-user-x' },
+  // A group matches cards assigned to anyone in it.
+  ...(props.assigneeGroups ?? []).map(g => ({ label: g.name, value: assigneeGroupKey(g.id), icon: 'i-lucide-users' })),
   ...props.members.map(m => ({ label: m.name, value: m.userId, ...personItem(m, t('bots.badge')) })),
 ])
 const priorityItems = computed(() => [

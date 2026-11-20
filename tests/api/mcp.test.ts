@@ -183,6 +183,12 @@ describe('mcp endpoint', () => {
     const done = board.columns.at(-1)!.id
     expect((await tool(writeToken, 'update_column_tag', { columnTagId: group.id, color: '#123456', columnIds: [col.id, done] })).json().columnIds).toHaveLength(2)
 
+    const me = board.members[0]!.userId
+    const people = (await tool(writeToken, 'create_assignee_group', { boardId: board.id, name: 'Crew', userIds: [me] })).json()
+    expect(people).toMatchObject({ name: 'Crew', userIds: [me] })
+    expect((await tool(writeToken, 'update_assignee_group', { assigneeGroupId: people.id, name: 'Team A', userIds: [] })).json())
+      .toMatchObject({ name: 'Team A', userIds: [] })
+
     const auto = (await tool(writeToken, 'create_automation', { boardId: board.id, kind: 'tag_stale', days: 7, tagId: tag.id })).json()
     expect(auto).toMatchObject({ kind: 'tag_stale', days: 7, tagId: tag.id, active: true })
     expect((await tool(writeToken, 'update_automation', { automationId: auto.id, active: false })).json().active).toBe(false)
@@ -207,6 +213,7 @@ describe('mcp endpoint', () => {
     expect(view.columns[0]).toMatchObject({ id: col.id, color: '#ff0000', wipLimit: 3 })
     expect(view.tags).toContainEqual({ id: tag.id, name: 'Agent', color: '#00aa00' })
     expect(view.columnTags).toEqual([{ id: group.id, name: 'Flow', color: '#123456', columnIds: [col.id, done] }])
+    expect(view.assigneeGroups).toEqual([{ id: people.id, name: 'Team A', userIds: [] }])
     expect(view.automations).toEqual([expect.objectContaining({ id: auto.id, active: false })])
     expect(view.scheduledActions).toEqual([expect.objectContaining({ id: action.id })])
     expect(view.columns[0].cards[0]).toMatchObject({ id: card.id, skipAutomations: true })

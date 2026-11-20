@@ -65,6 +65,14 @@ export interface Column {
 }
 
 /** Named set of a board's columns; the board view can show one group only. */
+/** Named set of a board's people; assigning it adds them as assignees. */
+export interface AssigneeGroup {
+  id: string
+  name: string
+  /** Members who still have access to the board, by name. */
+  userIds: string[]
+}
+
 export interface ColumnGroup {
   id: string
   name: string
@@ -528,6 +536,7 @@ export interface BoardDetail {
   columns: Column[]
   /** Column groups in position order. */
   columnGroups: ColumnGroup[]
+  assigneeGroups: AssigneeGroup[]
   /** Shared views and the user's own, by name. */
   savedViews: SavedView[]
   /** Unarchived cards; templates are not among them. */

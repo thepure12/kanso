@@ -249,6 +249,18 @@ export function createMcpServer(caller: McpCaller): McpServer {
     annotations: write,
   }, ({ columnTagId, ...body }) => run(() => call(`/api/column-groups/${columnTagId}`, { method: 'PATCH', body })))
 
+  server.registerTool('create_assignee_group', {
+    description: 'Add an assignee group: a named set of board members (user ids from get_board members). Assigning a group means adding its members as assignees (update_card assigneeIds, bulk_update_cards addAssigneeIds). Name unique per board.',
+    inputSchema: { boardId: id, name: z.string().min(1).max(50), userIds: z.array(id).max(200).optional() },
+    annotations: write,
+  }, ({ boardId, ...body }) => run(() => call(`/api/boards/${boardId}/assignee-groups`, { method: 'POST', body })))
+
+  server.registerTool('update_assignee_group', {
+    description: 'Rename an assignee group or set its members: userIds replaces the whole set (current ids from get_board assigneeGroups). Cards keep their assignees.',
+    inputSchema: { assigneeGroupId: id, name: z.string().min(1).max(50).optional(), userIds: z.array(id).max(200).optional() },
+    annotations: write,
+  }, ({ assigneeGroupId, ...body }) => run(() => call(`/api/assignee-groups/${assigneeGroupId}`, { method: 'PATCH', body })))
+
   server.registerTool('create_automation', {
     description: 'Add a time-based automation (runs hourly on open cards: not archived, not in the last column; '
       + 'with columnId only on the cards in that column, the last column included; with cardId only on that card, '

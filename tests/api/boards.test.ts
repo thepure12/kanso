@@ -5,7 +5,7 @@ import { readFileSync } from 'node:fs'
 import { url } from '@nuxt/test-utils/e2e'
 import postgres from 'postgres'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import type { Attachment, BoardActivityPage, BoardAutomation, BoardDetail, BoardRule, BoardField, BoardSummary, Card, CardDetail, CardLink, Checklist, ChecklistItem, CardRecurrence, CardReminder, Column, ColumnGroup, ColumnRule, SavedView, ScheduledCardAction, SnoozedCard, Comment, Person, TeamDetail, TimeEntry, TrashedCard } from '#shared/types/board'
+import type { AssigneeGroup, Attachment, BoardActivityPage, BoardAutomation, BoardDetail, BoardRule, BoardField, BoardSummary, Card, CardDetail, CardLink, Checklist, ChecklistItem, CardRecurrence, CardReminder, Column, ColumnGroup, ColumnRule, SavedView, ScheduledCardAction, SnoozedCard, Comment, Person, TeamDetail, TimeEntry, TrashedCard } from '#shared/types/board'
 import type { Inbox } from '#shared/types/notifications'
 import type { AdminUser, AuditLogPage, InstanceSettings } from '#shared/types/admin'
 import type { Account, AccountSession } from '#shared/types/account'
@@ -992,6 +992,49 @@ describe('column groups', () => {
     expect((await val.req(`/api/column-groups/${dev.id}`, { method: 'DELETE' })).status).toBe(404)
     expect((await alice.req(`/api/column-groups/${dev.id}`, { method: 'DELETE' })).status).toBe(200)
     expect((await alice.req<BoardDetail>(`/api/boards/${gb}`)).data.columnGroups.map(g => g.name)).toEqual(['Test'])
+  })
+})
+
+describe('assignee groups', () => {
+  it('editors manage groups of members; viewers read; export, import and copy keep them', async () => {
+    const { data: { id: ab } } = await alice.req<{ id: string }>('/api/boards', { method: 'POST', body: { name: 'People groups', template: 'basic' } })
+    extraBoards.push(ab)
+    const val = await signUp('Greta')
+    await alice.req(`/api/boards/${ab}/members`, { method: 'POST', body: { email: val.email, role: 'viewer' } })
+    const me = (await alice.req<BoardDetail>(`/api/boards/${ab}`)).data.members.find(m => m.email === alice.email)!.userId
+    const valId = (await alice.req<BoardDetail>(`/api/boards/${ab}`)).data.members.find(m => m.email === val.email)!.userId
+    const add = (who: typeof alice, body: unknown) => who.req<AssigneeGroup>(`/api/boards/${ab}/assignee-groups`, { method: 'POST', body })
+
+    const crew = (await add(alice, { name: 'Crew', userIds: [me, valId, me] })).data
+    expect(crew).toMatchObject({ name: 'Crew' })
+    expect([...crew.userIds].sort()).toEqual([me, valId].sort())
+    expect((await add(alice, { name: 'crew' })).status).toBe(409)
+    expect((await add(val, { name: 'Nope' })).status).toBe(403)
+    // Only people with access to the board.
+    expect((await add(alice, { name: 'Outside', userIds: [randomUUID()] })).status).toBe(403)
+
+    const patched = await alice.req<AssigneeGroup>(`/api/assignee-groups/${crew.id}`, { method: 'PATCH', body: { name: 'Core', userIds: [me] } })
+    expect(patched.data).toEqual({ id: crew.id, name: 'Core', userIds: [me] })
+    expect((await val.req(`/api/assignee-groups/${crew.id}`, { method: 'PATCH', body: { name: 'x' } })).status).toBe(404)
+    expect((await val.req<BoardDetail>(`/api/boards/${ab}`)).data.assigneeGroups).toEqual([{ id: crew.id, name: 'Core', userIds: [me] }])
+
+    const exported = (await alice.req<string | Record<string, unknown>>(`/api/boards/${ab}/export?format=json`)).data
+    const data = typeof exported === 'string' ? JSON.parse(exported) : exported
+    expect(data.assigneeGroups).toEqual([{ name: 'Core', members: [alice.email] }])
+    data.assigneeGroups[0].members.push('nobody@example.invalid')
+    const res = await alice.req<{ id: string, unmatched: string[] }>('/api/boards/import', { method: 'POST', body: { name: 'Imported people groups', data } })
+    expect(res.status).toBe(200)
+    extraBoards.push(res.data.id)
+    expect(res.data.unmatched).toContain('nobody@example.invalid')
+    expect((await alice.req<BoardDetail>(`/api/boards/${res.data.id}`)).data.assigneeGroups.map(g => [g.name, g.userIds])).toEqual([['Core', [me]]])
+
+    const { data: copy } = await alice.req<{ id: string }>(`/api/boards/${ab}/copy`, { method: 'POST', body: { name: 'People groups copy' } })
+    extraBoards.push(copy.id)
+    expect((await alice.req<BoardDetail>(`/api/boards/${copy.id}`)).data.assigneeGroups.map(g => [g.name, g.userIds])).toEqual([['Core', [me]]])
+
+    expect((await val.req(`/api/assignee-groups/${crew.id}`, { method: 'DELETE' })).status).toBe(404)
+    expect((await alice.req(`/api/assignee-groups/${crew.id}`, { method: 'DELETE' })).status).toBe(200)
+    expect((await alice.req<BoardDetail>(`/api/boards/${ab}`)).data.assigneeGroups).toEqual([])
   })
 })
 

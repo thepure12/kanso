@@ -63,7 +63,7 @@ export default defineUserHandler(async (event, tx, userId) => {
 
 /**
  * Creates a board from a JSON export: columns, tags, custom fields, cards with
- * their tags, checklists, assignees and field values, card links, and column rules. Assignees and rule users are
+ * their tags, checklists, assignees and field values, card links, assignee groups and column rules. Assignees and rule users are
  * matched by email (or by name, when there is no @ and the name is unique)
  * among people who can access the new board, and unmatched ones are listed; others are
  * skipped and counted, as are links to missing cards, duplicates, links
@@ -116,6 +116,7 @@ async function importBoard(tx: Tx, userId: string, name: string, teamId: string 
   const wanted = [...new Set([
     ...data.cards.flatMap(c => c.assignees),
     ...data.columns.flatMap(c => c.rules.flatMap(r => 'user' in r && r.user ? [r.user] : [])),
+    ...data.assigneeGroups.flatMap(g => g.members),
     // Comment authors only by email, and only when the export has no name for them.
     ...data.cards.flatMap(c => c.comments.flatMap(m => !m.authorName?.trim() && m.author?.includes('@') ? [m.author] : [])),
   ].map(e => e.trim().toLowerCase()))]
@@ -136,6 +137,23 @@ async function importBoard(tx: Tx, userId: string, name: string, teamId: string 
   }
   const personId = { get: (s: string) => (s.includes('@') ? byEmail.get(s.trim()) : byName.get(s.trim())) ?? undefined }
   const unmatched = new Set<string>()
+
+  // Assignee groups: names unique regardless of case (first one wins); members
+  // matched like assignees, unmatched ones listed.
+  const assigneeGroupRows = [...new Map(data.assigneeGroups.map(g => [g.name.toLowerCase(), g])).values()].map((g) => {
+    const userIds = new Set<string>()
+    for (const raw of g.members) {
+      const user = personId.get(raw.trim().toLowerCase())
+      if (user) userIds.add(user)
+      else if (raw.trim()) unmatched.add(raw.trim())
+    }
+    return { id: randomUUID(), boardId, name: g.name, userIds: [...userIds] }
+  })
+  if (assigneeGroupRows.length) {
+    await tx.insert(schema.assigneeGroups).values(assigneeGroupRows.map(({ userIds: _, ...g }) => g))
+    const members = assigneeGroupRows.flatMap(g => g.userIds.map(userId => ({ groupId: g.id, boardId, userId })))
+    if (members.length) await tx.insert(schema.assigneeGroupMembers).values(members)
+  }
   const personName = new Map(people.map(p => [p.id, p.name]))
   // The name shown on an imported comment: the export's, else the matched
   // person's, else the email's local part (never the whole email).

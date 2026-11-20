@@ -90,3 +90,17 @@ describe('matchesFilter', () => {
     expect(matchesFilter(card(), f({ fields: { size: ['l'] } }), today)).toBe(false)
   })
 })
+
+describe('assignee groups in the filter', () => {
+  const groups = [{ id: 'g1', userIds: ['u1', 'u2'] }, { id: 'g2', userIds: [] }]
+  it('a group matches cards assigned to anyone in it', () => {
+    expect(matchesFilter(card({ assigneeIds: ['u2'] }), f({ assigneeIds: ['group:g1'] }), today, groups)).toBe(true)
+    expect(matchesFilter(card({ assigneeIds: ['u3'] }), f({ assigneeIds: ['group:g1'] }), today, groups)).toBe(false)
+    expect(matchesFilter(card({ assigneeIds: ['u3'] }), f({ assigneeIds: ['group:g1', 'u3'] }), today, groups)).toBe(true)
+  })
+  it('an empty or unknown group matches nobody', () => {
+    expect(matchesFilter(card({ assigneeIds: ['u1'] }), f({ assigneeIds: ['group:g2'] }), today, groups)).toBe(false)
+    expect(matchesFilter(card({ assigneeIds: ['u1'] }), f({ assigneeIds: ['group:gone'] }), today, groups)).toBe(false)
+    expect(matchesFilter(card(), f({ assigneeIds: ['group:g1'] }), today, groups)).toBe(false)
+  })
+})

@@ -320,6 +320,33 @@ export const columnGroupMembers = pgTable('column_group_members', {
   foreignKey({ columns: [t.columnId, t.boardId], foreignColumns: [columns.id, columns.boardId], name: 'column_group_members_column_fk' }).onDelete('cascade'),
 ])
 
+// Assignee groups: named sets of a board's people ("Frontend" = Ann + Bob).
+// Assigning a group adds its members as normal assignees; the group is never
+// an assignee itself. See 0111_assignee_groups_rls.sql.
+export const assigneeGroups = pgTable('assignee_groups', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  boardId: uuid('board_id').notNull().references(() => boards.id, { onDelete: 'cascade' }),
+  name: text('name').notNull(),
+  createdAt: createdAt(),
+}, t => [
+  unique('assignee_groups_id_board_id_unique').on(t.id, t.boardId),
+  uniqueIndex('assignee_groups_board_name_unique').on(t.boardId, sql`lower(${t.name})`),
+  check('assignee_groups_name_length', sql`char_length(${t.name}) between 1 and 50`),
+])
+
+// Composite FK: a member row belongs to its group's board. Members must be on
+// the board when added (policy); rows of people who later leave stay but are
+// left out when loaded.
+export const assigneeGroupMembers = pgTable('assignee_group_members', {
+  groupId: uuid('group_id').notNull(),
+  boardId: uuid('board_id').notNull(),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+}, t => [
+  primaryKey({ columns: [t.groupId, t.userId] }),
+  index('assignee_group_members_user_idx').on(t.userId),
+  foreignKey({ columns: [t.groupId, t.boardId], foreignColumns: [assigneeGroups.id, assigneeGroups.boardId], name: 'assignee_group_members_group_fk' }).onDelete('cascade'),
+])
+
 // Named board view (view, grouping, column group, filter). user_id null = shared
 // on the board (editors manage), else personal. See 0066_saved_views_rls.sql.
 export const savedViews = pgTable('saved_views', {

@@ -13,6 +13,7 @@ const ctx = {
   members: [{ userId: 'u1' }],
   fields: [select, checkbox, text],
   columnGroups: [{ id: 'g1' }],
+  assigneeGroups: [{ id: 'a1' }],
 }
 
 const base = (): SavedViewConfig => currentViewConfig({ view: 'board', groupBy: 'none', columnGroupId: null, filter: emptyFilter() })
@@ -34,7 +35,7 @@ describe('sanitizeViewConfig', () => {
       groupBy: 'field:gone',
       columnGroupId: 'g2',
       filter: {
-        text: 'x', tagIds: ['t1', 't9'], assigneeIds: ['u1', 'u9', 'none'], priorities: ['high'], due: 'week',
+        text: 'x', tagIds: ['t1', 't9'], assigneeIds: ['u1', 'u9', 'none', 'group:a1', 'group:a9'], priorities: ['high'], due: 'week',
         fields: { f1: ['o1', 'o9', 'none'], f2: ['true', 'o1'], f3: ['x'], gone: ['o1'] },
       },
     }
@@ -42,7 +43,7 @@ describe('sanitizeViewConfig', () => {
       view: 'board',
       groupBy: 'none',
       columnGroupId: null,
-      filter: { text: 'x', tagIds: ['t1'], assigneeIds: ['u1', 'none'], priorities: ['high'], due: 'week', fields: { f1: ['o1', 'none'], f2: ['true'] } },
+      filter: { text: 'x', tagIds: ['t1'], assigneeIds: ['u1', 'none', 'group:a1'], priorities: ['high'], due: 'week', fields: { f1: ['o1', 'none'], f2: ['true'] } },
     })
   })
 

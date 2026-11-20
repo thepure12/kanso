@@ -632,6 +632,7 @@
       "archiveConfirm": "Dieses Board archivieren? Es ist dann für alle schreibgeschützt, bis ein Eigentümer es aus dem Archiv holt.",
       "delete": "Board löschen",
       "columnGroups": "Spalten-Tags",
+      "assigneeGroups": "Zuständigen-Gruppen",
       "tagNames": "Namen der Karten-Tags anzeigen",
       "groupNames": "Namen der Spalten-Tags anzeigen",
       "automations": "Automatisierungen",
@@ -717,6 +718,9 @@
       "saveColumnGroup": "Spalten-Tag konnte nicht gespeichert werden",
       "moveColumnGroup": "Spalten-Tag konnte nicht verschoben werden",
       "deleteColumnGroup": "Spalten-Tag konnte nicht gelöscht werden",
+      "addAssigneeGroup": "Zuständigen-Gruppe konnte nicht hinzugefügt werden",
+      "saveAssigneeGroup": "Zuständigen-Gruppe konnte nicht gespeichert werden",
+      "deleteAssigneeGroup": "Zuständigen-Gruppe konnte nicht gelöscht werden",
       "addAutomation": "Automatisierung konnte nicht hinzugefügt werden",
       "updateAutomation": "Automatisierung konnte nicht geändert werden",
       "deleteAutomation": "Automatisierung konnte nicht gelöscht werden",
@@ -1705,6 +1709,19 @@
     "showOnly": "Nur {name} anzeigen",
     "menu": "Spalten-Tags",
     "manage": "Spalten-Tags verwalten…"
+  },
+  "assigneeGroups": {
+    "title": "Zuständigen-Gruppen",
+    "description": "Benannte Personengruppen. Wählst du eine Gruppe als zuständig, werden alle ihre Mitglieder der Karte zugewiesen.",
+    "empty": "Noch keine Zuständigen-Gruppen.",
+    "newGroup": "Neue Zuständigen-Gruppe",
+    "newPeople": "Personen der neuen Zuständigen-Gruppe",
+    "nameOf": "Name von {name}",
+    "peopleOf": "Personen von {name}",
+    "pickPeople": "Personen wählen",
+    "memberCount": "{count} Person | {count} Personen",
+    "delete": "{name} löschen",
+    "confirmDelete": "Zuständigen-Gruppe „{name}“ löschen? Die Karten behalten ihre Zuständigen."
   },
   "savedViews": {
     "label": "Ansichten",

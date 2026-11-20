@@ -1,7 +1,7 @@
 import type { BoardAccent } from '#shared/boardAccents'
 import type { ColumnOutline } from '#shared/columnOutline'
 import type { BoardBackground } from '#shared/boardBackgrounds'
-import type { BoardAutomation, BoardDetail, BoardRule, NewBoardRule, BoardField, BulkCardAction, Card, CardLink, CardPatch, CardRecurrence, Column, ColumnGroup, ColumnRule, FieldValue, NewBoardAutomation, NewColumnRule, NewScheduledCardAction, ScheduledCardAction, NewColumnRuleRequest, RecurrenceInput, SavedView, Tag } from '#shared/types/board'
+import type { AssigneeGroup, BoardAutomation, BoardDetail, BoardRule, NewBoardRule, BoardField, BulkCardAction, Card, CardLink, CardPatch, CardRecurrence, Column, ColumnGroup, ColumnRule, FieldValue, NewBoardAutomation, NewColumnRule, NewScheduledCardAction, ScheduledCardAction, NewColumnRuleRequest, RecurrenceInput, SavedView, Tag } from '#shared/types/board'
 import type { SavedViewConfig } from '#shared/savedViews'
 
 /** Card fields kept in step with the card dialog's details. */
@@ -178,6 +178,8 @@ export async function useBoard(id: string) {
   const tags = ref<Tag[]>([])
   const fields = ref<BoardField[]>([])
   const columnGroups = ref<ColumnGroup[]>([])
+  // Named sets of people (AssigneeGroupsModal); assigning one adds its members.
+  const assigneeGroups = ref<AssigneeGroup[]>([])
   const savedViews = ref<SavedView[]>([])
   // Card templates (not on the board) and their recurring schedules.
   const templates = ref<Card[]>([])
@@ -194,6 +196,7 @@ export async function useBoard(id: string) {
     tags.value = [...b.tags]
     fields.value = [...b.fields]
     columnGroups.value = b.columnGroups.map(g => ({ ...g, columnIds: [...g.columnIds] }))
+    assigneeGroups.value = b.assigneeGroups.map(g => ({ ...g, userIds: [...g.userIds] }))
     savedViews.value = [...b.savedViews]
     templates.value = [...b.templates]
     recurrences.value = [...b.recurrences]
@@ -788,6 +791,23 @@ export async function useBoard(id: string) {
       columnGroups.value = columnGroups.value.filter(g => g.id !== group.id)
     }, t('board.errors.deleteColumnGroup')),
 
+    addAssigneeGroup: (group: Pick<AssigneeGroup, 'name' | 'userIds'>) => run(async () => {
+      const created = await api<AssigneeGroup>(`/api/boards/${id}/assignee-groups`, { method: 'POST', body: group })
+      if (!assigneeGroups.value.some(g => g.id === created.id)) assigneeGroups.value = sortAssigneeGroups([...assigneeGroups.value, created])
+    }, t('board.errors.addAssigneeGroup')),
+
+    /** userIds replaces the group's members. */
+    updateAssigneeGroup: (group: AssigneeGroup, patch: Partial<Pick<AssigneeGroup, 'name' | 'userIds'>>) => run(async () => {
+      Object.assign(group, patch)
+      Object.assign(group, await api<AssigneeGroup>(`/api/assignee-groups/${group.id}`, { method: 'PATCH', body: patch }))
+      if (patch.name) assigneeGroups.value = sortAssigneeGroups([...assigneeGroups.value])
+    }, t('board.errors.saveAssigneeGroup')),
+
+    deleteAssigneeGroup: (group: AssigneeGroup) => run(async () => {
+      await api(`/api/assignee-groups/${group.id}`, { method: 'DELETE' })
+      assigneeGroups.value = assigneeGroups.value.filter(g => g.id !== group.id)
+    }, t('board.errors.deleteAssigneeGroup')),
+
     /** Saves a view. Throws on failure, so the dialog can show a taken name (409) next to the input. */
     addSavedView: async (input: { name: string, shared: boolean, config: SavedViewConfig }) => {
       const created = await api<SavedView>(`/api/boards/${id}/saved-views`, { method: 'POST', body: input })
@@ -866,7 +886,7 @@ export async function useBoard(id: string) {
   }
 
   return {
-    board, error, refresh, columns, columnGroups, savedViews, lists, tags, fields, templates, recurrences, automations, rules, scheduledActions, archived, offline, canEdit, isOwner, limited, canEditCard, canCommentOn, canAddToColumn, dragging, remoteVersion,
+    board, error, refresh, columns, columnGroups, assigneeGroups, savedViews, lists, tags, fields, templates, recurrences, automations, rules, scheduledActions, archived, offline, canEdit, isOwner, limited, canEditCard, canCommentOn, canAddToColumn, dragging, remoteVersion,
     canUndo: undoStack.canUndo, canRedo: undoStack.canRedo, ...mutations,
   }
 }

@@ -54,6 +54,8 @@ Errors come back as JSON with `statusCode` and `statusMessage`: `400` invalid in
 | PATCH / DELETE | `/api/columns/:id` | Edit / delete a column |
 | POST | `/api/boards/:id/column-groups` | Add a column group (called a column tag in the UI) `{ name, color?, columnIds? }` (editors) |
 | PATCH / DELETE | `/api/column-groups/:id` | Edit `{ name?, color?, columnIds?, aboveId?, belowId? }` (`columnIds` replaces the members) / delete a group (its columns stay) |
+| POST | `/api/boards/:id/assignee-groups` | Add an assignee group (named set of board members) `{ name, userIds? }` (editors; members need board access, else 403). Assigning a group = adding its `userIds` as assignees |
+| PATCH / DELETE | `/api/assignee-groups/:id` | Edit `{ name?, userIds? }` (`userIds` replaces the members) / delete a group (cards keep their assignees) |
 | POST | `/api/boards/:id/saved-views` | Save a view `{ name, shared?, config: { view, groupBy, columnGroupId, filter } }`: personal (anyone with access) or `shared: true` on the board (editors); a taken name is `409`. Listed as `savedViews` on the board (shared ones and your own) |
 | PATCH / DELETE | `/api/saved-views/:id` | Rename / replace the settings `{ name?, config? }` / delete a saved view |
 | POST | `/api/boards/:id/automations` | Add a time-based automation (editors, checked hourly): `{ kind: 'archive_done' \| 'notify_stale', days }` (1-365), `{ kind: 'tag_stale', days, tagId }` or `{ kind: 'raise_priority', days, priority }` (days 0-365), each with an optional `columnId` (only the cards in that column, the last column too; `archive_done` then counts the days in it) or `cardId` (only that card, also when it skips automations; not both, `400`); `{ kind: 'move_card', days, columnId \| cardId, targetColumnId }` moves cards after `days` in `columnId` (or the card's current column) to the end of `targetColumnId` (column rules run; one per column or card); the same one twice is `409` |
@@ -121,7 +123,7 @@ same permissions, validation and scope rules apply, and changes show up live on 
 - **Write tools** (listed only for read and write tokens): `create_card`, `update_card`, `move_card`,
   `bulk_update_cards`, `add_comment`, `create_checklist`, `add_checklist_item`, `update_checklist_item`; board structure:
   `create_column`, `update_column` (title, colour, WIP limit, order), `create_tag`, `update_tag`, `create_column_tag`,
-  `update_column_tag` (name, colour, columns), `create_automation` (board, column or card), `update_automation`, `create_rule`, `update_rule`, `schedule_card_action`, `set_board_accent`,
+  `update_column_tag` (name, colour, columns), `create_assignee_group`, `update_assignee_group` (name, members), `create_automation` (board, column or card), `update_automation`, `create_rule`, `update_rule`, `schedule_card_action`, `set_board_accent`,
   `mark_notifications_read` (given ids, or all). There are no delete tools for these.
 - API errors come back as tool results with `isError` and the status, e.g. `404 Board not found`.
 

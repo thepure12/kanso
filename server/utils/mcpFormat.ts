@@ -67,6 +67,7 @@ export function boardForAgent(board: BoardDetail) {
     })),
     tags: board.tags.map(t => ({ id: t.id, name: t.name, color: t.color })),
     columnTags: board.columnGroups.map(g => ({ id: g.id, name: g.name, color: g.color, columnIds: g.columnIds })),
+    assigneeGroups: board.assigneeGroups.map(g => ({ id: g.id, name: g.name, userIds: g.userIds })),
     automations: board.automations,
     rules: board.rules,
     scheduledActions: board.scheduledActions,

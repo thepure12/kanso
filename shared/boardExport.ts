@@ -10,12 +10,13 @@ const checklistItemSchema = z.object({ text: z.string().trim().min(1).max(500), 
  * (POST /api/boards/import). Everything is referenced by name, title or email,
  * never by id. Unknown fields are ignored on import, and limits match what the
  * API accepts elsewhere. Fields added after version 1 (startDate, estimate,
- * links, fields, fieldValues, comments, columnGroups, checklists) are optional, so older exports still import.
+ * links, fields, fieldValues, comments, columnGroups, checklists, assigneeGroups) are optional, so older exports still import.
  * Links refer to cards by their index in `cards`. A card's fieldValues map
  * field names to values, with select values given by option label. Comments
  * name their author by email (`author`, for older exports) and by display name
  * (`authorName`); they are imported as written by that name, not by a user.
  * Column groups list their columns by title (first match wins, unknown ones are skipped).
+ * Assignee groups list their members like card assignees (email, or a unique name).
  */
 export const BOARD_EXPORT_VERSION = 1
 export const MAX_IMPORT_CARDS = 5000
@@ -45,6 +46,10 @@ export const boardExportSchema = z.object({
     name: z.string().trim().min(1).max(50),
     color: color.nullish(),
     columns: z.array(z.string()).max(100).default([]),
+  })).max(100).default([]),
+  assigneeGroups: z.array(z.object({
+    name: z.string().trim().min(1).max(50),
+    members: z.array(z.string()).max(200).default([]),
   })).max(100).default([]),
   fields: z.array(z.object({
     name: z.string().trim().min(1).max(50),

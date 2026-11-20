@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import type { DropdownMenuItem } from '@nuxt/ui'
-import { priorities, type BulkCardAction, type Column, type Member, type Tag } from '#shared/types/board'
+import { priorities, type AssigneeGroup, type BulkCardAction, type Column, type Member, type Tag } from '#shared/types/board'
 
 const props = defineProps<{
   count: number
   columns: Column[]
   tags: Tag[]
   members: Member[]
+  assigneeGroups?: AssigneeGroup[]
 }>()
 const emit = defineEmits<{ apply: [action: BulkCardAction], clear: [] }>()
 const { t } = useI18n()
@@ -28,9 +29,13 @@ function addRemove(label: string, add: BulkCardAction, remove: BulkCardAction): 
 const tagItems = computed<DropdownMenuItem[][]>(() => [
   props.tags.map(tag => ({ ...addRemove(tag.name, { addTagIds: [tag.id] }, { removeTagIds: [tag.id] }), icon: 'i-lucide-tag' })),
 ])
-const assigneeItems = computed<DropdownMenuItem[][]>(() => [
-  props.members.map(m => ({ ...addRemove(m.name, { addAssigneeIds: [m.userId] }, { removeAssigneeIds: [m.userId] }), ...personItem(m, t('bots.badge')) })),
-])
+// Groups add or remove all their members.
+const assigneeItems = computed<DropdownMenuItem[][]>(() => {
+  const groups = (props.assigneeGroups ?? []).filter(g => g.userIds.length)
+    .map(g => ({ ...addRemove(g.name, { addAssigneeIds: [...g.userIds] }, { removeAssigneeIds: [...g.userIds] }), icon: 'i-lucide-users' }))
+  const people = props.members.map(m => ({ ...addRemove(m.name, { addAssigneeIds: [m.userId] }, { removeAssigneeIds: [m.userId] }), ...personItem(m, t('bots.badge')) }))
+  return groups.length ? [groups, people] : [people]
+})
 const priorityItems = computed<DropdownMenuItem[][]>(() => [
   priorities.map(p => ({ label: t(`priority.${p}`), icon: priorityMeta[p].icon, onSelect: () => emit('apply', { priority: p }) })),
   [{ label: t('board.bulk.noPriority'), icon: 'i-lucide-x', onSelect: () => emit('apply', { priority: null }) }],

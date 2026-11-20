@@ -13,12 +13,12 @@ const route = useRoute()
 const id = route.params.id as string
 const boardTabs = useBoardTabs()
 const {
-  board, error, refresh, columns, columnGroups, savedViews, lists, tags, fields, templates, recurrences, automations, rules, scheduledActions, archived, offline, canEdit, isOwner, limited, canEditCard, canCommentOn, canAddToColumn, dragging, remoteVersion,
+  board, error, refresh, columns, columnGroups, assigneeGroups, savedViews, lists, tags, fields, templates, recurrences, automations, rules, scheduledActions, archived, offline, canEdit, isOwner, limited, canEditCard, canCommentOn, canAddToColumn, dragging, remoteVersion,
   renameBoard, setArchived, setBackground, setAccent, setColumnOutline, uploadBackground, deleteBoard, addColumn, renameColumn, setColumnAppearance, setColumnWipLimit, sortColumnByPriority, deleteColumn, columnMoved,
   addColumnRule, deleteColumnRule, addAutomation, updateAutomation, deleteAutomation, addRule, updateRule, deleteRule, addScheduledAction, deleteScheduledAction, addCard, updateCard, setCardCounts, cardLinkChanged, archiveCard, snoozeCard, wakeCard, restoreCard, deleteCard, restoreTrashedCard,
   deleteArchivedCard, cardMoved, moveCard, addTag, updateTag, deleteTag,
   addField, updateField, fieldMoved, deleteField, setFieldValue,
-  addColumnGroup, updateColumnGroup, columnGroupMoved, deleteColumnGroup, addSavedView, updateSavedView, deleteSavedView,
+  addColumnGroup, updateColumnGroup, columnGroupMoved, deleteColumnGroup, addAssigneeGroup, updateAssigneeGroup, deleteAssigneeGroup, addSavedView, updateSavedView, deleteSavedView,
   addCardFromTemplate, saveAsTemplate, deleteTemplate, setRecurrence, deleteRecurrence, bulkUpdate, undo, redo, undoGroup,
 } = await useBoard(id)
 const { t } = useI18n()
@@ -193,7 +193,7 @@ const today = ref(isoDate())
 let dayTimer: ReturnType<typeof setInterval> | undefined
 onMounted(() => { dayTimer = setInterval(() => { today.value = isoDate() }, 60_000) })
 onBeforeUnmount(() => clearInterval(dayTimer))
-const visibleIds = computed(() => new Set(allCards.value.filter(c => matchesFilter(c, filter.value, today.value)).map(c => c.id)))
+const visibleIds = computed(() => new Set(allCards.value.filter(c => matchesFilter(c, filter.value, today.value, assigneeGroups.value)).map(c => c.id)))
 // Limited members drag the cards they may edit (others carry .card-locked, filtered
 // out of dragging) into the columns they may edit (group put).
 const dragDisabled = computed(() => (!canEdit.value && !limited.value) || filtering.value)
@@ -258,6 +258,7 @@ watch(columnGroups, (list) => {
   if (columnGroupId.value && !list.some(g => g.id === columnGroupId.value)) showColumnGroup(null)
 })
 const columnGroupsOpen = ref(false)
+const assigneeGroupsOpen = ref(false)
 // The swimlane select shows the chosen grouping's icon; the generic rows icon when none.
 const groupByOptions = computed(() => groupByItems(fields.value, t))
 const groupByIcon = computed(() => groupBy.value === 'none' ? 'i-lucide-rows-3' : groupByOptions.value.find(i => i.value === groupBy.value)?.icon ?? 'i-lucide-rows-3')
@@ -292,7 +293,7 @@ const iconOnlyAtC5 = {
 // Saved views: the view, grouping, column group and filter under a name.
 const currentView = computed(() => currentViewConfig({ view: view.value, groupBy: groupBy.value, columnGroupId: columnGroupId.value, filter: filter.value }))
 function applySavedView(saved: SavedView) {
-  const next = sanitizeViewConfig(saved.config, { tags: tags.value, members: board.value?.members ?? [], fields: fields.value, columnGroups: columnGroups.value })
+  const next = sanitizeViewConfig(saved.config, { tags: tags.value, members: board.value?.members ?? [], fields: fields.value, columnGroups: columnGroups.value, assigneeGroups: assigneeGroups.value })
   if (view.value !== next.view) view.value = next.view
   groupBy.value = next.groupBy
   showColumnGroup(next.columnGroupId)
@@ -601,6 +602,7 @@ const boardMenu = computed(() => {
         ? [
             { label: t('board.menu.fields'), icon: 'i-lucide-list-plus', onSelect: () => { fieldsOpen.value = true } },
             { label: t('board.menu.columnGroups'), icon: 'i-lucide-columns-3', onSelect: () => { columnGroupsOpen.value = true } },
+            { label: t('board.menu.assigneeGroups'), icon: 'i-lucide-users', onSelect: () => { assigneeGroupsOpen.value = true } },
           ]
         : []),
       { label: t('board.menu.templates'), icon: 'i-lucide-file-stack', onSelect: () => { templatesOpen.value = true } },
@@ -767,7 +769,7 @@ const boardMenu = computed(() => {
             </template>
           </USelect>
           <USeparator orientation="vertical" class="h-6 mx-1 hidden sm:block" />
-          <BoardFilters ref="filters" v-model="filter" class="flex-1 min-w-0 sm:flex-none sm:grow" :tags="tags" :fields="fields" :members="board.members" :shown="visibleIds.size" :total="allCards.length" />
+          <BoardFilters ref="filters" v-model="filter" class="flex-1 min-w-0 sm:flex-none sm:grow" :tags="tags" :fields="fields" :members="board.members" :assignee-groups="assigneeGroups" :shown="visibleIds.size" :total="allCards.length" />
           <USeparator orientation="vertical" class="h-6 mx-1 hidden 2xl:block" />
         </div>
         <div class="ms-auto flex items-center gap-1 sm:gap-2">
@@ -1060,6 +1062,7 @@ const boardMenu = computed(() => {
       :columns="columns"
       :tags="tags"
       :members="board.members"
+      :assignee-groups="assigneeGroups"
       @apply="applyBulk"
       @clear="clearSelection"
     />
@@ -1077,6 +1080,7 @@ const boardMenu = computed(() => {
       v-model:open="cardOpen"
       :card="editingCard"
       :members="board.members"
+      :assignee-groups="assigneeGroups"
       :tags="tags"
       :fields="fields"
       :cards="allCards"
@@ -1151,6 +1155,14 @@ const boardMenu = computed(() => {
       @update="updateColumnGroup"
       @move="columnGroupMoved"
       @delete="deleteColumnGroup"
+    />
+    <AssigneeGroupsModal
+      v-model:open="assigneeGroupsOpen"
+      :groups="assigneeGroups"
+      :members="board.members"
+      @create="addAssigneeGroup"
+      @update="updateAssigneeGroup"
+      @delete="deleteAssigneeGroup"
     />
     <ArchiveSlideover
       v-model:open="archiveOpen"

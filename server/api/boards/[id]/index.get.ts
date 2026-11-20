@@ -13,7 +13,7 @@ export default defineUserHandler(async (event, tx): Promise<BoardDetail> => {
     .from(boards).leftJoin(teams, eq(teams.id, boards.teamId)).where(eq(boards.id, id))
   if (!board) notFound('Board not found')
 
-  const [cols, ruleRows, cardRows, templates, recurrences, automationRows, boardRuleRows, scheduledRows, tagRows, fields, columnGroups, savedViews, matrix, members, inviteRows, [me], memberAccess] = await Promise.all([
+  const [cols, ruleRows, cardRows, templates, recurrences, automationRows, boardRuleRows, scheduledRows, tagRows, fields, columnGroups, assigneeGroups, savedViews, matrix, members, inviteRows, [me], memberAccess] = await Promise.all([
     tx.select({ id: columns.id, title: columns.title, position: columns.position, color: columns.color, wipLimit: columns.wipLimit, outline: columns.outline })
       .from(columns).where(eq(columns.boardId, id)).orderBy(asc(columns.position)),
     tx.select({ ...columnRuleFields, columnId: columnRules.columnId })
@@ -33,6 +33,7 @@ export default defineUserHandler(async (event, tx): Promise<BoardDetail> => {
       .from(tags).where(eq(tags.boardId, id)).orderBy(asc(tags.name)),
     loadBoardFields(tx, id),
     loadColumnGroups(tx, id),
+    loadAssigneeGroups(tx, id),
     loadSavedViews(tx, id),
     loadMatrixRoom(tx, id),
     tx.execute<Member & Record<string, unknown>>(sql`
@@ -67,6 +68,7 @@ export default defineUserHandler(async (event, tx): Promise<BoardDetail> => {
     team: board.teamId ? { id: board.teamId, name: board.teamName! } : null,
     columns: cols.map(c => ({ ...c, rules: (rulesByColumn.get(c.id) ?? []).map(toColumnRule) })),
     columnGroups,
+    assigneeGroups,
     savedViews,
     cards: cardRows,
     templates,

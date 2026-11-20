@@ -1,5 +1,6 @@
-import type { Card, Priority } from '#shared/types/board'
+import type { AssigneeGroup, Card, Priority } from '#shared/types/board'
 import { fieldFilterKey } from './fields'
+import { expandAssigneeGroups } from './assigneeGroups'
 
 /** Date filter: due date states, plus started (start date today or earlier) and upcoming (start date later). */
 export type DueFilter = 'any' | 'overdue' | 'today' | 'week' | 'none' | 'started' | 'upcoming'
@@ -8,7 +9,7 @@ export type DueFilter = 'any' | 'overdue' | 'today' | 'week' | 'none' | 'started
 export interface CardFilter {
   text: string
   tagIds: string[]
-  /** User ids, or 'none' for unassigned cards. */
+  /** User ids, assignee group keys (`group:<id>`: anyone in it), or 'none' for unassigned cards. */
   assigneeIds: string[]
   /** Priorities, or 'none' for cards without one. */
   priorities: (Priority | 'none')[]
@@ -48,7 +49,8 @@ export function dueStatus(dueDate: string | null, today: string): DueStatus | nu
   return dueDate <= addDays(today, 7) ? 'soon' : 'later'
 }
 
-export function matchesFilter(card: Card, f: CardFilter, today: string): boolean {
+/** `groups`: the board's assignee groups, for group keys among `f.assigneeIds`. */
+export function matchesFilter(card: Card, f: CardFilter, today: string, groups: readonly Pick<AssigneeGroup, 'id' | 'userIds'>[] = []): boolean {
   const words = f.text.toLowerCase().split(/\s+/).filter(Boolean)
   if (words.length) {
     const haystack = `${card.title}\n${card.description}`.toLowerCase()
@@ -56,8 +58,9 @@ export function matchesFilter(card: Card, f: CardFilter, today: string): boolean
   }
   if (f.tagIds.length && !card.tagIds.some(t => f.tagIds.includes(t))) return false
   if (f.assigneeIds.length) {
+    const people = expandAssigneeGroups(f.assigneeIds, groups)
     const ok = card.assigneeIds.length
-      ? card.assigneeIds.some(u => f.assigneeIds.includes(u))
+      ? card.assigneeIds.some(u => people.includes(u))
       : f.assigneeIds.includes('none')
     if (!ok) return false
   }

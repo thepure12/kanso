@@ -632,6 +632,7 @@
       "archiveConfirm": "Archive this board? It becomes read-only for everyone until an owner unarchives it.",
       "delete": "Delete board",
       "columnGroups": "Column tags",
+      "assigneeGroups": "Assignee groups",
       "tagNames": "Show card tag names",
       "groupNames": "Show column tag names",
       "automations": "Automations",
@@ -717,6 +718,9 @@
       "saveColumnGroup": "Could not save the column tag",
       "moveColumnGroup": "Could not move the column tag",
       "deleteColumnGroup": "Could not delete the column tag",
+      "addAssigneeGroup": "Could not add the assignee group",
+      "saveAssigneeGroup": "Could not save the assignee group",
+      "deleteAssigneeGroup": "Could not delete the assignee group",
       "addAutomation": "Could not add automation",
       "updateAutomation": "Could not change automation",
       "deleteAutomation": "Could not delete automation",
@@ -1705,6 +1709,19 @@
     "showOnly": "Show only {name}",
     "menu": "Column tags",
     "manage": "Manage column tags…"
+  },
+  "assigneeGroups": {
+    "title": "Assignee groups",
+    "description": "Named sets of people. Choosing a group as assignee adds all its members to the card.",
+    "empty": "No assignee groups yet.",
+    "newGroup": "New assignee group",
+    "newPeople": "People of the new assignee group",
+    "nameOf": "Name of {name}",
+    "peopleOf": "People of {name}",
+    "pickPeople": "Choose people",
+    "memberCount": "{count} person | {count} people",
+    "delete": "Delete {name}",
+    "confirmDelete": "Delete the assignee group “{name}”? Cards keep their assignees."
   },
   "savedViews": {
     "label": "Views",

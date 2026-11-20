@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { priorities, type BoardField, type Card, type CardLink, type CardPatch, type CardRecurrence, type Column, type FieldValue, type Member, type RecurrenceInput, type Tag } from '#shared/types/board'
+import { priorities, type AssigneeGroup, type BoardField, type Card, type CardLink, type CardPatch, type CardRecurrence, type Column, type FieldValue, type Member, type RecurrenceInput, type Tag } from '#shared/types/board'
 import type { CardCounts } from '~/composables/useBoard'
 import { CARD_TITLE_MAX } from '#shared/cards'
 import type { BoardMatrixRoom } from '#shared/types/matrix'
@@ -8,6 +8,8 @@ import type { BoardMatrixRoom } from '#shared/types/matrix'
 const props = withDefaults(defineProps<{
   card: Card
   members: Member[]
+  /** Picking one in the assignee select adds its members. */
+  assigneeGroups?: AssigneeGroup[]
   tags: Tag[]
   /** Custom fields; their values save at once, not with the form. */
   fields: BoardField[]
@@ -40,7 +42,7 @@ const props = withDefaults(defineProps<{
   matrix?: BoardMatrixRoom | null
   /** Own automations and scheduled actions of the card; set (also 0) shows the Automations button. */
   automationCount?: number
-}>(), { canComment: undefined })
+}>(), { canComment: undefined, assigneeGroups: () => [] })
 const emit = defineEmits<{
   save: [patch: CardPatch]
   updateTag: [tag: Tag, patch: Partial<Omit<Tag, 'id'>>]
@@ -165,6 +167,17 @@ function toggleWatch() {
 const memberItems = computed(() => props.members.map(m => ({
   label: m.name, value: m.userId, ...personItem(m, t('bots.badge')),
 })))
+// Groups first (when the board has any); choosing one adds its members.
+const assigneeItems = computed(() => {
+  const groups = props.assigneeGroups.filter(g => g.userIds.length).map(g => ({
+    label: g.name, value: assigneeGroupKey(g.id), icon: 'i-lucide-users',
+    description: t('assigneeGroups.memberCount', { count: g.userIds.length }, g.userIds.length),
+  }))
+  return groups.length ? [groups, memberItems.value] : [memberItems.value]
+})
+function setAssignees(ids: string[]) {
+  form.assigneeIds = expandAssigneeGroups(ids, props.assigneeGroups)
+}
 // Assignees who lost access stay on the card until removed.
 const formerAssignees = computed(() => form.assigneeIds.filter(id => !props.members.some(m => m.userId === id)))
 const priorityItems = computed(() => [
@@ -533,13 +546,14 @@ const tabs = computed(() => [
 
           <UFormField :label="t('card.assignees')">
             <USelectMenu
-              v-model="form.assigneeIds"
-              :items="memberItems"
+              :model-value="form.assigneeIds"
+              :items="assigneeItems"
               value-key="value"
               multiple
               :placeholder="t('card.unassigned')"
               class="w-full"
               :disabled="!props.canEdit"
+              @update:model-value="setAssignees"
             />
             <template v-if="formerAssignees.length" #help>
               {{ t('card.formerAssignees', { count: formerAssignees.length }, formerAssignees.length) }}

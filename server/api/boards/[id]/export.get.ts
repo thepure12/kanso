@@ -29,7 +29,7 @@ export default defineUserHandler(async (event, tx) => {
   const [board] = await tx.select({ name: boards.name }).from(boards).where(eq(boards.id, id))
   if (!board) notFound('Board not found')
 
-  const [cols, rules, tagRows, cards, people, lists, checklist, comments, attachments, links, fields, values, columnGroups] = await Promise.all([
+  const [cols, rules, tagRows, cards, people, lists, checklist, comments, attachments, links, fields, values, columnGroups, assigneeGroups] = await Promise.all([
     tx.select({ id: columns.id, title: columns.title, color: columns.color, wipLimit: columns.wipLimit, outline: columns.outline })
       .from(columns).where(eq(columns.boardId, id)).orderBy(asc(columns.position)),
     tx.select({ ...columnRuleFields, columnId: columnRules.columnId }).from(columnRules).where(eq(columnRules.boardId, id)),
@@ -56,6 +56,7 @@ export default defineUserHandler(async (event, tx) => {
     loadBoardFields(tx, id),
     tx.select({ cardId: fv.cardId, fieldId: fv.fieldId, value: fv.value }).from(fv).where(eq(fv.boardId, id)),
     loadColumnGroups(tx, id),
+    loadAssigneeGroups(tx, id),
   ])
 
   const colTitle = new Map(cols.map(c => [c.id, c.title]))
@@ -135,6 +136,7 @@ export default defineUserHandler(async (event, tx) => {
     })),
     tags: tagRows.map(({ name, color }) => ({ name, color })),
     columnGroups: columnGroups.map(g => ({ name: g.name, color: g.color, columns: g.columnIds.map(c => colTitle.get(c)!) })),
+    assigneeGroups: assigneeGroups.map(g => ({ name: g.name, members: g.userIds.map(u => person.get(u)?.email ?? null).filter(e => e !== null) })),
     fields: fields.map(f => ({ name: f.name, kind: f.kind, options: f.options.map(({ label, color }) => ({ label, color })), showOnCard: f.showOnCard })),
     cards: cardList,
     links: links.map(l => ({ from: cardIndex.get(l.fromCardId)!, to: cardIndex.get(l.toCardId)!, kind: l.kind })),
