@@ -112,7 +112,7 @@ same permissions, validation and scope rules apply, and changes show up live on 
 `405`.
 
 - **Read tools** (every token): `list_boards`, `get_board` (columns with their cards and colours, card tags, column
-  tags, automations, scheduled card actions, accent, members, fields, templates),
+  tags, automations, rules, scheduled card actions, accent, members, fields, templates),
   `get_card` (description, checklist, comments, links, attachments, recent activity), `search`, `my_work`,
   `list_notifications`.
 - **Write tools** (listed only for read and write tokens): `create_card`, `update_card`, `move_card`,
