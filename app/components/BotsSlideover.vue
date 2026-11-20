@@ -198,18 +198,24 @@ async function revoke(bot: BoardBot, token: BotToken) {
       </p>
       <ul v-else class="divide-y divide-default">
         <li v-for="bot in list" :key="bot.id" class="py-3 space-y-2" data-testid="bot">
-          <div class="flex items-center gap-2">
+          <div class="flex items-center gap-3">
             <UDropdownMenu :items="pictureItems(bot)">
-              <UButton
-                color="neutral"
-                variant="ghost"
-                size="sm"
-                class="p-0 rounded-full"
-                :avatar="personAvatar({ ...bot, isBot: true })"
-                :loading="savingPicture === bot.id"
+              <button
+                type="button"
+                class="group relative shrink-0 rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
                 :aria-label="t('bots.picture', { name: bot.name })"
+                :aria-busy="savingPicture === bot.id"
+                :disabled="savingPicture === bot.id"
                 data-testid="bot-picture"
-              />
+              >
+                <UAvatar v-bind="personAvatar({ ...bot, isBot: true })" size="xl" />
+                <span
+                  class="absolute inset-0 flex items-center justify-center rounded-full bg-black/45 text-white transition-opacity"
+                  :class="savingPicture === bot.id ? 'opacity-100' : 'opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100'"
+                >
+                  <UIcon :name="savingPicture === bot.id ? 'i-lucide-loader-circle' : 'i-lucide-camera'" class="size-4" :class="{ 'animate-spin': savingPicture === bot.id }" />
+                </span>
+              </button>
             </UDropdownMenu>
             <span class="flex-1 min-w-0 truncate text-sm font-medium">{{ bot.name }}</span>
             <USelect
@@ -232,7 +238,7 @@ async function revoke(bot: BoardBot, token: BotToken) {
               <UButton color="error" variant="ghost" size="sm" icon="i-lucide-trash" :aria-label="t('bots.delete')" @click="remove(bot)" />
             </UTooltip>
           </div>
-          <ul v-if="liveTokens(bot).length" class="ms-10 space-y-1">
+          <ul v-if="liveTokens(bot).length" class="ms-13 space-y-1">
             <li v-for="tk in liveTokens(bot)" :key="tk.id" class="flex items-center gap-2" data-testid="bot-token">
               <UIcon name="i-lucide-key-round" class="size-4 text-muted shrink-0" />
               <div class="flex-1 min-w-0">
@@ -255,7 +261,7 @@ async function revoke(bot: BoardBot, token: BotToken) {
               <UButton color="neutral" variant="ghost" size="xs" :label="t('tokens.revoke')" @click="revoke(bot, tk)" />
             </li>
           </ul>
-          <UButton class="ms-10" color="neutral" variant="outline" size="xs" icon="i-lucide-key-round" :label="t('tokens.new')" @click="openToken(bot)" />
+          <UButton class="ms-13" color="neutral" variant="outline" size="xs" icon="i-lucide-key-round" :label="t('tokens.new')" @click="openToken(bot)" />
         </li>
       </ul>
 
