@@ -9,8 +9,10 @@ export interface PanelMember extends Person {
   role: BoardRole | null
   /** Extra access shown read-only, e.g. "Acme · editor". */
   note?: string
-  /** A board or team bot: listed apart, managed in BotsSlideover, so no controls here. */
+  /** A bot: listed apart. Board and team bots are managed in BotsSlideover, so no controls here. */
   isBot?: boolean
+  /** Someone's account bot: managers change its role (never owner) and remove it here. */
+  accountBot?: boolean
 }
 
 const props = defineProps<{
@@ -43,6 +45,7 @@ const bots = computed(() => props.members.filter(m => m.isBot))
 const roles = computed(() => (['owner', 'editor', 'commenter', 'viewer'] as const).map(value => ({
   label: t(`members.roles.${value}`), value, description: t(`members.roleDescriptions.${value}`),
 })) satisfies { label: string, value: BoardRole, description: string }[])
+const botRoles = computed(() => roles.value.filter(r => r.value !== 'owner'))
 
 const email = ref('')
 const role = ref<BoardRole>('editor')
@@ -97,8 +100,11 @@ function closeSuggestions() {
   highlighted.value = -1
 }
 
+// The caller's own account bots come with the suggestions; their placeholder
+// email is what the members POST takes, and bots are never owners.
 function pick(p: Person) {
   email.value = p.email
+  if (p.isBot && role.value === 'owner') role.value = 'editor'
   closeSuggestions()
 }
 
@@ -209,7 +215,7 @@ async function revoke(inviteId: string) {
             @mousedown.prevent="pick(p)"
             @mouseenter="highlighted = i"
           >
-            <UUser :name="p.name" :description="p.email" :avatar="{ src: p.avatarUrl ?? undefined, alt: p.name }" size="sm" />
+            <UUser :name="p.name" :description="p.isBot ? t('members.yourBot') : p.email" :avatar="personAvatar(p)" size="sm" />
           </li>
         </ul>
       </div>
@@ -266,7 +272,7 @@ async function revoke(inviteId: string) {
         <li v-for="m in bots" :key="m.userId" class="flex items-center gap-3 py-3">
           <UUser
             :name="m.name"
-            :description="m.note ?? (props.canManage ? props.botsHint ?? t('members.botsManaged') : undefined)"
+            :description="m.note ?? (m.accountBot ? t('members.accountBot') : props.canManage ? props.botsHint ?? t('members.botsManaged') : undefined)"
             :avatar="personAvatar(m)"
             :ui="{ wrapper: 'min-w-0', name: 'truncate', description: 'truncate' }"
             class="flex-1 min-w-0"
@@ -277,7 +283,27 @@ async function revoke(inviteId: string) {
             :can-limit="!!props.canLimit?.(m)"
             @limit="emit('limit', m.userId)"
           />
-          <UBadge v-if="m.role" color="neutral" variant="subtle" :label="t(`members.roles.${m.role}`)" />
+          <template v-if="m.accountBot && m.role && props.canManage">
+            <USelect
+              :model-value="m.role"
+              :items="botRoles"
+              size="sm"
+              class="w-28"
+              :aria-label="t('bots.role')"
+              @update:model-value="(r: BoardRole) => setRole(m.userId, r)"
+            />
+            <UTooltip :text="t('members.remove')">
+              <UButton
+                color="error"
+                variant="ghost"
+                size="sm"
+                icon="i-lucide-user-minus"
+                :aria-label="t('members.remove')"
+                @click="remove(m.userId)"
+              />
+            </UTooltip>
+          </template>
+          <UBadge v-else-if="m.role" color="neutral" variant="subtle" :label="t(`members.roles.${m.role}`)" />
         </li>
       </ul>
     </template>

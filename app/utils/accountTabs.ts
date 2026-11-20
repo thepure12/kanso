@@ -1,4 +1,4 @@
-export const accountTabs = ['profile', 'security', 'notifications', 'tokens'] as const
+export const accountTabs = ['profile', 'security', 'notifications', 'tokens', 'bots'] as const
 export type AccountTab = typeof accountTabs[number]
 
 /** The tab from `?tab=`, falling back to profile for anything unknown. */

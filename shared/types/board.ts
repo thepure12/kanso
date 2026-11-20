@@ -13,6 +13,8 @@ export interface Person {
   name: string
   email: string
   avatarUrl: string | null
+  /** A bot (people suggestions: the caller's own account bots). */
+  isBot?: boolean
 }
 
 /** Someone with access to a board: directly, through its team, or both. */
@@ -21,8 +23,10 @@ export interface Member extends Person {
   role: BoardRole
   boardRole: BoardRole | null
   teamRole: BoardRole | null
-  /** A bot of this board (acts through API tokens; see BoardDetail.bots). */
+  /** A bot (acts through API tokens): of this board (see BoardDetail.bots), its team, or someone's account. */
   isBot: boolean
+  /** A person's account bot (0109_account_bots_rls.sql): board owners change its role and remove it like a member. */
+  accountBot: boolean
 }
 
 /** Access of a limited member to a card or column (0088_board_member_access_rls.sql). */

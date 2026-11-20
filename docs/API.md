@@ -184,9 +184,29 @@ membership of its own or leave the team; deleting the team deletes its bots.
 is limited to the team: it reaches only the team's boards and keeps the bot's team role there (a board-limited token
 would act as a team viewer at most). It cannot create boards or teams. Cookie only, like the board bot routes.
 
+### Account bots
+
+An account bot belongs to a person instead of a board or team (at most 20 each). Its owner makes it on `/account`
+(Bots tab) and adds it to boards they own, as editor, commenter or viewer (never owner), either there or in the
+board's members form, where the owner's own bots show up in the suggestions. Nobody else can add it anywhere. Board
+owners change its role or remove it like any member (`PATCH`/`DELETE /api/boards/:id/members/:userId`); its owner can
+also take it off a board. It never joins a team. Deleting the owner's account deletes their bots; losing ownership of
+a board leaves the bot there.
+
+| Method | Path | Body | Who |
+|---|---|---|---|
+| `GET` | `/api/account/bots` | | the caller's bots, with `tokens` and `boards` (`{id, name, role, owner}`) |
+| `POST` | `/api/account/bots` | `{name}` | signed-in people (409 past 20) |
+| `PUT` | `/api/account/bots/:id/boards/:boardId` | `{role}` | the bot's owner, on boards they own |
+| `DELETE` | `/api/account/bots/:id/boards/:boardId` | | the bot's owner |
+
+`PATCH /api/bots/:id {name}` (no `role`: it is per board), `DELETE /api/bots/:id`, the avatar and the token routes
+above work for account bots too (their owner only). An account bot's token has no board or team limit: it reaches
+exactly the boards the bot is on at the time, with the bot's role there. It cannot create boards, teams or bots.
+
 ### Driving an agent from mentions
 
-Give the agent a board or team bot's token. Bots get inbox notifications like people (no push, email or digest): when
+Give the agent a board, team or account bot's token. Bots get inbox notifications like people (no push, email or digest): when
 someone mentions the bot in a comment (`@Name`), assigns it to a card or a checklist item, or comments on or moves a
 card it is assigned to or watches. A bot does not start watching cards it creates or comments on, so its own replies
 do not subscribe it to the whole board; it can watch one explicitly (`PUT /api/cards/:id/watch`).

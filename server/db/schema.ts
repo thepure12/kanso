@@ -70,15 +70,19 @@ export const users = pgTable('users', {
   // only acts through API tokens limited to that board. Deleted with it.
   // Team bots (0106_team_bots_rls.sql) are the same for one team
   // (bot_team_id): team members, tokens limited to the team's boards.
+  // Account bots (0109_account_bots_rls.sql) belong to a person (bot_owner_id),
+  // who adds them to boards they own; deleted with that account.
   isBot: boolean('is_bot').notNull().default(false),
   botBoardId: uuid('bot_board_id').references((): AnyPgColumn => boards.id, { onDelete: 'cascade' }),
   botTeamId: uuid('bot_team_id').references((): AnyPgColumn => teams.id, { onDelete: 'cascade' }),
+  botOwnerId: uuid('bot_owner_id').references((): AnyPgColumn => users.id, { onDelete: 'cascade' }),
   createdAt: createdAt(),
 }, t => [
-  check('users_bot_scope', sql`${t.isBot} = (num_nonnulls(${t.botBoardId}, ${t.botTeamId}) = 1)`),
+  check('users_bot_scope', sql`${t.isBot} = (num_nonnulls(${t.botBoardId}, ${t.botTeamId}, ${t.botOwnerId}) = 1)`),
   check('users_bot_email', sql`not ${t.isBot} or ${t.email} like 'bot-%@bots.invalid'`),
   index('users_bot_board_idx').on(t.botBoardId).where(sql`${t.botBoardId} is not null`),
   index('users_bot_team_idx').on(t.botTeamId).where(sql`${t.botTeamId} is not null`),
+  index('users_bot_owner_idx').on(t.botOwnerId).where(sql`${t.botOwnerId} is not null`),
 ])
 
 export const oauthAccounts = pgTable('oauth_accounts', {

@@ -12,7 +12,8 @@ const body = z.object({
 
 /**
  * Creates an API token for a bot (app.create_bot_token: owners of its board or
- * team; always limited to that board or team). The token is in this response only; the
+ * team, limited to that board or team; an account bot's owner, then it
+ * follows the bot's boards). The token is in this response only; the
  * database keeps its sha256. Cookie only, so a token never mints tokens.
  */
 export default defineUserHandler(async (event, tx): Promise<BotToken & { token: string }> => {
@@ -24,6 +25,6 @@ export default defineUserHandler(async (event, tx): Promise<BotToken & { token: 
   const [row] = await tx.execute<{ id: string }>(sql`
     select app.create_bot_token(${id}, ${name}, ${sql`array[${sql.join(scopes.map(s => sql`${s}`), sql`, `)}]::text[]`},
       ${expiresAt}::timestamptz, ${hash}, ${prefix}) as id`)
-  const created = (await loadScopeBots(tx, scope, true)).find(b => b.id === id)?.tokens?.find(t => t.id === row!.id)
+  const created = (await loadManagedBot(tx, scope, id)).tokens?.find(t => t.id === row!.id)
   return { ...created!, token }
 })

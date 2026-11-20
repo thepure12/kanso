@@ -1,10 +1,10 @@
 import { sql } from 'drizzle-orm'
-import type { BoardBot } from '#shared/types/bots'
+import type { AccountBot, BoardBot } from '#shared/types/bots'
 
-/** Removes the bot's profile picture (app.clear_bot_avatar: owners of its board or team). Cookie only. */
-export default defineUserHandler(async (event, tx): Promise<BoardBot> => {
+/** Removes the bot's profile picture (app.clear_bot_avatar: owners of its board or team, an account bot's owner). Cookie only. */
+export default defineUserHandler(async (event, tx): Promise<BoardBot | AccountBot> => {
   const { id } = await paramsValidated(event, uuidParam)
   const scope = await botScope(tx, id)
   await tx.execute(sql`select app.clear_bot_avatar(${id})`)
-  return (await loadScopeBots(tx, scope, true)).find(b => b.id === id)!
+  return loadManagedBot(tx, scope, id)
 })

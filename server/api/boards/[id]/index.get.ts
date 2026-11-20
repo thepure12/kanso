@@ -37,7 +37,8 @@ export default defineUserHandler(async (event, tx): Promise<BoardDetail> => {
     loadMatrixRoom(tx, id),
     tx.execute<Member & Record<string, unknown>>(sql`
       select p.user_id as "userId", p.role, p.board_role as "boardRole", p.team_role as "teamRole",
-             u.name, u.email, u.avatar_url as "avatarUrl", u.is_bot as "isBot"
+             u.name, u.email, u.avatar_url as "avatarUrl", u.is_bot as "isBot",
+             u.bot_owner_id is not null as "accountBot"
       from app.board_people(${id}) p join users u on u.id = p.user_id
       order by p.role, u.name
     `),

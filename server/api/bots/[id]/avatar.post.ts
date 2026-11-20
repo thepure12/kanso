@@ -1,15 +1,15 @@
 import { randomBytes } from 'node:crypto'
 import { sql } from 'drizzle-orm'
-import type { BoardBot } from '#shared/types/bots'
+import type { AccountBot, BoardBot } from '#shared/types/bots'
 
 const MAX_AVATAR_BYTES = 1024 * 1024
 
 /**
  * multipart/form-data with one `file` part: sets the bot's profile picture
- * (app.set_bot_avatar: owners of its board or team). Like POST /api/account/avatar,
+ * (app.set_bot_avatar: owners of its board or team, an account bot's owner). Like POST /api/account/avatar,
  * the client crops and scales it first. Cookie only.
  */
-export default defineUserHandler(async (event, tx): Promise<BoardBot> => {
+export default defineUserHandler(async (event, tx): Promise<BoardBot | AccountBot> => {
   const { id } = await paramsValidated(event, uuidParam)
   const scope = await botScope(tx, id)
   const length = Number(getHeader(event, 'content-length') ?? 0)
@@ -23,5 +23,5 @@ export default defineUserHandler(async (event, tx): Promise<BoardBot> => {
 
   const avatarUrl = appPath(`/api/users/${id}/avatar?v=${randomBytes(6).toString('hex')}`)
   await tx.execute(sql`select app.set_bot_avatar(${id}, ${contentType}, ${file.data}::bytea, ${avatarUrl})`)
-  return (await loadScopeBots(tx, scope, true)).find(b => b.id === id)!
+  return loadManagedBot(tx, scope, id)
 })

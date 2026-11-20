@@ -13,7 +13,8 @@ export async function mailNewMember(event: H3Event, tx: Tx, p: {
   wasMember: boolean
   target: Omit<MembershipTarget, 'name'>
 }) {
-  if (p.wasMember || p.userId === p.callerId) return
+  // Bots (bot-<id>@bots.invalid, e.g. an account bot added by its owner) get no mail.
+  if (p.wasMember || p.userId === p.callerId || /@bots\.invalid$/i.test(p.email)) return
   const table = p.target.kind === 'team' ? schema.teams : schema.boards
   const [[target], [caller]] = await Promise.all([
     tx.select({ name: table.name }).from(table).where(eq(table.id, p.target.id)),

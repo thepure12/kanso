@@ -23,6 +23,7 @@ const tabs = computed(() => [
   { label: t('account.security'), value: 'security', icon: 'i-lucide-shield' },
   { label: t('account.notifications.title'), value: 'notifications', icon: 'i-lucide-bell' },
   { label: t('tokens.title'), value: 'tokens', icon: 'i-lucide-key-round' },
+  { label: t('bots.title'), value: 'bots', icon: 'i-lucide-bot' },
 ])
 
 onMounted(() => {
@@ -467,6 +468,7 @@ const providerLabel: Record<string, string> = { discord: 'Discord', github: 'Git
       </div>
 
       <ApiTokenList v-show="tab === 'tokens'" />
+      <AccountBots v-show="tab === 'bots'" />
     </template>
 
     <UModal v-model:open="deleteOpen" :title="t('account.delete.confirmTitle')">

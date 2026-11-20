@@ -6,8 +6,8 @@ import { url } from '@nuxt/test-utils/e2e'
 import postgres from 'postgres'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import type { ApiToken, Me } from '#shared/types/account'
-import type { BoardDetail, Card, TeamDetail } from '#shared/types/board'
-import type { BoardBot, BotToken } from '#shared/types/bots'
+import type { BoardDetail, Card, Person, TeamDetail } from '#shared/types/board'
+import type { AccountBot, BoardBot, BotToken } from '#shared/types/bots'
 import type { InstanceSettings } from '#shared/types/admin'
 import { signEmailToken } from '../../server/utils/emailToken'
 import { setupApi } from './server'
@@ -77,6 +77,7 @@ afterAll(async () => {
   if (board) await alice?.req(`/api/boards/${board.id}`, { method: 'DELETE' })
   if (other) await alice?.req(`/api/boards/${other.id}`, { method: 'DELETE' })
   await admin?.req('/api/admin/settings', { method: 'PUT', body: savedSettings })
+  await ownerDb`delete from users where bot_owner_id = any(${[alice?.id, bob?.id, carol?.id].filter(Boolean) as string[]})`
   await ownerDb`delete from admin_audit_log where data->>'actor_email' like '%@bots.test' or data->>'target_email' like '%@bots.test'`
   await ownerDb`delete from users where email = ${adminEmail}`
   await Promise.all([authDb.end(), ownerDb.end()])
@@ -327,5 +328,85 @@ describe('team bots', () => {
 
     expect((await alice.req(`/api/bots/${bot.id}/tokens/${created.data.id}`, { method: 'DELETE' })).status).toBe(200)
     expect((await api(`/api/boards/${teamBoard.id}`)).status).toBe(401)
+  })
+})
+
+describe('account bots', () => {
+  it('people make, rename and delete their own bots; others cannot touch them', async () => {
+    const made = await carol.req<AccountBot>('/api/account/bots', { method: 'POST', body: { name: 'Helper' } })
+    expect(made.status).toBe(200)
+    expect(made.data).toMatchObject({ name: 'Helper', boards: [], tokens: [] })
+    const id = made.data.id
+    expect((await carol.req<AccountBot[]>('/api/account/bots')).data.map(b => b.id)).toEqual([id])
+    expect((await bob.req<AccountBot[]>('/api/account/bots')).data).toEqual([])
+
+    expect((await carol.req<AccountBot>(`/api/bots/${id}`, { method: 'PATCH', body: { name: 'Renamed' } })).data.name).toBe('Renamed')
+    // The role is per board.
+    expect((await carol.req(`/api/bots/${id}`, { method: 'PATCH', body: { role: 'viewer' } })).status).toBe(400)
+    // Others do not even see it.
+    expect((await bob.req(`/api/bots/${id}`, { method: 'PATCH', body: { name: 'Mine' } })).status).toBe(404)
+    expect((await bob.req(`/api/bots/${id}`, { method: 'DELETE' })).status).toBe(404)
+
+    expect((await carol.req(`/api/bots/${id}`, { method: 'DELETE' })).status).toBe(200)
+    expect((await carol.req<AccountBot[]>('/api/account/bots')).data).toEqual([])
+  })
+
+  it('the owner adds the bot to boards they own; board owners change its role and remove it', async () => {
+    const bot = (await alice.req<AccountBot>('/api/account/bots', { method: 'POST', body: { name: 'Roamer' } })).data
+    // The people suggestions offer one's own bots (not others').
+    expect((await alice.req<Person[]>('/api/people?q=Roamer')).data).toEqual([expect.objectContaining({ userId: bot.id, isBot: true })])
+    expect((await bob.req<Person[]>('/api/people?q=Roamer')).data).toEqual([])
+
+    // Through the account page, or through the members form with the bot's address.
+    const put = await alice.req<AccountBot>(`/api/account/bots/${bot.id}/boards/${board.id}`, { method: 'PUT', body: { role: 'commenter' } })
+    expect(put.status).toBe(200)
+    expect(put.data.boards).toEqual([{ id: board.id, name: board.name, role: 'commenter', owner: true }])
+    const [{ email }] = await ownerDb`select email from users where id = ${bot.id}`
+    expect((await alice.req(`/api/boards/${other.id}/members`, { method: 'POST', body: { email, role: 'owner' } })).status).toBe(403)
+    expect((await alice.req(`/api/boards/${other.id}/members`, { method: 'POST', body: { email, role: 'viewer' } })).status).toBe(200)
+
+    const detail = (await alice.req<BoardDetail>(`/api/boards/${board.id}`)).data
+    expect(detail.members.find(m => m.userId === bot.id)).toMatchObject({ isBot: true, accountBot: true, role: 'commenter' })
+    expect(detail.bots.map(b => b.id)).not.toContain(bot.id)
+
+    // Bob's board: Alice is no owner there, so the bot cannot join.
+    const bobs = (await bob.req<{ id: string }>('/api/boards', { method: 'POST', body: { name: 'Bob board', template: 'basic' } })).data
+    expect((await alice.req(`/api/account/bots/${bot.id}/boards/${bobs.id}`, { method: 'PUT', body: { role: 'editor' } })).status).toBe(403)
+    // Bob owns a board with Alice's bot on it but does not manage the bot.
+    expect((await bob.req(`/api/account/bots/${bot.id}/boards/${board.id}`, { method: 'PUT', body: { role: 'editor' } })).status).toBe(403)
+    await bob.req(`/api/boards/${bobs.id}`, { method: 'DELETE' })
+
+    // Board owners re-role (never owner) and remove it like a member.
+    expect((await alice.req(`/api/boards/${board.id}/members/${bot.id}`, { method: 'PATCH', body: { role: 'owner' } })).status).toBe(403)
+    expect((await alice.req(`/api/boards/${board.id}/members/${bot.id}`, { method: 'PATCH', body: { role: 'viewer' } })).status).toBe(200)
+    expect((await alice.req(`/api/boards/${other.id}/members/${bot.id}`, { method: 'DELETE' })).status).toBe(200)
+
+    // The owner takes it off a board from the account page.
+    const left = await alice.req<AccountBot>(`/api/account/bots/${bot.id}/boards/${board.id}`, { method: 'DELETE' })
+    expect(left.data.boards).toEqual([])
+    await alice.req(`/api/bots/${bot.id}`, { method: 'DELETE' })
+  })
+
+  it('an account bot token follows the bot\'s boards and cannot make boards or bots', async () => {
+    const bot = (await alice.req<AccountBot>('/api/account/bots', { method: 'POST', body: { name: 'Worker' } })).data
+    const created = await alice.req<BotToken & { token: string }>(`/api/bots/${bot.id}/tokens`, { method: 'POST', body: { name: 'ci', scopes: ['read', 'write'], expiresInDays: null } })
+    expect(created.status).toBe(200)
+    expect((await alice.req<AccountBot[]>('/api/account/bots')).data[0]!.tokens.map(t => t.id)).toEqual([created.data.id])
+    const api = as(created.data.token)
+
+    expect((await api<unknown[]>('/api/boards')).data).toEqual([])
+    expect((await api(`/api/boards/${board.id}`)).status).toBe(404)
+    await alice.req(`/api/account/bots/${bot.id}/boards/${board.id}`, { method: 'PUT', body: { role: 'editor' } })
+    expect((await api<BoardDetail>(`/api/boards/${board.id}`)).data.role).toBe('editor')
+    expect((await api(`/api/boards/${board.id}/cards`, { method: 'POST', body: { columnId: board.columns[0]!.id, title: 'By the account bot' } })).status).toBe(200)
+    expect((await api(`/api/boards/${other.id}`)).status).toBe(404)
+
+    expect((await api('/api/boards', { method: 'POST', body: { name: 'Nope', template: 'basic' } })).status).toBe(403)
+    expect((await api('/api/teams', { method: 'POST', body: { name: 'Nope' } })).status).toBe(403)
+    expect((await api('/api/account/bots', { method: 'POST', body: { name: 'Child' } })).status).toBe(403)
+
+    expect((await alice.req(`/api/bots/${bot.id}/tokens/${created.data.id}`, { method: 'DELETE' })).status).toBe(200)
+    expect((await api(`/api/boards/${board.id}`)).status).toBe(401)
+    await alice.req(`/api/bots/${bot.id}`, { method: 'DELETE' })
   })
 })

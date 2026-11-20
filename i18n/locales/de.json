@@ -1241,7 +1241,9 @@
     "revoke": "Einladung zurückziehen",
     "bots": "Bots",
     "botsManaged": "Verwaltet im Board-Menü unter Bots",
-    "botsManagedTeam": "Verwaltet im Teammenü unter Bots"
+    "botsManagedTeam": "Verwaltet im Teammenü unter Bots",
+    "accountBot": "Bot einer Person",
+    "yourBot": "Dein Bot"
   },
   "memberAccess": {
     "button": "Zugriff einschränken",
@@ -1931,6 +1933,18 @@
       "readOnlyDescription": "Sieht nur die Boards dieses Teams",
       "readWriteDescription": "Ändert die Boards dieses Teams als Bot, im Rahmen seiner Rolle",
       "onlyOnceDescription": "Bewahre es sicher auf. Wer es hat, kann die Boards dieses Teams als {name} nutzen."
+    },
+    "account": {
+      "description": "Eigene Bots für Agenten und Skripte. Füge sie Boards hinzu, die dir gehören; jeder handelt mit eigenen API-Tokens auf den Boards, auf denen er ist.",
+      "readOnlyDescription": "Sieht sich die Boards des Bots nur an",
+      "readWriteDescription": "Ändert die Boards des Bots im Rahmen seiner Rolle dort",
+      "onlyOnceDescription": "Bewahre es sicher auf. Wer es hat, kann jedes Board von {name} als {name} nutzen.",
+      "boards": "Boards",
+      "noBoards": "Noch auf keinem Board.",
+      "pickBoard": "Board auswählen, das dir gehört",
+      "addToBoard": "Zum Board hinzufügen",
+      "boardFailed": "Der Bot konnte auf diesem Board nicht geändert werden",
+      "removeConfirm": "{name} aus „{board}“ entfernen?"
     }
   }
 }
