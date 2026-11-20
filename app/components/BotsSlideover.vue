@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { AvatarCropModal } from '#components'
 import type { BoardBot, BotRole, BotToken } from '#shared/types/bots'
 
 // Board owners manage the board's bots and their API tokens (Bots 2/4 routes,
@@ -68,6 +69,56 @@ async function remove(bot: BoardBot) {
   }
   catch (err) { showError(err, t('bots.deleteFailed')) }
 }
+
+// Profile picture: cropped and scaled down in the browser like on /account.
+const overlay = useOverlay()
+const toast = useToast()
+const pictureInput = useTemplateRef<HTMLInputElement>('pictureInput')
+const pictureBot = ref<BoardBot | null>(null)
+const savingPicture = ref<string | null>(null)
+
+function pickPicture(bot: BoardBot) {
+  pictureBot.value = bot
+  pictureInput.value?.click()
+}
+
+async function onPicture(e: Event) {
+  const input = e.target as HTMLInputElement
+  const file = input.files?.[0]
+  input.value = ''
+  const bot = pictureBot.value
+  if (!file || !bot) return
+  if (!AVATAR_TYPES.includes(file.type)) {
+    toast.add({ title: t('account.profile.pictureWrongType'), color: 'error' })
+    return
+  }
+  const cropped = await overlay.create(AvatarCropModal, { destroyOnClose: true }).open({ file }).result
+  if (!cropped) return
+  savingPicture.value = bot.id
+  try {
+    const form = new FormData()
+    form.append('file', cropped, 'avatar')
+    replace(await api<BoardBot>(`/api/bots/${bot.id}/avatar`, { method: 'POST', body: form }))
+    emit('changed')
+  }
+  catch (err) { showError(err, t('account.profile.pictureFailed')) }
+  finally { savingPicture.value = null }
+}
+
+async function removePicture(bot: BoardBot) {
+  savingPicture.value = bot.id
+  try {
+    replace(await api<BoardBot>(`/api/bots/${bot.id}/avatar`, { method: 'DELETE' }))
+    emit('changed')
+  }
+  catch (err) { showError(err, t('account.profile.pictureRemoveFailed')) }
+  finally { savingPicture.value = null }
+}
+
+const pictureItems = (bot: BoardBot) => [
+  { label: bot.avatarUrl ? t('account.profile.pictureChange') : t('account.profile.pictureUpload'), icon: 'i-lucide-image-up', onSelect: () => pickPicture(bot) },
+  ...bot.avatarUrl ? [{ label: t('account.profile.pictureRemove'), icon: 'i-lucide-trash-2', onSelect: () => removePicture(bot) }] : [],
+]
 
 // New token dialog
 const tokenBot = ref<BoardBot | null>(null)
@@ -148,7 +199,19 @@ async function revoke(bot: BoardBot, token: BotToken) {
       <ul v-else class="divide-y divide-default">
         <li v-for="bot in list" :key="bot.id" class="py-3 space-y-2" data-testid="bot">
           <div class="flex items-center gap-2">
-            <UUser :name="bot.name" :avatar="personAvatar({ ...bot, isBot: true })" :ui="{ wrapper: 'min-w-0', name: 'truncate' }" class="flex-1 min-w-0" />
+            <UDropdownMenu :items="pictureItems(bot)">
+              <UButton
+                color="neutral"
+                variant="ghost"
+                size="sm"
+                class="p-0 rounded-full"
+                :avatar="personAvatar({ ...bot, isBot: true })"
+                :loading="savingPicture === bot.id"
+                :aria-label="t('bots.picture', { name: bot.name })"
+                data-testid="bot-picture"
+              />
+            </UDropdownMenu>
+            <span class="flex-1 min-w-0 truncate text-sm font-medium">{{ bot.name }}</span>
             <USelect
               :model-value="bot.role"
               :items="roles"
@@ -195,6 +258,8 @@ async function revoke(bot: BoardBot, token: BotToken) {
           <UButton class="ms-10" color="neutral" variant="outline" size="xs" icon="i-lucide-key-round" :label="t('tokens.new')" @click="openToken(bot)" />
         </li>
       </ul>
+
+      <input ref="pictureInput" type="file" :accept="AVATAR_TYPES.join(',')" class="hidden" :aria-label="t('account.profile.picture')" @change="onPicture">
 
       <UModal v-model:open="tokenOpen" :title="created ? t('tokens.copyTitle') : t('bots.newTokenTitle', { name: tokenBot?.name ?? '' })">
         <template #body>

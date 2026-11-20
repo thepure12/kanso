@@ -137,6 +137,41 @@ describe('managing bots', () => {
   })
 })
 
+describe('bot pictures', () => {
+  const png = Buffer.from('89504e470d0a1a0a0000000d49484452', 'hex')
+  const url = (bot: string) => `/kanso/api/users/${bot}/avatar?v=abc123`
+
+  it('owners set and remove a bot picture that board members see', async () => {
+    const bot = await newBot(boardId, 'Pictured')
+    await as(owner.id, sql => sql`select app.set_bot_avatar(${bot}, 'image/png', ${png}, ${url(bot)})`)
+    expect(await owner_`select avatar_url from users where id = ${bot}`).toEqual([{ avatar_url: url(bot) }])
+    const seen = await as(viewer.id, sql => sql`select content_type, size from user_avatars where user_id = ${bot}`)
+    expect(seen).toEqual([{ content_type: 'image/png', size: png.length }])
+    expect(await as(outsider.id, sql => sql`select 1 from user_avatars where user_id = ${bot}`)).toHaveLength(0)
+
+    // Replacing keeps one row.
+    await as(owner.id, sql => sql`select app.set_bot_avatar(${bot}, 'image/webp', ${png}, ${`/api/users/${bot}/avatar?v=ff`})`)
+    expect(await owner_`select content_type from user_avatars where user_id = ${bot}`).toEqual([{ content_type: 'image/webp' }])
+
+    await as(owner.id, sql => sql`select app.clear_bot_avatar(${bot})`)
+    expect(await owner_`select avatar_url from users where id = ${bot}`).toEqual([{ avatar_url: null }])
+    expect(await owner_`select 1 from user_avatars where user_id = ${bot}`).toHaveLength(0)
+  })
+
+  it('only owners change it, only for bots, only with the bot\'s own avatar URL and an image', async () => {
+    const bot = await newBot(boardId, 'Guarded')
+    await rejectsWith(as(editor.id, sql => sql`select app.set_bot_avatar(${bot}, 'image/png', ${png}, ${url(bot)})`), '42501')
+    await rejectsWith(as(outsider.id, sql => sql`select app.clear_bot_avatar(${bot})`), '42501')
+    await rejectsWith(as(bot, sql => sql`select app.set_bot_avatar(${bot}, 'image/png', ${png}, ${url(bot)})`), '42501')
+    await rejectsWith(as(owner.id, sql => sql`select app.set_bot_avatar(${editor.id}, 'image/png', ${png}, ${url(editor.id)})`), 'P0002')
+    await rejectsWith(as(owner.id, sql => sql`select app.set_bot_avatar(${bot}, 'image/png', ${png}, 'https://evil.test/x.png')`), '22023')
+    await rejectsWith(as(owner.id, sql => sql`select app.set_bot_avatar(${bot}, 'image/png', ${png}, ${url(editor.id)})`), '22023')
+    await rejectsWith(as(owner.id, sql => sql`select app.set_bot_avatar(${bot}, 'image/svg+xml', ${png}, ${url(bot)})`), '23514')
+    // Bots still cannot use the personal policies for someone else's row.
+    await rejectsWith(as(owner.id, sql => sql`insert into user_avatars (user_id, content_type, size, data) values (${bot}, 'image/png', ${png.length}, ${png})`), '42501')
+  })
+})
+
 describe('bot tokens', () => {
   it('owners create tokens limited to the bot board; others cannot', async () => {
     const bot = await newBot(boardId)

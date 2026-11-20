@@ -148,6 +148,8 @@ cannot sign in, join another board or a team, and is only removed by deleting it
 | `DELETE` | `/api/bots/:id` | | owners; its tokens stop working, its cards and comments stay with no author |
 | `POST` | `/api/bots/:id/tokens` | `{name, scopes: ["read"] \| ["read","write"], expiresInDays?}` | owners; the `kb_...` token is in this response only |
 | `DELETE` | `/api/bots/:id/tokens/:tokenId` | | owners; revokes it |
+| `POST` | `/api/bots/:id/avatar` | multipart, one `file` part (PNG, JPEG, WebP or GIF, 1 MB) | owners; sets its picture, returns the bot |
+| `DELETE` | `/api/bots/:id/avatar` | | owners; removes its picture |
 
 These routes take the session cookie only: an API token (a bot's or a person's) gets `403`, so a token can never make
 more tokens. A bot token is always limited to the bot's board and works like any other token on every route above and

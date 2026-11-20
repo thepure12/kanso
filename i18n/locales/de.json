@@ -1905,6 +1905,7 @@
     "close": "{name} schließen"
   },
   "bots": {
+    "picture": "Bild von {name}",
     "badge": "Bot",
     "title": "Bots",
     "description": "Board-Mitglieder für Agenten und Skripte. Jeder handelt nur auf diesem Board, über eigene API-Tokens.",

@@ -1905,6 +1905,7 @@
     "close": "Close {name}"
   },
   "bots": {
+    "picture": "Picture of {name}",
     "badge": "Bot",
     "title": "Bots",
     "description": "Board members for agents and scripts. Each acts only on this board, through its own API tokens.",

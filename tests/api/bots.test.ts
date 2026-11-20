@@ -147,6 +147,35 @@ describe('board bots', () => {
     expect(people.data.map(p => p.userId)).not.toContain(bot.id)
   })
 
+  it('owners upload and remove a bot picture; others cannot', async () => {
+    const bot = await newBot('Pictured')
+    const png = Buffer.from('89504e470d0a1a0a0000000d494844520000000100000001', 'hex')
+    const upload = async (user: typeof alice, data: Buffer, botId = bot.id) => {
+      const form = new FormData()
+      form.append('file', new Blob([data]), 'avatar')
+      const res = await globalThis.fetch(`${base}/api/bots/${botId}/avatar`, { method: 'POST', body: form, headers: { cookie: user.cookie, 'x-forwarded-for': randomIp() } })
+      return { status: res.status, data: await res.json() }
+    }
+
+    const set = await upload(alice, png)
+    expect(set.status).toBe(200)
+    expect(set.data.avatarUrl).toMatch(new RegExp(`/api/users/${bot.id}/avatar\\?v=[0-9a-f]+$`))
+    const image = await bob.req(set.data.avatarUrl.replace(/^.*(\/api\/users\/)/, '$1'))
+    expect(image.status).toBe(200)
+    expect((await bob.req<BoardDetail>(`/api/boards/${board.id}`)).data.members.find(m => m.userId === bot.id)?.avatarUrl).toBe(set.data.avatarUrl)
+
+    expect((await upload(alice, Buffer.from('not an image'))).status).toBe(400)
+    expect((await upload(bob, png)).status).toBe(403)
+    expect((await upload(carol, png)).status).toBe(404)
+    expect((await upload(alice, png, bob.id)).status).toBe(404)
+    expect((await bob.req(`/api/bots/${bot.id}/avatar`, { method: 'DELETE' })).status).toBe(403)
+
+    const cleared = await alice.req<BoardBot>(`/api/bots/${bot.id}/avatar`, { method: 'DELETE' })
+    expect(cleared.status).toBe(200)
+    expect(cleared.data.avatarUrl).toBeNull()
+    expect((await bob.req(`/api/users/${bot.id}/avatar`)).status).toBe(404)
+  })
+
   it('shows a token once; owners list its metadata and revoke it', async () => {
     const bot = await newBot('Lister')
     const created = await newToken(bot.id, ['read'], 30)
