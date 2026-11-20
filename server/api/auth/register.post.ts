@@ -34,7 +34,7 @@ export default defineEventHandler(async (event) => {
   catch (err) {
     if (pgCode(err) !== '23505') throw err
     const [existing] = await db.select().from(schema.users).where(eq(schema.users.email, email))
-    if (existing?.emailVerifiedAt !== null) throw createError({ statusCode: 409, statusMessage: 'Email already registered' })
+    if (existing?.emailVerifiedAt !== null || existing.isBot) throw createError({ statusCode: 409, statusMessage: 'Email already registered' })
     ;[user] = await db.update(schema.users).set({ name, passwordHash, emailVerifiedAt: verified })
       .where(eq(schema.users.id, existing.id)).returning()
   }

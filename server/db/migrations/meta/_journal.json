@@ -708,6 +708,20 @@
       "when": 1795191640926,
       "tag": "0100_named_checklists_rls",
       "breakpoints": true
+    },
+    {
+      "idx": 101,
+      "version": "7",
+      "when": 1795197033603,
+      "tag": "0101_board_bots",
+      "breakpoints": true
+    },
+    {
+      "idx": 102,
+      "version": "7",
+      "when": 1795197038728,
+      "tag": "0102_board_bots_rls",
+      "breakpoints": true
     }
   ]
 }

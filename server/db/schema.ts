@@ -64,8 +64,18 @@ export const users = pgTable('users', {
   notificationPrefs: jsonb('notification_prefs').$type<NotificationPrefs>().notNull().default({}),
   // False: cards the user only watches send nothing (assignments and mentions still do).
   notifyWatching: boolean('notify_watching').notNull().default(true),
+  // Board bots (0102_board_bots_rls.sql): a user that exists only for one
+  // board, made by its owners through app.create_board_bot. Never signs in
+  // (placeholder bot-<id>@bots.invalid email, no password, never verified),
+  // only acts through API tokens limited to that board. Deleted with it.
+  isBot: boolean('is_bot').notNull().default(false),
+  botBoardId: uuid('bot_board_id').references((): AnyPgColumn => boards.id, { onDelete: 'cascade' }),
   createdAt: createdAt(),
-})
+}, t => [
+  check('users_bot_board', sql`${t.isBot} = (${t.botBoardId} is not null)`),
+  check('users_bot_email', sql`not ${t.isBot} or ${t.email} like 'bot-%@bots.invalid'`),
+  index('users_bot_board_idx').on(t.botBoardId).where(sql`${t.botBoardId} is not null`),
+])
 
 export const oauthAccounts = pgTable('oauth_accounts', {
   provider: text('provider').notNull(),

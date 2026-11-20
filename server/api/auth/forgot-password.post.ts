@@ -12,7 +12,7 @@ export default defineEventHandler(async (event) => {
   const { email } = await readValidated(event, body)
   await rateLimit(`forgot:${getRequestIP(event, { xForwardedFor: true })}`, 5)
   const [user] = await useAuthDb().select().from(schema.users).where(eq(schema.users.email, email))
-  if (user) await sendPasswordResetEmail(event, user)
+  if (user && !user.isBot) await sendPasswordResetEmail(event, user)
   setResponseStatus(event, 204)
   return null
 })
