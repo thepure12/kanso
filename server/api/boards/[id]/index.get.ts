@@ -3,7 +3,7 @@ import type { BoardDetail, Member } from '#shared/types/board'
 
 export default defineUserHandler(async (event, tx): Promise<BoardDetail> => {
   const { id } = await paramsValidated(event, uuidParam)
-  const { boards, boardAutomations, cardScheduledActions, columns, columnRules, invites, tags, teams } = schema
+  const { boards, boardAutomations, boardRules, cardScheduledActions, columns, columnRules, invites, tags, teams } = schema
 
   const [board] = await tx.select({
     id: boards.id, name: boards.name, teamId: boards.teamId, teamName: teams.name, archivedAt: boards.archivedAt, background: boards.background, accent: boards.accent, columnOutline: boards.columnOutline,
@@ -13,7 +13,7 @@ export default defineUserHandler(async (event, tx): Promise<BoardDetail> => {
     .from(boards).leftJoin(teams, eq(teams.id, boards.teamId)).where(eq(boards.id, id))
   if (!board) notFound('Board not found')
 
-  const [cols, ruleRows, cardRows, templates, recurrences, automationRows, scheduledRows, tagRows, fields, columnGroups, savedViews, matrix, members, inviteRows, [me], memberAccess] = await Promise.all([
+  const [cols, ruleRows, cardRows, templates, recurrences, automationRows, boardRuleRows, scheduledRows, tagRows, fields, columnGroups, savedViews, matrix, members, inviteRows, [me], memberAccess] = await Promise.all([
     tx.select({ id: columns.id, title: columns.title, position: columns.position, color: columns.color, wipLimit: columns.wipLimit, outline: columns.outline })
       .from(columns).where(eq(columns.boardId, id)).orderBy(asc(columns.position)),
     tx.select({ ...columnRuleFields, columnId: columnRules.columnId })
@@ -26,6 +26,7 @@ export default defineUserHandler(async (event, tx): Promise<BoardDetail> => {
       // A trashed card's automations and actions stay until it is purged, but are hidden (cards_select).
       .where(and(eq(boardAutomations.boardId, id), sql`(${boardAutomations.cardId} is null or exists (select 1 from cards c where c.id = ${boardAutomations.cardId}))`))
       .orderBy(asc(boardAutomations.createdAt)),
+    tx.select(boardRuleFields).from(boardRules).where(eq(boardRules.boardId, id)).orderBy(asc(boardRules.createdAt), asc(boardRules.id)),
     tx.select(scheduledActionFields).from(cardScheduledActions)
       .where(and(eq(cardScheduledActions.boardId, id), sql`exists (select 1 from cards c where c.id = ${cardScheduledActions.cardId})`)).orderBy(asc(cardScheduledActions.runOn), asc(cardScheduledActions.createdAt)),
     tx.select({ id: tags.id, name: tags.name, color: tags.color })
@@ -67,6 +68,7 @@ export default defineUserHandler(async (event, tx): Promise<BoardDetail> => {
     templates,
     recurrences,
     automations: automationRows.map(toBoardAutomation),
+    rules: boardRuleRows.map(toBoardRule),
     scheduledActions: scheduledRows.map(toScheduledAction),
     tags: tagRows,
     fields,

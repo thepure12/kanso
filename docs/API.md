@@ -23,7 +23,7 @@ When the instance runs under a sub-path, include it in the base URL (`KANSO=http
   sees nothing of other boards (`404`), lists only its boards, cannot create boards or teams (`403`) and acts as a
   team viewer at most (no renaming, member changes or leaving). Deleting a board or losing access to it never widens
   the token.
-- **Allowed routes**: boards, cards, columns, tags, comments, checklist items, column rules, board automations, scheduled card actions, attachments, card links,
+- **Allowed routes**: boards, cards, columns, tags, comments, checklist items, column rules, board automations, board rules, scheduled card actions, attachments, card links,
   fields, column groups, time entries, teams, notifications, search and `/api/me`. Account, sign-in, two-factor, session, token,
   admin and webhook routes refuse tokens (`403`, or `401` for routes that only take the session cookie), so a leaked
   token cannot take over the account.
@@ -58,6 +58,8 @@ Errors come back as JSON with `statusCode` and `statusMessage`: `400` invalid in
 | PATCH / DELETE | `/api/saved-views/:id` | Rename / replace the settings `{ name?, config? }` / delete a saved view |
 | POST | `/api/boards/:id/automations` | Add a time-based automation (editors, checked hourly): `{ kind: 'archive_done' \| 'notify_stale', days }` (1-365), `{ kind: 'tag_stale', days, tagId }` or `{ kind: 'raise_priority', days, priority }` (days 0-365), each with an optional `columnId` (only the cards in that column, the last column too; `archive_done` then counts the days in it) or `cardId` (only that card, also when it skips automations; not both, `400`); `{ kind: 'move_card', days, columnId \| cardId, targetColumnId }` moves cards after `days` in `columnId` (or the card's current column) to the end of `targetColumnId` (column rules run; one per column or card); the same one twice is `409` |
 | PATCH / DELETE | `/api/automations/:id` | Edit `{ days?, active? }` / delete an automation |
+| POST | `/api/boards/:id/rules` | Add an event-triggered rule (editors): `{ event, eventTagId?, eventUserId?, conditions?: { tagId?, priority?, columnId?, assigneeId? }, actions: { moveColumnId?, addTagId?, removeTagId?, assignUserId?, priority?, dueDays?, archive? } }`. Events: `card_created`, `card_moved`, `tag_added` (`eventTagId` narrows it), `assigned` (`eventUserId`), `due_set`, `checklist_completed`, `commented`. All given conditions must hold; at least one action (`400`). Rules run when the triggering change is saved, without an actor; their own changes trigger no rules. Listed as `rules` on the board |
+| PATCH / DELETE | `/api/board-rules/:id` | Replace a rule (same body; omitted conditions/actions are cleared) or only `{ active }` / delete it |
 | POST | `/api/cards/:id/scheduled-actions` | Schedule a one-shot action for `runOn` (YYYY-MM-DD; run by the hourly automations task, then deleted; editors): `{ kind: 'move', runOn, targetColumnId }`, `{ kind: 'archive', runOn }`, `{ kind: 'priority', runOn, priority }` or `{ kind: 'remind', runOn, note? }` (notifies assignees and watchers, note up to 500 characters). Listed as `scheduledActions` on the board |
 | DELETE | `/api/scheduled-actions/:id` | Delete a scheduled action |
 | POST | `/api/cards/:id/reminders` | Personal reminder for you only (anyone who can see the card, viewers too): `{ at, note? }` (ISO time with offset) or `{ beforeDueDays, time, timeZone, note? }` (0-365 days before the due date, `HH:MM` in an IANA zone; waits while the card has no due date, follows due date changes). A time that has passed is refused (400). Sent within a minute as a notification; listed as `reminders` by `GET /api/cards/:id` |
@@ -116,7 +118,7 @@ same permissions, validation and scope rules apply, and changes show up live on 
 - **Write tools** (listed only for read and write tokens): `create_card`, `update_card`, `move_card`,
   `bulk_update_cards`, `add_comment`, `add_checklist_item`, `update_checklist_item`; board structure:
   `create_column`, `update_column` (title, colour, WIP limit, order), `create_tag`, `update_tag`, `create_column_tag`,
-  `update_column_tag` (name, colour, columns), `create_automation` (board, column or card), `update_automation`, `schedule_card_action`, `set_board_accent`. There are
+  `update_column_tag` (name, colour, columns), `create_automation` (board, column or card), `update_automation`, `create_rule`, `update_rule`, `schedule_card_action`, `set_board_accent`. There are
   no delete tools for these.
 - API errors come back as tool results with `isError` and the status, e.g. `404 Board not found`.
 

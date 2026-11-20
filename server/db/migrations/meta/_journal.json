@@ -666,6 +666,20 @@
       "when": 1795030145602,
       "tag": "0094_card_snooze_rls",
       "breakpoints": true
+    },
+    {
+      "idx": 95,
+      "version": "7",
+      "when": 1795189616255,
+      "tag": "0095_board_rules",
+      "breakpoints": true
+    },
+    {
+      "idx": 96,
+      "version": "7",
+      "when": 1795189623333,
+      "tag": "0096_board_rules_rls",
+      "breakpoints": true
     }
   ]
 }

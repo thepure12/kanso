@@ -1,7 +1,7 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js'
 import { z } from 'zod'
-import { boardAutomationKinds, priorities, scheduledCardActionKinds, type BoardDetail, type CardDetail } from '#shared/types/board'
+import { boardAutomationKinds, boardRuleEvents, priorities, scheduledCardActionKinds, type BoardDetail, type CardDetail } from '#shared/types/board'
 import { boardAccents } from '#shared/boardAccents'
 import { CARD_TITLE_MAX } from '#shared/cards'
 
@@ -258,6 +258,41 @@ export function createMcpServer(caller: McpCaller): McpServer {
     inputSchema: { automationId: id, days: z.number().int().min(0).max(365).optional(), active: z.boolean().optional() },
     annotations: write,
   }, ({ automationId, ...body }) => run(() => call(`/api/automations/${automationId}`, { method: 'PATCH', body })))
+
+  const ruleShape = {
+    event: z.enum(boardRuleEvents).describe('What triggers the rule'),
+    eventTagId: id.nullable().optional().describe('tag_added only: just this tag (default any)'),
+    eventUserId: id.nullable().optional().describe('assigned only: just this person (default anyone)'),
+    conditions: z.object({
+      tagId: id.nullable().optional().describe('The card has this tag'),
+      priority: z.enum(priorities).nullable().optional(),
+      columnId: id.nullable().optional().describe('The card is in this column'),
+      assigneeId: id.nullable().optional().describe('This person is assigned'),
+    }).optional().describe('All given conditions must hold'),
+    actions: z.object({
+      moveColumnId: id.nullable().optional().describe('Move to the end of this column (column rules run)'),
+      addTagId: id.nullable().optional(),
+      removeTagId: id.nullable().optional(),
+      assignUserId: id.nullable().optional().describe('A board member'),
+      priority: z.enum(priorities).nullable().optional(),
+      dueDays: z.number().int().min(0).max(365).nullable().optional().describe('Due date = today + dueDays'),
+      archive: z.boolean().optional(),
+    }).describe('At least one'),
+  }
+  const ruleHelp = 'Events: card_created, card_moved, tag_added, assigned, due_set, checklist_completed (every item done), commented. '
+    + 'Rules run when the triggering change is saved, without an actor; their own changes trigger no rules.'
+
+  server.registerTool('create_rule', {
+    description: 'Add an event-triggered rule: when <event> and <conditions>, do <actions>. ' + ruleHelp,
+    inputSchema: { boardId: id, ...ruleShape },
+    annotations: write,
+  }, ({ boardId, ...body }) => run(() => call(`/api/boards/${boardId}/rules`, { method: 'POST', body })))
+
+  server.registerTool('update_rule', {
+    description: 'Replace a rule\'s event, conditions and actions (omitted ones are cleared), or only turn it on or off (pass just active). ' + ruleHelp,
+    inputSchema: { ruleId: id, active: z.boolean().optional(), ...ruleShape, event: ruleShape.event.optional(), actions: ruleShape.actions.optional() },
+    annotations: write,
+  }, ({ ruleId, ...body }) => run(() => call(`/api/board-rules/${ruleId}`, { method: 'PATCH', body })))
 
   server.registerTool('schedule_card_action', {
     description: 'Schedule a one-shot action on a card for a date (runs with the hourly automations, then disappears). '

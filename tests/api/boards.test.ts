@@ -5,7 +5,7 @@ import { readFileSync } from 'node:fs'
 import { url } from '@nuxt/test-utils/e2e'
 import postgres from 'postgres'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import type { Attachment, BoardActivityPage, BoardAutomation, BoardDetail, BoardField, BoardSummary, Card, CardDetail, CardLink, CardRecurrence, CardReminder, Column, ColumnGroup, ColumnRule, SavedView, ScheduledCardAction, SnoozedCard, Comment, Person, TeamDetail, TimeEntry, TrashedCard } from '#shared/types/board'
+import type { Attachment, BoardActivityPage, BoardAutomation, BoardDetail, BoardRule, BoardField, BoardSummary, Card, CardDetail, CardLink, CardRecurrence, CardReminder, Column, ColumnGroup, ColumnRule, SavedView, ScheduledCardAction, SnoozedCard, Comment, Person, TeamDetail, TimeEntry, TrashedCard } from '#shared/types/board'
 import type { Inbox } from '#shared/types/notifications'
 import type { AdminUser, AuditLogPage, InstanceSettings } from '#shared/types/admin'
 import type { Account, AccountSession } from '#shared/types/account'
@@ -616,6 +616,43 @@ describe('board automations', () => {
     expect((await alice.req<CardDetail>(`/api/cards/${card.id}`)).data.reminders).toEqual([])
     expect((await alice.req(`/api/reminders/${fixed.id}`, { method: 'DELETE' })).status).toBe(404)
     for (const r of [fixed, relative]) expect((await bob.req(`/api/reminders/${r.id}`, { method: 'DELETE' })).status).toBe(200)
+  })
+})
+
+describe('board rules', () => {
+  it('editors add, change and delete them; a matching change runs them when saved', async () => {
+    const story = board.tags.find(t => t.name === 'story')!.id
+    const post = (who: typeof alice, body: unknown) => who.req<BoardRule>(`/api/boards/${board.id}/rules`, { method: 'POST', body })
+    expect((await post(bob, { event: 'card_created', actions: {} })).status).toBe(400)
+    expect((await post(bob, { event: 'card_created', eventTagId: story, actions: { archive: true } })).status).toBe(400)
+    expect((await post(outsider, { event: 'card_created', actions: { archive: true } })).status).toBe(403)
+    const { status, data: rule } = await post(bob, {
+      event: 'tag_added', eventTagId: story,
+      conditions: { columnId: col('Backlog').id },
+      actions: { moveColumnId: col('Review').id, priority: 'high' },
+    })
+    expect(status).toBe(200)
+    expect(rule).toMatchObject({
+      event: 'tag_added', eventTagId: story, eventUserId: null, active: true,
+      conditions: { tagId: null, priority: null, columnId: col('Backlog').id, assigneeId: null },
+      actions: { moveColumnId: col('Review').id, priority: 'high', addTagId: null, dueDays: null, archive: false },
+    })
+
+    const card = await newCard('Rule target')
+    expect((await bob.req(`/api/cards/${card.id}`, { method: 'PATCH', body: { tagIds: [story] } })).status).toBe(200)
+    let { data } = await alice.req<BoardDetail>(`/api/boards/${board.id}`)
+    expect(data.rules.map(r => r.id)).toEqual([rule.id])
+    expect(data.cards.find(c => c.id === card.id)).toMatchObject({ columnId: col('Review').id, priority: 'high' })
+
+    const paused = await bob.req<BoardRule>(`/api/board-rules/${rule.id}`, { method: 'PATCH', body: { active: false } })
+    expect(paused.data.active).toBe(false)
+    const changed = await bob.req<BoardRule>(`/api/board-rules/${rule.id}`, { method: 'PATCH', body: { event: 'commented', actions: { archive: true } } })
+    expect(changed.data).toMatchObject({ event: 'commented', eventTagId: null, active: false, conditions: { columnId: null }, actions: { archive: true, moveColumnId: null } })
+    expect((await outsider.req(`/api/board-rules/${rule.id}`, { method: 'PATCH', body: { active: true } })).status).toBe(404)
+    ;({ data } = await alice.req<BoardDetail>(`/api/boards/${board.id}`))
+    expect(data.rules[0]).toMatchObject({ event: 'commented' })
+    expect((await alice.req(`/api/board-rules/${rule.id}`, { method: 'DELETE' })).status).toBe(200)
+    expect((await alice.req(`/api/board-rules/${rule.id}`, { method: 'DELETE' })).status).toBe(404)
   })
 })
 

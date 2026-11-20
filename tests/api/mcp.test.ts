@@ -184,6 +184,11 @@ describe('mcp endpoint', () => {
     expect(badAuto.isError).toBe(true)
     expect(badAuto.text).toMatch(/^400/)
 
+    const rule = (await tool(writeToken, 'create_rule', { boardId: board.id, event: 'tag_added', eventTagId: tag.id, actions: { priority: 'high' } })).json()
+    expect(rule).toMatchObject({ event: 'tag_added', eventTagId: tag.id, actions: { priority: 'high' }, active: true })
+    expect((await tool(writeToken, 'update_rule', { ruleId: rule.id, active: false })).json().active).toBe(false)
+    expect((await tool(writeToken, 'create_rule', { boardId: board.id, event: 'commented', actions: {} })).text).toMatch(/^400/)
+
     expect((await tool(writeToken, 'set_board_accent', { boardId: board.id, accent: 'teal' })).isError).toBe(false)
 
     const card = (await tool(writeToken, 'create_card', { boardId: board.id, columnId: col.id, title: 'Scheduled' })).json()

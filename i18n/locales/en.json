@@ -633,7 +633,8 @@
         "share": "Copy and export",
         "display": "Display",
         "manage": "Manage board"
-      }
+      },
+      "rules": "Rules"
     },
     "undo": {
       "action": "Undo",
@@ -711,7 +712,10 @@
       "updateAutomation": "Could not change automation",
       "deleteAutomation": "Could not delete automation",
       "addScheduledAction": "Could not schedule the action",
-      "deleteScheduledAction": "Could not delete the scheduled action"
+      "deleteScheduledAction": "Could not delete the scheduled action",
+      "addBoardRule": "Could not add rule",
+      "updateBoardRule": "Could not change rule",
+      "deleteBoardRule": "Could not delete rule"
     },
     "bulk": {
       "toolbar": "Bulk actions",
@@ -1773,6 +1777,76 @@
       "notePlaceholder": "Optional, sent with the reminder",
       "add": "Schedule",
       "delete": "Delete scheduled action"
+    }
+  },
+  "boardRules": {
+    "title": "Rules",
+    "description": "When something happens to a card, check conditions and act. Rules run as the change is saved; their own changes do not trigger rules.",
+    "empty": "No rules yet.",
+    "readOnly": "Only editors can change rules.",
+    "active": "Active",
+    "edit": "Edit rule",
+    "delete": "Delete rule",
+    "addTitle": "New rule",
+    "editTitle": "Edit rule",
+    "whenLabel": "When",
+    "ifLabel": "If (all must match)",
+    "thenLabel": "Then",
+    "event": "Event",
+    "eventTag": "Card tag",
+    "eventUser": "Person",
+    "condTag": "Card has card tag",
+    "condPriority": "Priority is",
+    "condColumn": "Card is in column",
+    "condAssignee": "Assigned to",
+    "moveColumn": "Move to column",
+    "setPriority": "Set priority",
+    "addTag": "Add card tag",
+    "removeTag": "Remove card tag",
+    "assignUser": "Assign",
+    "dueDays": "Set due date (days from today)",
+    "setDue": "Set due date",
+    "archive": "Archive the card",
+    "any": "Any",
+    "none": "—",
+    "and": " and ",
+    "needAction": "Choose at least one action.",
+    "events": {
+      "card_created": "Card created",
+      "card_moved": "Card moved",
+      "tag_added": "Card tag added",
+      "assigned": "Person assigned",
+      "due_set": "Due date set",
+      "checklist_completed": "Checklist completed",
+      "commented": "Comment added"
+    },
+    "when": {
+      "card_created": "When a card is created",
+      "card_moved": "When a card is moved",
+      "tag_added": "When a card tag is added",
+      "tag_added_tag": "When the card tag “{tag}” is added",
+      "assigned": "When someone is assigned",
+      "assigned_user": "When {name} is assigned",
+      "due_set": "When a due date is set",
+      "checklist_completed": "When the checklist is completed",
+      "commented": "When someone comments"
+    },
+    "if": {
+      "prefix": "if {conditions}",
+      "tag": "it has the card tag “{tag}”",
+      "priority": "its priority is {priority}",
+      "column": "it is in “{column}”",
+      "assignee": "{name} is assigned"
+    },
+    "do": {
+      "prefix": "then {actions}",
+      "move": "move it to “{column}”",
+      "addTag": "add “{tag}”",
+      "removeTag": "remove “{tag}”",
+      "assign": "assign {name}",
+      "priority": "set priority to {priority}",
+      "due": "set the due date to today | set the due date to tomorrow | set the due date to {n} days from today",
+      "archive": "archive it"
     }
   },
   "reminders": {

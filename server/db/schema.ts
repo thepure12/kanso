@@ -41,6 +41,7 @@ export const recurrenceRule = pgEnum('recurrence_rule', ['daily', 'weekly', 'mon
 export const boardNotificationLevel = pgEnum('board_notification_level', ['direct', 'none'])
 
 export const boardAutomationKind = pgEnum('board_automation_kind', ['archive_done', 'tag_stale', 'notify_stale', 'raise_priority', 'move_card'])
+export const boardRuleEvent = pgEnum('board_rule_event', ['card_created', 'card_moved', 'tag_added', 'assigned', 'due_set', 'checklist_completed', 'commented'])
 // One-shot action on a card on a date (card_scheduled_actions).
 export const cardActionKind = pgEnum('card_action_kind', ['move', 'archive', 'priority', 'remind'])
 
@@ -471,6 +472,63 @@ export const boardAutomations = pgTable('board_automations', {
     else false
   end`),
 ])
+
+// Event-triggered rules of a board: "when <event> and <conditions>, do <actions>".
+// See 0096_board_rules_rls.sql. Triggers on cards, card_tags, card_assignees,
+// checklist_items and card_comments queue the event; the rules run when the
+// transaction commits, in automation mode (no actor), and changes they make do
+// not trigger rules again.
+// event_tag_id (tag_added only) and event_user_id (assigned only) narrow the event.
+// cond_*: all given conditions must hold for the card at commit time.
+// Actions (at least one): move to the end of move_column_id, add/remove a tag,
+// assign a user (board members only), set the priority, set the due date to today
+// + set_due_days, archive. Every referenced tag, column and user belongs to the
+// board (composite FKs); deleting one deletes the rule.
+export const boardRules = pgTable('board_rules', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  boardId: uuid('board_id').notNull().references(() => boards.id, { onDelete: 'cascade' }),
+  event: boardRuleEvent('event').notNull(),
+  eventTagId: uuid('event_tag_id'),
+  eventUserId: uuid('event_user_id').references(() => users.id, { onDelete: 'cascade' }),
+  condTagId: uuid('cond_tag_id'),
+  condPriority: cardPriority('cond_priority'),
+  condColumnId: uuid('cond_column_id'),
+  condAssigneeId: uuid('cond_assignee_id').references(() => users.id, { onDelete: 'cascade' }),
+  moveColumnId: uuid('move_column_id'),
+  addTagId: uuid('add_tag_id'),
+  removeTagId: uuid('remove_tag_id'),
+  assignUserId: uuid('assign_user_id').references(() => users.id, { onDelete: 'cascade' }),
+  setPriority: cardPriority('set_priority'),
+  setDueDays: integer('set_due_days'),
+  archive: boolean('archive').notNull().default(false),
+  active: boolean('active').notNull().default(true),
+  createdBy: uuid('created_by').references(() => users.id, { onDelete: 'set null' }),
+  createdAt: createdAt(),
+}, t => [
+  index('board_rules_board_idx').on(t.boardId),
+  foreignKey({ columns: [t.eventTagId, t.boardId], foreignColumns: [tags.id, tags.boardId], name: 'board_rules_event_tag_fk' }).onDelete('cascade'),
+  foreignKey({ columns: [t.condTagId, t.boardId], foreignColumns: [tags.id, tags.boardId], name: 'board_rules_cond_tag_fk' }).onDelete('cascade'),
+  foreignKey({ columns: [t.condColumnId, t.boardId], foreignColumns: [columns.id, columns.boardId], name: 'board_rules_cond_column_fk' }).onDelete('cascade'),
+  foreignKey({ columns: [t.moveColumnId, t.boardId], foreignColumns: [columns.id, columns.boardId], name: 'board_rules_move_column_fk' }).onDelete('cascade'),
+  foreignKey({ columns: [t.addTagId, t.boardId], foreignColumns: [tags.id, tags.boardId], name: 'board_rules_add_tag_fk' }).onDelete('cascade'),
+  foreignKey({ columns: [t.removeTagId, t.boardId], foreignColumns: [tags.id, tags.boardId], name: 'board_rules_remove_tag_fk' }).onDelete('cascade'),
+  check('board_rules_event_fields', sql`(${t.eventTagId} is null or ${t.event}::text = 'tag_added') and (${t.eventUserId} is null or ${t.event}::text = 'assigned')`),
+  check('board_rules_has_action', sql`${t.moveColumnId} is not null or ${t.addTagId} is not null or ${t.removeTagId} is not null
+    or ${t.assignUserId} is not null or ${t.setPriority} is not null or ${t.setDueDays} is not null or ${t.archive}`),
+  check('board_rules_due_days', sql`${t.setDueDays} between 0 and 365`),
+  check('board_rules_tags_differ', sql`${t.addTagId} is distinct from ${t.removeTagId} or ${t.addTagId} is null`),
+])
+
+// Queue of rule events (no grants): written by the event triggers, read and
+// deleted at commit by the deferred trigger that runs the rules.
+export const boardRuleEvents = pgTable('board_rule_events', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  cardId: uuid('card_id').notNull(),
+  boardId: uuid('board_id').notNull(),
+  event: boardRuleEvent('event').notNull(),
+  tagId: uuid('tag_id'),
+  userId: uuid('user_id'),
+})
 
 // One-shot actions on a card, run on run_on by app.run_scheduled_card_actions()
 // (cards:automations task) and then deleted. move: to the end of target_column_id;

@@ -68,6 +68,7 @@ export function boardForAgent(board: BoardDetail) {
     tags: board.tags.map(t => ({ id: t.id, name: t.name, color: t.color })),
     columnTags: board.columnGroups.map(g => ({ id: g.id, name: g.name, color: g.color, columnIds: g.columnIds })),
     automations: board.automations,
+    rules: board.rules,
     scheduledActions: board.scheduledActions,
     members: board.members.map(m => ({ userId: m.userId, name: m.name, email: m.email, role: m.role })),
     fields: board.fields.map(f => ({ id: f.id, name: f.name, kind: f.kind, options: f.kind === 'select' ? f.options.map(o => o.label) : undefined })),

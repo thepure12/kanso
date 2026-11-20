@@ -633,7 +633,8 @@
         "share": "Kopieren und exportieren",
         "display": "Anzeige",
         "manage": "Board verwalten"
-      }
+      },
+      "rules": "Regeln"
     },
     "undo": {
       "action": "Rückgängig",
@@ -711,7 +712,10 @@
       "updateAutomation": "Automatisierung konnte nicht geändert werden",
       "deleteAutomation": "Automatisierung konnte nicht gelöscht werden",
       "addScheduledAction": "Aktion konnte nicht geplant werden",
-      "deleteScheduledAction": "Geplante Aktion konnte nicht gelöscht werden"
+      "deleteScheduledAction": "Geplante Aktion konnte nicht gelöscht werden",
+      "addBoardRule": "Regel konnte nicht hinzugefügt werden",
+      "updateBoardRule": "Regel konnte nicht geändert werden",
+      "deleteBoardRule": "Regel konnte nicht gelöscht werden"
     },
     "bulk": {
       "toolbar": "Sammelaktionen",
@@ -1773,6 +1777,76 @@
       "notePlaceholder": "Optional, wird mit der Erinnerung gesendet",
       "add": "Planen",
       "delete": "Geplante Aktion löschen"
+    }
+  },
+  "boardRules": {
+    "title": "Regeln",
+    "description": "Wenn etwas mit einer Karte passiert, Bedingungen prüfen und handeln. Regeln laufen beim Speichern der Änderung; ihre eigenen Änderungen lösen keine Regeln aus.",
+    "empty": "Noch keine Regeln.",
+    "readOnly": "Nur Bearbeiter können Regeln ändern.",
+    "active": "Aktiv",
+    "edit": "Regel bearbeiten",
+    "delete": "Regel löschen",
+    "addTitle": "Neue Regel",
+    "editTitle": "Regel bearbeiten",
+    "whenLabel": "Wenn",
+    "ifLabel": "Falls (alle müssen zutreffen)",
+    "thenLabel": "Dann",
+    "event": "Ereignis",
+    "eventTag": "Karten-Tag",
+    "eventUser": "Person",
+    "condTag": "Karte hat Karten-Tag",
+    "condPriority": "Priorität ist",
+    "condColumn": "Karte ist in Spalte",
+    "condAssignee": "Zugewiesen an",
+    "moveColumn": "In Spalte verschieben",
+    "setPriority": "Priorität setzen",
+    "addTag": "Karten-Tag hinzufügen",
+    "removeTag": "Karten-Tag entfernen",
+    "assignUser": "Zuweisen",
+    "dueDays": "Fälligkeit setzen (Tage ab heute)",
+    "setDue": "Fälligkeit setzen",
+    "archive": "Karte archivieren",
+    "any": "Beliebig",
+    "none": "—",
+    "and": " und ",
+    "needAction": "Wähle mindestens eine Aktion.",
+    "events": {
+      "card_created": "Karte erstellt",
+      "card_moved": "Karte verschoben",
+      "tag_added": "Karten-Tag hinzugefügt",
+      "assigned": "Person zugewiesen",
+      "due_set": "Fälligkeit gesetzt",
+      "checklist_completed": "Checkliste erledigt",
+      "commented": "Kommentar hinzugefügt"
+    },
+    "when": {
+      "card_created": "Wenn eine Karte erstellt wird",
+      "card_moved": "Wenn eine Karte verschoben wird",
+      "tag_added": "Wenn ein Karten-Tag hinzugefügt wird",
+      "tag_added_tag": "Wenn der Karten-Tag „{tag}“ hinzugefügt wird",
+      "assigned": "Wenn jemand zugewiesen wird",
+      "assigned_user": "Wenn {name} zugewiesen wird",
+      "due_set": "Wenn eine Fälligkeit gesetzt wird",
+      "checklist_completed": "Wenn die Checkliste erledigt ist",
+      "commented": "Wenn jemand kommentiert"
+    },
+    "if": {
+      "prefix": "falls {conditions}",
+      "tag": "sie den Karten-Tag „{tag}“ hat",
+      "priority": "ihre Priorität {priority} ist",
+      "column": "sie in „{column}“ ist",
+      "assignee": "{name} zugewiesen ist"
+    },
+    "do": {
+      "prefix": "dann {actions}",
+      "move": "nach „{column}“ verschieben",
+      "addTag": "„{tag}“ hinzufügen",
+      "removeTag": "„{tag}“ entfernen",
+      "assign": "{name} zuweisen",
+      "priority": "Priorität auf {priority} setzen",
+      "due": "Fälligkeit auf heute setzen | Fälligkeit auf morgen setzen | Fälligkeit auf in {n} Tagen setzen",
+      "archive": "archivieren"
     }
   },
   "reminders": {

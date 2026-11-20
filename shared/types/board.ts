@@ -136,6 +136,56 @@ export type ScheduledCardActionKind = NewScheduledCardAction['kind']
 export const scheduledCardActionKinds = ['move', 'archive', 'priority', 'remind'] as const satisfies readonly ScheduledCardActionKind[]
 export type ScheduledCardAction = NewScheduledCardAction & { id: string, cardId: string }
 
+/** Events a board rule reacts to (board_rule_event). */
+export const boardRuleEvents = ['card_created', 'card_moved', 'tag_added', 'assigned', 'due_set', 'checklist_completed', 'commented'] as const
+export type BoardRuleEvent = (typeof boardRuleEvents)[number]
+
+/** All given (non-null) conditions must hold for the card when the rule runs. */
+export interface BoardRuleConditions {
+  /** The card carries this tag. */
+  tagId: string | null
+  priority: Priority | null
+  /** The card is in this column. */
+  columnId: string | null
+  /** This person is among the card's assignees. */
+  assigneeId: string | null
+}
+
+/** What a rule does; at least one action. Applied in this order. */
+export interface BoardRuleActions {
+  /** Moves the card to the end of this column (column rules run). */
+  moveColumnId: string | null
+  addTagId: string | null
+  removeTagId: string | null
+  /** Adds this board member to the assignees. */
+  assignUserId: string | null
+  priority: Priority | null
+  /** Sets the due date to today + dueDays (0-365). */
+  dueDays: number | null
+  archive: boolean
+}
+
+/**
+ * Event-triggered rule: "when <event> (optionally a given tag added / person
+ * assigned) and <conditions>, do <actions>". Rules run when the change is saved,
+ * with no actor (`automation: true` in the activity); their own changes do not
+ * trigger rules. Deleting a tag, column or person a rule names deletes the rule.
+ */
+export interface NewBoardRule {
+  event: BoardRuleEvent
+  /** tag_added only: just this tag (null = any). */
+  eventTagId: string | null
+  /** assigned only: just this person (null = anyone). */
+  eventUserId: string | null
+  conditions: BoardRuleConditions
+  actions: BoardRuleActions
+}
+
+export interface BoardRule extends NewBoardRule {
+  id: string
+  active: boolean
+}
+
 export type BoardAutomationKind = NewBoardAutomation['kind']
 export const boardAutomationKinds = ['archive_done', 'tag_stale', 'notify_stale', 'raise_priority', 'move_card'] as const satisfies readonly BoardAutomationKind[]
 
@@ -463,6 +513,8 @@ export interface BoardDetail {
   recurrences: CardRecurrence[]
   /** Time-based automations in creation order. */
   automations: BoardAutomation[]
+  /** Event-triggered rules in creation order (none for members with limited access). */
+  rules: BoardRule[]
   /** Scheduled card actions, soonest first. */
   scheduledActions: ScheduledCardAction[]
   tags: Tag[]

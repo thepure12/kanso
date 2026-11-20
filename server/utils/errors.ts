@@ -28,6 +28,7 @@ export function toHttpError(err: unknown): never {
       if (pgConstraint(err) === 'board_automations_scope') throw createError({ statusCode: 400, statusMessage: 'Invalid automation' })
       if (pgConstraint(err) === 'card_scheduled_actions_kind_fields') throw createError({ statusCode: 400, statusMessage: 'Invalid scheduled action' })
       if (pgConstraint(err) === 'board_automations_kind_fields') throw createError({ statusCode: 400, statusMessage: 'Invalid automation' })
+      if (pgConstraint(err)?.startsWith('board_rules_')) throw createError({ statusCode: 400, statusMessage: 'Invalid rule' })
       if (pgConstraint(err) === 'card_links_not_self') throw createError({ statusCode: 400, statusMessage: 'A card cannot link to itself' })
       throw createError({ statusCode: 409, statusMessage: 'There must be at least one owner left' })
     case '23505':
