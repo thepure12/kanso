@@ -23,6 +23,14 @@ registerEndpoint('/api/boards/b1/bots', {
     return { ...claude, name: body.name, role: body.role }
   },
 })
+registerEndpoint('/api/teams/t1/bots', {
+  method: 'POST',
+  handler: async (event) => {
+    const body = await readBody(event)
+    posted.push({ team: body })
+    return { ...claude, id: 'bot2', name: body.name, role: body.role }
+  },
+})
 const token: BotToken = { id: 't1', name: 'ci', prefix: 'kb_Ab12Cd', scopes: ['read', 'write'], createdAt: '2026-11-20T10:00:00Z', lastUsedAt: null, expiresAt: null, revokedAt: null }
 registerEndpoint('/api/bots/bot1/tokens', {
   method: 'POST',
@@ -81,5 +89,18 @@ describe('BotsSlideover', () => {
     const w = await mountSuspended(BotsSlideover, { props: { open: true, boardId: 'b1', bots: [claude], canLimit: false }, global: { stubs } })
     expect(w.find('button[aria-label="Limit access"]').exists()).toBe(false)
     expect(w.text()).not.toContain('Limited')
+  })
+
+  it('in team mode adds bots to the team and explains the team scope', async () => {
+    posted.length = 0
+    const w = await mountSuspended(BotsSlideover, { props: { open: true, teamId: 't1', bots: [] }, global: { stubs } })
+    await w.find('[data-testid="add-bot"] input').setValue('Team agent')
+    await w.find('[data-testid="add-bot"]').trigger('submit')
+    await flushPromises()
+    expect(posted[0]).toEqual({ team: { name: 'Team agent', role: 'editor' } })
+    await vi.waitFor(() => expect(w.findAll('[data-testid="bot"]')).toHaveLength(1))
+
+    await w.findAll('button').find(b => b.text() === 'New token')!.trigger('click')
+    expect(w.text()).toContain("Changes this team's boards as the bot")
   })
 })

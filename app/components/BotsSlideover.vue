@@ -3,10 +3,11 @@ import { AvatarCropModal } from '#components'
 import type { BoardBot, BotRole, BotToken } from '#shared/types/bots'
 
 // Board owners manage the board's bots and their API tokens (Bots 2/4 routes,
-// cookie only). The list starts from BoardDetail.bots and follows its reloads;
-// `changed` asks the page to reload the board (bots are members too); `limit`
-// asks it to open MemberAccessModal for a bot, as for any other member.
-const props = defineProps<{ boardId: string, bots: BoardBot[], limitedIds?: string[], canLimit?: boolean }>()
+// cookie only); with `teamId` instead, team owners manage the team's bots
+// (team page). The list starts from BoardDetail.bots / TeamDetail.bots and
+// follows its reloads; `changed` asks the page to reload (bots are members too);
+// `limit` asks it to open MemberAccessModal for a bot, as for any other member.
+const props = defineProps<{ boardId?: string, teamId?: string, bots: BoardBot[], limitedIds?: string[], canLimit?: boolean }>()
 const emit = defineEmits<{ changed: [], limit: [botId: string] }>()
 const open = defineModel<boolean>('open', { required: true })
 
@@ -14,6 +15,9 @@ const showError = useApiError()
 const { t, locale } = useI18n()
 const confirm = useConfirm()
 const ask = usePrompt()
+
+const team = computed(() => !!props.teamId)
+const addUrl = computed(() => props.teamId ? `/api/teams/${props.teamId}/bots` : `/api/boards/${props.boardId}/bots`)
 
 const list = ref<BoardBot[]>([...props.bots])
 watch(() => props.bots, (bots) => { list.value = [...bots] })
@@ -38,7 +42,7 @@ async function add() {
   if (!name.value.trim()) return
   adding.value = true
   try {
-    const bot = await api<BoardBot>(`/api/boards/${props.boardId}/bots`, { method: 'POST', body: { name: name.value.trim(), role: role.value } })
+    const bot = await api<BoardBot>(addUrl.value, { method: 'POST', body: { name: name.value.trim(), role: role.value } })
     list.value = [...list.value, bot].sort((a, b) => a.name.localeCompare(b.name, locale.value))
     name.value = ''
     emit('changed')
@@ -131,8 +135,8 @@ const creating = ref(false)
 const created = ref<string | null>(null)
 
 const accessItems = computed(() => [
-  { label: t('tokens.readOnly'), value: 'read', description: t('bots.readOnlyDescription') },
-  { label: t('tokens.readWrite'), value: 'write', description: t('bots.readWriteDescription') },
+  { label: t('tokens.readOnly'), value: 'read', description: t(team.value ? 'bots.team.readOnlyDescription' : 'bots.readOnlyDescription') },
+  { label: t('tokens.readWrite'), value: 'write', description: t(team.value ? 'bots.team.readWriteDescription' : 'bots.readWriteDescription') },
 ])
 const expiryItems = computed(() => [
   { label: t('tokens.days30'), value: '30' },
@@ -183,7 +187,7 @@ async function revoke(bot: BoardBot, token: BotToken) {
 </script>
 
 <template>
-  <USlideover v-model:open="open" :title="t('bots.title')" :description="t('bots.description')">
+  <USlideover v-model:open="open" :title="t('bots.title')" :description="t(team ? 'bots.team.description' : 'bots.description')">
     <template #body>
       <form class="flex flex-col gap-2 mb-6" data-testid="add-bot" @submit.prevent="add">
         <UInput v-model="name" :placeholder="t('bots.namePlaceholder')" :aria-label="t('common.name')" icon="i-lucide-bot" maxlength="100" class="w-full" />
@@ -269,7 +273,7 @@ async function revoke(bot: BoardBot, token: BotToken) {
 
       <UModal v-model:open="tokenOpen" :title="created ? t('tokens.copyTitle') : t('bots.newTokenTitle', { name: tokenBot?.name ?? '' })">
         <template #body>
-          <TokenCreatedPanel v-if="created" :token="created" :warning="t('bots.onlyOnceDescription', { name: tokenBot?.name ?? '' })" />
+          <TokenCreatedPanel v-if="created" :token="created" :warning="t(team ? 'bots.team.onlyOnceDescription' : 'bots.onlyOnceDescription', { name: tokenBot?.name ?? '' })" />
           <form v-else id="new-bot-token" class="space-y-4" @submit.prevent="createToken">
             <UFormField :label="t('common.name')" :description="t('tokens.nameHelp')">
               <UInput v-model="tokenName" class="w-full" maxlength="100" required autofocus />

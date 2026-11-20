@@ -736,6 +736,20 @@
       "when": 1795199422111,
       "tag": "0104_bot_avatars_rls",
       "breakpoints": true
+    },
+    {
+      "idx": 105,
+      "version": "7",
+      "when": 1795200582814,
+      "tag": "0105_team_bots",
+      "breakpoints": true
+    },
+    {
+      "idx": 106,
+      "version": "7",
+      "when": 1795200587436,
+      "tag": "0106_team_bots_rls",
+      "breakpoints": true
     }
   ]
 }

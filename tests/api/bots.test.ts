@@ -6,7 +6,7 @@ import { url } from '@nuxt/test-utils/e2e'
 import postgres from 'postgres'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import type { ApiToken, Me } from '#shared/types/account'
-import type { BoardDetail, Card } from '#shared/types/board'
+import type { BoardDetail, Card, TeamDetail } from '#shared/types/board'
 import type { BoardBot, BotToken } from '#shared/types/bots'
 import type { InstanceSettings } from '#shared/types/admin'
 import { signEmailToken } from '../../server/utils/emailToken'
@@ -254,5 +254,78 @@ describe('board bots', () => {
     expect((await as(token)(`/api/boards/${board.id}`)).status).toBe(200)
     expect((await alice.req(`/api/bots/${bot.id}`, { method: 'DELETE' })).status).toBe(200)
     expect((await as(token)(`/api/boards/${board.id}`)).status).toBe(401)
+  })
+})
+
+// Team bots (0106_team_bots_rls.sql): team owners manage them on the team
+// page; their tokens reach every board of the team (later ones too) and
+// nothing else.
+describe('team bots', () => {
+  let teamId: string
+  let teamBoard: BoardDetail
+
+  beforeAll(async () => {
+    teamId = (await alice.req<{ id: string }>('/api/teams', { method: 'POST', body: { name: 'Bot team' } })).data.id
+    expect((await alice.req(`/api/teams/${teamId}/members`, { method: 'POST', body: { email: bob.email, role: 'editor' } })).status).toBe(200)
+    const b = await alice.req<{ id: string }>('/api/boards', { method: 'POST', body: { name: 'Team board', template: 'basic', teamId } })
+    teamBoard = (await alice.req<BoardDetail>(`/api/boards/${b.data.id}`)).data
+  })
+
+  afterAll(async () => {
+    if (teamId) await alice?.req(`/api/teams/${teamId}`, { method: 'DELETE' })
+  })
+
+  it('team owners add, rename, re-role and delete team bots; members see them without tokens', async () => {
+    const res = await alice.req<BoardBot>(`/api/teams/${teamId}/bots`, { method: 'POST', body: { name: 'Team agent', role: 'commenter' } })
+    expect(res.status).toBe(200)
+    const bot = res.data
+    expect(bot).toMatchObject({ name: 'Team agent', role: 'commenter', tokens: [] })
+
+    const team = (await alice.req<TeamDetail>(`/api/teams/${teamId}`)).data
+    expect(team.members.find(m => m.userId === bot.id)).toMatchObject({ isBot: true, role: 'commenter' })
+    expect(team.bots).toEqual([bot])
+    // On the team's boards it is a member through the team; not a board bot.
+    const detail = (await alice.req<BoardDetail>(`/api/boards/${teamBoard.id}`)).data
+    expect(detail.members.find(m => m.userId === bot.id)).toMatchObject({ isBot: true, role: 'commenter', boardRole: null, teamRole: 'commenter' })
+    expect(detail.bots).toEqual([])
+
+    expect((await bob.req<TeamDetail>(`/api/teams/${teamId}`)).data.bots.map(b => b.tokens)).toEqual([null])
+    expect((await bob.req(`/api/teams/${teamId}/bots`, { method: 'POST', body: { name: 'Mine' } })).status).toBe(403)
+    expect((await bob.req(`/api/bots/${bot.id}`, { method: 'PATCH', body: { name: 'Mine' } })).status).toBe(403)
+    expect((await bob.req(`/api/bots/${bot.id}/tokens`, { method: 'POST', body: { name: 'x', scopes: ['read'] } })).status).toBe(403)
+    expect((await carol.req(`/api/teams/${teamId}/bots`)).status).toBe(404)
+    expect((await carol.req(`/api/bots/${bot.id}`, { method: 'DELETE' })).status).toBe(404)
+    expect((await alice.req(`/api/teams/${teamId}/bots`, { method: 'POST', body: { name: 'Boss', role: 'owner' } })).status).toBe(400)
+
+    const changed = await alice.req<BoardBot>(`/api/bots/${bot.id}`, { method: 'PATCH', body: { name: 'Renamed', role: 'editor' } })
+    expect(changed.data).toMatchObject({ id: bot.id, name: 'Renamed', role: 'editor' })
+    // A bot is not removed as a member; it is deleted.
+    expect((await alice.req(`/api/teams/${teamId}/members/${bot.id}`, { method: 'DELETE' })).status).toBe(403)
+    expect((await alice.req(`/api/bots/${bot.id}`, { method: 'DELETE' })).status).toBe(200)
+    expect((await alice.req<BoardBot[]>(`/api/teams/${teamId}/bots`)).data).toEqual([])
+  })
+
+  it('a team bot token acts on the team boards with the team role, later boards too, and nothing else', async () => {
+    const bot = (await alice.req<BoardBot>(`/api/teams/${teamId}/bots`, { method: 'POST', body: { name: 'Team worker' } })).data
+    const created = await alice.req<BotToken & { token: string }>(`/api/bots/${bot.id}/tokens`, { method: 'POST', body: { name: 'ci', scopes: ['read', 'write'] } })
+    expect(created.status).toBe(200)
+    expect((await alice.req<TeamDetail>(`/api/teams/${teamId}`)).data.bots[0]!.tokens!.map(t => t.id)).toEqual([created.data.id])
+    const api = as(created.data.token)
+
+    expect((await api<{ id: string }[]>('/api/boards')).data.map(b => b.id)).toEqual([teamBoard.id])
+    expect((await api<BoardDetail>(`/api/boards/${teamBoard.id}`)).data.role).toBe('editor')
+    expect((await api(`/api/boards/${board.id}`)).status).toBe(404)
+    const card = await api<Card>(`/api/boards/${teamBoard.id}/cards`, { method: 'POST', body: { columnId: teamBoard.columns[0]!.id, title: 'By the team bot' } })
+    expect(card.status).toBe(200)
+    // No new boards or teams, no managing bots.
+    expect((await api('/api/boards', { method: 'POST', body: { name: 'Nope', template: 'basic', teamId } })).status).toBe(403)
+    expect((await api('/api/teams', { method: 'POST', body: { name: 'Nope' } })).status).toBe(403)
+    expect((await api(`/api/teams/${teamId}/bots`)).status).toBe(403)
+
+    const later = await alice.req<{ id: string }>('/api/boards', { method: 'POST', body: { name: 'Later', template: 'basic', teamId } })
+    expect((await api<BoardDetail>(`/api/boards/${later.data.id}`)).status).toBe(200)
+
+    expect((await alice.req(`/api/bots/${bot.id}/tokens/${created.data.id}`, { method: 'DELETE' })).status).toBe(200)
+    expect((await api(`/api/boards/${teamBoard.id}`)).status).toBe(401)
   })
 })

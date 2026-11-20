@@ -43,6 +43,8 @@ export interface MemberAccess {
 
 export interface TeamMember extends Person {
   role: BoardRole
+  /** A team bot (0106_team_bots_rls.sql). */
+  isBot?: boolean
 }
 
 export interface Column {
@@ -573,6 +575,8 @@ export interface TeamSummary {
 /** GET /api/teams/:id: a team with its boards. */
 export interface TeamDetail extends TeamSummary {
   boards: BoardSummary[]
+  /** The team's bots; their `tokens` only for team owners. */
+  bots: BoardBot[]
 }
 
 /** An entry of a board's activity feed: card activity with the card's title. */

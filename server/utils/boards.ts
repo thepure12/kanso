@@ -24,3 +24,9 @@ export async function assertBoardVisible(tx: Tx, id: string): Promise<void> {
   const [row] = await tx.execute(sql`select 1 from boards where id = ${id}`)
   if (!row) notFound('Board not found')
 }
+
+/** 404 unless the caller can see the team (RLS). */
+export async function assertTeamVisible(tx: Tx, id: string): Promise<void> {
+  const [row] = await tx.execute(sql`select 1 from teams where id = ${id}`)
+  if (!row) notFound('Team not found')
+}

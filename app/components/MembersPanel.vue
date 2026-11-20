@@ -9,7 +9,7 @@ export interface PanelMember extends Person {
   role: BoardRole | null
   /** Extra access shown read-only, e.g. "Acme · editor". */
   note?: string
-  /** A board bot: listed apart, managed in BotsSlideover, so no controls here. */
+  /** A board or team bot: listed apart, managed in BotsSlideover, so no controls here. */
   isBot?: boolean
 }
 
@@ -26,6 +26,8 @@ const props = defineProps<{
   limitedIds?: string[]
   /** Whether the member's access can be limited (boards: owners, for non-owners). Shows the button. */
   canLimit?: (m: PanelMember) => boolean
+  /** Where managers find the bots (default: the board menu). */
+  botsHint?: string
 }>()
 const emit = defineEmits<{ changed: [], left: [], limit: [userId: string] }>()
 
@@ -264,7 +266,7 @@ async function revoke(inviteId: string) {
         <li v-for="m in bots" :key="m.userId" class="flex items-center gap-3 py-3">
           <UUser
             :name="m.name"
-            :description="props.canManage ? t('members.botsManaged') : undefined"
+            :description="m.note ?? (props.canManage ? props.botsHint ?? t('members.botsManaged') : undefined)"
             :avatar="personAvatar(m)"
             :ui="{ wrapper: 'min-w-0', name: 'truncate', description: 'truncate' }"
             class="flex-1 min-w-0"

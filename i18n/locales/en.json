@@ -1240,7 +1240,8 @@
     "notSignedUp": "Not signed up yet",
     "revoke": "Revoke invite",
     "bots": "Bots",
-    "botsManaged": "Managed in the board menu under Bots"
+    "botsManaged": "Managed in the board menu under Bots",
+    "botsManagedTeam": "Managed in the team menu under Bots"
   },
   "memberAccess": {
     "button": "Limit access",
@@ -1924,6 +1925,12 @@
     "readWriteDescription": "Changes this board as the bot, within its role",
     "newTokenTitle": "New token for {name}",
     "onlyOnceDescription": "Store it somewhere safe. Anyone with it can use this board as {name}.",
-    "revokeConfirm": "Revoke the token “{name}”?"
+    "revokeConfirm": "Revoke the token “{name}”?",
+    "team": {
+      "description": "Team members for agents and scripts. Each acts on every board of this team, including new ones, through its own API tokens.",
+      "readOnlyDescription": "Looks at this team's boards only",
+      "readWriteDescription": "Changes this team's boards as the bot, within its role",
+      "onlyOnceDescription": "Store it somewhere safe. Anyone with it can use this team's boards as {name}."
+    }
   }
 }

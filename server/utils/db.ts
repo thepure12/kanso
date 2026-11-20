@@ -21,9 +21,10 @@ export interface SessionRef { version: number, id: string | undefined }
 
 /**
  * How a request authenticated: a session, or an API token app.resolve_api_token
- * has already checked, with the boards it is limited to (null = all).
+ * has already checked, with the boards it is limited to (null = all) or the
+ * team whose boards it is limited to (team bot tokens; null = none).
  */
-export type RequestAuth = SessionRef | { tokenId: string, boardIds: string[] | null }
+export type RequestAuth = SessionRef | { tokenId: string, boardIds: string[] | null, teamId: string | null }
 
 /**
  * Runs `fn` in a transaction as `userId`. Connects as the RLS-restricted
@@ -33,15 +34,18 @@ export type RequestAuth = SessionRef | { tokenId: string, boardIds: string[] | n
  * live (app.check_session): the account exists, its session version matches
  * (a password or email change signs out older sessions) and the session row
  * is not revoked. API token requests skip that check (the token was checked
- * when it was resolved) and set app.token_boards, which app.board_role
- * reads to keep a limited token to its boards.
+ * when it was resolved) and set app.token_boards / app.token_team, which
+ * app.board_role reads to keep a limited token to its boards.
  */
 export function withUser<T>(userId: string, fn: (tx: Tx) => Promise<T>, clientId: string, auth: RequestAuth): Promise<T> {
   appDb ??= connect(useRuntimeConfig().databaseUrl)
   return appDb.transaction(async (tx) => {
     await tx.execute(sql`select set_config('app.user_id', ${userId}, true), set_config('app.client_id', ${clientId}, true)`)
     if (!('tokenId' in auth)) await assertSessionLive(tx, auth)
-    else if (auth.boardIds) await tx.execute(sql`select set_config('app.token_boards', ${`{${auth.boardIds.join(',')}}`}, true)`)
+    else {
+      if (auth.boardIds) await tx.execute(sql`select set_config('app.token_boards', ${`{${auth.boardIds.join(',')}}`}, true)`)
+      if (auth.teamId) await tx.execute(sql`select set_config('app.token_team', ${auth.teamId}, true)`)
+    }
     return fn(tx)
   })
 }

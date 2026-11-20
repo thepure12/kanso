@@ -1240,7 +1240,8 @@
     "notSignedUp": "Noch nicht registriert",
     "revoke": "Einladung zurückziehen",
     "bots": "Bots",
-    "botsManaged": "Verwaltet im Board-Menü unter Bots"
+    "botsManaged": "Verwaltet im Board-Menü unter Bots",
+    "botsManagedTeam": "Verwaltet im Teammenü unter Bots"
   },
   "memberAccess": {
     "button": "Zugriff einschränken",
@@ -1924,6 +1925,12 @@
     "readWriteDescription": "Ändert dieses Board als Bot, im Rahmen seiner Rolle",
     "newTokenTitle": "Neues Token für {name}",
     "onlyOnceDescription": "Bewahre es sicher auf. Wer es hat, kann dieses Board als {name} nutzen.",
-    "revokeConfirm": "Das Token „{name}“ widerrufen?"
+    "revokeConfirm": "Das Token „{name}“ widerrufen?",
+    "team": {
+      "description": "Teammitglieder für Agenten und Skripte. Jeder handelt auf allen Boards dieses Teams, auch neuen, über eigene API-Tokens.",
+      "readOnlyDescription": "Sieht nur die Boards dieses Teams",
+      "readWriteDescription": "Ändert die Boards dieses Teams als Bot, im Rahmen seiner Rolle",
+      "onlyOnceDescription": "Bewahre es sicher auf. Wer es hat, kann die Boards dieses Teams als {name} nutzen."
+    }
   }
 }

@@ -1,7 +1,7 @@
 import { asc, eq, sql } from 'drizzle-orm'
 import type { TeamDetail } from '#shared/types/board'
 
-/** A team the user belongs to, with members, invites and boards. 404 when not visible (RLS). */
+/** A team the user belongs to, with members, invites, bots and boards. 404 when not visible (RLS). */
 export default defineUserHandler(async (event, tx): Promise<TeamDetail> => {
   const { id } = await paramsValidated(event, uuidParam)
   const { invites, teams, teamMembers: tm, users } = schema
@@ -10,15 +10,18 @@ export default defineUserHandler(async (event, tx): Promise<TeamDetail> => {
   if (!team) notFound('Team not found')
 
   const [members, inviteRows, boards] = await Promise.all([
-    tx.select({ userId: tm.userId, role: tm.role, name: users.name, email: users.email, avatarUrl: users.avatarUrl })
+    tx.select({ userId: tm.userId, role: tm.role, name: users.name, email: users.email, avatarUrl: users.avatarUrl, isBot: users.isBot })
       .from(tm).innerJoin(users, eq(users.id, tm.userId)).where(eq(tm.teamId, id)).orderBy(asc(tm.role), asc(users.name)),
     tx.select({ id: invites.id, email: invites.email, role: invites.role, createdAt: invites.createdAt })
       .from(invites).where(eq(invites.teamId, id)).orderBy(asc(invites.email)),
     loadBoardSummaries(tx, sql`b.team_id = ${id}`),
   ])
+  // Tokens only for owners (app.bot_tokens refuses everyone else).
+  const bots = await loadTeamBots(tx, id, team.role === 'owner')
   return {
     ...team,
     members,
+    bots,
     invites: inviteRows.map(i => ({ ...i, createdAt: i.createdAt.toISOString() })),
     boards,
   }

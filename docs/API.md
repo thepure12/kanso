@@ -167,9 +167,26 @@ curl -s -X POST -b "$COOKIE" -H 'content-type: application/json' \
   -d '{"name":"ci","scopes":["read","write"]}' $KANSO/api/bots/$BOT/tokens
 ```
 
+### Team bots
+
+A team bot is the same for a whole team: a team member (editor, commenter or viewer) that reaches every board of the
+team, boards made later included, with its team role. Team owners manage team bots on the team page (team menu →
+Bots); team members see them in `GET /api/teams/:id` (`members` with `isBot: true`, and `bots`) and on the team's
+boards as members through the team (`teamRole`, no `boardRole`). A team bot cannot join another team, get a board
+membership of its own or leave the team; deleting the team deletes its bots.
+
+| Method | Path | Body | Who |
+|---|---|---|---|
+| `GET` | `/api/teams/:id/bots` | | team members; `tokens` only for team owners (else `null`) |
+| `POST` | `/api/teams/:id/bots` | `{name, role?}` (role default `editor`) | team owners |
+
+`PATCH`/`DELETE /api/bots/:id` and the token routes above work for team bots too (team owners). A team bot's token
+is limited to the team: it reaches only the team's boards and keeps the bot's team role there (a board-limited token
+would act as a team viewer at most). It cannot create boards or teams. Cookie only, like the board bot routes.
+
 ### Driving an agent from mentions
 
-Give the agent a board bot's token. Bots get inbox notifications like people (no push, email or digest): when
+Give the agent a board or team bot's token. Bots get inbox notifications like people (no push, email or digest): when
 someone mentions the bot in a comment (`@Name`), assigns it to a card or a checklist item, or comments on or moves a
 card it is assigned to or watches. A bot does not start watching cards it creates or comments on, so its own replies
 do not subscribe it to the whole board; it can watch one explicitly (`PUT /api/cards/:id/watch`).

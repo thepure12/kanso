@@ -68,13 +68,17 @@ export const users = pgTable('users', {
   // board, made by its owners through app.create_board_bot. Never signs in
   // (placeholder bot-<id>@bots.invalid email, no password, never verified),
   // only acts through API tokens limited to that board. Deleted with it.
+  // Team bots (0106_team_bots_rls.sql) are the same for one team
+  // (bot_team_id): team members, tokens limited to the team's boards.
   isBot: boolean('is_bot').notNull().default(false),
   botBoardId: uuid('bot_board_id').references((): AnyPgColumn => boards.id, { onDelete: 'cascade' }),
+  botTeamId: uuid('bot_team_id').references((): AnyPgColumn => teams.id, { onDelete: 'cascade' }),
   createdAt: createdAt(),
 }, t => [
-  check('users_bot_board', sql`${t.isBot} = (${t.botBoardId} is not null)`),
+  check('users_bot_scope', sql`${t.isBot} = (num_nonnulls(${t.botBoardId}, ${t.botTeamId}) = 1)`),
   check('users_bot_email', sql`not ${t.isBot} or ${t.email} like 'bot-%@bots.invalid'`),
   index('users_bot_board_idx').on(t.botBoardId).where(sql`${t.botBoardId} is not null`),
+  index('users_bot_team_idx').on(t.botTeamId).where(sql`${t.botTeamId} is not null`),
 ])
 
 export const oauthAccounts = pgTable('oauth_accounts', {
@@ -868,6 +872,9 @@ export const apiTokens = pgTable('api_tokens', {
   // Boards the token may reach; null = every board the user can see. Not a
   // foreign key: a deleted board drops out without widening the token.
   boardIds: uuid('board_ids').array(),
+  // Team bot tokens (0106_team_bots_rls.sql): only boards of this team, also
+  // later ones. Deleted with the team (and its bots).
+  teamId: uuid('team_id').references(() => teams.id, { onDelete: 'cascade' }),
   createdAt: createdAt(),
   lastUsedAt: timestamp('last_used_at', { withTimezone: true }),
   expiresAt: timestamp('expires_at', { withTimezone: true }),
@@ -876,6 +883,7 @@ export const apiTokens = pgTable('api_tokens', {
   index('api_tokens_user_idx').on(t.userId),
   check('api_tokens_scopes', sql`${t.scopes} <@ array['read', 'write'] and cardinality(${t.scopes}) > 0`),
   check('api_tokens_board_ids', sql`${t.boardIds} is null or cardinality(${t.boardIds}) between 1 and 100`),
+  check('api_tokens_one_limit', sql`${t.boardIds} is null or ${t.teamId} is null`),
 ])
 
 export const webhookFormat = pgEnum('webhook_format', ['json', 'slack', 'discord'])

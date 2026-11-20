@@ -11,19 +11,19 @@ const body = z.object({
 })
 
 /**
- * Creates an API token for a bot (app.create_bot_token: owners of its board;
- * always limited to that board). The token is in this response only; the
+ * Creates an API token for a bot (app.create_bot_token: owners of its board or
+ * team; always limited to that board or team). The token is in this response only; the
  * database keeps its sha256. Cookie only, so a token never mints tokens.
  */
 export default defineUserHandler(async (event, tx): Promise<BotToken & { token: string }> => {
   const { id } = await paramsValidated(event, uuidParam)
   const { name, scopes, expiresInDays } = await readValidated(event, body)
-  const board = await botBoard(tx, id)
+  const scope = await botScope(tx, id)
   const { token, hash, prefix } = generateApiToken()
   const expiresAt = expiresInDays === null ? null : new Date(Date.now() + expiresInDays * 86_400_000).toISOString()
   const [row] = await tx.execute<{ id: string }>(sql`
     select app.create_bot_token(${id}, ${name}, ${sql`array[${sql.join(scopes.map(s => sql`${s}`), sql`, `)}]::text[]`},
       ${expiresAt}::timestamptz, ${hash}, ${prefix}) as id`)
-  const created = (await loadBots(tx, board, true)).find(b => b.id === id)?.tokens?.find(t => t.id === row!.id)
+  const created = (await loadScopeBots(tx, scope, true)).find(b => b.id === id)?.tokens?.find(t => t.id === row!.id)
   return { ...created!, token }
 })

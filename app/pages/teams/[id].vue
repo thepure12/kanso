@@ -51,8 +51,16 @@ async function deleteTeam() {
   catch (err) { showError(err, t('teams.deleteFailed')) }
 }
 
+// Team bots (owners): BotsSlideover in team mode.
+const botsOpen = ref(false)
+
 const menu = computed(() => [
-  ...(isOwner.value ? [[{ label: t('teams.rename'), icon: 'i-lucide-pencil', onSelect: rename }]] : []),
+  ...(isOwner.value
+    ? [[
+        { label: t('teams.rename'), icon: 'i-lucide-pencil', onSelect: rename },
+        { label: t('bots.title'), icon: 'i-lucide-bot', onSelect: () => { botsOpen.value = true } },
+      ]]
+    : []),
   [{ label: t('teams.leave'), icon: 'i-lucide-log-out', onSelect: leave }],
   ...(isOwner.value ? [[{ label: t('teams.delete'), icon: 'i-lucide-trash', color: 'error' as const, onSelect: () => { deleteOpen.value = true } }]] : []),
 ])
@@ -111,10 +119,13 @@ const menu = computed(() => [
         :invites="team.invites"
         :invites-endpoint="`/api/teams/${team.id}/invites`"
         :can-manage="isOwner"
+        :bots-hint="t('members.botsManagedTeam')"
         @changed="refresh"
         @left="navigateTo('/')"
       />
     </section>
+
+    <BotsSlideover v-if="isOwner" v-model:open="botsOpen" :team-id="team.id" :bots="team.bots ?? []" @changed="refresh" />
 
     <UModal v-model:open="deleteOpen" :title="t('teams.deleteTitle', { team: team.name })" :description="t('teams.deleteDescription')">
       <template #footer>
