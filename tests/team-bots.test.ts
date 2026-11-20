@@ -128,6 +128,21 @@ describe('managing team bots', () => {
   })
 })
 
+describe('team bot pictures', () => {
+  it('team owners set and remove a team bot picture; others cannot', async () => {
+    const png = Buffer.from('89504e470d0a1a0a0000000d49484452', 'hex')
+    const bot = await newBot(teamId, 'Pictured')
+    const url = `/api/users/${bot}/avatar?v=abc123`
+    await rejectsWith(as(editor.id, sql => sql`select app.set_bot_avatar(${bot}, 'image/png', ${png}, ${url})`), '42501')
+    await as(owner.id, sql => sql`select app.set_bot_avatar(${bot}, 'image/png', ${png}, ${url})`)
+    expect(await owner_`select avatar_url from users where id = ${bot}`).toEqual([{ avatar_url: url }])
+    expect(await as(editor.id, sql => sql`select content_type from user_avatars where user_id = ${bot}`)).toEqual([{ content_type: 'image/png' }])
+    await rejectsWith(as(editor.id, sql => sql`select app.clear_bot_avatar(${bot})`), '42501')
+    await as(owner.id, sql => sql`select app.clear_bot_avatar(${bot})`)
+    expect(await owner_`select 1 from user_avatars where user_id = ${bot}`).toHaveLength(0)
+  })
+})
+
 describe('team bot tokens', () => {
   it('team owners create tokens limited to the team; others cannot', async () => {
     const bot = await newBot(teamId)

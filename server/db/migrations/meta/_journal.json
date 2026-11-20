@@ -750,6 +750,13 @@
       "when": 1795200587436,
       "tag": "0106_team_bots_rls",
       "breakpoints": true
+    },
+    {
+      "idx": 107,
+      "version": "7",
+      "when": 1795202802168,
+      "tag": "0107_team_bot_avatars_rls",
+      "breakpoints": true
     }
   ]
 }
