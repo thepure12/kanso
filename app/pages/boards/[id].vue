@@ -309,6 +309,8 @@ onMounted(loadLabelDisplay)
 
 // Column widths (drag a column's right edge; personal, per board).
 const columnWidths = useColumnWidths(id, computed(() => columns.value.map(c => c.id)))
+// Collapsed columns (narrow strip with title and count; personal, per board).
+const collapsedColumns = useCollapsedColumns(id, computed(() => columns.value.map(c => c.id)))
 
 // A deleted select field ends grouping by it.
 watch(fields, (list) => {
@@ -379,7 +381,7 @@ const cardAdds: Record<string, { open: () => void } | null> = {}
 defineShortcuts({
   '/': () => { if (!dialogOpen()) filters.value?.focus() },
   'n': () => {
-    const first = shownColumns.value[0]
+    const first = shownColumns.value.find(c => !collapsedColumns.isCollapsed(c.id))
     if (canEdit.value && first && !dialogOpen()) cardAdds[first.id]?.open()
   },
   // Not while typing, so text fields keep their own undo; works in dialogs too.
@@ -803,6 +805,7 @@ const boardMenu = computed(() => {
         :group-by="groupBy"
         :columns="shownColumns"
         :column-width="columnWidths.widthOf"
+        :collapsed="collapsedColumns.isCollapsed"
         :outline="board.columnOutline"
         :lists="lists"
         :tags="tags"
@@ -818,6 +821,7 @@ const boardMenu = computed(() => {
         @move="moveToLane"
         @dragging="v => dragging = v"
         @rename="(card, title) => updateCard(card, { title })"
+        @collapse="(columnId, value) => collapsedColumns.setCollapsed(columnId, value)"
       />
     </div>
     <div v-else class="flex-1 overflow-x-auto snap-x snap-proximity sm:snap-none scroll-px-3">
@@ -836,146 +840,180 @@ const boardMenu = computed(() => {
             v-for="col in columns"
             v-show="shownColumnIds.has(col.id)"
             :key="col.id"
-            class="relative shrink-0 snap-start rounded-lg flex flex-col max-h-[calc(100dvh-14rem)]"
+            class="group/col relative shrink-0 snap-start rounded-lg flex flex-col max-h-[calc(100dvh-14rem)]"
             :class="[!effectiveColumnOutline(col, board.columnOutline) && ['ring', wipState(col) === 'over' ? 'ring-error' : 'ring-default'], backed ? 'bg-elevated/95 shadow-lg' : 'bg-elevated/60']"
-            :style="[columnWidths.styleOf(col.id), columnOutlineStyle(effectiveColumnOutline(col, board.columnOutline), wipState(col) === 'over', col.color) ?? {}]"
+            :style="[collapsedColumns.isCollapsed(col.id) ? { width: `${COLLAPSED_COLUMN_WIDTH}px` } : columnWidths.styleOf(col.id), columnOutlineStyle(effectiveColumnOutline(col, board.columnOutline), wipState(col) === 'over', col.color) ?? {}]"
           >
-            <UTooltip :content="{ side: 'right' }" :text="t('board.column.resizeHint')">
-              <div
-                role="separator"
-                aria-orientation="vertical"
-                tabindex="0"
-                :aria-label="t('board.column.resize')"
-                :aria-valuenow="columnWidths.widthOf(col.id)"
-                :aria-valuemin="COLUMN_WIDTH_MIN"
-                :aria-valuemax="COLUMN_WIDTH_MAX"
-                class="absolute inset-y-0 -right-2.5 z-10 w-3 cursor-col-resize touch-none group/resize flex justify-center focus:outline-none"
-                @pointerdown="columnWidths.startResize(col.id, $event)"
-                @dblclick="columnWidths.resetWidth(col.id)"
-                @keydown="columnWidths.onResizeKey(col.id, $event)"
-              >
-                <span
-                  class="w-0.5 h-full rounded-full transition-colors group-hover/resize:bg-primary group-focus-visible/resize:bg-primary"
-                  :class="columnWidths.resizing.value === col.id ? 'bg-primary' : 'bg-transparent'"
-                />
-              </div>
-            </UTooltip>
-            <header
-              class="flex flex-wrap items-center gap-x-2 gap-y-1.5 px-3 py-2 rounded-t-lg"
+            <!-- Collapsed: a narrow strip with the title and card count; click expands. Drag it to move the column. -->
+            <button
+              v-if="collapsedColumns.isCollapsed(col.id)"
+              type="button"
+              class="flex flex-col items-center gap-2 py-2 min-h-40 rounded-lg cursor-pointer hover:bg-accented/40 focus-visible:outline-2 focus-visible:outline-primary"
+              :class="canEdit && !shownGroup && 'column-handle'"
               :style="col.color ? { backgroundColor: col.color, color: contrastText(col.color) } : undefined"
+              :aria-label="t('board.column.expand', { title: col.title, count: lists[col.id]?.length ?? 0 })"
+              :title="t('board.column.expand', { title: col.title, count: lists[col.id]?.length ?? 0 })"
+              @click="collapsedColumns.setCollapsed(col.id, false)"
             >
-              <UIcon v-if="canEdit && !shownGroup" name="i-lucide-grip-vertical" class="column-handle cursor-grab pointer-coarse:size-6" :class="col.color ? 'opacity-60' : 'text-dimmed'" />
-              <input
-                v-if="renamingColumnId === col.id"
-                :ref="focusRenameInput"
-                v-model="columnTitleDraft"
-                maxlength="100"
-                :aria-label="t('board.column.titlePrompt')"
-                class="min-w-0 flex-1 font-medium bg-default text-default rounded px-1 -mx-1 outline-none ring ring-primary"
-                @keydown.enter.prevent="finishColumnRename(col, true)"
-                @keydown.esc.stop.prevent="finishColumnRename(col, false)"
-                @blur="finishColumnRename(col, true)"
-              >
-              <h2
-                v-else
-                class="min-w-0 flex-1 font-medium truncate"
-                :class="canEdit && 'cursor-text select-none'"
-                @dblclick="startColumnRename(col)"
-              >
-                {{ col.title }}
-              </h2>
-              <UTooltip v-if="col.rules.length" :text="t('board.column.ruleCount', { count: col.rules.length }, col.rules.length)">
-                <UIcon name="i-lucide-zap" class="size-4 shrink-0" :class="!col.color && 'text-dimmed'" />
-              </UTooltip>
-              <UTooltip v-if="columnPoints(col) !== null" :text="filtering ? t('board.column.pointsShown', { points: formatPoints(columnPoints(col)!, i18n) }) : formatPoints(columnPoints(col)!, i18n)">
-                <UBadge color="neutral" variant="outline" size="sm" icon="i-lucide-sigma" :label="String(columnPoints(col))" :class="col.color && 'text-inherit'" />
-              </UTooltip>
-              <UTooltip v-if="col.wipLimit" :text="wipState(col) === 'over' ? t('board.column.overWip', { limit: col.wipLimit }) : t('board.column.wip', { limit: col.wipLimit })">
-                <UBadge
-                  :color="wipState(col) === 'over' ? 'error' : wipState(col) === 'full' ? 'warning' : 'neutral'"
-                  :variant="wipState(col) === 'over' ? 'solid' : 'soft'"
-                  size="sm"
-                  :label="`${lists[col.id]?.length ?? 0}/${col.wipLimit}`"
-                />
-              </UTooltip>
-              <UBadge v-else color="neutral" variant="soft" size="sm" :label="String(lists[col.id]?.length ?? 0)" />
-              <UDropdownMenu v-if="canEdit" :items="columnMenu(col)">
-                <UButton icon="i-lucide-ellipsis" size="xs" color="neutral" variant="ghost" class="pointer-coarse:p-1.5" :aria-label="t('board.column.actions')" :class="col.color && 'text-inherit hover:bg-black/10'" />
-              </UDropdownMenu>
-              <!-- On a coloured header the chips sit on a translucent strip so chips of the column's own colour stay visible. -->
-              <div
-                v-if="columnChips(col).length"
-                class="basis-full flex flex-wrap items-center gap-1"
-                :class="col.color ? '-mx-1.5 mt-0.5 px-1.5 py-1.5 rounded-md bg-default/60' : 'border-t border-current/15 pt-1.5'"
-              >
-                <UTooltip v-for="g in columnChips(col)" :key="g.id" :disabled="labels.groupNames" :text="g.name">
-                  <button
-                    type="button"
-                    class="cursor-pointer rounded ring ring-inset ring-black/10 hover:opacity-80"
-                    :style="g.color ? { backgroundColor: g.color, color: contrastText(g.color) } : undefined"
-                    :class="[!g.color && 'bg-accented text-default', labels.groupNames ? 'inline-flex items-center gap-1 px-1.5 text-xs leading-5' : 'h-2 w-8 rounded-full']"
-                    :aria-label="t('columnGroups.showOnly', { name: g.name })"
-                    @click="showColumnGroup(g.id)"
-                  >
-                    <template v-if="labels.groupNames">
-                      <UIcon name="i-lucide-columns-3" class="size-3 shrink-0" />{{ g.name }}
-                    </template>
-                  </button>
-                </UTooltip>
-              </div>
-            </header>
-
-            <VueDraggable
-              v-model="lists[col.id]!"
-              :group="{ name: 'cards', put: canAddToColumn(col.id) }"
-              :disabled="dragDisabled"
-              :animation="150"
-              :delay="200"
-              :delay-on-touch-only="true"
-              :touch-start-threshold="5"
-              :force-auto-scroll-fallback="true"
-              :scroll-sensitivity="80"
-              :scroll-speed="16"
-              filter=".card-title-edit, .card-locked"
-              :prevent-on-filter="false"
-              ghost-class="opacity-40"
-              class="flex flex-col gap-2 px-3 py-2 min-h-8 overflow-y-auto"
-              @start="dragging = true"
-              @end="dragging = false"
-              @add="onCardDrop(col.id, $event)"
-              @update="onCardDrop(col.id, $event)"
-            >
-              <BoardCard
-                v-for="card in lists[col.id]"
-                v-show="visibleIds.has(card.id)"
-                :key="card.id"
-                :data-card-id="card.id"
-                :card="card"
-                :tags="tags"
-                :fields="fields"
-                :members="board.members"
-                :can-edit="canEditCard(card)"
-                :selectable="!limited"
-                :class="!canEditCard(card) && 'card-locked'"
-                :today="today"
-                :blocked="blockedIds.has(card.id)"
-                :selected="selected.has(card.id)"
-                :selecting="selecting"
-                @open="editingCardId = card.id"
-                @delete="deleteCard(card)"
-                @select="toggleSelected(card.id)"
-                @rename="title => updateCard(card, { title })"
+              <UIcon name="i-lucide-unfold-horizontal" class="size-4 shrink-0" :class="!col.color && 'text-dimmed'" />
+              <UBadge
+                :color="wipState(col) === 'over' ? 'error' : wipState(col) === 'full' ? 'warning' : 'neutral'"
+                :variant="wipState(col) === 'over' ? 'solid' : 'soft'"
+                size="sm"
+                :label="col.wipLimit ? `${lists[col.id]?.length ?? 0}/${col.wipLimit}` : String(lists[col.id]?.length ?? 0)"
               />
-            </VueDraggable>
-
-            <div v-if="canAddToColumn(col.id)" class="px-3 pb-3 flex items-start gap-1">
-              <InlineAdd :ref="el => { cardAdds[col.id] = el as { open: () => void } | null }" :label="t('board.addCard')" :placeholder="t('board.cardTitle')" :maxlength="CARD_TITLE_MAX" openable class="flex-1 min-w-0" @add="(title, open) => addCardAndReveal(col.id, title, open)" />
-              <UDropdownMenu v-if="templates.length" :items="templateMenu(col)" :content="{ align: 'end' }">
-                <UTooltip :text="t('board.fromTemplate')">
-                  <UButton color="neutral" variant="ghost" icon="i-lucide-file-plus" :aria-label="t('board.addFromTemplate')" />
+              <span class="font-medium [writing-mode:vertical-rl] whitespace-nowrap overflow-hidden text-ellipsis max-h-[calc(100dvh-20rem)]">{{ col.title }}</span>
+            </button>
+            <template v-else>
+              <UTooltip :content="{ side: 'right' }" :text="t('board.column.resizeHint')">
+                <div
+                  role="separator"
+                  aria-orientation="vertical"
+                  tabindex="0"
+                  :aria-label="t('board.column.resize')"
+                  :aria-valuenow="columnWidths.widthOf(col.id)"
+                  :aria-valuemin="COLUMN_WIDTH_MIN"
+                  :aria-valuemax="COLUMN_WIDTH_MAX"
+                  class="absolute inset-y-0 -right-2.5 z-10 w-3 cursor-col-resize touch-none group/resize flex justify-center focus:outline-none"
+                  @pointerdown="columnWidths.startResize(col.id, $event)"
+                  @dblclick="columnWidths.resetWidth(col.id)"
+                  @keydown="columnWidths.onResizeKey(col.id, $event)"
+                >
+                  <span
+                    class="w-0.5 h-full rounded-full transition-colors group-hover/resize:bg-primary group-focus-visible/resize:bg-primary"
+                    :class="columnWidths.resizing.value === col.id ? 'bg-primary' : 'bg-transparent'"
+                  />
+                </div>
+              </UTooltip>
+              <header
+                class="flex flex-wrap items-center gap-x-2 gap-y-1.5 px-3 py-2 rounded-t-lg"
+                :style="col.color ? { backgroundColor: col.color, color: contrastText(col.color) } : undefined"
+              >
+                <UIcon v-if="canEdit && !shownGroup" name="i-lucide-grip-vertical" class="column-handle cursor-grab pointer-coarse:size-6" :class="col.color ? 'opacity-60' : 'text-dimmed'" />
+                <input
+                  v-if="renamingColumnId === col.id"
+                  :ref="focusRenameInput"
+                  v-model="columnTitleDraft"
+                  maxlength="100"
+                  :aria-label="t('board.column.titlePrompt')"
+                  class="min-w-0 flex-1 font-medium bg-default text-default rounded px-1 -mx-1 outline-none ring ring-primary"
+                  @keydown.enter.prevent="finishColumnRename(col, true)"
+                  @keydown.esc.stop.prevent="finishColumnRename(col, false)"
+                  @blur="finishColumnRename(col, true)"
+                >
+                <h2
+                  v-else
+                  class="min-w-0 flex-1 font-medium truncate"
+                  :class="canEdit && 'cursor-text select-none'"
+                  @dblclick="startColumnRename(col)"
+                >
+                  {{ col.title }}
+                </h2>
+                <UTooltip v-if="col.rules.length" :text="t('board.column.ruleCount', { count: col.rules.length }, col.rules.length)">
+                  <UIcon name="i-lucide-zap" class="size-4 shrink-0" :class="!col.color && 'text-dimmed'" />
                 </UTooltip>
-              </UDropdownMenu>
-            </div>
+                <UTooltip v-if="columnPoints(col) !== null" :text="filtering ? t('board.column.pointsShown', { points: formatPoints(columnPoints(col)!, i18n) }) : formatPoints(columnPoints(col)!, i18n)">
+                  <UBadge color="neutral" variant="outline" size="sm" icon="i-lucide-sigma" :label="String(columnPoints(col))" :class="col.color && 'text-inherit'" />
+                </UTooltip>
+                <UTooltip v-if="col.wipLimit" :text="wipState(col) === 'over' ? t('board.column.overWip', { limit: col.wipLimit }) : t('board.column.wip', { limit: col.wipLimit })">
+                  <UBadge
+                    :color="wipState(col) === 'over' ? 'error' : wipState(col) === 'full' ? 'warning' : 'neutral'"
+                    :variant="wipState(col) === 'over' ? 'solid' : 'soft'"
+                    size="sm"
+                    :label="`${lists[col.id]?.length ?? 0}/${col.wipLimit}`"
+                  />
+                </UTooltip>
+                <UBadge v-else color="neutral" variant="soft" size="sm" :label="String(lists[col.id]?.length ?? 0)" />
+                <UTooltip :text="t('board.column.collapse')">
+                  <UButton
+                    icon="i-lucide-fold-horizontal"
+                    size="xs"
+                    color="neutral"
+                    variant="ghost"
+                    class="pointer-coarse:p-1.5 pointer-fine:opacity-0 pointer-fine:group-hover/col:opacity-100 focus-visible:opacity-100"
+                    :class="col.color && 'text-inherit hover:bg-black/10'"
+                    :aria-label="t('board.column.collapse')"
+                    @click="collapsedColumns.setCollapsed(col.id, true)"
+                  />
+                </UTooltip>
+                <UDropdownMenu v-if="canEdit" :items="columnMenu(col)">
+                  <UButton icon="i-lucide-ellipsis" size="xs" color="neutral" variant="ghost" class="pointer-coarse:p-1.5" :aria-label="t('board.column.actions')" :class="col.color && 'text-inherit hover:bg-black/10'" />
+                </UDropdownMenu>
+                <!-- On a coloured header the chips sit on a translucent strip so chips of the column's own colour stay visible. -->
+                <div
+                  v-if="columnChips(col).length"
+                  class="basis-full flex flex-wrap items-center gap-1"
+                  :class="col.color ? '-mx-1.5 mt-0.5 px-1.5 py-1.5 rounded-md bg-default/60' : 'border-t border-current/15 pt-1.5'"
+                >
+                  <UTooltip v-for="g in columnChips(col)" :key="g.id" :disabled="labels.groupNames" :text="g.name">
+                    <button
+                      type="button"
+                      class="cursor-pointer rounded ring ring-inset ring-black/10 hover:opacity-80"
+                      :style="g.color ? { backgroundColor: g.color, color: contrastText(g.color) } : undefined"
+                      :class="[!g.color && 'bg-accented text-default', labels.groupNames ? 'inline-flex items-center gap-1 px-1.5 text-xs leading-5' : 'h-2 w-8 rounded-full']"
+                      :aria-label="t('columnGroups.showOnly', { name: g.name })"
+                      @click="showColumnGroup(g.id)"
+                    >
+                      <template v-if="labels.groupNames">
+                        <UIcon name="i-lucide-columns-3" class="size-3 shrink-0" />{{ g.name }}
+                      </template>
+                    </button>
+                  </UTooltip>
+                </div>
+              </header>
+
+              <VueDraggable
+                v-model="lists[col.id]!"
+                :group="{ name: 'cards', put: canAddToColumn(col.id) }"
+                :disabled="dragDisabled"
+                :animation="150"
+                :delay="200"
+                :delay-on-touch-only="true"
+                :touch-start-threshold="5"
+                :force-auto-scroll-fallback="true"
+                :scroll-sensitivity="80"
+                :scroll-speed="16"
+                filter=".card-title-edit, .card-locked"
+                :prevent-on-filter="false"
+                ghost-class="opacity-40"
+                class="flex flex-col gap-2 px-3 py-2 min-h-8 overflow-y-auto"
+                @start="dragging = true"
+                @end="dragging = false"
+                @add="onCardDrop(col.id, $event)"
+                @update="onCardDrop(col.id, $event)"
+              >
+                <BoardCard
+                  v-for="card in lists[col.id]"
+                  v-show="visibleIds.has(card.id)"
+                  :key="card.id"
+                  :data-card-id="card.id"
+                  :card="card"
+                  :tags="tags"
+                  :fields="fields"
+                  :members="board.members"
+                  :can-edit="canEditCard(card)"
+                  :selectable="!limited"
+                  :class="!canEditCard(card) && 'card-locked'"
+                  :today="today"
+                  :blocked="blockedIds.has(card.id)"
+                  :selected="selected.has(card.id)"
+                  :selecting="selecting"
+                  @open="editingCardId = card.id"
+                  @delete="deleteCard(card)"
+                  @select="toggleSelected(card.id)"
+                  @rename="title => updateCard(card, { title })"
+                />
+              </VueDraggable>
+
+              <div v-if="canAddToColumn(col.id)" class="px-3 pb-3 flex items-start gap-1">
+                <InlineAdd :ref="el => { cardAdds[col.id] = el as { open: () => void } | null }" :label="t('board.addCard')" :placeholder="t('board.cardTitle')" :maxlength="CARD_TITLE_MAX" openable class="flex-1 min-w-0" @add="(title, open) => addCardAndReveal(col.id, title, open)" />
+                <UDropdownMenu v-if="templates.length" :items="templateMenu(col)" :content="{ align: 'end' }">
+                  <UTooltip :text="t('board.fromTemplate')">
+                    <UButton color="neutral" variant="ghost" icon="i-lucide-file-plus" :aria-label="t('board.addFromTemplate')" />
+                  </UTooltip>
+                </UDropdownMenu>
+              </div>
+            </template>
           </section>
         </VueDraggable>
 
