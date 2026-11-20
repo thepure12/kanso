@@ -31,7 +31,7 @@ registerEndpoint('/api/teams/t1/bots', {
     return { ...claude, id: 'bot2', name: body.name, role: body.role }
   },
 })
-const token: BotToken = { id: 't1', name: 'ci', prefix: 'kb_Ab12Cd', scopes: ['read', 'write'], createdAt: '2026-11-20T10:00:00Z', lastUsedAt: null, expiresAt: null, revokedAt: null }
+const token: BotToken = { id: 't1', name: 'ci', prefix: 'kb_Ab12Cd', scopes: ['read', 'write'], createdAt: '2026-11-20T10:00:00Z', lastUsedAt: null, expiresAt: null, revokedAt: null, viewable: true, lastViewedAt: null }
 registerEndpoint('/api/bots/bot1/tokens', {
   method: 'POST',
   handler: async (event) => {
@@ -62,7 +62,7 @@ describe('BotsSlideover', () => {
 
     await vi.waitFor(() => expect(w.find('[data-testid="new-token"]').exists()).toBe(true))
     expect((w.find('input[data-testid="new-token"], [data-testid="new-token"] input').element as HTMLInputElement).value).toBe('kb_secretsecretsecret')
-    expect(w.text()).toContain('This is the only time the token is shown')
+    expect(w.text()).toContain('Copy the token now')
     const command = (w.find('textarea').element as HTMLTextAreaElement).value
     expect(command).toContain('claude mcp add --transport http kanso')
     expect(command).toContain('Bearer kb_secretsecretsecret')

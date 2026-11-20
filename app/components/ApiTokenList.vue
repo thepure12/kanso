@@ -70,6 +70,14 @@ async function create() {
   finally { creating.value = false }
 }
 
+// Show token again dialog
+const revealToken = ref<ApiToken | null>(null)
+const revealOpen = ref(false)
+function openReveal(token: ApiToken) {
+  revealToken.value = token
+  revealOpen.value = true
+}
+
 async function revoke(token: ApiToken) {
   try {
     await $fetch(`/api/account/tokens/${token.id}`, { method: 'DELETE' })
@@ -112,6 +120,9 @@ defineExpose({ refresh })
             <code>{{ tk.prefix }}…</code>
             · {{ tk.lastUsedAt ? t('tokens.lastUsed', { date: formatDateTime(tk.lastUsedAt, locale) }) : t('tokens.neverUsed') }}
             · {{ tk.expiresAt ? t('tokens.expires', { date: formatDateTime(tk.expiresAt, locale) }) : t('tokens.noExpiry') }}
+            <template v-if="tk.lastViewedAt">
+              · {{ t('tokens.lastViewed', { date: formatDateTime(tk.lastViewedAt, locale) }) }}
+            </template>
           </p>
           <UTooltip v-if="tk.boards" :text="tk.boards.map(b => b.name).join(', ')">
             <p class="text-xs text-muted truncate">
@@ -119,6 +130,9 @@ defineExpose({ refresh })
             </p>
           </UTooltip>
         </div>
+        <UTooltip v-if="tk.viewable" :text="t('tokens.reveal.button')">
+          <UButton color="neutral" variant="ghost" size="sm" icon="i-lucide-eye" :aria-label="t('tokens.reveal.button')" data-testid="reveal-token" @click="openReveal(tk)" />
+        </UTooltip>
         <UButton color="neutral" variant="ghost" size="sm" :label="t('tokens.revoke')" @click="revoke(tk)" />
       </li>
     </ul>
@@ -162,5 +176,12 @@ defineExpose({ refresh })
         </div>
       </template>
     </UModal>
+    <TokenRevealModal
+      v-if="revealToken"
+      v-model:open="revealOpen"
+      :name="revealToken.name"
+      :url="`/api/account/tokens/${revealToken.id}/reveal`"
+      @revealed="revealToken.lastViewedAt = new Date().toISOString()"
+    />
   </section>
 </template>

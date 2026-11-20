@@ -466,13 +466,14 @@
     "year": "1 year",
     "never": "Never",
     "lastUsed": "Last used {date}",
+    "lastViewed": "Last shown {date}",
     "neverUsed": "Never used",
     "expires": "Expires {date}",
     "noExpiry": "No expiry",
     "revoke": "Revoke",
     "copyTitle": "Copy your token",
     "newTitle": "New API token",
-    "onlyOnce": "This is the only time the token is shown",
+    "onlyOnce": "Copy the token now",
     "onlyOnceDescription": "Store it somewhere safe. Anyone with it can use the API as you.",
     "copy": "Copy token",
     "copied": "Token copied",
@@ -493,7 +494,19 @@
     "mcpTitle": "Use with AI agents (MCP)",
     "mcpHelp": "Agents such as Claude Code can work with your boards through the MCP server at {url}, sending this token. A read-only token only lets them look. To add it to Claude Code:",
     "mcpCopy": "Copy command",
-    "mcpCopied": "Command copied"
+    "mcpCopied": "Command copied",
+    "reveal": {
+      "button": "Show token",
+      "title": "Show token “{name}”",
+      "help": "Enter a code from your authenticator app to see this token again.",
+      "code": "Code",
+      "show": "Show",
+      "badCode": "That code is not valid. Wait for the next one and try again.",
+      "failed": "Could not show the token",
+      "twoFactorRequired": "Two-factor authentication needed",
+      "twoFactorRequiredDescription": "Tokens can only be shown again with a code from an authenticator app. Turn on two-factor authentication on your account first.",
+      "setUpTwoFactor": "Set up two-factor"
+    }
   },
   "sessions": {
     "title": "Sessions",

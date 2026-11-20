@@ -11,13 +11,13 @@ const body = z.object({
   boardIds: z.array(z.uuid()).min(1).max(100).transform(s => [...new Set(s)]).nullable().default(null),
 })
 
-/** Creates a token for the signed-in user. The token is in this response only; the database keeps its sha256. */
+/** Creates a token for the signed-in user. The token is in this response; the database keeps its sha256 and a sealed copy (shown again through `reveal`, with a TOTP code). */
 export default defineUserHandler(async (event, tx, userId): Promise<ApiToken & { token: string }> => {
   const { name, scopes, expiresInDays, boardIds } = await readValidated(event, body)
   const { token, hash, prefix } = generateApiToken()
   const t = schema.apiTokens
   const [row] = await tx.insert(t).values({
-    userId, name, scopes, boardIds, tokenHash: hash, prefix,
+    userId, name, scopes, boardIds, tokenHash: hash, prefix, tokenEnc: sealApiToken(token),
     expiresAt: expiresInDays === null ? null : new Date(Date.now() + expiresInDays * 86_400_000),
   }).returning(apiTokenColumns)
   const [created] = await toApiTokens(tx, [row!])

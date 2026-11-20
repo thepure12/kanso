@@ -910,6 +910,13 @@ export const apiTokens = pgTable('api_tokens', {
   lastUsedAt: timestamp('last_used_at', { withTimezone: true }),
   expiresAt: timestamp('expires_at', { withTimezone: true }),
   revokedAt: timestamp('revoked_at', { withTimezone: true }),
+  // The token sealed with secretBox (0113_api_token_reveal_rls.sql), so its
+  // owner (or a bot's manager) can see it again with a TOTP code through
+  // app.reveal_api_token. kanban_app cannot read it; cleared on revoke.
+  // Null for tokens made before 0112.
+  tokenEnc: text('token_enc'),
+  viewable: boolean('viewable').generatedAlwaysAs(sql`token_enc is not null`),
+  lastViewedAt: timestamp('last_viewed_at', { withTimezone: true }),
 }, t => [
   index('api_tokens_user_idx').on(t.userId),
   check('api_tokens_scopes', sql`${t.scopes} <@ array['read', 'write'] and cardinality(${t.scopes}) > 0`),

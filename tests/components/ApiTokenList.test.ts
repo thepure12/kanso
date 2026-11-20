@@ -3,9 +3,9 @@ import { describe, expect, it } from 'vitest'
 import ApiTokenList from '~/components/ApiTokenList.vue'
 import type { ApiToken } from '#shared/types/account'
 
-const base = { boards: null, createdAt: '2026-10-01T08:00:00Z', lastUsedAt: null, expiresAt: null, revokedAt: null }
+const base = { boards: null, createdAt: '2026-10-01T08:00:00Z', lastUsedAt: null, expiresAt: null, revokedAt: null, viewable: false, lastViewedAt: null }
 const tokens: ApiToken[] = [
-  { ...base, id: 't1', name: 'CI', prefix: 'kb_Ab12Cd3', scopes: ['read'], lastUsedAt: '2026-10-13T08:00:00Z' },
+  { ...base, id: 't1', name: 'CI', prefix: 'kb_Ab12Cd3', scopes: ['read'], lastUsedAt: '2026-10-13T08:00:00Z', viewable: true },
   { ...base, id: 't2', name: 'Sync', prefix: 'kb_Zz98Yy7', scopes: ['read', 'write'], boards: [{ id: 'b1', name: 'Roadmap' }, { id: 'b2', name: 'Ops' }] },
   { ...base, id: 't3', name: 'Old', prefix: 'kb_Rev0ked', scopes: ['read'], revokedAt: '2026-10-02T08:00:00Z' },
   { ...base, id: 't4', name: 'Expired', prefix: 'kb_Exp1red', scopes: ['read'], expiresAt: '2026-01-01T00:00:00Z' },
@@ -26,5 +26,12 @@ describe('ApiTokenList', () => {
     expect(items[1]!.text()).toContain('Boards: Roadmap, Ops')
     expect(w.text()).not.toContain('kb_Rev0ked')
     expect(w.text()).not.toContain('Expired')
+  })
+
+  it('offers "Show token" only for tokens kept sealed', async () => {
+    const w = await mountSuspended(ApiTokenList)
+    const items = w.findAll('li')
+    expect(items[0]!.find('[data-testid="reveal-token"]').exists()).toBe(true)
+    expect(items[1]!.find('[data-testid="reveal-token"]').exists()).toBe(false)
   })
 })

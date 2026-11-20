@@ -8,10 +8,10 @@ const t = schema.apiTokens
 /** What kanban_app may read of api_tokens (no token_hash). */
 export const apiTokenColumns = {
   id: t.id, name: t.name, prefix: t.prefix, scopes: t.scopes, boardIds: t.boardIds, createdAt: t.createdAt,
-  lastUsedAt: t.lastUsedAt, expiresAt: t.expiresAt, revokedAt: t.revokedAt,
+  lastUsedAt: t.lastUsedAt, expiresAt: t.expiresAt, revokedAt: t.revokedAt, viewable: t.viewable, lastViewedAt: t.lastViewedAt,
 }
 
-type ApiTokenRow = { id: string, name: string, prefix: string, scopes: string[], boardIds: string[] | null, createdAt: Date, lastUsedAt: Date | null, expiresAt: Date | null, revokedAt: Date | null }
+type ApiTokenRow = { id: string, name: string, prefix: string, scopes: string[], boardIds: string[] | null, createdAt: Date, lastUsedAt: Date | null, expiresAt: Date | null, revokedAt: Date | null, viewable: boolean | null, lastViewedAt: Date | null }
 
 /**
  * Tokens as the API returns them, with the names of the boards limited ones
@@ -29,5 +29,6 @@ export async function toApiTokens(tx: Tx, rows: ApiTokenRow[]): Promise<ApiToken
     boards: r.boardIds && r.boardIds.flatMap(id => names.has(id) ? [{ id, name: names.get(id)! }] : []),
     createdAt: r.createdAt.toISOString(),
     lastUsedAt: r.lastUsedAt?.toISOString() ?? null, expiresAt: r.expiresAt?.toISOString() ?? null, revokedAt: r.revokedAt?.toISOString() ?? null,
+    viewable: !!r.viewable, lastViewedAt: r.lastViewedAt?.toISOString() ?? null,
   }))
 }

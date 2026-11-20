@@ -23,6 +23,8 @@ interface TokenRow extends Record<string, unknown> {
   lastUsedAt: Date | string | null
   expiresAt: Date | string | null
   revokedAt: Date | string | null
+  viewable: boolean
+  lastViewedAt: Date | string | null
 }
 
 const iso = (d: Date | string) => new Date(d).toISOString()
@@ -64,7 +66,8 @@ export async function loadScopeBots(tx: Tx, scope: BotScope, owner: boolean): Pr
   if (owner && bots.length) {
     const rows = await tx.execute<TokenRow>(sql`
       select u.id as bot, t.id, t.name, t.prefix, t.scopes, t.created_at as "createdAt",
-             t.last_used_at as "lastUsedAt", t.expires_at as "expiresAt", t.revoked_at as "revokedAt"
+             t.last_used_at as "lastUsedAt", t.expires_at as "expiresAt", t.revoked_at as "revokedAt",
+             t.viewable, t.last_viewed_at as "lastViewedAt"
       from users u, lateral app.bot_tokens(u.id) t
       where u.is_bot and ${where}
       order by t.created_at desc, t.id
@@ -81,6 +84,7 @@ function toBotToken(r: TokenRow): BotToken {
   return {
     id: r.id, name: r.name, prefix: r.prefix, scopes: r.scopes, createdAt: iso(r.createdAt),
     lastUsedAt: isoOrNull(r.lastUsedAt), expiresAt: isoOrNull(r.expiresAt), revokedAt: isoOrNull(r.revokedAt),
+    viewable: r.viewable, lastViewedAt: isoOrNull(r.lastViewedAt),
   }
 }
 
@@ -115,7 +119,8 @@ export async function loadAccountBots(tx: Tx, onlyId?: string): Promise<AccountB
   const [tokens, boards] = await Promise.all([
     tx.execute<TokenRow>(sql`
       select u.id as bot, t.id, t.name, t.prefix, t.scopes, t.created_at as "createdAt",
-             t.last_used_at as "lastUsedAt", t.expires_at as "expiresAt", t.revoked_at as "revokedAt"
+             t.last_used_at as "lastUsedAt", t.expires_at as "expiresAt", t.revoked_at as "revokedAt",
+             t.viewable, t.last_viewed_at as "lastViewedAt"
       from users u, lateral app.bot_tokens(u.id) t
       where u.is_bot and u.bot_owner_id = app.current_user_id() ${only}
       order by t.created_at desc, t.id`),

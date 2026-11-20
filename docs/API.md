@@ -6,8 +6,10 @@ a token can see and do what its owner can, nothing more.
 
 ## Authentication
 
-Create a token on the **Account** page (**API tokens**, **New token**). It is shown once; the server keeps only its
-SHA-256. Send it as a Bearer token:
+Create a token on the **Account** page (**API tokens**, **New token**). The server keeps its SHA-256 and a copy
+sealed with AES-256-GCM, so the eye button next to a live token shows it again after a code from your authenticator
+app (two-factor must be on; recovery codes do not count). Bot tokens work the same for whoever manages the bot.
+Revoking a token drops the sealed copy. Send it as a Bearer token:
 
 ```bash
 export KANSO=https://kanso.example.com

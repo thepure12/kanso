@@ -196,6 +196,14 @@ async function createToken() {
   finally { creating.value = false }
 }
 
+// Show token again dialog
+const reveal = ref<{ bot: AccountBot, token: BotToken } | null>(null)
+const revealOpen = ref(false)
+function openReveal(bot: AccountBot, token: BotToken) {
+  reveal.value = { bot, token }
+  revealOpen.value = true
+}
+
 async function revoke(bot: AccountBot, token: BotToken) {
   if (!await confirm({ title: t('bots.revokeConfirm', { name: token.name }), confirmLabel: t('tokens.revoke'), color: 'error' })) return
   try {
@@ -327,8 +335,14 @@ async function revoke(bot: AccountBot, token: BotToken) {
                   <code>{{ tk.prefix }}…</code>
                   · {{ tk.lastUsedAt ? t('tokens.lastUsed', { date: formatDateTime(tk.lastUsedAt, locale) }) : t('tokens.neverUsed') }}
                   · {{ tk.expiresAt ? t('tokens.expires', { date: formatDateTime(tk.expiresAt, locale) }) : t('tokens.noExpiry') }}
+                  <template v-if="tk.lastViewedAt">
+                    · {{ t('tokens.lastViewed', { date: formatDateTime(tk.lastViewedAt, locale) }) }}
+                  </template>
                 </p>
               </div>
+              <UTooltip v-if="tk.viewable" :text="t('tokens.reveal.button')">
+                <UButton color="neutral" variant="ghost" size="xs" icon="i-lucide-eye" :aria-label="t('tokens.reveal.button')" data-testid="reveal-token" @click="openReveal(bot, tk)" />
+              </UTooltip>
               <UButton color="neutral" variant="ghost" size="xs" :label="t('tokens.revoke')" @click="revoke(bot, tk)" />
             </li>
           </ul>
@@ -364,5 +378,13 @@ async function revoke(bot: AccountBot, token: BotToken) {
         </div>
       </template>
     </UModal>
+    <TokenRevealModal
+      v-if="reveal"
+      v-model:open="revealOpen"
+      :name="reveal.token.name"
+      :url="`/api/bots/${reveal.bot.id}/tokens/${reveal.token.id}/reveal`"
+      :warning="t('bots.account.onlyOnceDescription', { name: reveal?.bot.name ?? '' })"
+      @revealed="reveal.token.lastViewedAt = new Date().toISOString()"
+    />
   </section>
 </template>

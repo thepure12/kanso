@@ -466,13 +466,14 @@
     "year": "1 Jahr",
     "never": "Nie",
     "lastUsed": "Zuletzt verwendet {date}",
+    "lastViewed": "Zuletzt angezeigt {date}",
     "neverUsed": "Nie verwendet",
     "expires": "Läuft ab {date}",
     "noExpiry": "Kein Ablaufdatum",
     "revoke": "Widerrufen",
     "copyTitle": "Token kopieren",
     "newTitle": "Neues API-Token",
-    "onlyOnce": "Das Token wird nur dieses eine Mal angezeigt",
+    "onlyOnce": "Kopiere das Token jetzt",
     "onlyOnceDescription": "Bewahre es sicher auf. Wer es hat, kann die API in deinem Namen nutzen.",
     "copy": "Token kopieren",
     "copied": "Token kopiert",
@@ -493,7 +494,19 @@
     "mcpTitle": "Mit KI-Agenten nutzen (MCP)",
     "mcpHelp": "Agenten wie Claude Code können über den MCP-Server unter {url} mit diesem Token auf deine Boards zugreifen. Mit einem Nur-Lese-Token können sie nur lesen. So fügst du ihn Claude Code hinzu:",
     "mcpCopy": "Befehl kopieren",
-    "mcpCopied": "Befehl kopiert"
+    "mcpCopied": "Befehl kopiert",
+    "reveal": {
+      "button": "Token anzeigen",
+      "title": "Token „{name}“ anzeigen",
+      "help": "Gib einen Code aus deiner Authenticator-App ein, um dieses Token erneut zu sehen.",
+      "code": "Code",
+      "show": "Anzeigen",
+      "badCode": "Dieser Code ist ungültig. Warte auf den nächsten und versuche es erneut.",
+      "failed": "Das Token konnte nicht angezeigt werden",
+      "twoFactorRequired": "Zwei-Faktor-Authentifizierung nötig",
+      "twoFactorRequiredDescription": "Tokens lassen sich nur mit einem Code aus einer Authenticator-App erneut anzeigen. Schalte zuerst die Zwei-Faktor-Authentifizierung für dein Konto ein.",
+      "setUpTwoFactor": "Zwei-Faktor einrichten"
+    }
   },
   "sessions": {
     "title": "Sitzungen",

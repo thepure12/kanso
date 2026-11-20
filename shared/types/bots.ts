@@ -4,7 +4,7 @@ import type { BoardRole } from './board'
 /** Roles a bot can have on its board or team: never owner. */
 export type BotRole = Exclude<BoardRole, 'owner'>
 
-/** An API token of a board bot (never the token itself, which only its POST response holds). */
+/** An API token of a bot (never the token itself: its POST response, or the reveal route with a TOTP code). */
 export interface BotToken {
   id: string
   name: string
@@ -15,6 +15,9 @@ export interface BotToken {
   lastUsedAt: string | null
   expiresAt: string | null
   revokedAt: string | null
+  /** Whether its manager can see it again (POST /api/bots/:id/tokens/:tokenId/reveal). */
+  viewable: boolean
+  lastViewedAt: string | null
 }
 
 /** A bot user of one board (0102_board_bots_rls.sql) or team (0106_team_bots_rls.sql); it acts only through its board- or team-limited tokens. */

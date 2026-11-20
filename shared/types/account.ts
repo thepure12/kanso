@@ -52,6 +52,9 @@ export interface ApiToken {
   lastUsedAt: string | null
   expiresAt: string | null
   revokedAt: string | null
+  /** Whether it can be shown again (POST /api/account/tokens/:id/reveal with a TOTP code); false for tokens made before that existed. */
+  viewable: boolean
+  lastViewedAt: string | null
 }
 
 /** A browser that receives push notifications (GET /api/account/push). */

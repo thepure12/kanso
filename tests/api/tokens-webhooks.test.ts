@@ -11,7 +11,9 @@ import type { ApiToken, PushSettings } from '#shared/types/account'
 import type { BoardDetail, Card } from '#shared/types/board'
 import type { InstanceSettings } from '#shared/types/admin'
 import type { BoardWebhook, WebhookTestResult } from '#shared/types/webhooks'
+import type { BoardBot, BotToken } from '#shared/types/bots'
 import { signEmailToken } from '../../server/utils/emailToken'
+import { base32Decode, totpCode, totpStep } from '../../server/utils/totp'
 import { setupApi } from './server'
 
 const adminEmail = `admin-${randomUUID()}@api.test`
@@ -198,6 +200,112 @@ describe('api tokens', () => {
     const link = signEmailToken(u!.id, carol.email, process.env.NUXT_SESSION_PASSWORD!, 60_000, 'password-reset', u!.session_version)
     expect((await call('/api/auth/reset-password', { method: 'POST', body: { token: link, password: 'password456' } })).status).toBe(200)
     expect((await call('/api/boards', { token: res.data.token })).status).toBe(401)
+  })
+})
+
+/** The TOTP code `offset` steps from now (each works once per account; the server accepts -1..+1). */
+async function totp(secret: string, offset = 0) {
+  if (Date.now() % 30_000 > 28_500) await new Promise(r => setTimeout(r, 1_600))
+  return totpCode(base32Decode(secret), totpStep() + offset)
+}
+
+/** Turns two-factor on for a fresh user; returns its secret and a request helper with the renewed cookie. */
+async function withTwoFactor(user: Awaited<ReturnType<typeof signUp>>) {
+  const { secret } = (await user.req<{ secret: string }>('/api/account/two-factor/setup', { method: 'POST' })).data
+  const ip = randomIp()
+  const res = await globalThis.fetch(`${base}/api/account/two-factor/enable`, {
+    method: 'POST',
+    headers: { 'cookie': user.cookie, 'x-forwarded-for': ip, 'content-type': 'application/json' },
+    body: JSON.stringify({ code: await totp(secret, -1) }),
+  })
+  expect(res.status).toBe(200)
+  const cookie = res.headers.getSetCookie().map(c => c.split(';')[0]).join('; ')
+  const req = <T = any>(path: string, init: { method?: string, body?: unknown } = {}) => call<T>(path, { ...init, cookie, ip })
+  return { secret, req }
+}
+
+describe('showing tokens again', () => {
+  it('needs two-factor and a fresh code; only live tokens of the owner; cookie only', async () => {
+    const dave = await signUp('Dave')
+    const created = (await dave.req<ApiToken & { token: string }>('/api/account/tokens', { method: 'POST', body: { name: 'agent', scopes: ['read'] } })).data
+    expect(created.viewable).toBe(true)
+    expect((await dave.req<ApiToken[]>('/api/account/tokens')).data[0]).toMatchObject({ id: created.id, viewable: true, lastViewedAt: null })
+
+    // Without two-factor there is nothing to check a code against.
+    const off = await dave.req(`/api/account/tokens/${created.id}/reveal`, { method: 'POST', body: { code: '123456' } })
+    expect(off.status).toBe(403)
+    expect(off.data.data.problem).toBe('twoFactorRequired')
+
+    const { secret, req } = await withTwoFactor(dave)
+    const wrong = await req(`/api/account/tokens/${created.id}/reveal`, { method: 'POST', body: { code: '000000' } })
+    expect(wrong.status).toBe(400)
+    expect(wrong.data.data.problem).toBe('badCode')
+    // A failed code does not count as a view.
+    expect((await req<ApiToken[]>('/api/account/tokens')).data[0]!.lastViewedAt).toBeNull()
+
+    const code = await totp(secret)
+    const shown = await req<{ token: string }>(`/api/account/tokens/${created.id}/reveal`, { method: 'POST', body: { code } })
+    expect(shown.status).toBe(200)
+    expect(shown.data.token).toBe(created.token)
+    expect((await req<ApiToken[]>('/api/account/tokens')).data[0]!.lastViewedAt).not.toBeNull()
+    // The same code works once.
+    expect((await req(`/api/account/tokens/${created.id}/reveal`, { method: 'POST', body: { code } })).status).toBe(400)
+
+    // Someone else's token: 404.
+    const erin = await withTwoFactor(await signUp('Erin'))
+    expect((await erin.req(`/api/account/tokens/${created.id}/reveal`, { method: 'POST', body: { code: await totp(erin.secret, 1) } })).status).toBe(404)
+
+    // Tokens cannot call it.
+    expect((await call(`/api/account/tokens/${created.id}/reveal`, { method: 'POST', body: { code: '123456' }, token: created.token })).status).toBe(403)
+
+    // Revoked: gone for good.
+    expect((await req(`/api/account/tokens/${created.id}`, { method: 'DELETE' })).status).toBe(200)
+    expect((await req<ApiToken[]>('/api/account/tokens')).data[0]!.viewable).toBe(false)
+    const [row] = await ownerDb`select token_enc from api_tokens where id = ${created.id}`
+    expect(row!.token_enc).toBeNull()
+    expect((await req(`/api/account/tokens/${created.id}/reveal`, { method: 'POST', body: { code: await totp(secret, 1) } })).status).toBe(404)
+  })
+
+  it('stores the token sealed, never in clear', async () => {
+    const created = await newToken(['read'], 'sealed')
+    const [row] = await ownerDb`select token_enc from api_tokens where id = ${created.id}`
+    expect(row!.token_enc).toMatch(/^v1\./)
+    expect(row!.token_enc).not.toContain(created.token.slice(3))
+  })
+
+  it('tokens made before cannot be shown', async () => {
+    const frank = await signUp('Frank')
+    const created = (await frank.req<ApiToken & { token: string }>('/api/account/tokens', { method: 'POST', body: { name: 'old', scopes: ['read'] } })).data
+    await ownerDb`update api_tokens set token_enc = null where id = ${created.id}`
+    const { secret, req } = await withTwoFactor(frank)
+    expect((await req<ApiToken[]>('/api/account/tokens')).data[0]!.viewable).toBe(false)
+    const res = await req(`/api/account/tokens/${created.id}/reveal`, { method: 'POST', body: { code: await totp(secret) } })
+    expect(res.status).toBe(404)
+    expect(res.data.data.problem).toBe('notViewable')
+  })
+
+  it('board owners see their bots\' tokens again; editors cannot', async () => {
+    const gina = await signUp('Gina')
+    const hank = await signUp('Hank')
+    const b = (await gina.req<{ id: string }>('/api/boards', { method: 'POST', body: { name: 'Bot reveal', template: 'basic' } })).data.id
+    boards.push(b)
+    expect((await gina.req(`/api/boards/${b}/members`, { method: 'POST', body: { email: hank.email, role: 'editor' } })).status).toBe(200)
+    const bot = (await gina.req<BoardBot>(`/api/boards/${b}/bots`, { method: 'POST', body: { name: 'Agent', role: 'editor' } })).data
+    const tok = (await gina.req<BotToken & { token: string }>(`/api/bots/${bot.id}/tokens`, { method: 'POST', body: { name: 'ci', scopes: ['read'] } })).data
+    expect(tok.viewable).toBe(true)
+
+    const g = await withTwoFactor(gina)
+    const shown = await g.req<{ token: string }>(`/api/bots/${bot.id}/tokens/${tok.id}/reveal`, { method: 'POST', body: { code: await totp(g.secret) } })
+    expect(shown.status).toBe(200)
+    expect(shown.data.token).toBe(tok.token)
+    const bots = (await g.req<BoardBot[]>(`/api/boards/${b}/bots`)).data
+    expect(bots[0]!.tokens![0]).toMatchObject({ id: tok.id, viewable: true })
+    expect(bots[0]!.tokens![0]!.lastViewedAt).not.toBeNull()
+    // The token under another bot id: 404.
+    expect((await g.req(`/api/bots/${hank.id}/tokens/${tok.id}/reveal`, { method: 'POST', body: { code: await totp(g.secret, 1) } })).status).toBe(404)
+
+    const h = await withTwoFactor(hank)
+    expect((await h.req(`/api/bots/${bot.id}/tokens/${tok.id}/reveal`, { method: 'POST', body: { code: await totp(h.secret) } })).status).toBe(403)
   })
 })
 
