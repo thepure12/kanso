@@ -122,7 +122,7 @@ const anyItem = computed(() => ({ label: t('boardRules.any'), value: NONE }))
 const noneItem = computed(() => ({ label: t('boardRules.none'), value: NONE }))
 const tagItems = computed(() => props.tags.map(x => ({ label: x.name, value: x.id, color: x.color as string | null })))
 const columnItems = computed(() => props.columns.map(c => ({ label: c.title, value: c.id, color: c.color })))
-const memberItems = computed(() => props.members.map(m => ({ label: m.name, value: m.userId, color: null as string | null })))
+const memberItems = computed(() => props.members.map(m => ({ label: m.name, value: m.userId, color: null as string | null, ...(m.isBot ? { description: t('bots.badge') } : {}) })))
 const priorityItems = computed(() => priorities.map(p => ({ label: t(`priority.${p}`), value: p, color: null as string | null })))
 const withAny = <T,>(items: T[]) => [anyItem.value, ...items]
 const withNone = <T,>(items: T[]) => [noneItem.value, ...items]

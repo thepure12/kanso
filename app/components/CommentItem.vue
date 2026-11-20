@@ -28,6 +28,7 @@ async function saveEdit() {
 }
 
 // Mirrors the card_comments policies; the server decides.
+const botIds = useBotIds()
 const mine = computed(() => props.comment.authorId === user.value?.id)
 const canDelete = computed(() => props.isOwner || (props.canEdit && mine.value))
 
@@ -89,6 +90,7 @@ const reactedBy = (names: string[], emoji: string) =>
     <div class="min-w-0 flex-1 space-y-1">
       <div class="flex items-center gap-2 text-xs">
         <span class="font-medium">{{ comment.importedAuthor ?? comment.authorName ?? t('card.formerMember') }}</span>
+        <BotBadge v-if="comment.authorId && botIds.has(comment.authorId)" />
         <UBadge v-if="comment.importedAuthor" :label="t('comments.imported')" color="neutral" variant="subtle" size="sm" />
         <span class="text-muted">{{ formatDateTime(comment.createdAt, locale) }}</span>
         <span v-if="comment.updatedAt !== comment.createdAt" class="text-dimmed">{{ t('comments.edited') }}</span>

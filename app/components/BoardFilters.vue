@@ -42,7 +42,7 @@ defineExpose({ focus: openSearch })
 
 const memberItems = computed(() => [
   { label: t('filters.unassigned'), value: 'none', icon: 'i-lucide-user-x' },
-  ...props.members.map(m => ({ label: m.name, value: m.userId, avatar: { src: m.avatarUrl ?? undefined, alt: m.name } })),
+  ...props.members.map(m => ({ label: m.name, value: m.userId, ...personItem(m, t('bots.badge')) })),
 ])
 const priorityItems = computed(() => [
   ...priorities.map(p => ({ label: t(`priority.${p}`), value: p, icon: priorityMeta[p].icon })),

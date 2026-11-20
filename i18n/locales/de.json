@@ -638,7 +638,8 @@
         "display": "Anzeige",
         "manage": "Board verwalten"
       },
-      "rules": "Regeln"
+      "rules": "Regeln",
+      "bots": "Bots"
     },
     "undo": {
       "action": "Rückgängig",
@@ -1237,7 +1238,9 @@
     "remove": "Mitglied entfernen",
     "pending": "Offene Einladungen",
     "notSignedUp": "Noch nicht registriert",
-    "revoke": "Einladung zurückziehen"
+    "revoke": "Einladung zurückziehen",
+    "bots": "Bots",
+    "botsManaged": "Verwaltet im Board-Menü unter Bots"
   },
   "memberAccess": {
     "button": "Zugriff einschränken",
@@ -1900,5 +1903,26 @@
   "boardTabs": {
     "label": "Geöffnete Boards",
     "close": "{name} schließen"
+  },
+  "bots": {
+    "badge": "Bot",
+    "title": "Bots",
+    "description": "Board-Mitglieder für Agenten und Skripte. Jeder handelt nur auf diesem Board, über eigene API-Tokens.",
+    "namePlaceholder": "Name des Bots, z. B. Claude",
+    "role": "Rolle",
+    "add": "Bot hinzufügen",
+    "empty": "Noch keine Bots.",
+    "rename": "Bot umbenennen",
+    "delete": "Bot löschen",
+    "deleteConfirm": "Den Bot „{name}“ löschen?",
+    "deleteDescription": "Seine Tokens funktionieren sofort nicht mehr. Seine Karten und Kommentare bleiben, ohne Autor.",
+    "addFailed": "Der Bot konnte nicht hinzugefügt werden",
+    "updateFailed": "Der Bot konnte nicht geändert werden",
+    "deleteFailed": "Der Bot konnte nicht gelöscht werden",
+    "readOnlyDescription": "Sieht sich nur dieses Board an",
+    "readWriteDescription": "Ändert dieses Board als Bot, im Rahmen seiner Rolle",
+    "newTokenTitle": "Neues Token für {name}",
+    "onlyOnceDescription": "Bewahre es sicher auf. Wer es hat, kann dieses Board als {name} nutzen.",
+    "revokeConfirm": "Das Token „{name}“ widerrufen?"
   }
 }

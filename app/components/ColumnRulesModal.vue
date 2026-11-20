@@ -18,7 +18,7 @@ const tagsFor = (kind: TagKind) => props.tags.filter(t => !props.column.rules.so
 // People not yet assigned by a rule.
 const memberItems = computed(() => props.members
   .filter(m => !props.column.rules.some(r => r.kind === 'assign_to' && r.userId === m.userId))
-  .map(m => ({ label: m.name, value: m.userId, avatar: { src: m.avatarUrl ?? undefined, alt: m.name } })))
+  .map(m => ({ label: m.name, value: m.userId, ...personItem(m, t('bots.badge')) })))
 // At most one "assign the mover" rule per column.
 const hasMoverRule = computed(() => props.column.rules.some(r => r.kind === 'assign_mover'))
 // Select value for the assign_mover rule ("whoever puts the card here": adds or moves it in), listed first.

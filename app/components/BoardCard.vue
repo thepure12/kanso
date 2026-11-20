@@ -266,7 +266,7 @@ const dueAriaLabel = computed(() => {
         {{ formatDuration(props.card.timeMinutes, t) }}
       </span>
       <UAvatarGroup v-if="assignees.length" :max="3" size="2xs" class="ms-auto">
-        <UAvatar v-for="m in assignees" :key="m.userId" :src="m.avatarUrl ?? undefined" :alt="m.name" />
+        <UAvatar v-for="m in assignees" :key="m.userId" v-bind="personAvatar(m)" />
       </UAvatarGroup>
     </div>
   </UCard>

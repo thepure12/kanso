@@ -30,7 +30,7 @@ function assigneeItems(item: ChecklistItem): DropdownMenuItem[][] {
   return [
     (props.members ?? []).map(m => ({
       label: m.name,
-      avatar: { src: m.avatarUrl ?? undefined, alt: m.name },
+      ...personItem(m, t('bots.badge')),
       icon: m.userId === item.assigneeId ? 'i-lucide-check' : undefined,
       onSelect: () => set(m.userId),
     })),

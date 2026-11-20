@@ -163,7 +163,7 @@ function toggleWatch() {
 }
 
 const memberItems = computed(() => props.members.map(m => ({
-  label: m.name, value: m.userId, avatar: { src: m.avatarUrl ?? undefined, alt: m.name },
+  label: m.name, value: m.userId, ...personItem(m, t('bots.badge')),
 })))
 // Assignees who lost access stay on the card until removed.
 const formerAssignees = computed(() => form.assigneeIds.filter(id => !props.members.some(m => m.userId === id)))

@@ -9,6 +9,8 @@ export interface PanelMember extends Person {
   role: BoardRole | null
   /** Extra access shown read-only, e.g. "Acme · editor". */
   note?: string
+  /** A board bot: listed apart, managed in BotsSlideover, so no controls here. */
+  isBot?: boolean
 }
 
 const props = defineProps<{
@@ -32,6 +34,9 @@ const showError = useApiError()
 const toast = useToast()
 const { t } = useI18n()
 const listId = useId()
+
+const humans = computed(() => props.members.filter(m => !m.isBot))
+const bots = computed(() => props.members.filter(m => m.isBot))
 
 const roles = computed(() => (['owner', 'editor', 'commenter', 'viewer'] as const).map(value => ({
   label: t(`members.roles.${value}`), value, description: t(`members.roleDescriptions.${value}`),
@@ -213,7 +218,7 @@ async function revoke(inviteId: string) {
     </form>
 
     <ul class="divide-y divide-default">
-      <li v-for="m in props.members" :key="m.userId" class="flex items-center gap-3 py-3">
+      <li v-for="m in humans" :key="m.userId" class="flex items-center gap-3 py-3">
         <UUser
           :name="m.userId === user?.id ? t('members.you', { name: m.name }) : m.name"
           :description="m.email"
@@ -259,6 +264,25 @@ async function revoke(inviteId: string) {
         </template>
       </li>
     </ul>
+
+    <template v-if="bots.length">
+      <h3 class="text-sm font-medium text-muted mt-6 mb-1">
+        {{ t('members.bots') }}
+      </h3>
+      <ul class="divide-y divide-default" data-testid="member-bots">
+        <li v-for="m in bots" :key="m.userId" class="flex items-center gap-3 py-3">
+          <UUser
+            :name="m.name"
+            :description="props.canManage ? t('members.botsManaged') : undefined"
+            :avatar="personAvatar(m)"
+            :ui="{ wrapper: 'min-w-0', name: 'truncate', description: 'truncate' }"
+            class="flex-1 min-w-0"
+          />
+          <BotBadge />
+          <UBadge v-if="m.role" color="neutral" variant="subtle" :label="t(`members.roles.${m.role}`)" />
+        </li>
+      </ul>
+    </template>
 
     <template v-if="props.invites.length">
       <h3 class="text-sm font-medium text-muted mt-6 mb-1">

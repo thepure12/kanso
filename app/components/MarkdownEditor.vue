@@ -28,7 +28,7 @@ const suggestions = computed(() => {
   if (!mention.value || !props.members?.length) return []
   const q = mention.value.query.toLowerCase()
   return props.members
-    .filter(m => m.name.toLowerCase().includes(q) || m.email.toLowerCase().startsWith(q))
+    .filter(m => m.name.toLowerCase().includes(q) || (!m.isBot && m.email.toLowerCase().startsWith(q)))
     .slice(0, 6)
 })
 
@@ -204,9 +204,10 @@ function onKeydown(e: KeyboardEvent) {
           @mousedown.prevent="pick(m)"
           @mouseenter="highlighted = i"
         >
-          <UAvatar :src="m.avatarUrl ?? undefined" :alt="m.name" size="2xs" />
+          <UAvatar v-bind="personAvatar(m)" size="2xs" />
           <span class="truncate">{{ m.name }}</span>
-          <span class="truncate text-xs text-muted">{{ m.email }}</span>
+          <BotBadge v-if="m.isBot" />
+          <span v-else class="truncate text-xs text-muted">{{ m.email }}</span>
         </li>
       </ul>
     </div>

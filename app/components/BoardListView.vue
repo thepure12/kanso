@@ -174,7 +174,7 @@ const dueClass = (card: Card) => {
           <template #assignees-cell="{ row }">
             <div v-if="assignees(row.original).length" class="flex items-center gap-1.5">
               <UAvatarGroup :max="3" size="2xs">
-                <UAvatar v-for="m in assignees(row.original)" :key="m.userId" :src="m.avatarUrl ?? undefined" :alt="m.name" />
+                <UAvatar v-for="m in assignees(row.original)" :key="m.userId" v-bind="personAvatar(m)" />
               </UAvatarGroup>
               <span class="truncate max-w-40">{{ assignees(row.original).map(m => m.name).join(', ') }}</span>
             </div>

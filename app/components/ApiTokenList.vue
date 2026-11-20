@@ -3,7 +3,6 @@ import type { ApiToken } from '#shared/types/account'
 import type { BoardSummary } from '#shared/types/board'
 
 const showError = useApiError()
-const toast = useToast()
 const { t, locale } = useI18n()
 
 const { data: tokens, refresh } = await useFetch<ApiToken[]>('/api/account/tokens', { default: () => [] })
@@ -71,21 +70,6 @@ async function create() {
   finally { creating.value = false }
 }
 
-async function copy() {
-  if (!created.value) return
-  await navigator.clipboard.writeText(created.value)
-  toast.add({ title: t('tokens.copied'), color: 'success' })
-}
-
-/** MCP endpoint for AI agents, and the Claude Code command that adds it with the new token. */
-const mcpUrl = computed(() => import.meta.client ? window.location.origin + appUrl('/api/mcp') : '')
-const mcpCommand = computed(() => `claude mcp add --transport http kanso ${mcpUrl.value} --header "Authorization: Bearer ${created.value}"`)
-
-async function copyMcpCommand() {
-  await navigator.clipboard.writeText(mcpCommand.value)
-  toast.add({ title: t('tokens.mcpCopied'), color: 'success' })
-}
-
 async function revoke(token: ApiToken) {
   try {
     await $fetch(`/api/account/tokens/${token.id}`, { method: 'DELETE' })
@@ -141,38 +125,7 @@ defineExpose({ refresh })
 
     <UModal v-model:open="createOpen" :title="created ? t('tokens.copyTitle') : t('tokens.newTitle')">
       <template #body>
-        <div v-if="created" class="space-y-3">
-          <UAlert
-            color="warning"
-            variant="subtle"
-            icon="i-lucide-triangle-alert"
-            :title="t('tokens.onlyOnce')"
-            :description="t('tokens.onlyOnceDescription')"
-          />
-          <UInput :model-value="created" readonly class="w-full font-mono" @focus="($event.target as HTMLInputElement).select()">
-            <template #trailing>
-              <UTooltip :text="t('tokens.copy')">
-                <UButton color="neutral" variant="link" size="sm" icon="i-lucide-copy" :aria-label="t('tokens.copy')" @click="copy" />
-              </UTooltip>
-            </template>
-          </UInput>
-          <div class="space-y-1">
-            <p class="text-sm font-medium">
-              {{ t('tokens.mcpTitle') }}
-            </p>
-            <i18n-t keypath="tokens.mcpHelp" tag="p" class="text-sm text-muted" scope="global">
-              <template #url>
-                <code class="break-all">{{ mcpUrl }}</code>
-              </template>
-            </i18n-t>
-            <div class="flex items-start gap-1">
-              <UTextarea :model-value="mcpCommand" readonly autoresize :rows="2" class="flex-1 font-mono text-xs" @focus="($event.target as HTMLTextAreaElement).select()" />
-              <UTooltip :text="t('tokens.mcpCopy')">
-                <UButton color="neutral" variant="ghost" size="sm" icon="i-lucide-copy" :aria-label="t('tokens.mcpCopy')" @click="copyMcpCommand" />
-              </UTooltip>
-            </div>
-          </div>
-        </div>
+        <TokenCreatedPanel v-if="created" :token="created" />
         <form v-else id="new-token" class="space-y-4" @submit.prevent="create">
           <UFormField :label="t('common.name')" :description="t('tokens.nameHelp')">
             <UInput v-model="name" class="w-full" maxlength="100" required autofocus />

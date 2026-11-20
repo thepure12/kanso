@@ -10,6 +10,7 @@ const open = defineModel<boolean>('open', { required: true })
 const showError = useApiError()
 const { t, locale } = useI18n()
 const i18n = useI18nContext()
+const botIds = useBotIds()
 
 const items = ref<BoardActivity[] | null>(null)
 const nextCursor = ref<string | null>(null)
@@ -45,6 +46,7 @@ watch(() => [open.value, props.version] as const, ([isOpen]) => { if (isOpen) lo
             </ULink>
             <p>
               <span class="font-medium">{{ actorLabel(a.actorName, a, i18n) }}</span>
+              <BotBadge v-if="a.actorId && botIds.has(a.actorId)" class="ms-1" />
               {{ describeActivity(a, i18n) }}
             </p>
             <p class="text-xs text-muted">

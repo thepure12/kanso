@@ -638,7 +638,8 @@
         "display": "Display",
         "manage": "Manage board"
       },
-      "rules": "Rules"
+      "rules": "Rules",
+      "bots": "Bots"
     },
     "undo": {
       "action": "Undo",
@@ -1237,7 +1238,9 @@
     "remove": "Remove member",
     "pending": "Pending invites",
     "notSignedUp": "Not signed up yet",
-    "revoke": "Revoke invite"
+    "revoke": "Revoke invite",
+    "bots": "Bots",
+    "botsManaged": "Managed in the board menu under Bots"
   },
   "memberAccess": {
     "button": "Limit access",
@@ -1900,5 +1903,26 @@
   "boardTabs": {
     "label": "Open boards",
     "close": "Close {name}"
+  },
+  "bots": {
+    "badge": "Bot",
+    "title": "Bots",
+    "description": "Board members for agents and scripts. Each acts only on this board, through its own API tokens.",
+    "namePlaceholder": "Bot name, e.g. Claude",
+    "role": "Role",
+    "add": "Add bot",
+    "empty": "No bots yet.",
+    "rename": "Rename bot",
+    "delete": "Delete bot",
+    "deleteConfirm": "Delete the bot “{name}”?",
+    "deleteDescription": "Its tokens stop working at once. Its cards and comments stay, without an author.",
+    "addFailed": "Could not add the bot",
+    "updateFailed": "Could not change the bot",
+    "deleteFailed": "Could not delete the bot",
+    "readOnlyDescription": "Looks at this board only",
+    "readWriteDescription": "Changes this board as the bot, within its role",
+    "newTokenTitle": "New token for {name}",
+    "onlyOnceDescription": "Store it somewhere safe. Anyone with it can use this board as {name}.",
+    "revokeConfirm": "Revoke the token “{name}”?"
   }
 }

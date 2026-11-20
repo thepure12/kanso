@@ -29,7 +29,7 @@ const tagItems = computed<DropdownMenuItem[][]>(() => [
   props.tags.map(tag => ({ ...addRemove(tag.name, { addTagIds: [tag.id] }, { removeTagIds: [tag.id] }), icon: 'i-lucide-tag' })),
 ])
 const assigneeItems = computed<DropdownMenuItem[][]>(() => [
-  props.members.map(m => ({ ...addRemove(m.name, { addAssigneeIds: [m.userId] }, { removeAssigneeIds: [m.userId] }), avatar: { src: m.avatarUrl ?? undefined, alt: m.name } })),
+  props.members.map(m => ({ ...addRemove(m.name, { addAssigneeIds: [m.userId] }, { removeAssigneeIds: [m.userId] }), ...personItem(m, t('bots.badge')) })),
 ])
 const priorityItems = computed<DropdownMenuItem[][]>(() => [
   priorities.map(p => ({ label: t(`priority.${p}`), icon: priorityMeta[p].icon, onSelect: () => emit('apply', { priority: p }) })),

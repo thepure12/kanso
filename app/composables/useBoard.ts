@@ -92,6 +92,8 @@ export async function useBoard(id: string) {
   const redo = () => step('redo')
   const record = (label: string, undo: () => Promise<void>, redo?: () => Promise<void>) => undoStack.push({ label, undo, redo })
   provide(boardUndoKey, { record, refresh: () => refresh() })
+  // Bot members, so names across the board (comments, activity, pickers) get a Bot badge. Lazy like below.
+  provide(boardBotIdsKey, computed(() => new Set((board.value?.members ?? []).filter(m => m.isBot).map(m => m.userId))))
   // Colours in use, offered as quick picks by the colour pickers. Lazy: the refs below exist by the time it is read.
   provide(boardColorsKey, computed(() => ({
     tags: tags.value,
