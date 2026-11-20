@@ -3,9 +3,10 @@ import type { BoardBot, BotRole, BotToken } from '#shared/types/bots'
 
 // Board owners manage the board's bots and their API tokens (Bots 2/4 routes,
 // cookie only). The list starts from BoardDetail.bots and follows its reloads;
-// `changed` asks the page to reload the board (bots are members too).
-const props = defineProps<{ boardId: string, bots: BoardBot[] }>()
-const emit = defineEmits<{ changed: [] }>()
+// `changed` asks the page to reload the board (bots are members too); `limit`
+// asks it to open MemberAccessModal for a bot, as for any other member.
+const props = defineProps<{ boardId: string, bots: BoardBot[], limitedIds?: string[], canLimit?: boolean }>()
+const emit = defineEmits<{ changed: [], limit: [botId: string] }>()
 const open = defineModel<boolean>('open', { required: true })
 
 const showError = useApiError()
@@ -155,6 +156,11 @@ async function revoke(bot: BoardBot, token: BotToken) {
               class="w-28"
               :aria-label="t('bots.role')"
               @update:model-value="(r: BotRole) => patch(bot, { role: r })"
+            />
+            <MemberLimitButton
+              :limited="!!props.limitedIds?.includes(bot.id)"
+              :can-limit="!!props.canLimit"
+              @limit="emit('limit', bot.id)"
             />
             <UTooltip :text="t('bots.rename')">
               <UButton color="neutral" variant="ghost" size="sm" icon="i-lucide-pencil" :aria-label="t('bots.rename')" @click="rename(bot)" />

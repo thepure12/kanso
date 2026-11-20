@@ -227,20 +227,11 @@ async function revoke(inviteId: string) {
           class="flex-1 min-w-0"
         />
         <UBadge v-if="m.note" color="neutral" variant="outline" size="sm" icon="i-lucide-users" :label="m.note" class="shrink-0" />
-        <!-- Owners get one button that also shows the state; everyone else only the badge. -->
-        <UTooltip v-if="props.canLimit?.(m)" :text="t('memberAccess.button')">
-          <UButton
-            :color="props.limitedIds?.includes(m.userId) ? 'warning' : 'neutral'"
-            :variant="props.limitedIds?.includes(m.userId) ? 'subtle' : 'ghost'"
-            size="sm"
-            icon="i-lucide-shield"
-            :label="props.limitedIds?.includes(m.userId) ? t('memberAccess.limited') : undefined"
-            :aria-label="t('memberAccess.button')"
-            class="shrink-0"
-            @click="emit('limit', m.userId)"
-          />
-        </UTooltip>
-        <UBadge v-else-if="props.limitedIds?.includes(m.userId)" color="warning" variant="subtle" size="sm" icon="i-lucide-shield" :label="t('memberAccess.limited')" class="shrink-0" />
+        <MemberLimitButton
+          :limited="!!props.limitedIds?.includes(m.userId)"
+          :can-limit="!!props.canLimit?.(m)"
+          @limit="emit('limit', m.userId)"
+        />
         <template v-if="m.role">
           <USelect
             v-if="props.canManage"
@@ -279,6 +270,11 @@ async function revoke(inviteId: string) {
             class="flex-1 min-w-0"
           />
           <BotBadge />
+          <MemberLimitButton
+            :limited="!!props.limitedIds?.includes(m.userId)"
+            :can-limit="!!props.canLimit?.(m)"
+            @limit="emit('limit', m.userId)"
+          />
           <UBadge v-if="m.role" color="neutral" variant="subtle" :label="t(`members.roles.${m.role}`)" />
         </li>
       </ul>

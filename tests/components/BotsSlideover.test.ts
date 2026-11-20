@@ -68,4 +68,18 @@ describe('BotsSlideover', () => {
     expect(w.text()).not.toContain('kb_secretsecretsecret')
     expect(w.find('[data-testid="new-token"]').exists()).toBe(false)
   })
+
+  it('owners open the access limits of a bot from its row', async () => {
+    const w = await mountSuspended(BotsSlideover, { props: { open: true, boardId: 'b1', bots: [claude], limitedIds: ['bot1'], canLimit: true }, global: { stubs } })
+    const shield = w.find('button[aria-label="Limit access"]')
+    expect(shield.text()).toContain('Limited')
+    await shield.trigger('click')
+    expect(w.emitted('limit')).toEqual([['bot1']])
+  })
+
+  it('shows no shield on an archived board unless the bot is limited', async () => {
+    const w = await mountSuspended(BotsSlideover, { props: { open: true, boardId: 'b1', bots: [claude], canLimit: false }, global: { stubs } })
+    expect(w.find('button[aria-label="Limit access"]').exists()).toBe(false)
+    expect(w.text()).not.toContain('Limited')
+  })
 })

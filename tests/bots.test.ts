@@ -186,6 +186,55 @@ describe('bot tokens', () => {
   })
 })
 
+// Owners limit bots to columns and cards like any other member (0088).
+describe('limited bots', () => {
+  it('a limited bot only sees and edits what its limits allow, and the limits go with the bot', async () => {
+    const bot = await newBot(boardId, 'Limited', 'editor')
+    const { token } = await newBotToken(bot)
+    const [{ id: hiddenCol }] = await as(owner.id, sql => sql`
+      insert into columns (board_id, title, position) values (${boardId}, 'Hidden', 50) returning id`) as any
+    const [{ id: readCol }] = await as(owner.id, sql => sql`
+      insert into columns (board_id, title, position) values (${boardId}, 'Read only', 51) returning id`) as any
+    const [{ id: hiddenCard }] = await as(owner.id, sql => sql`
+      insert into cards (board_id, column_id, title, position, created_by) values (${boardId}, ${hiddenCol}, 'Secret', 1, ${owner.id}) returning id`) as any
+    const [{ id: readCard }] = await as(owner.id, sql => sql`
+      insert into cards (board_id, column_id, title, position, created_by) values (${boardId}, ${readCol}, 'Look only', 1, ${owner.id}) returning id`) as any
+
+    // Only owners set limits, also for bots.
+    await rejectsWith(as(editor.id, sql => sql`
+      insert into board_member_limits (board_id, user_id, default_access) values (${boardId}, ${bot}, 'edit')`), '42501')
+    await as(owner.id, async (sql) => {
+      await sql`insert into board_member_limits (board_id, user_id, default_access) values (${boardId}, ${bot}, 'edit')`
+      await sql`insert into board_member_access (board_id, user_id, column_id, access) values
+        (${boardId}, ${bot}, ${hiddenCol}, 'none'), (${boardId}, ${bot}, ${readCol}, 'read')`
+    })
+
+    await asToken(token, async (sql) => {
+      const cols = (await sql`select id from columns where board_id = ${boardId}`).map(r => r.id)
+      expect(cols).toContain(todoId)
+      expect(cols).toContain(readCol)
+      expect(cols).not.toContain(hiddenCol)
+      expect(await sql`select 1 from cards where id = ${hiddenCard}`).toHaveLength(0)
+      expect(await sql`select 1 from cards where id = ${readCard}`).toHaveLength(1)
+      // RLS filters the update to zero rows on a read-only card.
+      expect(await sql`update cards set title = 'Changed' where id = ${readCard} returning id`).toHaveLength(0)
+      // No RETURNING: the select policy's limited card list does not see the new row yet.
+      await sql`insert into cards (board_id, column_id, title, position, created_by) values (${boardId}, ${todoId}, 'Allowed', 9, ${bot})`
+      expect(await sql`select 1 from cards where board_id = ${boardId} and title = 'Allowed'`).toHaveLength(1)
+    })
+    // No new cards in a read-only column; no structure changes while limited.
+    await rejectsWith(asToken(token, sql => sql`
+      insert into cards (board_id, column_id, title, position, created_by) values (${boardId}, ${readCol}, 'No', 2, ${bot})`), '42501')
+    await rejectsWith(asToken(token, sql => sql`
+      insert into columns (board_id, title, position) values (${boardId}, 'Bot column', 60)`), '42501')
+
+    await as(owner.id, sql => sql`select app.delete_board_bot(${bot})`)
+    expect(await owner_`select 1 from board_member_limits where user_id = ${bot}`).toHaveLength(0)
+    expect(await owner_`select 1 from board_member_access where user_id = ${bot}`).toHaveLength(0)
+    await as(owner.id, sql => sql`delete from columns where id in (${hiddenCol}, ${readCol})`)
+  })
+})
+
 describe('deleting bots', () => {
   it('deleting a bot keeps its work with a null creator and actor and drops its tokens', async () => {
     const bot = await newBot(boardId, 'Temp', 'editor')

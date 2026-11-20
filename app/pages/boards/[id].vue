@@ -1191,7 +1191,16 @@ const boardMenu = computed(() => {
       @set-accent="setAccent"
       @set-column-outline="setColumnOutline"
     />
-    <BotsSlideover v-if="isOwner" v-model:open="botsOpen" :board-id="board.id" :bots="board.bots ?? []" @changed="refresh" />
+    <BotsSlideover
+      v-if="isOwner"
+      v-model:open="botsOpen"
+      :board-id="board.id"
+      :bots="board.bots ?? []"
+      :limited-ids="limitedIds"
+      :can-limit="!archived"
+      @limit="botId => limitingUserId = botId"
+      @changed="refresh"
+    />
     <WebhooksSlideover v-if="isOwner" v-model:open="webhooksOpen" :board-id="board.id" />
     <MatrixSlideover v-if="isOwner" v-model:open="matrixOpen" :board-id="board.id" :room="board.matrix" @update:room="setMatrixRoom" />
     <CopyBoardModal v-model:open="copyOpen" :board-id="board.id" :board-name="board.name" :team-id="board.team?.id ?? null" />

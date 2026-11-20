@@ -153,6 +153,10 @@ These routes take the session cookie only: an API token (a bot's or a person's) 
 more tokens. A bot token is always limited to the bot's board and works like any other token on every route above and
 on `/api/mcp`: the agent acts as the bot (activity shows its name), within the bot's role and the token's scopes.
 
+Owners can also limit a bot to some columns and cards, like any other member: `PUT /api/boards/:id/members/:botId/access
+{defaultAccess, columns, cards}` (`DELETE` lifts it; in the UI the shield button in the Bots or Members panel). A
+limited bot sees only the columns and cards it may read and changes only those it may edit, through the API and MCP.
+
 ```bash
 # As a board owner in the browser session; then hand $TOKEN to the agent
 curl -s -X POST -b "$COOKIE" -H 'content-type: application/json' \
