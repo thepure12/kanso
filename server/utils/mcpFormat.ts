@@ -70,7 +70,7 @@ export function boardForAgent(board: BoardDetail) {
     automations: board.automations,
     rules: board.rules,
     scheduledActions: board.scheduledActions,
-    members: board.members.map(m => ({ userId: m.userId, name: m.name, email: m.email, role: m.role })),
+    members: board.members.map(m => ({ userId: m.userId, name: m.name, ...(m.isBot ? { bot: true } : { email: m.email }), role: m.role })),
     fields: board.fields.map(f => ({ id: f.id, name: f.name, kind: f.kind, options: f.kind === 'select' ? f.options.map(o => o.label) : undefined })),
     templates: board.templates.map(t => ({ id: t.id, title: t.title })),
   }

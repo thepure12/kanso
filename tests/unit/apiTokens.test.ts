@@ -19,7 +19,7 @@ describe('api tokens', () => {
     expect(bearerToken(undefined)).toBeUndefined()
   })
 
-  it('allows board routes and refuses account, auth, admin, webhook and Matrix routes', () => {
+  it('allows board routes and refuses account, auth, admin, webhook, Matrix and bot routes', () => {
     for (const r of ['/api/boards', '/api/boards/:id', '/api/cards/:id/move', '/api/search', '/api/me', '/api/my-work', '/api/notifications', '/api/teams/:id/members']) {
       expect(tokenRouteAllowed(r), r).toBe(true)
     }
@@ -27,6 +27,7 @@ describe('api tokens', () => {
       undefined, '', '/api/account', '/api/account/tokens', '/api/account/tokens/:id', '/api/account/sessions', '/api/account/two-factor/disable',
       '/api/auth/login', '/api/_auth/session', '/api/admin/users', '/api/boards/:id/webhooks', '/api/webhooks/:id', '/api/webhooks/:id/test',
       '/api/boards/:id/matrix', '/api/boards/:id/matrix/test',
+      '/api/boards/:id/bots', '/api/bots/:id', '/api/bots/:id/tokens', '/api/bots/:id/tokens/:tokenId',
       '/api/boardsx', '/auth/verify', '/api/me/x/../../account',
     ]) {
       expect(tokenRouteAllowed(r), String(r)).toBe(false)

@@ -3,6 +3,7 @@ import type { BoardBackground } from '../boardBackgrounds'
 import type { ColumnOutline } from '../columnOutline'
 import type { BoardNotificationLevel } from '../notificationSettings'
 import type { SavedViewConfig } from '../savedViews'
+import type { BoardBot } from './bots'
 import type { BoardMatrixRoom, CardMatrixThread } from './matrix'
 
 export type BoardRole = 'owner' | 'editor' | 'commenter' | 'viewer'
@@ -20,6 +21,8 @@ export interface Member extends Person {
   role: BoardRole
   boardRole: BoardRole | null
   teamRole: BoardRole | null
+  /** A bot of this board (acts through API tokens; see BoardDetail.bots). */
+  isBot: boolean
 }
 
 /** Access of a limited member to a card or column (0088_board_member_access_rls.sql). */
@@ -537,6 +540,8 @@ export interface BoardDetail {
   /** Custom fields in position order. */
   fields: BoardField[]
   members: Member[]
+  /** The board's bots by name; their tokens only for owners. */
+  bots: BoardBot[]
   invites: Invite[]
   /** The current user's limits on this board; null = not limited (owners never are). */
   myAccess: MemberAccess | null

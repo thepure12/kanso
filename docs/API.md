@@ -133,6 +133,34 @@ claude mcp add --transport http kanso $KANSO/api/mcp --header "Authorization: Be
 Other clients: add a remote HTTP MCP server with URL `$KANSO/api/mcp` and the header above. A read-only token is
 enough for an agent that only reports on boards.
 
+## Board bots
+
+A bot is a member of one board with its own name, made for agents and scripts that should not act as a person. Board
+owners add, rename and delete bots and make their tokens; everyone on the board sees them as members (`isBot: true`
+in `GET /api/boards/:id` → `members`, and in `bots`). A bot's role is editor, commenter or viewer, never owner. It
+cannot sign in, join another board or a team, and is only removed by deleting it (or its board).
+
+| Method | Path | Body | Who |
+|---|---|---|---|
+| `GET` | `/api/boards/:id/bots` | | everyone on the board; `tokens` only for owners (else `null`) |
+| `POST` | `/api/boards/:id/bots` | `{name, role?}` (role default `editor`) | owners |
+| `PATCH` | `/api/bots/:id` | `{name?, role?}` | owners |
+| `DELETE` | `/api/bots/:id` | | owners; its tokens stop working, its cards and comments stay with no author |
+| `POST` | `/api/bots/:id/tokens` | `{name, scopes: ["read"] \| ["read","write"], expiresInDays?}` | owners; the `kb_...` token is in this response only |
+| `DELETE` | `/api/bots/:id/tokens/:tokenId` | | owners; revokes it |
+
+These routes take the session cookie only: an API token (a bot's or a person's) gets `403`, so a token can never make
+more tokens. A bot token is always limited to the bot's board and works like any other token on every route above and
+on `/api/mcp`: the agent acts as the bot (activity shows its name), within the bot's role and the token's scopes.
+
+```bash
+# As a board owner in the browser session; then hand $TOKEN to the agent
+curl -s -X POST -b "$COOKIE" -H 'content-type: application/json' \
+  -d '{"name":"Claude","role":"editor"}' $KANSO/api/boards/$BOARD/bots
+curl -s -X POST -b "$COOKIE" -H 'content-type: application/json' \
+  -d '{"name":"ci","scopes":["read","write"]}' $KANSO/api/bots/$BOT/tokens
+```
+
 ## Webhooks
 
 Board owners add webhooks from the board menu (**Webhooks**). Each one gets the board's card activity (all kinds, or

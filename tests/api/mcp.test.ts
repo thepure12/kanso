@@ -214,4 +214,19 @@ describe('mcp endpoint', () => {
     const refused = await mcp(readToken, 'tools/call', { name: 'create_tag', arguments: { boardId: board.id, name: 'x' } })
     expect(refused.body.result?.isError ?? refused.body.error).toBeTruthy()
   })
+  it('works with a bot token on the bot\'s board, acting as the bot', async () => {
+    const bot = (await alice.req<{ id: string }>(`/api/boards/${board.id}/bots`, { method: 'POST', body: { name: 'Claude', role: 'editor' } })).data
+    const { token } = (await alice.req<{ token: string }>(`/api/bots/${bot.id}/tokens`, { method: 'POST', body: { name: 'agent', scopes: ['read', 'write'] } })).data
+
+    const boards = (await tool(token, 'list_boards')).json()
+    expect(boards.map((b: { id: string }) => b.id)).toEqual([board.id])
+    const view = (await tool(token, 'get_board', { boardId: board.id })).json()
+    expect(view.yourRole).toBe('editor')
+    expect(view.members).toContainEqual({ userId: bot.id, name: 'Claude', bot: true, role: 'editor' })
+
+    const card = (await tool(token, 'create_card', { boardId: board.id, columnId: board.columns[0]!.id, title: 'Filed by the bot' })).json()
+    const detail = (await tool(token, 'get_card', { boardId: board.id, cardId: card.id })).json()
+    expect(detail.recentActivity).toContainEqual(expect.objectContaining({ kind: 'created', actor: 'Claude' }))
+    expect((await alice.req(`/api/bots/${bot.id}`, { method: 'DELETE' })).status).toBe(200)
+  })
 })

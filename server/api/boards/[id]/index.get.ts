@@ -37,7 +37,7 @@ export default defineUserHandler(async (event, tx): Promise<BoardDetail> => {
     loadMatrixRoom(tx, id),
     tx.execute<Member & Record<string, unknown>>(sql`
       select p.user_id as "userId", p.role, p.board_role as "boardRole", p.team_role as "teamRole",
-             u.name, u.email, u.avatar_url as "avatarUrl"
+             u.name, u.email, u.avatar_url as "avatarUrl", u.is_bot as "isBot"
       from app.board_people(${id}) p join users u on u.id = p.user_id
       order by p.role, u.name
     `),
@@ -46,6 +46,9 @@ export default defineUserHandler(async (event, tx): Promise<BoardDetail> => {
     tx.execute<{ role: BoardDetail['role'], userId: string }>(sql`select app.board_role(${id}) as role, app.current_user_id() as "userId"`),
     loadMemberAccess(tx, id),
   ])
+
+  // Tokens only for owners (app.bot_tokens refuses everyone else).
+  const bots = await loadBots(tx, id, me!.role === 'owner')
 
   const rulesByColumn = Map.groupBy(ruleRows, r => r.columnId)
 
@@ -73,6 +76,7 @@ export default defineUserHandler(async (event, tx): Promise<BoardDetail> => {
     tags: tagRows,
     fields,
     members: [...members],
+    bots,
     invites: inviteRows.map(i => ({ ...i, createdAt: i.createdAt.toISOString() })),
     myAccess: me!.role === 'owner' ? null : memberAccess[me!.userId] ?? null,
     memberAccess,
