@@ -138,7 +138,11 @@
     "assignMe": "Assign or unassign me",
     "toggleSelect": "Select or deselect for bulk changes",
     "moveCardColumn": "Move the card to the previous or next column",
-    "nextBoardTab": "Next open board tab"
+    "nextBoardTab": "Next open board tab",
+    "pickAssignees": "Choose assignees",
+    "pickTags": "Choose card tags",
+    "pickDueDate": "Set the due date",
+    "archiveCard": "Archive the card"
   },
   "mail": {
     "linkExpiry": "The link expires in {expiry}. If the button does not work, paste this link into your browser:",
@@ -903,7 +907,15 @@
       "split": "Show comments and Matrix in separate tabs",
       "comment": "Comment"
     },
-    "automations": "Automations"
+    "automations": "Automations",
+    "quickEdit": {
+      "due": "Due date",
+      "tags": "Card tags",
+      "assignees": "Assignees",
+      "searchTags": "Search card tags…",
+      "searchPeople": "Search people…",
+      "selected": "Selected"
+    }
   },
   "checklist": {
     "title": "Checklist",

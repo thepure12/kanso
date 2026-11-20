@@ -138,7 +138,11 @@
     "assignMe": "Mich zuweisen oder entfernen",
     "toggleSelect": "Für Sammeländerungen aus- oder abwählen",
     "moveCardColumn": "Karte in die vorige oder nächste Spalte verschieben",
-    "nextBoardTab": "Nächster Board-Tab"
+    "nextBoardTab": "Nächster Board-Tab",
+    "pickAssignees": "Zuständige wählen",
+    "pickTags": "Karten-Tags wählen",
+    "pickDueDate": "Fälligkeitsdatum setzen",
+    "archiveCard": "Karte archivieren"
   },
   "mail": {
     "linkExpiry": "Der Link ist {expiry} gültig. Falls der Button nicht funktioniert, kopiere diesen Link in deinen Browser:",
@@ -903,7 +907,15 @@
       "split": "Kommentare und Matrix in getrennten Tabs zeigen",
       "comment": "Kommentar"
     },
-    "automations": "Automatisierungen"
+    "automations": "Automatisierungen",
+    "quickEdit": {
+      "due": "Fälligkeitsdatum",
+      "tags": "Karten-Tags",
+      "assignees": "Zuständige",
+      "searchTags": "Karten-Tags suchen…",
+      "searchPeople": "Personen suchen…",
+      "selected": "Ausgewählt"
+    }
   },
   "checklist": {
     "title": "Checkliste",

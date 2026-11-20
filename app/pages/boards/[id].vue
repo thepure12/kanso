@@ -7,6 +7,7 @@ import { backgroundStyle } from '#shared/boardBackgrounds'
 import { columnOutlineStyle, effectiveColumnOutline } from '#shared/columnOutline'
 import { CARD_TITLE_MAX } from '#shared/cards'
 import type { CardBox } from '~/utils/cardFocus'
+import type { QuickEditMode } from '~/utils/shortcuts'
 
 const route = useRoute()
 const id = route.params.id as string
@@ -466,7 +467,35 @@ function onCardKey(e: KeyboardEvent) {
     const me = user.value.id
     updateCard(card, { assigneeIds: card.assigneeIds.includes(me) ? card.assigneeIds.filter(u => u !== me) : [...card.assigneeIds, me] })
   }
+  else if (e.key === 'c' && plain && canEditCard(card)) {
+    e.preventDefault()
+    // Focus a neighbour first, so the keyboard stays on the board once the card is gone.
+    const boxes = cardElements().map(cardBox)
+    const next = neighbourCard(cardBox(target!), boxes, 'down') ?? neighbourCard(cardBox(target!), boxes, 'up')
+    archiveCard(card)
+    if (next) nextTick(() => focusCard(next))
+  }
+  else if (plain && canEditCard(card) && quickEditKeys[e.key] && (e.key !== 't' || tags.value.length)) {
+    e.preventDefault()
+    quickEdit.value = { cardId: card.id, mode: quickEditKeys[e.key]! }
+    quickEditOpen.value = true
+  }
 }
+
+// `d` / `t` / `m` on a focused card: due date, card tags or assignees in a small dialog.
+const quickEditKeys: Record<string, QuickEditMode> = { d: 'due', t: 'tags', m: 'assignees' }
+const quickEdit = ref<{ cardId: string, mode: QuickEditMode } | null>(null)
+const quickEditOpen = ref(false)
+const quickEditCard = computed(() => quickEdit.value ? allCards.value.find(c => c.id === quickEdit.value!.cardId) ?? null : null)
+watch(quickEditOpen, (open) => {
+  if (open || !quickEdit.value) return
+  const cardId = quickEdit.value.cardId
+  // Back to the card once the dialog has closed (and returned focus to whatever it took it from).
+  setTimeout(() => focusCard(cardId), 0)
+})
+watch(quickEditCard, (card) => {
+  if (!card) quickEditOpen.value = false
+})
 onMounted(() => document.addEventListener('keydown', onCardKey))
 onBeforeUnmount(() => document.removeEventListener('keydown', onCardKey))
 
@@ -1033,6 +1062,15 @@ const boardMenu = computed(() => {
       :members="board.members"
       @apply="applyBulk"
       @clear="clearSelection"
+    />
+    <CardQuickEdit
+      v-if="quickEdit && quickEditCard"
+      v-model:open="quickEditOpen"
+      :card="quickEditCard"
+      :mode="quickEdit.mode"
+      :tags="tags"
+      :members="board.members"
+      @update="patch => updateCard(quickEditCard!, patch)"
     />
     <CardModal
       v-if="editingCard"

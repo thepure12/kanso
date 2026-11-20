@@ -5,6 +5,9 @@ export interface ShortcutHelp {
   sequence?: boolean
 }
 
+/** What the `d`, `t` and `m` card shortcuts open in `CardQuickEdit`. */
+export type QuickEditMode = 'due' | 'tags' | 'assignees'
+
 /** Everything bound with defineShortcuts (layout and board page), for the `?` help. */
 export const shortcutGroups: { label: string, items: ShortcutHelp[] }[] = [
   {
@@ -38,6 +41,10 @@ export const shortcutGroups: { label: string, items: ShortcutHelp[] }[] = [
       { kbds: ['enter'], description: 'shortcuts.openCard' },
       { kbds: ['e'], description: 'shortcuts.editTitle' },
       { kbds: ['a'], description: 'shortcuts.assignMe' },
+      { kbds: ['m'], description: 'shortcuts.pickAssignees' },
+      { kbds: ['t'], description: 'shortcuts.pickTags' },
+      { kbds: ['d'], description: 'shortcuts.pickDueDate' },
+      { kbds: ['c'], description: 'shortcuts.archiveCard' },
       { kbds: ['x'], description: 'shortcuts.toggleSelect' },
       { kbds: ['[', ']'], description: 'shortcuts.moveCardColumn' },
     ],
