@@ -34,6 +34,7 @@ onMounted(() => {
 <template>
   <UApp :locale="uiLocale" :tooltip="{ delayDuration: 400 }">
     <NuxtPwaManifest />
+    <NuxtLoadingIndicator color="var(--ui-primary)" :height="2" />
     <NuxtLayout>
       <NuxtPage />
     </NuxtLayout>
