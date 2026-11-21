@@ -92,7 +92,11 @@ Errors come back as JSON with `statusCode` and `statusMessage`: `400` invalid in
 | POST | `/api/boards/:id/members` | Share `{ email, role }` (owners; role `owner`, `editor`, `commenter` or `viewer`) |
 | GET | `/api/teams`, `/api/teams/:id` | Teams and a team's boards and members |
 | GET | `/api/search?q=` | Search cards, comments, boards and columns |
-| GET | `/api/notifications` | Your notifications |
+| GET | `/api/notifications` | Your notifications, newest first: `?limit=` (1-100, default 50), `?before=<nextCursor>` for the next page, `?unread=1`, `?boardId=`, `?event=` (`assigned`, `mentioned`, `commented`, `moved`, `due`, `archived`, `stale`, `reminder`). Also `unread` (overall), `boards` (with unread counts) and `dueSoon` |
+| PATCH | `/api/notifications/:id` | `{ read: boolean }` marks read or unread |
+| DELETE | `/api/notifications/:id` | Removes it from your inbox |
+| POST | `/api/notifications/read-all` | Marks all read (`?boardId=` for one board) |
+| POST | `/api/notifications/clear-read` | Deletes read notifications (`?boardId=` for one board) |
 | GET | `/api/my-work` | Cards assigned to you or that you watch, on all boards (`assigned`, `watching`, `done` flags) |
 
 Dates are `YYYY-MM-DD`; timestamps are ISO 8601. The types of responses live in `shared/types/`.

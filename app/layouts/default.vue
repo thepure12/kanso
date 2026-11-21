@@ -48,6 +48,7 @@ defineShortcuts(computed(() => loggedIn.value
       '?': () => { if (!dialogOpen()) shortcutsOpen.value = true },
       'g-h': () => { if (!dialogOpen()) navigateTo('/') },
       'g-m': () => { if (!dialogOpen()) navigateTo('/my-work') },
+      'g-i': () => { if (!dialogOpen()) navigateTo('/inbox') },
     }
   : {}))
 </script>

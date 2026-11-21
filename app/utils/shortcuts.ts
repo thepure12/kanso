@@ -17,6 +17,7 @@ export const shortcutGroups: { label: string, items: ShortcutHelp[] }[] = [
       { kbds: ['?'], description: 'shortcuts.help' },
       { kbds: ['g', 'h'], sequence: true, description: 'shortcuts.home' },
       { kbds: ['g', 'm'], sequence: true, description: 'shortcuts.myWork' },
+      { kbds: ['g', 'i'], sequence: true, description: 'shortcuts.inbox' },
     ],
   },
   {

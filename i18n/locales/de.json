@@ -142,7 +142,8 @@
     "pickAssignees": "Zuständige wählen",
     "pickTags": "Karten-Tags wählen",
     "pickDueDate": "Fälligkeitsdatum setzen",
-    "archiveCard": "Karte archivieren"
+    "archiveCard": "Karte archivieren",
+    "inbox": "Zum Posteingang"
   },
   "mail": {
     "linkExpiry": "Der Link ist {expiry} gültig. Falls der Button nicht funktioniert, kopiere diesen Link in deinen Browser:",
@@ -1329,7 +1330,8 @@
     "columns": "Spalten",
     "boards": "Boards",
     "actions": "Aktionen",
-    "myWork": "Meine Arbeit"
+    "myWork": "Meine Arbeit",
+    "inbox": "Posteingang"
   },
   "webhooks": {
     "title": "Webhooks",
@@ -2112,5 +2114,33 @@
       "boardFailed": "Der Bot konnte auf diesem Board nicht geändert werden",
       "removeConfirm": "{name} aus „{board}“ entfernen?"
     }
+  },
+  "inbox": {
+    "title": "Posteingang",
+    "openInbox": "Posteingang öffnen",
+    "unreadCount": "{count} ungelesen | {count} ungelesen",
+    "allCaughtUp": "Alles gelesen",
+    "all": "Alle",
+    "unread": "Ungelesen",
+    "allBoards": "Alle Boards",
+    "allEvents": "Alle Ereignisse",
+    "board": "Board",
+    "event": "Ereignis",
+    "clearFilters": "Filter zurücksetzen",
+    "markBoardRead": "Board als gelesen markieren",
+    "clearRead": "Gelesene Benachrichtigungen löschen",
+    "clearBoardRead": "Gelesene Benachrichtigungen dieses Boards löschen",
+    "more": "Weitere Aktionen",
+    "refresh": "Aktualisieren",
+    "loadFailed": "Benachrichtigungen konnten nicht geladen werden",
+    "empty": "Dein Posteingang ist leer",
+    "emptyDescription": "Erwähnungen, Zuweisungen und Änderungen an Karten, denen du folgst, erscheinen hier.",
+    "emptyFiltered": "Keine Benachrichtigungen passen zu diesen Filtern",
+    "today": "Heute",
+    "yesterday": "Gestern",
+    "markRead": "Als gelesen markieren",
+    "markUnread": "Als ungelesen markieren",
+    "remove": "Aus dem Posteingang entfernen",
+    "loadMore": "Mehr laden"
   }
 }

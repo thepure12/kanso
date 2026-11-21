@@ -23,7 +23,13 @@ export interface DueCard {
 }
 
 export interface Inbox {
+  /** Newest first, one page (GET /api/notifications?before=&limit=&unread=1&boardId=&event=). */
   items: Notification[]
+  /** Pass as `before` for the next page; null on the last one. */
+  nextCursor: string | null
+  /** Unread notifications overall, whatever the filters. */
   unread: number
+  /** Boards the caller has notifications from, by name, with their unread counts (for the inbox filter). */
+  boards: { id: string, name: string, unread: number }[]
   dueSoon: DueCard[]
 }

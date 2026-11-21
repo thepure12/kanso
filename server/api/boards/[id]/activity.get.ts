@@ -2,19 +2,8 @@ import { sql } from 'drizzle-orm'
 import { z } from 'zod'
 import type { BoardActivity, BoardActivityPage } from '#shared/types/board'
 
-// Cursor: base64url of "<created_at as Postgres text>|<id>". The text keeps
-// microseconds, which a JS Date would drop, so the keyset stays exact.
-const cursor = z.string().max(200).transform((c, ctx) => {
-  const [ts, id] = Buffer.from(c, 'base64url').toString().split('|')
-  if (!ts || !/^\d{4}-\d\d-\d\d[ T]\d\d:\d\d:\d\d(\.\d+)?([+-]\d\d(:?\d\d)?|Z)$/.test(ts) || !z.uuid().safeParse(id).success) {
-    ctx.addIssue({ code: 'custom', message: 'Invalid cursor' })
-    return z.NEVER
-  }
-  return { ts, id: id! }
-})
-
 const query = z.object({
-  before: cursor.optional(),
+  before: cursorParam.optional(),
   limit: z.coerce.number().int().min(1).max(100).default(50),
 })
 
@@ -41,6 +30,6 @@ export default defineUserHandler(async (event, tx): Promise<BoardActivityPage> =
   const last = page.at(-1)
   return {
     items: page.map(({ ts: _, ...a }) => ({ ...a, createdAt: new Date(a.createdAt).toISOString() })),
-    nextCursor: rows.length > limit && last ? Buffer.from(`${last.ts}|${last.id}`).toString('base64url') : null,
+    nextCursor: rows.length > limit && last ? encodeCursor(last.ts, last.id) : null,
   }
 })

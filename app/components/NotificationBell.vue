@@ -68,6 +68,9 @@ async function select(n: Notification) {
           </ul>
         </template>
       </div>
+      <div class="border-t border-default p-1">
+        <UButton to="/inbox" block color="neutral" variant="ghost" size="sm" icon="i-lucide-inbox" :label="t('inbox.openInbox')" @click="open = false" />
+      </div>
     </template>
   </UPopover>
 </template>

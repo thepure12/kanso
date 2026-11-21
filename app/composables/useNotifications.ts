@@ -10,6 +10,7 @@ export function useNotifications() {
   const unread = computed(() => inbox.value?.unread ?? 0)
   const router = useRouter()
   const desktop = useDesktopNotifier()
+  const sync = useNotificationSync(refresh)
 
   async function refresh() {
     try {
@@ -38,6 +39,7 @@ export function useNotifications() {
     inbox.value.unread = Math.max(0, inbox.value.unread - 1)
     try {
       await $fetch(`/api/notifications/${n.id}`, { method: 'PATCH', body: { read: true } })
+      sync.changed()
     }
     catch (err) {
       showError(err)
@@ -52,6 +54,7 @@ export function useNotifications() {
     inbox.value.unread = 0
     try {
       await $fetch('/api/notifications/read-all', { method: 'POST' })
+      sync.changed()
     }
     catch (err) {
       showError(err)

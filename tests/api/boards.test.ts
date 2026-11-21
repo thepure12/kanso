@@ -1387,6 +1387,51 @@ describe('notifications', () => {
       .toMatchObject({ assigneeId: null, dueDate: null })
   })
 
+  it('pages, filters, marks unread and deletes inbox notifications', async () => {
+    const card = await newCard('Inbox card')
+    const bobId = userId('Bob')
+    await alice.req(`/api/cards/${card.id}`, { method: 'PATCH', body: { assigneeIds: [bobId] } })
+    await alice.req(`/api/cards/${card.id}/comments`, { method: 'POST', body: { body: `hey @[Bob](user:${bobId})` } })
+    await alice.req(`/api/cards/${card.id}/comments`, { method: 'POST', body: { body: 'plain' } })
+    const kinds = async (q: string) => (await bob.req<Inbox>(`/api/notifications?${q}`)).data.items
+      .filter(n => n.cardId === card.id).map(n => n.activity.kind)
+
+    expect(await kinds('')).toEqual(['commented', 'commented', 'assigned'])
+    expect(await kinds('event=mentioned')).toEqual(['commented'])
+    expect(await kinds('event=commented')).toEqual(['commented'])
+    expect(await kinds('event=assigned')).toEqual(['assigned'])
+    expect(await kinds(`boardId=${randomUUID()}`)).toEqual([])
+
+    const first = (await bob.req<Inbox>('/api/notifications?limit=1')).data
+    expect(first.items).toHaveLength(1)
+    expect(first.boards).toContainEqual(expect.objectContaining({ id: boardId, name: 'API test' }))
+    const second = (await bob.req<Inbox>(`/api/notifications?limit=1&before=${first.nextCursor}`)).data
+    expect(second.items[0]!.id).not.toBe(first.items[0]!.id)
+    expect(second.items[0]!.activity.createdAt <= first.items[0]!.activity.createdAt).toBe(true)
+    expect((await bob.req('/api/notifications?before=nope')).status).toBe(400)
+
+    const [plain, mention, assigned] = (await bob.req<Inbox>('/api/notifications')).data.items.filter(n => n.cardId === card.id)
+    await bob.req(`/api/notifications/${plain!.id}`, { method: 'PATCH', body: { read: true } })
+    expect(await kinds('unread=1')).toEqual(['commented', 'assigned'])
+    await bob.req(`/api/notifications/${plain!.id}`, { method: 'PATCH', body: { read: false } })
+    expect(await kinds('unread=1')).toHaveLength(3)
+
+    // Marking another board read leaves these alone; this board's go.
+    await bob.req(`/api/notifications/read-all?boardId=${randomUUID()}`, { method: 'POST' })
+    expect(await kinds('unread=1')).toHaveLength(3)
+    await bob.req(`/api/notifications/read-all?boardId=${boardId}`, { method: 'POST' })
+    expect(await kinds('unread=1')).toHaveLength(0)
+
+    expect((await alice.req(`/api/notifications/${mention!.id}`, { method: 'DELETE' })).status).toBe(404)
+    expect((await bob.req(`/api/notifications/${mention!.id}`, { method: 'DELETE' })).status).toBe(200)
+    expect(await kinds('')).toEqual(['commented', 'assigned'])
+
+    // Clearing deletes read ones only.
+    await bob.req(`/api/notifications/${assigned!.id}`, { method: 'PATCH', body: { read: false } })
+    expect((await bob.req(`/api/notifications/clear-read?boardId=${boardId}`, { method: 'POST' })).status).toBe(200)
+    expect(await kinds('')).toEqual(['assigned'])
+  })
+
   it('needs a session', async () => {
     expect((await fetch('/api/notifications')).status).toBe(401)
     expect((await fetch('/api/events?notifications=1')).status).toBe(401)

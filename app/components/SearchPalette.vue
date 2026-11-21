@@ -66,6 +66,7 @@ const groups = computed<CommandPaletteGroup<CommandPaletteItem>[]>(() => {
     { id: 'new-board', label: t('search.newBoard'), icon: 'i-lucide-plus', onSelect: () => go('/?new=board') },
     { id: 'home', label: t('search.allBoards'), icon: 'i-lucide-house', kbds: ['g', 'h'], onSelect: () => go('/') },
     { id: 'my-work', label: t('search.myWork'), icon: 'i-lucide-list-checks', kbds: ['g', 'm'], onSelect: () => go('/my-work') },
+    { id: 'inbox', label: t('search.inbox'), icon: 'i-lucide-inbox', kbds: ['g', 'i'], onSelect: () => go('/inbox') },
     { id: 'account', label: t('search.account'), icon: 'i-lucide-user-cog', onSelect: () => go('/account') },
     ...(props.isAdmin ? [{ id: 'admin', label: t('search.admin'), icon: 'i-lucide-shield', onSelect: () => go('/admin') }] : []),
     {

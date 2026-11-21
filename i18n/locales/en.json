@@ -142,7 +142,8 @@
     "pickAssignees": "Choose assignees",
     "pickTags": "Choose card tags",
     "pickDueDate": "Set the due date",
-    "archiveCard": "Archive the card"
+    "archiveCard": "Archive the card",
+    "inbox": "Go to inbox"
   },
   "mail": {
     "linkExpiry": "The link expires in {expiry}. If the button does not work, paste this link into your browser:",
@@ -1329,7 +1330,8 @@
     "columns": "Columns",
     "boards": "Boards",
     "actions": "Actions",
-    "myWork": "My work"
+    "myWork": "My work",
+    "inbox": "Inbox"
   },
   "webhooks": {
     "title": "Webhooks",
@@ -2112,5 +2114,33 @@
       "boardFailed": "Could not change the bot on that board",
       "removeConfirm": "Remove {name} from “{board}”?"
     }
+  },
+  "inbox": {
+    "title": "Inbox",
+    "openInbox": "Open inbox",
+    "unreadCount": "{count} unread | {count} unread",
+    "allCaughtUp": "All caught up",
+    "all": "All",
+    "unread": "Unread",
+    "allBoards": "All boards",
+    "allEvents": "All events",
+    "board": "Board",
+    "event": "Event",
+    "clearFilters": "Clear filters",
+    "markBoardRead": "Mark board read",
+    "clearRead": "Delete read notifications",
+    "clearBoardRead": "Delete this board's read notifications",
+    "more": "More actions",
+    "refresh": "Refresh",
+    "loadFailed": "Could not load notifications",
+    "empty": "Your inbox is empty",
+    "emptyDescription": "Mentions, assignments and changes to cards you follow show up here.",
+    "emptyFiltered": "No notifications match these filters",
+    "today": "Today",
+    "yesterday": "Yesterday",
+    "markRead": "Mark read",
+    "markUnread": "Mark unread",
+    "remove": "Remove from inbox",
+    "loadMore": "Load more"
   }
 }
