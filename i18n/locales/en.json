@@ -1478,6 +1478,7 @@
   "boardCard": {
     "delete": "Delete card",
     "blocked": "Blocked",
+    "blocks": "Blocks",
     "due": "Due {due}",
     "startsDue": "Starts {start}, due {due}",
     "overdue": "{label}, overdue",

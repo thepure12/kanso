@@ -1478,6 +1478,7 @@
   "boardCard": {
     "delete": "Karte löschen",
     "blocked": "Blockiert",
+    "blocks": "Blockiert andere",
     "due": "Fällig am {due}",
     "startsDue": "Beginnt am {start}, fällig am {due}",
     "overdue": "{label}, überfällig",

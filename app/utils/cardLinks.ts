@@ -14,6 +14,24 @@ export function blockedCardIds(cards: Card[], columns: Pick<Column, 'id'>[]): Se
   return new Set(cards.filter(c => c.blockerIds.some(open)).map(c => c.id))
 }
 
+/**
+ * Cards that block: they are open and block some other open card, the
+ * counterpart of `blockedCardIds` (same idea of open: on the board, not in the
+ * last column). A card whose blocked cards are all done or archived blocks
+ * nothing any more.
+ */
+export function blockingCardIds(cards: Card[], columns: Pick<Column, 'id'>[]): Set<string> {
+  const doneColumnId = columns.at(-1)?.id
+  const columnOf = new Map(cards.map(c => [c.id, c.columnId]))
+  const open = (id: string) => columnOf.has(id) && columnOf.get(id) !== doneColumnId
+  const blocking = new Set<string>()
+  for (const c of cards) {
+    if (!open(c.id)) continue
+    for (const id of c.blockerIds) if (open(id)) blocking.add(id)
+  }
+  return blocking
+}
+
 /** i18n keys of the groups; both relates directions share one. */
 const groupKeys = {
   'blocks:out': 'cardLinks.blocks',

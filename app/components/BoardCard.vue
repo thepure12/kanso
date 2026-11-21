@@ -12,6 +12,8 @@ const props = withDefaults(defineProps<{
   today: string
   /** Some card that blocks this one is still open (see blockedCardIds). */
   blocked?: boolean
+  /** This card blocks some other open card (see blockingCardIds). */
+  blocking?: boolean
   /** Picked for a bulk action. */
   selected?: boolean
   /** Some card is selected: a click toggles selection instead of opening the card. */
@@ -33,7 +35,7 @@ const checklistDone = computed(() => props.card.checklist.total > 0 && props.car
 const hasMeta = computed(() => {
   const c = props.card
   return !!(c.description || c.startDate || c.dueDate || c.priority || c.estimate !== null || c.checklist.total
-    || c.commentCount || c.attachmentCount || c.timeMinutes || c.assigneeIds.length || c.watching || props.blocked)
+    || c.commentCount || c.attachmentCount || c.timeMinutes || c.assigneeIds.length || c.watching || props.blocked || props.blocking)
 })
 // Unticked checkboxes are left out like empty values.
 const fieldChips = computed(() => props.fields.flatMap((f) => {
@@ -213,6 +215,7 @@ const dueAriaLabel = computed(() => {
     </div>
     <div v-if="hasMeta" class="flex flex-wrap items-center gap-x-2 gap-y-1 mt-2 text-xs text-dimmed">
       <UBadge v-if="props.blocked" color="error" variant="subtle" size="sm" icon="i-lucide-ban" :label="t('boardCard.blocked')" />
+      <UBadge v-if="props.blocking" color="warning" variant="subtle" size="sm" icon="i-lucide-octagon-alert" :label="t('boardCard.blocks')" />
       <UBadge
         v-if="props.card.priority"
         :color="priorityMeta[props.card.priority].color"

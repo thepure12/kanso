@@ -95,6 +95,8 @@ const editingTemplate = computed(() => !!editingCard.value && templates.value.in
 const cardOpen = computed({ get: () => !!editingCard.value, set: (v) => { if (!v) editingCardId.value = null } })
 // Cards with an open blocker; the last column counts as done (see blockedCardIds).
 const blockedIds = computed(() => blockedCardIds(allCards.value, columns.value))
+// Open cards that block another open card (see blockingCardIds).
+const blockingIds = computed(() => blockingCardIds(allCards.value, columns.value))
 
 // ?card=<id> opens that card, and the open card is kept in ?card= (replacing the
 // history entry), so the address bar is a direct link to it. Closing drops it.
@@ -860,6 +862,7 @@ const boardMenu = computed(() => {
         :members="board.members"
         :visible-ids="visibleIds"
         :blocked-ids="blockedIds"
+        :blocking-ids="blockingIds"
         :can-edit="canEdit"
         :drag-disabled="dragDisabled"
         :today="today"
@@ -1053,6 +1056,7 @@ const boardMenu = computed(() => {
                   :class="!canEditCard(card) && 'card-locked'"
                   :today="today"
                   :blocked="blockedIds.has(card.id)"
+                  :blocking="blockingIds.has(card.id)"
                   :selected="selected.has(card.id)"
                   :selecting="selecting"
                   @open="editingCardId = card.id"

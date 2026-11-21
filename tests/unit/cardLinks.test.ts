@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { Card, CardLink } from '#shared/types/board'
-import { blockedCardIds, groupLinks, linkKindItems, parseLinkChoice } from '../../app/utils/cardLinks'
+import { blockedCardIds, blockingCardIds, groupLinks, linkKindItems, parseLinkChoice } from '../../app/utils/cardLinks'
 import { serverI18n } from '../../server/utils/i18n'
 
 const card = (id: string, columnId: string, blockerIds: string[] = []) => ({ id, columnId, blockerIds }) as Card
@@ -21,6 +21,27 @@ describe('blockedCardIds', () => {
 
   it('treats the only column as done', () => {
     expect(blockedCardIds([card('a', 'todo'), card('b', 'todo', ['a'])], [{ id: 'todo' }]).size).toBe(0)
+  })
+})
+
+describe('blockingCardIds', () => {
+  it('marks open blockers of open cards', () => {
+    const cards = [
+      card('a', 'todo'),
+      card('b', 'done'),
+      card('c', 'doing'),
+      card('d', 'todo'),
+      card('open', 'todo', ['a']),
+      card('doneBlocker', 'doing', ['b']),
+      card('finished', 'done', ['c']),
+      card('archivedBlocked', 'doing', ['gone']),
+      card('mixed', 'todo', ['b', 'd']),
+    ]
+    expect([...blockingCardIds(cards, columns)].sort()).toEqual(['a', 'd'])
+  })
+
+  it('treats the only column as done', () => {
+    expect(blockingCardIds([card('a', 'todo'), card('b', 'todo', ['a'])], [{ id: 'todo' }]).size).toBe(0)
   })
 })
 

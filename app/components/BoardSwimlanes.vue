@@ -19,6 +19,8 @@ const props = defineProps<{
   members: Member[]
   visibleIds: Set<string>
   blockedIds: Set<string>
+  /** Open cards that block another open card. */
+  blockingIds?: Set<string>
   canEdit: boolean
   dragDisabled: boolean
   today: string
@@ -207,6 +209,7 @@ function onCollapsedDrop(laneKey: string, columnId: string, e: SortableEvent) {
               :can-edit="props.canEdit"
               :today="props.today"
               :blocked="props.blockedIds.has(card.id)"
+              :blocking="!!props.blockingIds?.has(card.id)"
               @open="emit('open', card.id)"
               @delete="emit('delete', card)"
               @rename="title => emit('rename', card, title)"

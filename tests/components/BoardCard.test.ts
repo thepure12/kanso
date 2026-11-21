@@ -13,8 +13,8 @@ const card = (over: Partial<Card> = {}): Card => ({
   assigneeIds: [], tagIds: [], startDate: null, dueDate: null, priority: null, estimate: null, coverAttachmentId: null,
   checklist: { done: 0, total: 0 }, commentCount: 0, attachmentCount: 0, timeMinutes: 0, watching: false, blockerIds: [], fields: {}, ...over,
 })
-const mount = (c: Card, canEdit = true, blocked = false) =>
-  mountSuspended(BoardCard, { props: { card: c, tags, members, canEdit, today: '2026-10-13', blocked } })
+const mount = (c: Card, canEdit = true, blocked = false, blocking = false) =>
+  mountSuspended(BoardCard, { props: { card: c, tags, members, canEdit, today: '2026-10-13', blocked, blocking } })
 
 describe('BoardCard', () => {
   it('shows only the title for a bare card', async () => {
@@ -57,6 +57,13 @@ describe('BoardCard', () => {
     const bare = await mount(card())
     expect(bare.find('[aria-label="You are watching this card"]').exists()).toBe(false)
     expect(bare.text()).not.toContain('Blocked')
+    expect(bare.text()).not.toContain('Blocks')
+  })
+
+  it('shows the blocks badge on cards that block another card', async () => {
+    const w = await mount(card(), true, false, true)
+    expect(w.text()).toContain('Blocks')
+    expect(w.text()).not.toContain('Blocked')
   })
 
   it('emits open on click and delete from the button; viewers get no delete button', async () => {
