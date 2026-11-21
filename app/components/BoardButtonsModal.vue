@@ -244,6 +244,7 @@ const checklistText = (step: { items: string[] }) => step.items.join('\n')
               :items="columnItems"
               value-key="value"
               multiple
+              :clear="{ 'aria-label': t('buttons.clearColumns') }"
               :placeholder="t('buttons.pickColumns')"
               class="w-full"
             />

@@ -80,10 +80,10 @@ describe('button columns', () => {
     expect(buttonShownIn({ columnIds: [] }, 'c1')).toBe(false)
   })
 
-  it('new card buttons need at least one column when limited', () => {
+  it('new card buttons take every column, some or none (then only on cards they are added to)', () => {
     const base = { scope: 'card', name: 'X', steps: [{ kind: 'archive' }] }
     expect(createButtonSchema.parse(base).columnIds).toBeNull()
-    expect(createButtonSchema.safeParse({ ...base, columnIds: [] }).success).toBe(false)
+    expect(createButtonSchema.parse({ ...base, columnIds: [] }).columnIds).toEqual([])
     expect(createButtonSchema.safeParse({ ...base, columnIds: ['00000000-0000-4000-8000-000000000001'] }).success).toBe(true)
   })
 })

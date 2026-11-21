@@ -63,4 +63,39 @@ describe('BoardButtonsModal', () => {
     expect(document.body.textContent).toContain('add the button to single cards in the card dialog')
     w.unmount()
   })
+
+  it('takes chosen columns off a card button again, one by one or all at once', async () => {
+    const update = vi.fn()
+    const w = await mountSuspended(BoardButtonsModal, {
+      attachTo: document.body,
+      props: { open: true, buttons, columns, tags: [], members: [], canEdit: true, create: vi.fn(), update, remove: vi.fn() },
+    })
+    await flushPromises()
+    const save = () => ([...document.body.querySelectorAll('button[type="submit"]')].at(-1) as HTMLButtonElement).click()
+    ;(document.body.querySelector('[aria-label="Edit Approve"]') as HTMLElement).click()
+    await flushPromises()
+    const trigger = [...document.body.querySelectorAll('button')].find(b => b.textContent?.trim() === 'Done')!
+    trigger.click()
+    await flushPromises()
+    const option = [...document.body.querySelectorAll('[role="option"]')].find(o => o.textContent?.includes('Done')) as HTMLElement
+    expect(option.getAttribute('data-state')).toBe('checked')
+    option.click()
+    await flushPromises()
+    save()
+    await flushPromises()
+    expect(update).toHaveBeenLastCalledWith(expect.objectContaining({ id: 'b3' }), expect.objectContaining({ columnIds: [] }))
+
+    ;(document.body.querySelector('[aria-label="Edit Approve"]') as HTMLElement).click()
+    await flushPromises()
+    const clear = document.body.querySelector('[aria-label="Remove all columns"]') as HTMLElement
+    expect(clear).not.toBeNull()
+    clear.click()
+    await flushPromises()
+    expect(document.body.querySelector('[aria-label="Remove all columns"]')).toBeNull()
+    save()
+    await flushPromises()
+    expect(update).toHaveBeenCalledTimes(2)
+    expect(update).toHaveBeenLastCalledWith(expect.objectContaining({ id: 'b3' }), expect.objectContaining({ columnIds: [] }))
+    w.unmount()
+  })
 })

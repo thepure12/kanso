@@ -1876,6 +1876,7 @@
     "allColumnsHint": "Aus: Der Button erscheint nur auf Karten in den gewählten Spalten.",
     "showInColumns": "Auf Karten anzeigen in",
     "pickColumns": "Spalten wählen (optional)",
+    "clearColumns": "Alle Spalten entfernen",
     "onlyIn": "Nur auf Karten in {columns}",
     "noColumns": "Keine Spalte: nur auf Karten, denen er hinzugefügt wurde",
     "align": {
