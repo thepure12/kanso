@@ -20,15 +20,28 @@ function fieldValues(board: BoardDetail, values: Record<string, FieldValue>) {
   return out
 }
 
-/** Cards with a 'blocks' link from a card still open (on the board and not in the last column), as in the UI. */
-function blockedIds(board: BoardDetail): Set<string> {
+interface BlockState { blocked: Set<string>, blocking: Set<string> }
+
+/**
+ * As in the UI: `blocked` = cards with a 'blocks' link from a card still open
+ * (on the board and not in the last column); `blocking` = open cards that
+ * block another open card.
+ */
+function blockState(board: BoardDetail): BlockState {
   const done = board.columns.at(-1)?.id
   const columnOf = new Map(board.cards.map(c => [c.id, c.columnId]))
   const open = (id: string) => columnOf.has(id) && columnOf.get(id) !== done
-  return new Set(board.cards.filter(c => c.blockerIds.some(open)).map(c => c.id))
+  const blocked = new Set<string>()
+  const blocking = new Set<string>()
+  for (const c of board.cards) {
+    const openBlockers = c.blockerIds.filter(open)
+    if (openBlockers.length) blocked.add(c.id)
+    if (open(c.id)) for (const id of openBlockers) blocking.add(id)
+  }
+  return { blocked, blocking }
 }
 
-function cardSummary(board: BoardDetail, card: Card, blocked: Set<string>) {
+function cardSummary(board: BoardDetail, card: Card, { blocked, blocking }: BlockState) {
   const tagName = new Map(board.tags.map(t => [t.id, t.name]))
   const personName = new Map(board.members.map(m => [m.userId, m.name]))
   return {
@@ -44,13 +57,14 @@ function cardSummary(board: BoardDetail, card: Card, blocked: Set<string>) {
     checklist: card.checklist.total ? card.checklist : undefined,
     comments: card.commentCount || undefined,
     blocked: blocked.has(card.id) || undefined,
+    blocks: blocking.has(card.id) || undefined,
     skipAutomations: card.skipAutomations || undefined,
     fields: Object.keys(card.fields).length ? fieldValues(board, card.fields) : undefined,
   }
 }
 
 export function boardForAgent(board: BoardDetail) {
-  const blocked = blockedIds(board)
+  const blocked = blockState(board)
   return {
     id: board.id,
     name: board.name,
@@ -80,7 +94,7 @@ export function boardForAgent(board: BoardDetail) {
 export function cardForAgent(board: BoardDetail, card: Card, detail: CardDetail) {
   const column = board.columns.find(c => c.id === card.columnId)
   return {
-    ...cardSummary(board, card, blockedIds(board)),
+    ...cardSummary(board, card, blockState(board)),
     boardId: board.id,
     column: column?.title,
     description: card.description,
