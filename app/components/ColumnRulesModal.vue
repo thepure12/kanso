@@ -227,7 +227,7 @@ const tagRules = computed<{ kind: TagKind, label: string, key: 'applyTag' | 'rem
                   @update:model-value="(v) => toggleButton(b, v === true)"
                 />
               </UTooltip>
-              <UBadge :color="b.color" variant="soft" :icon="b.icon ?? undefined" :label="b.name" class="max-w-60 truncate" />
+              <UBadge color="neutral" variant="soft" :class="buttonColorClass" :style="buttonColorStyle(b.color)" :icon="b.icon ?? undefined" :label="b.name" class="max-w-60 truncate" />
               <span class="ms-auto text-xs text-muted">
                 {{ b.columnIds === null ? t('buttons.allColumns') : t('rules.buttonColumns', { n: b.columnIds.length }, b.columnIds.length) }}
               </span>
