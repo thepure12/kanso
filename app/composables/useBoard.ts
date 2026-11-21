@@ -844,7 +844,7 @@ export async function useBoard(id: string) {
     }, t('savedViews.errors.delete')),
 
     /** Creates a button. Throws on failure, so the dialog can show a taken name (409). */
-    addButton: async (input: Omit<BoardButton, 'id'>) => {
+    addButton: async (input: Omit<BoardButton, 'id' | 'cardIds'>) => {
       const created = await api<BoardButton>(`/api/boards/${id}/buttons`, { method: 'POST', body: input })
       buttons.value = sortSavedViews([...buttons.value.filter(b => b.id !== created.id), created])
       return created
@@ -856,6 +856,12 @@ export async function useBoard(id: string) {
       buttons.value = sortSavedViews(buttons.value.map(b => b.id === updated.id ? updated : b))
       return updated
     },
+
+    /** Adds a card button to one card or takes it off; the card offers it whatever the button's columns. */
+    setButtonOnCard: (button: BoardButton, card: Card, on: boolean) => run(async () => {
+      const updated = await api<BoardButton>(`/api/buttons/${button.id}/cards/${card.id}`, { method: on ? 'PUT' : 'DELETE' })
+      buttons.value = buttons.value.map(b => b.id === updated.id ? updated : b)
+    }, t('buttons.errors.card')),
 
     deleteButton: (button: BoardButton) => run(async () => {
       await api(`/api/buttons/${button.id}`, { method: 'DELETE' })

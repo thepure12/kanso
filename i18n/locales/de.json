@@ -1588,7 +1588,6 @@
     "buttonsTitle": "Karten-Buttons",
     "buttonsHint": "Karten-Buttons, die Karten in dieser Spalte anbieten.",
     "showButton": "{name} auf Karten in dieser Spalte anzeigen",
-    "buttonOnlyHere": "Nur in dieser Spalte sichtbar. Wähle zuerst unter Buttons weitere Spalten.",
     "buttonColumns": "{n} Spalte | {n} Spalten"
   },
   "boardBackground": {
@@ -1870,20 +1869,26 @@
     "errors": {
       "save": "Button konnte nicht gespeichert werden",
       "delete": "Button konnte nicht gelöscht werden",
-      "run": "„{name}“ konnte nicht ausgeführt werden"
+      "run": "„{name}“ konnte nicht ausgeführt werden",
+      "card": "Die Buttons dieser Karte konnten nicht geändert werden"
     },
     "allColumns": "Alle Spalten",
     "allColumnsHint": "Aus: Der Button erscheint nur auf Karten in den gewählten Spalten.",
     "showInColumns": "Auf Karten anzeigen in",
     "pickColumns": "Mindestens eine Spalte wählen",
     "onlyIn": "Nur auf Karten in {columns}",
-    "noColumns": "Nirgends sichtbar: Ihre Spalten wurden gelöscht",
+    "noColumns": "Keine Spalte: nur auf Karten, denen er hinzugefügt wurde",
     "align": {
       "label": "Position auf Karten",
       "left": "Links",
       "center": "Mitte",
       "right": "Rechts"
-    }
+    },
+    "noColumnsHint": "Keine Spalte gewählt: Füge den Button im Kartendialog einzelnen Karten hinzu.",
+    "onCards": "Zu {n} Karte hinzugefügt | Zu {n} Karten hinzugefügt",
+    "onThisCard": "Buttons auf dieser Karte",
+    "onThisCardHint": "Füge dieser Karte Karten-Buttons hinzu, unabhängig von ihren Spalten.",
+    "byColumns": "Durch seine Spalten angezeigt"
   },
   "automations": {
     "title": "Automatisierungen",

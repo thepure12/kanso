@@ -1,11 +1,14 @@
 import { and, asc, eq, sql } from 'drizzle-orm'
-import { buttonShownIn, type BoardButton, type BoardButtonStep, type ButtonStep, type CardButtonStep } from '#shared/buttons'
+import { buttonShownOn, type BoardButton, type BoardButtonStep, type ButtonStep, type CardButtonStep } from '#shared/buttons'
 
-const { boardButtons: bb } = schema
+const { boardButtons: bb, boardButtonCards: bbc } = schema
 
 const buttonFields = {
   id: bb.id, scope: bb.scope, name: bb.name, icon: bb.icon, color: bb.color,
-  shared: sql<boolean>`${bb.userId} is null`, columnIds: bb.columnIds, steps: bb.steps,
+  shared: sql<boolean>`${bb.userId} is null`, columnIds: bb.columnIds,
+  // Cards it was added to that the user sees (RLS on board_button_cards and cards).
+  cardIds: sql<string[]>`coalesce((select array_agg(${bbc.cardId} order by ${bbc.cardId}) from ${bbc} where ${bbc.buttonId} = ${bb.id}), '{}')`,
+  steps: bb.steps,
 }
 
 /** Shared buttons and the user's own (RLS hides other people's), by name. */
@@ -157,7 +160,7 @@ async function runBoardStep(tx: Tx, boardId: string, step: BoardButtonStep): Pro
  * step undoes all of them. Card buttons need `cardId` (a card of the button's
  * board the user can edit). Returns how many steps were skipped.
  */
-export async function runButton(tx: Tx, button: { boardId: string, scope: string, columnIds: string[] | null, steps: ButtonStep[] }, cardId: string | undefined): Promise<number> {
+export async function runButton(tx: Tx, button: { boardId: string, scope: string, columnIds: string[] | null, cardIds: string[], steps: ButtonStep[] }, cardId: string | undefined): Promise<number> {
   let skipped = 0
   if (button.scope === 'card') {
     if (!cardId) throw createError({ statusCode: 400, statusMessage: 'cardId: Required for a card button' })
@@ -167,8 +170,8 @@ export async function runButton(tx: Tx, button: { boardId: string, scope: string
       .where(and(eq(cards.id, cardId), eq(cards.boardId, button.boardId), eq(cards.isTemplate, false)))
       .returning({ id: cards.id, columnId: cards.columnId })
     if (!rows.length) notFound('Card not found or not allowed')
-    if (!buttonShownIn(button, rows[0]!.columnId)) {
-      throw createError({ statusCode: 409, statusMessage: 'This button is not offered in the card\'s column' })
+    if (!buttonShownOn(button, { id: cardId, columnId: rows[0]!.columnId })) {
+      throw createError({ statusCode: 409, statusMessage: 'This button is not offered on this card' })
     }
     for (const step of button.steps as CardButtonStep[]) {
       if (!await runCardStep(tx, button.boardId, cardId, step)) skipped++
@@ -180,4 +183,27 @@ export async function runButton(tx: Tx, button: { boardId: string, scope: string
     }
   }
   return skipped
+}
+
+/**
+ * Adds a card button to one card (or removes it): the card then offers it
+ * whatever the button's columns. RLS decides: own personal buttons, or shared
+ * ones for editors of the card. Returns the button as the user now sees it.
+ */
+export async function setButtonOnCard(tx: Tx, buttonId: string, cardId: string, on: boolean): Promise<BoardButton> {
+  const button = await loadButton(tx, buttonId)
+  if (!button) notFound('Button not found')
+  if (button.scope !== 'card') throw createError({ statusCode: 400, statusMessage: 'Only card buttons can be added to cards' })
+  if (on) {
+    const [card] = await tx.select({ id: schema.cards.id }).from(schema.cards)
+      .where(and(eq(schema.cards.id, cardId), eq(schema.cards.boardId, button.boardId), eq(schema.cards.isTemplate, false)))
+    if (!card) notFound('Card not found')
+    // Already added: nothing to do. A refused insert raises 42501 -> 403.
+    await tx.insert(bbc).values({ buttonId, cardId, boardId: button.boardId }).onConflictDoNothing()
+  }
+  else {
+    const rows = await tx.delete(bbc).where(and(eq(bbc.buttonId, buttonId), eq(bbc.cardId, cardId))).returning({ id: bbc.cardId })
+    if (!rows.length && button.cardIds.includes(cardId)) forbidden()
+  }
+  return (await loadButton(tx, buttonId))!
 }

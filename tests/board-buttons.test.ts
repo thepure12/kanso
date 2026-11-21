@@ -200,4 +200,48 @@ describe('board buttons', () => {
     const [newCol] = await owner_`select id from columns where board_id = ${copy} and title = 'Limited'`
     expect(row!.column_ids).toEqual([newCol!.id])
   })
+
+  it('card buttons on single cards: own personal buttons, shared ones by editors of the card', async () => {
+    const [col] = await as(owner.id, sql => sql`insert into columns (board_id, title, position) values (${boardId}, 'Per card', 100004) returning id`)
+    const newCard = async (template = false) => (await as(owner.id, sql => sql`
+      insert into cards (board_id, column_id, title, position, is_template, created_by)
+      values (${boardId}, ${col!.id}, 'C', ${Math.random() * 1000}, ${template}, ${owner.id}) returning id`))[0]!.id as string
+    const card = await newCard()
+    const template = await newCard(true)
+    const shared = await newButton(owner, { shared: true })
+    const mine = await newButton(viewer)
+    const boardScope = await newButton(owner, { shared: true, scope: 'board', steps: [{ kind: 'archiveColumn', columnId: col!.id }] })
+    const add = (by: User, button: string, cardId = card) =>
+      as(by.id, sql => sql`insert into board_button_cards (button_id, card_id, board_id) values (${button}, ${cardId}, ${boardId})`)
+    const count = (by: User, button: string) =>
+      as(by.id, async sql => (await sql`select 1 from board_button_cards where button_id = ${button}`).length)
+
+    await rejectsWith(add(viewer, shared), '42501')
+    await add(editor, shared)
+    // Everyone on the board reads it, outsiders do not.
+    expect(await count(viewer, shared)).toBe(1)
+    expect(await count(outsider, shared)).toBe(0)
+    // Personal buttons: only their user (a viewer too); nobody else sees the row.
+    await rejectsWith(add(owner, mine), '42501')
+    await add(viewer, mine)
+    expect(await count(owner, mine)).toBe(0)
+    expect(await count(viewer, mine)).toBe(1)
+    // Never templates, never board buttons.
+    await rejectsWith(add(editor, shared, template), '42501')
+    await rejectsWith(add(owner, boardScope), '42501')
+    // A card of another board fails the composite FK.
+    const other = await as(owner.id, async sql => (await sql`select id from app.create_board('Other per card')`)[0]!.id as string)
+    boards.push(other)
+    const [otherCol] = await as(owner.id, sql => sql`insert into columns (board_id, title, position) values (${other}, 'X', 1) returning id`)
+    const [foreign] = await as(owner.id, sql => sql`insert into cards (board_id, column_id, title, position, created_by) values (${other}, ${otherCol!.id}, 'F', 1, ${owner.id}) returning id`)
+    await rejectsWith(as(owner.id, sql => sql`insert into board_button_cards (button_id, card_id, board_id) values (${shared}, ${foreign!.id}, ${other})`), '23503')
+
+    // Removing follows the same rule.
+    expect(await as(viewer.id, async sql => (await sql`delete from board_button_cards where button_id = ${shared}`).count)).toBe(0)
+    expect(await as(owner.id, async sql => (await sql`delete from board_button_cards where button_id = ${mine}`).count)).toBe(0)
+    expect(await as(editor.id, async sql => (await sql`delete from board_button_cards where button_id = ${shared}`).count)).toBe(1)
+    // Deleting the card drops the rest.
+    await as(owner.id, sql => sql`delete from cards where id = ${card}`)
+    expect((await owner_`select 1 from board_button_cards where button_id = ${mine}`).length).toBe(0)
+  })
 })

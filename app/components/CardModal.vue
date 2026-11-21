@@ -3,7 +3,7 @@ import { priorities, type AssigneeGroup, type BoardField, type Card, type CardLi
 import type { CardCounts } from '~/composables/useBoard'
 import { CARD_TITLE_MAX } from '#shared/cards'
 import type { BoardMatrixRoom } from '#shared/types/matrix'
-import { buttonAlignClass, buttonShownIn, type BoardButton, type ButtonAlign } from '#shared/buttons'
+import { buttonAlignClass, buttonShownIn, buttonShownOn, type BoardButton, type ButtonAlign } from '#shared/buttons'
 
 // Absent optional booleans would become false; undefined keeps the fallback.
 const props = withDefaults(defineProps<{
@@ -69,10 +69,23 @@ const emit = defineEmits<{
   automations: []
   /** Run a card button on this card. */
   runButton: [button: BoardButton]
+  /** Add a card button to this card, or take it off. */
+  buttonOnCard: [button: BoardButton, on: boolean]
 }>()
 const open = defineModel<boolean>('open', { required: true })
-// Card buttons offered in the card's (saved) column.
-const shownButtons = computed(() => (props.buttons ?? []).filter(b => buttonShownIn(b, props.card.columnId)))
+// Card buttons offered on the card: by its (saved) column, or added to it.
+const shownButtons = computed(() => (props.buttons ?? []).filter(b => buttonShownOn(b, props.card)))
+// Card buttons the user may add to or take off this card: their own personal
+// ones, shared ones as editors of the card (the server decides; canEdit = card editor).
+const cardButtonItems = computed(() => (props.buttons ?? []).map(b => ({
+  type: 'checkbox' as const,
+  label: b.name,
+  icon: b.icon ?? 'i-lucide-zap',
+  checked: b.cardIds.includes(props.card.id),
+  description: buttonShownIn(b, props.card.columnId) ? t('buttons.byColumns') : undefined,
+  onUpdateChecked: (on: boolean) => emit('buttonOnCard', b, on),
+  onSelect: (e: Event) => e.preventDefault(),
+})))
 const { t } = useI18n()
 // Phones get a full-screen dialog with Save in a footer instead of at the end of the sidebar.
 const isMobile = useIsMobile()
@@ -485,7 +498,7 @@ const tabs = computed(() => [
               </UAvatarGroup>
             </UTooltip>
           </div>
-          <div v-if="shownButtons.length && props.canEdit && !props.template" class="flex flex-wrap gap-1.5" :class="buttonAlignClass(props.buttonAlign)" role="group" :aria-label="t('buttons.cardButtons')">
+          <div v-if="cardButtonItems.length && props.canEdit && !props.template" class="flex flex-wrap items-center gap-1.5" :class="buttonAlignClass(props.buttonAlign)" role="group" :aria-label="t('buttons.cardButtons')">
             <UButton
               v-for="b in shownButtons"
               :key="b.id"
@@ -498,6 +511,9 @@ const tabs = computed(() => [
               size="sm"
               @click="emit('runButton', b)"
             />
+            <UDropdownMenu :items="[[{ type: 'label', label: t('buttons.onThisCardHint') }], cardButtonItems]" :content="{ align: 'start' }" :ui="{ label: 'font-normal text-muted' }">
+              <UButton icon="i-lucide-plus" color="neutral" variant="ghost" size="sm" :aria-label="t('buttons.onThisCard')" :title="t('buttons.onThisCard')" />
+            </UDropdownMenu>
           </div>
           <UFormField :label="t('card.tags')">
             <USelectMenu

@@ -208,7 +208,8 @@ describe('board buttons', () => {
     const patched = await alice.req<BoardButton>(`/api/buttons/${button.data.id}`, { method: 'PATCH', body: { columnIds: null } })
     expect(patched.data.columnIds).toBeNull()
     expect((await bob.req(`/api/buttons/${button.data.id}/run`, { method: 'POST', body: { cardId: there.id } })).status).toBe(200)
-    expect((await alice.req(`/api/buttons/${button.data.id}`, { method: 'PATCH', body: { columnIds: [] } })).status).toBe(400)
+    // No column at all is allowed (the button then lives on single cards).
+    expect((await alice.req<BoardButton>(`/api/buttons/${button.data.id}`, { method: 'PATCH', body: { columnIds: [] } })).data.columnIds).toEqual([])
     expect((await alice.req(`/api/buttons/${button.data.id}`, { method: 'PATCH', body: { columnIds: [randomUUID()] } })).status).toBe(400)
 
     // Board buttons have no columns.
@@ -217,6 +218,58 @@ describe('board buttons', () => {
     expect((await alice.req(`/api/buttons/${boardButton.data.id}`, { method: 'PATCH', body: { columnIds: [col(0)] } })).status).toBe(400)
     await alice.req(`/api/buttons/${boardButton.data.id}`, { method: 'DELETE' })
     await alice.req(`/api/buttons/${button.data.id}`, { method: 'DELETE' })
+  })
+
+  it('card buttons added to single cards: shown and run there whatever their columns', async () => {
+    const shared = (await alice.req<BoardButton>(`/api/boards/${board.id}/buttons`, { method: 'POST', body: {
+      scope: 'card', name: 'Per card', shared: true, columnIds: [], steps: [{ kind: 'setPriority', priority: 'urgent' }] } })).data
+    expect(shared).toMatchObject({ columnIds: [], cardIds: [] })
+    const target = await newCard(1)
+    const other = await newCard(1)
+    expect((await bob.req(`/api/buttons/${shared.id}/run`, { method: 'POST', body: { cardId: target.id } })).status).toBe(409)
+
+    // Viewers cannot add shared buttons to cards; editors can.
+    expect((await vera.req(`/api/buttons/${shared.id}/cards/${target.id}`, { method: 'PUT' })).status).toBe(403)
+    const added = await bob.req<BoardButton>(`/api/buttons/${shared.id}/cards/${target.id}`, { method: 'PUT' })
+    expect(added.status).toBe(200)
+    expect(added.data.cardIds).toEqual([target.id])
+    // Adding twice is fine.
+    expect((await bob.req<BoardButton>(`/api/buttons/${shared.id}/cards/${target.id}`, { method: 'PUT' })).data.cardIds).toEqual([target.id])
+    expect((await vera.req<BoardDetail>(`/api/boards/${board.id}`)).data.buttons.find(b => b.id === shared.id)!.cardIds).toEqual([target.id])
+
+    expect((await bob.req(`/api/buttons/${shared.id}/run`, { method: 'POST', body: { cardId: target.id } })).status).toBe(200)
+    expect((await bob.req(`/api/buttons/${shared.id}/run`, { method: 'POST', body: { cardId: other.id } })).status).toBe(409)
+    expect((await boardCards()).find(c => c.id === target.id)!.priority).toBe('urgent')
+
+    // A card of another board is refused.
+    const elsewhere = (await alice.req<{ id: string }>('/api/boards', { method: 'POST', body: { name: 'Other buttons board', template: 'basic' } })).data
+    const otherBoard = (await alice.req<BoardDetail>(`/api/boards/${elsewhere.id}`)).data
+    const foreign = (await alice.req<Card>(`/api/boards/${elsewhere.id}/cards`, { method: 'POST', body: { columnId: otherBoard.columns[0]!.id, title: 'Foreign' } })).data
+    expect((await alice.req(`/api/buttons/${shared.id}/cards/${foreign.id}`, { method: 'PUT' })).status).toBe(404)
+    await alice.req(`/api/boards/${elsewhere.id}`, { method: 'DELETE' })
+
+    // Personal buttons: only their user adds them, also a viewer, but running still needs edit rights.
+    const mine = (await vera.req<BoardButton>(`/api/boards/${board.id}/buttons`, { method: 'POST', body: { scope: 'card', name: 'My per card', columnIds: [], steps: [{ kind: 'watch' }] } })).data
+    expect((await alice.req(`/api/buttons/${mine.id}/cards/${target.id}`, { method: 'PUT' })).status).toBe(404)
+    expect((await vera.req<BoardButton>(`/api/buttons/${mine.id}/cards/${target.id}`, { method: 'PUT' })).data.cardIds).toEqual([target.id])
+    expect((await alice.req<BoardDetail>(`/api/boards/${board.id}`)).data.buttons.find(b => b.id === mine.id)).toBeUndefined()
+    expect((await vera.req(`/api/buttons/${mine.id}`, { method: 'DELETE' })).status).toBe(200)
+
+    // A board copy keeps the shared button on the copied card.
+    const copy = (await alice.req<{ id: string }>(`/api/boards/${board.id}/copy`, { method: 'POST', body: { name: 'Buttons copy' } })).data
+    const copied = (await alice.req<BoardDetail>(`/api/boards/${copy.id}`)).data
+    const copiedButton = copied.buttons.find(b => b.name === 'Per card')!
+    expect(copiedButton.cardIds).toHaveLength(1)
+    expect(copied.cards.find(c => c.id === copiedButton.cardIds[0])!.title).toBe(target.title)
+    await alice.req(`/api/boards/${copy.id}`, { method: 'DELETE' })
+
+    // Removing: viewers cannot take a shared button off, editors can; deleting the card drops the row.
+    expect((await vera.req(`/api/buttons/${shared.id}/cards/${target.id}`, { method: 'DELETE' })).status).toBe(403)
+    expect((await alice.req<BoardButton>(`/api/buttons/${shared.id}/cards/${target.id}`, { method: 'DELETE' })).data.cardIds).toEqual([])
+    await bob.req(`/api/buttons/${shared.id}/cards/${other.id}`, { method: 'PUT' })
+    await alice.req(`/api/cards/${other.id}`, { method: 'DELETE' })
+    expect((await alice.req<BoardDetail>(`/api/boards/${board.id}`)).data.buttons.find(b => b.id === shared.id)!.cardIds).toEqual([])
+    await alice.req(`/api/buttons/${shared.id}`, { method: 'DELETE' })
   })
 
   it('runs with a write API token', async () => {

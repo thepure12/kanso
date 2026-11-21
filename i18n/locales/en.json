@@ -1588,7 +1588,6 @@
     "buttonsTitle": "Card buttons",
     "buttonsHint": "Card buttons offered on cards in this column.",
     "showButton": "Show {name} on cards in this column",
-    "buttonOnlyHere": "Shown only in this column. Pick other columns under Buttons first.",
     "buttonColumns": "{n} column | {n} columns"
   },
   "boardBackground": {
@@ -1870,20 +1869,26 @@
     "errors": {
       "save": "Couldn't save the button",
       "delete": "Couldn't delete the button",
-      "run": "Couldn't run “{name}”"
+      "run": "Couldn't run “{name}”",
+      "card": "Couldn't change the buttons on this card"
     },
     "allColumns": "All columns",
     "allColumnsHint": "Off: the button shows only on cards in the columns you pick.",
     "showInColumns": "Show on cards in",
     "pickColumns": "Pick at least one column",
     "onlyIn": "Only on cards in {columns}",
-    "noColumns": "Shown nowhere: its columns were deleted",
+    "noColumns": "No column: only on cards it was added to",
     "align": {
       "label": "Position on cards",
       "left": "Left",
       "center": "Centre",
       "right": "Right"
-    }
+    },
+    "noColumnsHint": "No column picked: add the button to single cards in the card dialog.",
+    "onCards": "Added to {n} card | Added to {n} cards",
+    "onThisCard": "Buttons on this card",
+    "onThisCardHint": "Add card buttons to this card, whatever their columns.",
+    "byColumns": "Shown by its columns"
   },
   "automations": {
     "title": "Automations",

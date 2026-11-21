@@ -73,8 +73,11 @@ export const MAX_BUTTON_STEPS = 10
 
 export const buttonName = z.string().trim().min(1).max(50)
 
-/** Card buttons: the columns whose cards offer the button; null = every column. */
-export const buttonColumnIds = z.array(id).min(1).max(100).nullable()
+/**
+ * Card buttons: the columns whose cards offer the button; null = every column,
+ * empty = none (the button is then offered only on the cards it was added to).
+ */
+export const buttonColumnIds = z.array(id).max(100).nullable()
 
 const appearance = {
   name: buttonName,
@@ -103,15 +106,22 @@ export interface BoardButton {
   shared: boolean
   /**
    * Card buttons: offered only on cards in these columns; null = every column
-   * (always null for board buttons). Empty once all its columns were deleted.
+   * (always null for board buttons). Empty = no column (only `cardIds`).
    */
   columnIds: string[] | null
+  /** Card buttons: cards it was added to one by one, offered there whatever its columns. */
+  cardIds: string[]
   steps: ButtonStep[]
 }
 
-/** Whether a card button is offered on a card in `columnId`. */
+/** Whether a card button is offered in column `columnId` (by its columns alone). */
 export function buttonShownIn(button: Pick<BoardButton, 'columnIds'>, columnId: string): boolean {
   return button.columnIds === null || button.columnIds.includes(columnId)
+}
+
+/** Whether a card button is offered on this card: by its columns, or added to the card. */
+export function buttonShownOn(button: Pick<BoardButton, 'columnIds' | 'cardIds'>, card: { id: string, columnId: string }): boolean {
+  return buttonShownIn(button, card.columnId) || button.cardIds.includes(card.id)
 }
 
 /** Response of POST /api/buttons/:id/run. */

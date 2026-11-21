@@ -5,9 +5,9 @@ import BoardButtonsModal from '~/components/BoardButtonsModal.vue'
 import type { BoardButton } from '#shared/buttons'
 
 const buttons: BoardButton[] = [
-  { id: 'b1', scope: 'card', name: 'Ship', icon: 'i-lucide-rocket', color: '#22c55e', shared: true, columnIds: null, steps: [{ kind: 'move', columnId: 'c2' }, { kind: 'assignMe' }] },
-  { id: 'b3', scope: 'card', name: 'Approve', icon: null, color: '#22c55e', shared: true, columnIds: ['c2'], steps: [{ kind: 'archive' }] },
-  { id: 'b2', scope: 'board', name: 'Clean up', icon: null, color: 'accent', shared: false, columnIds: null, steps: [{ kind: 'archiveColumn', columnId: 'gone' }] },
+  { id: 'b1', scope: 'card', name: 'Ship', icon: 'i-lucide-rocket', color: '#22c55e', shared: true, columnIds: null, cardIds: [], steps: [{ kind: 'move', columnId: 'c2' }, { kind: 'assignMe' }] },
+  { id: 'b3', scope: 'card', name: 'Approve', icon: null, color: '#22c55e', shared: true, columnIds: ['c2'], cardIds: [], steps: [{ kind: 'archive' }] },
+  { id: 'b2', scope: 'board', name: 'Clean up', icon: null, color: 'accent', shared: false, columnIds: null, cardIds: [], steps: [{ kind: 'archiveColumn', columnId: 'gone' }] },
 ]
 const columns = [{ id: 'c1', title: 'Doing', position: 1, color: null, wipLimit: null, outline: null, rules: [] }, { id: 'c2', title: 'Done', position: 2, color: null, wipLimit: null, outline: null, rules: [] }]
 
@@ -59,6 +59,8 @@ describe('BoardButtonsModal', () => {
     const allColumns = [...document.body.querySelectorAll('[role="switch"]')].find(s => s.closest('div')?.parentElement?.textContent?.includes('All columns')) as HTMLElement
     expect(allColumns.getAttribute('aria-checked')).toBe('false')
     expect(document.body.textContent).toContain('Show on cards in')
+    // No column is allowed: the button then goes on single cards from the card dialog.
+    expect(document.body.textContent).toContain('add the button to single cards in the card dialog')
     w.unmount()
   })
 })

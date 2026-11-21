@@ -9,7 +9,7 @@ const props = defineProps<{
   members: Member[]
   /** May make and change shared buttons (editors). Personal ones are always the user's. */
   canEdit: boolean
-  create: (input: Omit<BoardButton, 'id'>) => Promise<BoardButton>
+  create: (input: Omit<BoardButton, 'id' | 'cardIds'>) => Promise<BoardButton>
   update: (button: BoardButton, patch: Partial<Pick<BoardButton, 'name' | 'icon' | 'color' | 'columnIds' | 'steps'>>) => Promise<BoardButton>
   remove: (button: BoardButton) => unknown
   /** Where card buttons sit in their row on cards (board setting); null = left. */
@@ -84,8 +84,8 @@ function moveStep(index: number, by: number) {
   steps.splice(index + by, 0, step!)
 }
 
-const valid = computed(() => !!draft.value && !!draft.value.name.trim() && draft.value.steps.length > 0 && draft.value.steps.every(stepComplete)
-  && (draft.value.columnIds === null || draft.value.columnIds.length > 0))
+// A card button may have no column: it is then offered only on the cards it is added to.
+const valid = computed(() => !!draft.value && !!draft.value.name.trim() && draft.value.steps.length > 0 && draft.value.steps.every(stepComplete))
 
 /** "Only in Testing, Done" for card buttons limited to columns; gone columns are left out. */
 function columnsText(b: BoardButton) {
@@ -173,6 +173,10 @@ const checklistText = (step: { items: string[] }) => step.items.join('\n')
                   <UIcon name="i-lucide-columns-3" class="size-3.5" />
                   {{ columnsText(b) }}
                 </div>
+                <div v-if="b.scope === 'card' && b.cardIds.length" class="flex items-center gap-1">
+                  <UIcon name="i-lucide-square-mouse-pointer" class="size-3.5" />
+                  {{ t('buttons.onCards', { n: b.cardIds.length }, b.cardIds.length) }}
+                </div>
                 <ol class="mt-1 list-decimal ps-4">
                   <li v-for="(step, i) in b.steps" :key="i">
                     {{ describeStep(step, names) }}
@@ -234,7 +238,7 @@ const checklistText = (step: { items: string[] }) => step.items.join('\n')
             :description="t('buttons.allColumnsHint')"
             @update:model-value="(v: boolean) => { draft!.columnIds = v ? null : [] }"
           />
-          <UFormField v-if="draft.columnIds !== null" :label="t('buttons.showInColumns')" :error="draft.columnIds.length ? undefined : t('buttons.pickColumns')">
+          <UFormField v-if="draft.columnIds !== null" :label="t('buttons.showInColumns')" :help="draft.columnIds.length ? undefined : t('buttons.noColumnsHint')">
             <USelectMenu
               v-model="draft.columnIds"
               :items="columnItems"

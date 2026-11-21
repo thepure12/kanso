@@ -159,7 +159,7 @@ describe('BoardCard', () => {
     expect(viewer.find('textarea').exists()).toBe(false)
   })
   it('shows card buttons at the bottom while the card is editable and runs them on click', async () => {
-    const buttons = [{ id: 'b1', scope: 'card' as const, name: 'Ship', icon: null, color: 'success' as const, shared: true, columnIds: null, steps: [{ kind: 'archive' as const }] }]
+    const buttons = [{ id: 'b1', scope: 'card' as const, name: 'Ship', icon: null, color: 'success' as const, shared: true, columnIds: null, cardIds: [], steps: [{ kind: 'archive' as const }] }]
     const editable = await mountSuspended(BoardCard, { props: { card: card(), tags, members, canEdit: true, today: '2026-10-13', buttons } })
     const group = editable.find('[role="group"][aria-label="Card buttons"]')
     expect(group.exists()).toBe(true)
@@ -176,13 +176,20 @@ describe('BoardCard', () => {
   })
   it('offers only the card buttons shown in the card\'s column', async () => {
     const button = { id: 'b1', scope: 'card' as const, name: 'Ship', icon: null, color: 'success' as const, shared: true, steps: [{ kind: 'archive' as const }] }
-    const elsewhere = await mountSuspended(BoardCard, { props: { card: card(), tags, members, canEdit: true, today: '2026-10-13', buttons: [{ ...button, columnIds: ['other'] }] } })
+    const elsewhere = await mountSuspended(BoardCard, { props: { card: card(), tags, members, canEdit: true, today: '2026-10-13', buttons: [{ ...button, columnIds: ['other'], cardIds: [] }] } })
     expect(elsewhere.find('[aria-label="Card buttons"]').exists()).toBe(false)
-    const here = await mountSuspended(BoardCard, { props: { card: card(), tags, members, canEdit: true, today: '2026-10-13', buttons: [{ ...button, columnIds: ['col'] }] } })
+    const here = await mountSuspended(BoardCard, { props: { card: card(), tags, members, canEdit: true, today: '2026-10-13', buttons: [{ ...button, columnIds: ['col'], cardIds: [] }] } })
     expect(here.find('[aria-label="Card buttons"]').exists()).toBe(true)
   })
+  it('offers a card button added to this card whatever its columns', async () => {
+    const button = { id: 'b1', scope: 'card' as const, name: 'Ship', icon: null, color: 'success' as const, shared: true, columnIds: [] as string[], steps: [{ kind: 'archive' as const }] }
+    const added = await mountSuspended(BoardCard, { props: { card: card(), tags, members, canEdit: true, today: '2026-10-13', buttons: [{ ...button, cardIds: [card().id] }] } })
+    expect(added.find('[aria-label="Card buttons"]').text()).toContain('Ship')
+    const other = await mountSuspended(BoardCard, { props: { card: card(), tags, members, canEdit: true, today: '2026-10-13', buttons: [{ ...button, cardIds: ['other-card'] }] } })
+    expect(other.find('[aria-label="Card buttons"]').exists()).toBe(false)
+  })
   it('places the card buttons by the board\'s alignment', async () => {
-    const buttons = [{ id: 'b1', scope: 'card' as const, name: 'Ship', icon: null, color: 'accent' as const, shared: true, columnIds: null, steps: [{ kind: 'archive' as const }] }]
+    const buttons = [{ id: 'b1', scope: 'card' as const, name: 'Ship', icon: null, color: 'accent' as const, shared: true, columnIds: null, cardIds: [], steps: [{ kind: 'archive' as const }] }]
     const row = async (buttonAlign?: 'left' | 'center' | 'right' | null) =>
       (await mountSuspended(BoardCard, { props: { card: card(), tags, members, canEdit: true, today: '2026-10-13', buttons, buttonAlign } })).find('[aria-label="Card buttons"]').classes()
     expect(await row()).toContain('justify-start')

@@ -73,13 +73,11 @@ function submit(rule: NewColumnRule, applyToExisting: boolean) {
 }
 
 const shownHere = (b: BoardButton) => buttonShownIn(b, props.column.id)
-// The button's only column: hiding it here would leave it nowhere.
-const onlyHere = (b: BoardButton) => b.columnIds?.length === 1 && b.columnIds[0] === props.column.id
 
 function toggleButton(b: BoardButton, show: boolean) {
   const current = b.columnIds ?? props.columnIds
   const next = show ? [...new Set([...current, props.column.id])] : current.filter(id => id !== props.column.id)
-  if (!next.length) return
+  // No column left is fine: the button stays on the cards it was added to.
   // Every column again: back to "all columns", so new columns get the button too.
   const all = props.columnIds.length > 0 && props.columnIds.every(id => next.includes(id))
   emit('buttonColumns', b, all ? null : next)
@@ -219,14 +217,11 @@ const tagRules = computed<{ kind: TagKind, label: string, key: 'applyTag' | 'rem
               {{ t('rules.buttonsHint') }}
             </p>
             <div v-for="b in props.buttons" :key="b.id" class="flex items-center gap-2">
-              <UTooltip :text="onlyHere(b) ? t('rules.buttonOnlyHere') : undefined" :disabled="!onlyHere(b)">
-                <UCheckbox
-                  :model-value="shownHere(b)"
-                  :disabled="onlyHere(b)"
-                  :aria-label="t('rules.showButton', { name: b.name })"
-                  @update:model-value="(v) => toggleButton(b, v === true)"
-                />
-              </UTooltip>
+              <UCheckbox
+                :model-value="shownHere(b)"
+                :aria-label="t('rules.showButton', { name: b.name })"
+                @update:model-value="(v) => toggleButton(b, v === true)"
+              />
               <UBadge color="neutral" variant="soft" :class="buttonColorClass" :style="buttonColorStyle(b.color)" :icon="b.icon ?? undefined" :label="b.name" class="max-w-60 truncate" />
               <span class="ms-auto text-xs text-muted">
                 {{ b.columnIds === null ? t('buttons.allColumns') : t('rules.buttonColumns', { n: b.columnIds.length }, b.columnIds.length) }}

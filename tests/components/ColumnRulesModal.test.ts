@@ -6,7 +6,7 @@ import type { BoardButton } from '#shared/buttons'
 
 const column = { id: 'c1', title: 'Testing', position: 1, color: null, wipLimit: null, outline: null, rules: [] }
 const button = (id: string, name: string, columnIds: string[] | null): BoardButton =>
-  ({ id, scope: 'card', name, icon: null, color: 'accent', shared: true, columnIds, steps: [{ kind: 'archive' }] })
+  ({ id, scope: 'card', name, icon: null, color: 'accent', shared: true, columnIds, cardIds: [], steps: [{ kind: 'archive' }] })
 const buttons = [button('b1', 'Everywhere', null), button('b2', 'Elsewhere', ['c2']), button('b3', 'Only here', ['c1'])]
 
 async function mount() {
@@ -25,15 +25,15 @@ describe('ColumnRulesModal card buttons', () => {
     const w = await mount()
     expect(checkbox('Everywhere').getAttribute('aria-checked')).toBe('true')
     expect(checkbox('Elsewhere').getAttribute('aria-checked')).toBe('false')
-    // Its only column: cannot be hidden here.
-    expect(checkbox('Only here').disabled).toBe(true)
-
     checkbox('Everywhere').click()
     checkbox('Elsewhere').click()
+    // Its only column can go too: the button is then left on the cards it was added to.
+    checkbox('Only here').click()
     await flushPromises()
     expect(w.emitted('buttonColumns')).toEqual([
       [buttons[0], ['c2', 'c3']],
       [buttons[1], ['c2', 'c1']],
+      [buttons[2], []],
     ])
     w.unmount()
   })

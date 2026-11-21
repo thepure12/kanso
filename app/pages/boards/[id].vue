@@ -19,7 +19,7 @@ const {
   addColumnRule, deleteColumnRule, addAutomation, updateAutomation, deleteAutomation, addRule, updateRule, deleteRule, addScheduledAction, deleteScheduledAction, addCard, updateCard, setCardCounts, cardLinkChanged, archiveCard, snoozeCard, wakeCard, restoreCard, deleteCard, restoreTrashedCard,
   deleteArchivedCard, cardMoved, moveCard, addTag, updateTag, deleteTag,
   addField, updateField, fieldMoved, deleteField, setFieldValue,
-  addColumnGroup, updateColumnGroup, columnGroupMoved, deleteColumnGroup, addAssigneeGroup, updateAssigneeGroup, deleteAssigneeGroup, addSavedView, updateSavedView, deleteSavedView, addButton, updateButton, deleteButton, runButton,
+  addColumnGroup, updateColumnGroup, columnGroupMoved, deleteColumnGroup, addAssigneeGroup, updateAssigneeGroup, deleteAssigneeGroup, addSavedView, updateSavedView, deleteSavedView, addButton, updateButton, deleteButton, runButton, setButtonOnCard,
   addCardFromTemplate, saveAsTemplate, deleteTemplate, setRecurrence, deleteRecurrence, bulkUpdate, undo, redo, undoGroup,
 } = await useBoard(id)
 const { t } = useI18n()
@@ -1177,6 +1177,7 @@ const boardMenu = computed(() => {
       :button-align="board.buttonAlign"
       @automations="openAutomations(null, editingCard!.id)"
       @run-button="b => runButton(b, editingCard!)"
+      @button-on-card="(b, on) => setButtonOnCard(b, editingCard!, on)"
     />
     <ColumnColorModal
       v-if="colouringColumn"

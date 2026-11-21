@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { BoardField, Card, Member, Tag } from '#shared/types/board'
-import { buttonAlignClass, buttonShownIn, type BoardButton, type ButtonAlign } from '#shared/buttons'
+import { buttonAlignClass, buttonShownOn, type BoardButton, type ButtonAlign } from '#shared/buttons'
 import { CARD_TITLE_MAX } from '#shared/cards'
 
 const props = withDefaults(defineProps<{
@@ -33,7 +33,7 @@ const i18n = useI18nContext()
 /** The card's tags in board tag order (alphabetical). */
 const cardTags = computed(() => props.tags.filter(t => props.card.tagIds.includes(t.id)))
 const labels = useLabelDisplay()
-const shownButtons = computed(() => props.buttons.filter(b => buttonShownIn(b, props.card.columnId)))
+const shownButtons = computed(() => props.buttons.filter(b => buttonShownOn(b, props.card)))
 const showButtons = computed(() => props.canEdit && shownButtons.value.length > 0)
 const assignees = computed(() => props.members.filter(m => props.card.assigneeIds.includes(m.userId)))
 const due = computed(() => dueStatus(props.card.dueDate, props.today))

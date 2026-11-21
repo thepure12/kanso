@@ -381,11 +381,13 @@ export const boardButtons = pgTable('board_buttons', {
   icon: text('icon'),
   color: text('color').$type<ButtonColor>().notNull().default('accent'),
   steps: jsonb('steps').$type<ButtonStep[]>().notNull(),
-  // Card buttons only: the columns whose cards offer the button; null = every column.
+  // Card buttons only: the columns whose cards offer the button; null = every
+  // column, empty = none (then only the cards in board_button_cards).
   columnIds: uuid('column_ids').array(),
   createdBy: uuid('created_by').references(() => users.id, { onDelete: 'set null' }),
   createdAt: createdAt(),
 }, t => [
+  unique('board_buttons_id_board_id_unique').on(t.id, t.boardId),
   uniqueIndex('board_buttons_name_unique').on(t.boardId, sql`coalesce(${t.userId}, '00000000-0000-0000-0000-000000000000'::uuid)`, t.scope, sql`lower(${t.name})`),
   index('board_buttons_user_idx').on(t.userId),
   check('board_buttons_scope', sql`${t.scope} in ('card', 'board')`),
@@ -445,6 +447,20 @@ export const cards = pgTable('cards', {
   check('cards_snooze_not_template', sql`not (${t.isTemplate} and ${t.snoozedUntil} is not null)`),
   // CARD_TITLE_MAX (shared/cards.ts).
   check('cards_title_length', sql`char_length(${t.title}) <= 1000`),
+])
+
+// Card buttons added to single cards: offered there whatever the button's
+// columns. Personal buttons by their user, shared ones by editors of the card.
+// See 0124_board_button_cards_rls.sql.
+export const boardButtonCards = pgTable('board_button_cards', {
+  buttonId: uuid('button_id').notNull(),
+  cardId: uuid('card_id').notNull(),
+  boardId: uuid('board_id').notNull(),
+}, t => [
+  primaryKey({ columns: [t.buttonId, t.cardId] }),
+  index('board_button_cards_card_idx').on(t.cardId),
+  foreignKey({ columns: [t.buttonId, t.boardId], foreignColumns: [boardButtons.id, boardButtons.boardId], name: 'board_button_cards_button_fk' }).onDelete('cascade'),
+  foreignKey({ columns: [t.cardId, t.boardId], foreignColumns: [cards.id, cards.boardId], name: 'board_button_cards_card_fk' }).onDelete('cascade'),
 ])
 
 export const tags = pgTable('tags', {
