@@ -19,7 +19,7 @@ async function select(n: Notification) {
 
 <template>
   <UPopover v-model:open="open" :content="{ align: 'end' }">
-    <UChip :show="unread > 0" :text="unread > 99 ? '99+' : unread" size="3xl" inset>
+    <UChip :show="unread > 0" :text="unread > 99 ? '99+' : unread" size="3xl" inset :ui="{ base: 'h-4 min-w-4 px-1 text-[10px] leading-none tabular-nums' }">
       <UTooltip :text="unread ? t('notifications.unreadLabel', { count: unread }) : t('notifications.title')">
         <UButton color="neutral" variant="ghost" icon="i-lucide-bell" :aria-label="unread ? t('notifications.unreadLabel', { count: unread }) : t('notifications.title')" />
       </UTooltip>
