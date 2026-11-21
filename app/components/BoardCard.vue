@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { BoardField, Card, Member, Tag } from '#shared/types/board'
+import type { BoardButton } from '#shared/buttons'
 import { CARD_TITLE_MAX } from '#shared/cards'
 
 const props = withDefaults(defineProps<{
@@ -20,14 +21,18 @@ const props = withDefaults(defineProps<{
   selecting?: boolean
   /** Bulk selection is offered (off for people limited to some columns/cards). */
   selectable?: boolean
-}>(), { fields: () => [], selectable: true })
-const emit = defineEmits<{ open: [], delete: [], select: [], rename: [title: string] }>()
+  /** Card buttons, offered in a menu on hover while the card is editable. */
+  buttons?: BoardButton[]
+}>(), { fields: () => [], selectable: true, buttons: () => [] })
+const emit = defineEmits<{ open: [], delete: [], select: [], rename: [title: string], runButton: [button: BoardButton] }>()
 const { t, locale } = useI18n()
 const i18n = useI18nContext()
 
 /** The card's tags in board tag order (alphabetical). */
 const cardTags = computed(() => props.tags.filter(t => props.card.tagIds.includes(t.id)))
 const labels = useLabelDisplay()
+const showButtons = computed(() => props.canEdit && props.buttons.length > 0)
+const buttonItems = computed(() => props.buttons.map(b => ({ label: b.name, icon: b.icon ?? 'i-lucide-zap', onSelect: () => emit('runButton', b) })))
 const assignees = computed(() => props.members.filter(m => props.card.assigneeIds.includes(m.userId)))
 const due = computed(() => dueStatus(props.card.dueDate, props.today))
 const dueColor = computed(() => ({ overdue: 'error', today: 'warning', soon: 'warning', later: 'neutral' } as const)[due.value ?? 'later'])
@@ -137,6 +142,18 @@ const dueAriaLabel = computed(() => {
         @click.stop="emit('select')"
       />
     </UTooltip>
+    <UDropdownMenu v-if="showButtons" :items="buttonItems" :content="{ align: 'end' }">
+      <UButton
+        icon="i-lucide-zap"
+        size="xs"
+        color="neutral"
+        variant="ghost"
+        :aria-label="t('buttons.runOnCard')"
+        class="absolute z-10 top-1 pointer-fine:opacity-0 pointer-fine:group-hover:opacity-100 focus-visible:opacity-100 data-[state=open]:opacity-100 transition"
+        :class="props.selectable ? 'right-13' : 'right-7'"
+        @click.stop
+      />
+    </UDropdownMenu>
     <UTooltip v-if="props.canEdit" :text="t('boardCard.delete')">
       <UButton
         icon="i-lucide-x"
@@ -155,7 +172,7 @@ const dueAriaLabel = computed(() => {
       loading="lazy"
       class="-mx-3 -mt-3 mb-2 h-32 w-[calc(100%+1.5rem)] max-w-none object-cover rounded-t-lg"
     >
-    <div v-if="cardTags.length" class="flex flex-wrap gap-1 mb-2" :class="props.canEdit && 'pe-12'">
+    <div v-if="cardTags.length" class="flex flex-wrap gap-1 mb-2" :class="props.canEdit && (showButtons ? 'pe-18' : 'pe-12')">
       <TagChip v-for="t in cardTags" :key="t.id" :tag="t" :compact="!labels.tagNames" />
     </div>
     <UTextarea
@@ -167,7 +184,7 @@ const dueAriaLabel = computed(() => {
       :maxlength="CARD_TITLE_MAX"
       :aria-label="t('board.cardTitle')"
       class="card-title-edit w-full"
-      :class="props.canEdit && 'pe-12'"
+      :class="props.canEdit && (showButtons ? 'pe-18' : 'pe-12')"
       :ui="{ base: 'text-sm font-medium px-1 py-0.5' }"
       @click.stop
       @keydown.stop
@@ -178,7 +195,7 @@ const dueAriaLabel = computed(() => {
     <p
       v-else
       class="text-sm font-medium break-words"
-      :class="props.canEdit && 'pe-12'"
+      :class="props.canEdit && (showButtons ? 'pe-18' : 'pe-12')"
       @click="onTitleClick"
     >
       {{ props.card.title }}

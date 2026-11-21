@@ -3,6 +3,7 @@ import type { ColumnOutline } from '#shared/columnOutline'
 import type { BoardBackground } from '#shared/boardBackgrounds'
 import type { AssigneeGroup, BoardAutomation, BoardDetail, BoardRule, NewBoardRule, BoardField, BulkCardAction, Card, CardLink, CardPatch, CardRecurrence, Column, ColumnGroup, ColumnRule, FieldValue, NewBoardAutomation, NewColumnRule, NewScheduledCardAction, ScheduledCardAction, NewColumnRuleRequest, RecurrenceInput, SavedView, Tag } from '#shared/types/board'
 import type { SavedViewConfig } from '#shared/savedViews'
+import type { BoardButton, ButtonRunResult } from '#shared/buttons'
 
 /** Card fields kept in step with the card dialog's details. */
 export type CardCounts = Pick<Card, 'checklist' | 'commentCount' | 'attachmentCount' | 'timeMinutes' | 'coverAttachmentId' | 'watching'>
@@ -181,6 +182,8 @@ export async function useBoard(id: string) {
   // Named sets of people (AssigneeGroupsModal); assigning one adds its members.
   const assigneeGroups = ref<AssigneeGroup[]>([])
   const savedViews = ref<SavedView[]>([])
+  // Card and board buttons (shared and the user's own).
+  const buttons = ref<BoardButton[]>([])
   // Card templates (not on the board) and their recurring schedules.
   const templates = ref<Card[]>([])
   const recurrences = ref<CardRecurrence[]>([])
@@ -198,6 +201,7 @@ export async function useBoard(id: string) {
     columnGroups.value = b.columnGroups.map(g => ({ ...g, columnIds: [...g.columnIds] }))
     assigneeGroups.value = b.assigneeGroups.map(g => ({ ...g, userIds: [...g.userIds] }))
     savedViews.value = [...b.savedViews]
+    buttons.value = [...b.buttons]
     templates.value = [...b.templates]
     recurrences.value = [...b.recurrences]
     automations.value = [...b.automations]
@@ -827,6 +831,40 @@ export async function useBoard(id: string) {
       savedViews.value = savedViews.value.filter(v => v.id !== view.id)
     }, t('savedViews.errors.delete')),
 
+    /** Creates a button. Throws on failure, so the dialog can show a taken name (409). */
+    addButton: async (input: Omit<BoardButton, 'id'>) => {
+      const created = await api<BoardButton>(`/api/boards/${id}/buttons`, { method: 'POST', body: input })
+      buttons.value = sortSavedViews([...buttons.value.filter(b => b.id !== created.id), created])
+      return created
+    },
+
+    /** Changes a button's name, look or steps. Throws on failure, like addButton. */
+    updateButton: async (button: BoardButton, patch: Partial<Pick<BoardButton, 'name' | 'icon' | 'color' | 'steps'>>) => {
+      const updated = await api<BoardButton>(`/api/buttons/${button.id}`, { method: 'PATCH', body: patch })
+      buttons.value = sortSavedViews(buttons.value.map(b => b.id === updated.id ? updated : b))
+      return updated
+    },
+
+    deleteButton: (button: BoardButton) => run(async () => {
+      await api(`/api/buttons/${button.id}`, { method: 'DELETE' })
+      buttons.value = buttons.value.filter(b => b.id !== button.id)
+    }, t('buttons.errors.delete')),
+
+    /**
+     * Runs a button (on `card` for card buttons), then reloads the board and
+     * open dialogs. Not undoable; the card activity shows what changed.
+     */
+    runButton: (button: BoardButton, card?: Card) => run(async () => {
+      const res = await api<ButtonRunResult>(`/api/buttons/${button.id}/run`, { method: 'POST', body: { cardId: card?.id } })
+      await refresh()
+      remoteVersion.value++
+      toast.add({
+        title: t('buttons.ran', { name: button.name }),
+        description: res.skipped ? t('buttons.skipped', { n: res.skipped }, res.skipped) : undefined,
+        color: res.skipped ? 'warning' : 'success',
+      })
+    }, t('buttons.errors.run', { name: button.name })),
+
     deleteField: (field: BoardField) => run(async () => {
       await api(`/api/fields/${field.id}`, { method: 'DELETE' })
       fields.value = fields.value.filter(f => f.id !== field.id)
@@ -886,7 +924,7 @@ export async function useBoard(id: string) {
   }
 
   return {
-    board, error, refresh, columns, columnGroups, assigneeGroups, savedViews, lists, tags, fields, templates, recurrences, automations, rules, scheduledActions, archived, offline, canEdit, isOwner, limited, canEditCard, canCommentOn, canAddToColumn, dragging, remoteVersion,
+    board, error, refresh, columns, columnGroups, assigneeGroups, savedViews, buttons, lists, tags, fields, templates, recurrences, automations, rules, scheduledActions, archived, offline, canEdit, isOwner, limited, canEditCard, canCommentOn, canAddToColumn, dragging, remoteVersion,
     canUndo: undoStack.canUndo, canRedo: undoStack.canRedo, ...mutations,
   }
 }

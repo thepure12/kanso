@@ -4,6 +4,7 @@ import type { ColumnOutline } from '../columnOutline'
 import type { BoardNotificationLevel } from '../notificationSettings'
 import type { SavedViewConfig } from '../savedViews'
 import type { BoardBot } from './bots'
+import type { BoardButton } from '../buttons'
 import type { BoardMatrixRoom, CardMatrixThread } from './matrix'
 
 export type BoardRole = 'owner' | 'editor' | 'commenter' | 'viewer'
@@ -539,6 +540,8 @@ export interface BoardDetail {
   assigneeGroups: AssigneeGroup[]
   /** Shared views and the user's own, by name. */
   savedViews: SavedView[]
+  /** Card and board buttons: shared ones and the user's own. */
+  buttons: BoardButton[]
   /** Unarchived cards; templates are not among them. */
   cards: Card[]
   /** Card templates (each in its default column), in title order. */

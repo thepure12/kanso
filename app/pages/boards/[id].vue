@@ -13,12 +13,12 @@ const route = useRoute()
 const id = route.params.id as string
 const boardTabs = useBoardTabs()
 const {
-  board, error, refresh, columns, columnGroups, assigneeGroups, savedViews, lists, tags, fields, templates, recurrences, automations, rules, scheduledActions, archived, offline, canEdit, isOwner, limited, canEditCard, canCommentOn, canAddToColumn, dragging, remoteVersion,
+  board, error, refresh, columns, columnGroups, assigneeGroups, savedViews, buttons, lists, tags, fields, templates, recurrences, automations, rules, scheduledActions, archived, offline, canEdit, isOwner, limited, canEditCard, canCommentOn, canAddToColumn, dragging, remoteVersion,
   renameBoard, setArchived, setBackground, setAccent, setColumnOutline, uploadBackground, deleteBoard, addColumn, renameColumn, setColumnAppearance, setColumnWipLimit, sortColumnByPriority, deleteColumn, columnMoved,
   addColumnRule, deleteColumnRule, addAutomation, updateAutomation, deleteAutomation, addRule, updateRule, deleteRule, addScheduledAction, deleteScheduledAction, addCard, updateCard, setCardCounts, cardLinkChanged, archiveCard, snoozeCard, wakeCard, restoreCard, deleteCard, restoreTrashedCard,
   deleteArchivedCard, cardMoved, moveCard, addTag, updateTag, deleteTag,
   addField, updateField, fieldMoved, deleteField, setFieldValue,
-  addColumnGroup, updateColumnGroup, columnGroupMoved, deleteColumnGroup, addAssigneeGroup, updateAssigneeGroup, deleteAssigneeGroup, addSavedView, updateSavedView, deleteSavedView,
+  addColumnGroup, updateColumnGroup, columnGroupMoved, deleteColumnGroup, addAssigneeGroup, updateAssigneeGroup, deleteAssigneeGroup, addSavedView, updateSavedView, deleteSavedView, addButton, updateButton, deleteButton, runButton,
   addCardFromTemplate, saveAsTemplate, deleteTemplate, setRecurrence, deleteRecurrence, bulkUpdate, undo, redo, undoGroup,
 } = await useBoard(id)
 const { t } = useI18n()
@@ -261,6 +261,13 @@ watch(columnGroups, (list) => {
 })
 const columnGroupsOpen = ref(false)
 const assigneeGroupsOpen = ref(false)
+const buttonsOpen = ref(false)
+const cardButtons = computed(() => buttons.value.filter(b => b.scope === 'card'))
+const boardButtons = computed(() => buttons.value.filter(b => b.scope === 'board'))
+const boardButtonItems = computed(() => [
+  boardButtons.value.map(b => ({ label: b.name, icon: b.icon ?? 'i-lucide-zap', onSelect: () => runButton(b) })),
+  [{ label: t('buttons.manage'), icon: 'i-lucide-settings-2', onSelect: () => { buttonsOpen.value = true } }],
+])
 // The swimlane select shows the chosen grouping's icon; the generic rows icon when none.
 const groupByOptions = computed(() => groupByItems(fields.value, t))
 const groupByIcon = computed(() => groupBy.value === 'none' ? 'i-lucide-rows-3' : groupByOptions.value.find(i => i.value === groupBy.value)?.icon ?? 'i-lucide-rows-3')
@@ -624,6 +631,7 @@ const boardMenu = computed(() => {
       { label: t('board.menu.templates'), icon: 'i-lucide-file-stack', onSelect: () => { templatesOpen.value = true } },
       { label: t('board.menu.automations'), icon: 'i-lucide-timer', onSelect: () => openAutomations() },
       ...(limited.value ? [] : [{ label: t('board.menu.rules'), icon: 'i-lucide-workflow', onSelect: () => { boardRulesOpen.value = true } }]),
+      ...(!offline.value ? [{ label: t('board.menu.buttons'), icon: 'i-lucide-zap', onSelect: () => { buttonsOpen.value = true } }] : []),
       ...(editable ? [{ label: t('board.menu.background'), icon: 'i-lucide-image', onSelect: () => { backgroundOpen.value = true } }] : []),
       ...(owner ? [{ label: t('board.menu.bots'), icon: 'i-lucide-bot', onSelect: () => { botsOpen.value = true } }] : []),
       ...(owner ? [{ label: t('board.menu.webhooks'), icon: 'i-lucide-webhook', onSelect: () => { webhooksOpen.value = true } }] : []),
@@ -745,6 +753,11 @@ const boardMenu = computed(() => {
             @apply="applySavedView"
             @reset="resetView"
           />
+          <UDropdownMenu v-if="canEdit && boardButtons.length" :items="boardButtonItems">
+            <UButton icon="i-lucide-zap" color="neutral" variant="ghost" size="sm" :aria-label="t('buttons.boardButtons')">
+              <span class="group-data-c2/tb:sr-only">{{ t('buttons.boardButtons') }}</span>
+            </UButton>
+          </UDropdownMenu>
           <!-- Tabs from sm up; a select on phones, where four icon tabs take too much room. -->
           <UTabs v-model="view" :items="viewItems" :content="false" size="sm" class="hidden sm:flex" :ui="{ label: 'group-data-c3/tb:sr-only' }" :aria-label="t('board.viewLabel')" />
           <USelect
@@ -870,8 +883,10 @@ const boardMenu = computed(() => {
         @delete="deleteCard"
         @move="moveToLane"
         @dragging="v => dragging = v"
+        :buttons="cardButtons"
         @rename="(card, title) => updateCard(card, { title })"
         @collapse="(columnId, value) => collapsedColumns.setCollapsed(columnId, value)"
+        @run-button="(b, card) => runButton(b, card)"
       />
     </div>
     <div v-else class="flex-1 overflow-x-auto snap-x snap-proximity sm:snap-none scroll-px-3">
@@ -1062,7 +1077,9 @@ const boardMenu = computed(() => {
                   @open="editingCardId = card.id"
                   @delete="deleteCard(card)"
                   @select="toggleSelected(card.id)"
+                  :buttons="cardButtons"
                   @rename="title => updateCard(card, { title })"
+                  @run-button="b => runButton(b, card)"
                 />
               </VueDraggable>
 
@@ -1139,7 +1156,9 @@ const boardMenu = computed(() => {
       @link="(link, added) => cardLinkChanged(editingCard!, link, added)"
       @set-field="(field, value) => setFieldValue(editingCard!, field, value)"
       @move="columnId => moveCard(editingCard!, columnId)"
+      :buttons="editingTemplate ? undefined : cardButtons"
       @automations="openAutomations(null, editingCard!.id)"
+      @run-button="b => runButton(b, editingCard!)"
     />
     <ColumnColorModal
       v-if="colouringColumn"
@@ -1174,6 +1193,17 @@ const boardMenu = computed(() => {
       @update="updateField"
       @move="fieldMoved"
       @delete="deleteField"
+    />
+    <BoardButtonsModal
+      v-model:open="buttonsOpen"
+      :buttons="buttons"
+      :columns="columns"
+      :tags="tags"
+      :members="board.members"
+      :can-edit="canEdit"
+      :create="addButton"
+      :update="updateButton"
+      :remove="deleteButton"
     />
     <ColumnGroupsModal
       v-model:open="columnGroupsOpen"

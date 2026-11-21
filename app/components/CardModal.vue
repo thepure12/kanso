@@ -3,6 +3,7 @@ import { priorities, type AssigneeGroup, type BoardField, type Card, type CardLi
 import type { CardCounts } from '~/composables/useBoard'
 import { CARD_TITLE_MAX } from '#shared/cards'
 import type { BoardMatrixRoom } from '#shared/types/matrix'
+import type { BoardButton } from '#shared/buttons'
 
 // Absent optional booleans would become false; undefined keeps the fallback.
 const props = withDefaults(defineProps<{
@@ -42,6 +43,8 @@ const props = withDefaults(defineProps<{
   matrix?: BoardMatrixRoom | null
   /** Own automations and scheduled actions of the card; set (also 0) shows the Automations button. */
   automationCount?: number
+  /** Card buttons to offer (shown while the card is editable, not for templates). */
+  buttons?: BoardButton[]
 }>(), { canComment: undefined, assigneeGroups: () => [] })
 const emit = defineEmits<{
   save: [patch: CardPatch]
@@ -62,6 +65,8 @@ const emit = defineEmits<{
   move: [columnId: string]
   /** Open the card's automations. */
   automations: []
+  /** Run a card button on this card. */
+  runButton: [button: BoardButton]
 }>()
 const open = defineModel<boolean>('open', { required: true })
 const { t } = useI18n()
@@ -475,6 +480,18 @@ const tabs = computed(() => [
                 <UAvatar v-for="w in cd.detail.value.watchers" :key="w.userId" :src="w.avatarUrl ?? undefined" :alt="w.name" />
               </UAvatarGroup>
             </UTooltip>
+          </div>
+          <div v-if="props.buttons?.length && props.canEdit && !props.template" class="flex flex-wrap gap-1.5" role="group" :aria-label="t('buttons.cardButtons')">
+            <UButton
+              v-for="b in props.buttons"
+              :key="b.id"
+              :icon="b.icon ?? undefined"
+              :label="b.name"
+              :color="b.color"
+              variant="soft"
+              size="sm"
+              @click="emit('runButton', b)"
+            />
           </div>
           <UFormField :label="t('card.tags')">
             <USelectMenu

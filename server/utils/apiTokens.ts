@@ -26,7 +26,7 @@ export function bearerToken(header: string | undefined): string | undefined {
  */
 const tokenRoutes = [
   '/api/boards', '/api/cards', '/api/columns', '/api/tags', '/api/comments', '/api/checklists', '/api/checklist-items', '/api/column-rules', '/api/automations', '/api/board-rules', '/api/scheduled-actions', '/api/reminders',
-  '/api/attachments', '/api/card-links', '/api/fields', '/api/column-groups', '/api/assignee-groups', '/api/saved-views', '/api/time-entries', '/api/teams', '/api/notifications',
+  '/api/attachments', '/api/card-links', '/api/fields', '/api/column-groups', '/api/assignee-groups', '/api/saved-views', '/api/buttons', '/api/time-entries', '/api/teams', '/api/notifications',
   '/api/search', '/api/me', '/api/my-work', '/api/events',
 ]
 const tokenDenied = /\/(webhooks|matrix|bots)(\/|$)/

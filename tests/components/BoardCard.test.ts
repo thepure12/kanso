@@ -158,4 +158,13 @@ describe('BoardCard', () => {
     expect(viewer.emitted('select')).toBeUndefined()
     expect(viewer.find('textarea').exists()).toBe(false)
   })
+  it('offers card buttons in a hover menu only while the card is editable', async () => {
+    const buttons = [{ id: 'b1', scope: 'card' as const, name: 'Ship', icon: null, color: 'success' as const, shared: true, steps: [{ kind: 'archive' as const }] }]
+    const editable = await mountSuspended(BoardCard, { props: { card: card(), tags, members, canEdit: true, today: '2026-10-13', buttons } })
+    expect(editable.find('[aria-label="Run a button on this card"]').exists()).toBe(true)
+    const readOnly = await mountSuspended(BoardCard, { props: { card: card(), tags, members, canEdit: false, today: '2026-10-13', buttons } })
+    expect(readOnly.find('[aria-label="Run a button on this card"]').exists()).toBe(false)
+    const none = await mount(card())
+    expect(none.find('[aria-label="Run a button on this card"]').exists()).toBe(false)
+  })
 })

@@ -649,6 +649,7 @@
       "tagNames": "Namen der Karten-Tags anzeigen",
       "groupNames": "Namen der Spalten-Tags anzeigen",
       "automations": "Automatisierungen",
+      "buttons": "Buttons",
       "sections": {
         "setup": "Einrichten",
         "history": "Verlauf",
@@ -1766,6 +1767,110 @@
     "errors": {
       "save": "Ansicht konnte nicht gespeichert werden",
       "delete": "Ansicht konnte nicht gelöscht werden"
+    }
+  },
+  "buttons": {
+    "title": "Buttons",
+    "description": "Buttons führen mit einem Klick eine Liste von Schritten aus, auf einer Karte oder auf dem Board. Sie laufen unter deinem Namen und können nur, was du darfst.",
+    "manage": "Buttons verwalten…",
+    "boardButtons": "Buttons",
+    "cardButtons": "Karten-Buttons",
+    "runOnCard": "Button auf dieser Karte ausführen",
+    "scopes": {
+      "card": "Karten-Buttons",
+      "board": "Board-Buttons"
+    },
+    "scopeHints": {
+      "card": "Im Kartendialog und im Hover-Menü der Karte.",
+      "board": "In der Werkzeugleiste des Boards."
+    },
+    "new": {
+      "card": "Neuer Karten-Button",
+      "board": "Neuer Board-Button"
+    },
+    "editTitle": "Button bearbeiten",
+    "empty": "Noch keine Buttons.",
+    "sharedHint": "Mit dem Board geteilt",
+    "personalHint": "Nur du siehst diesen Button",
+    "edit": "{name} bearbeiten",
+    "delete": "{name} löschen",
+    "confirmDelete": "Den Button „{name}“ löschen?",
+    "name": "Name",
+    "icon": "Symbol",
+    "noIcon": "Kein Symbol",
+    "color": "Farbe",
+    "preview": "Vorschau",
+    "shareWithBoard": "Mit dem Board teilen",
+    "shareHint": "Alle auf dem Board sehen ihn; Bearbeiter können ihn ändern.",
+    "shareEditorsOnly": "Nur Bearbeiter können Buttons teilen; dieser ist nur für dich.",
+    "steps": "Schritte",
+    "stepKind": "Schritt {n}",
+    "addStep": "Schritt hinzufügen",
+    "removeStep": "Schritt entfernen",
+    "stepUp": "Schritt nach oben",
+    "stepDown": "Schritt nach unten",
+    "pickColumn": "Spalte",
+    "pickTag": "Karten-Tag",
+    "pickPerson": "Person",
+    "fromColumn": "Aus Spalte",
+    "toColumn": "In Spalte",
+    "sortByLabel": "Sortieren nach",
+    "noPriority": "Keine Priorität",
+    "clearDue": "Entfernen",
+    "inDays": "Tage ab heute",
+    "daysFromToday": "Tag ab heute | Tage ab heute",
+    "checklistPlaceholder": "Ein Eintrag pro Zeile",
+    "nameTaken": "Es gibt schon einen Button mit diesem Namen.",
+    "ran": "„{name}“ ausgeführt",
+    "skipped": "{n} Schritt übersprungen: Spalte, Tag oder Person gibt es nicht mehr. | {n} Schritte übersprungen: Spalte, Tag oder Person gibt es nicht mehr.",
+    "gone": "?",
+    "colors": {
+      "neutral": "Grau",
+      "primary": "Akzent",
+      "success": "Grün",
+      "info": "Blau",
+      "warning": "Orange",
+      "error": "Rot"
+    },
+    "sortBy": {
+      "priority": "Priorität",
+      "due": "Fälligkeit",
+      "title": "Titel"
+    },
+    "kinds": {
+      "move": "In Spalte verschieben",
+      "addTag": "Karten-Tag hinzufügen",
+      "removeTag": "Karten-Tag entfernen",
+      "assignMe": "Mich zuweisen",
+      "unassignMe": "Mich entfernen",
+      "assign": "Person zuweisen",
+      "setDue": "Fälligkeit setzen",
+      "setPriority": "Priorität setzen",
+      "addChecklist": "Checklisten-Einträge hinzufügen",
+      "archive": "Archivieren",
+      "watch": "Beobachten",
+      "archiveColumn": "Karten der Spalte archivieren",
+      "sortColumn": "Spalte sortieren",
+      "moveColumnCards": "Alle Karten verschieben"
+    },
+    "describe": {
+      "move": "Nach {column} verschieben",
+      "addTag": "Tag {tag} hinzufügen",
+      "removeTag": "Tag {tag} entfernen",
+      "assign": "{name} zuweisen",
+      "setDue": "Fällig in {n} Tag | Fällig in {n} Tagen",
+      "clearDue": "Fälligkeit entfernen",
+      "setPriority": "Priorität {priority}",
+      "clearPriority": "Priorität entfernen",
+      "addChecklist": "{n} Checklisten-Eintrag hinzufügen | {n} Checklisten-Einträge hinzufügen",
+      "archiveColumn": "Alle Karten in {column} archivieren",
+      "sortColumn": "{column} nach {by} sortieren",
+      "moveColumnCards": "Alle Karten von {from} nach {to} verschieben"
+    },
+    "errors": {
+      "save": "Button konnte nicht gespeichert werden",
+      "delete": "Button konnte nicht gelöscht werden",
+      "run": "„{name}“ konnte nicht ausgeführt werden"
     }
   },
   "automations": {

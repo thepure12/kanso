@@ -9,6 +9,7 @@ import type { BoardBackground } from '../../shared/boardBackgrounds'
 import { type BoardAccent, boardAccents } from '../../shared/boardAccents'
 import type { ColumnOutline } from '../../shared/columnOutline'
 import type { SavedViewConfig } from '../../shared/savedViews'
+import type { ButtonColor, ButtonScope, ButtonStep } from '../../shared/buttons'
 import type { NotificationPrefs } from '../../shared/notificationSettings'
 import { reactionEmojis } from '../../shared/reactions'
 
@@ -362,6 +363,28 @@ export const savedViews = pgTable('saved_views', {
   index('saved_views_user_idx').on(t.userId),
   check('saved_views_name_length', sql`char_length(${t.name}) between 1 and 50`),
   check('saved_views_config_shape', sql`jsonb_typeof(${t.config}) = 'object' and pg_column_size(${t.config}) < 16384`),
+])
+
+// Named list of steps run with one click on a card (scope card) or the board
+// (scope board). user_id null = shared on the board (editors manage), else
+// personal. See 0117_board_buttons_rls.sql and shared/buttons.ts.
+export const boardButtons = pgTable('board_buttons', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  boardId: uuid('board_id').notNull().references(() => boards.id, { onDelete: 'cascade' }),
+  userId: uuid('user_id').references(() => users.id, { onDelete: 'cascade' }),
+  scope: text('scope').$type<ButtonScope>().notNull(),
+  name: text('name').notNull(),
+  icon: text('icon'),
+  color: text('color').$type<ButtonColor>().notNull().default('neutral'),
+  steps: jsonb('steps').$type<ButtonStep[]>().notNull(),
+  createdBy: uuid('created_by').references(() => users.id, { onDelete: 'set null' }),
+  createdAt: createdAt(),
+}, t => [
+  uniqueIndex('board_buttons_name_unique').on(t.boardId, sql`coalesce(${t.userId}, '00000000-0000-0000-0000-000000000000'::uuid)`, t.scope, sql`lower(${t.name})`),
+  index('board_buttons_user_idx').on(t.userId),
+  check('board_buttons_scope', sql`${t.scope} in ('card', 'board')`),
+  check('board_buttons_name_length', sql`char_length(${t.name}) between 1 and 50`),
+  check('board_buttons_steps_shape', sql`jsonb_typeof(${t.steps}) = 'array' and jsonb_array_length(${t.steps}) between 1 and 10 and pg_column_size(${t.steps}) < 16384`),
 ])
 
 export const cards = pgTable('cards', {

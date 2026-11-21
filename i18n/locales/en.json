@@ -649,6 +649,7 @@
       "tagNames": "Show card tag names",
       "groupNames": "Show column tag names",
       "automations": "Automations",
+      "buttons": "Buttons",
       "sections": {
         "setup": "Set up",
         "history": "History",
@@ -1766,6 +1767,110 @@
     "errors": {
       "save": "Couldn't save the view",
       "delete": "Couldn't delete the view"
+    }
+  },
+  "buttons": {
+    "title": "Buttons",
+    "description": "Buttons run a list of steps with one click, on a card or on the board. They run as you, so they can only do what you may do.",
+    "manage": "Manage buttons…",
+    "boardButtons": "Buttons",
+    "cardButtons": "Card buttons",
+    "runOnCard": "Run a button on this card",
+    "scopes": {
+      "card": "Card buttons",
+      "board": "Board buttons"
+    },
+    "scopeHints": {
+      "card": "Shown in the card dialog and in the card's hover menu.",
+      "board": "Shown in the board toolbar."
+    },
+    "new": {
+      "card": "New card button",
+      "board": "New board button"
+    },
+    "editTitle": "Edit button",
+    "empty": "No buttons yet.",
+    "sharedHint": "Shared with the board",
+    "personalHint": "Only you see this button",
+    "edit": "Edit {name}",
+    "delete": "Delete {name}",
+    "confirmDelete": "Delete the button “{name}”?",
+    "name": "Name",
+    "icon": "Icon",
+    "noIcon": "No icon",
+    "color": "Colour",
+    "preview": "Preview",
+    "shareWithBoard": "Share with the board",
+    "shareHint": "Everyone on the board sees it; editors can change it.",
+    "shareEditorsOnly": "Only editors can share buttons; this one is only for you.",
+    "steps": "Steps",
+    "stepKind": "Step {n}",
+    "addStep": "Add step",
+    "removeStep": "Remove step",
+    "stepUp": "Move step up",
+    "stepDown": "Move step down",
+    "pickColumn": "Column",
+    "pickTag": "Card tag",
+    "pickPerson": "Person",
+    "fromColumn": "From column",
+    "toColumn": "To column",
+    "sortByLabel": "Sort by",
+    "noPriority": "No priority",
+    "clearDue": "Clear",
+    "inDays": "Days from today",
+    "daysFromToday": "day from today | days from today",
+    "checklistPlaceholder": "One item per line",
+    "nameTaken": "A button with this name already exists.",
+    "ran": "Ran “{name}”",
+    "skipped": "{n} step skipped: its column, tag or person is gone. | {n} steps skipped: their column, tag or person is gone.",
+    "gone": "?",
+    "colors": {
+      "neutral": "Grey",
+      "primary": "Accent",
+      "success": "Green",
+      "info": "Blue",
+      "warning": "Orange",
+      "error": "Red"
+    },
+    "sortBy": {
+      "priority": "priority",
+      "due": "due date",
+      "title": "title"
+    },
+    "kinds": {
+      "move": "Move to column",
+      "addTag": "Add card tag",
+      "removeTag": "Remove card tag",
+      "assignMe": "Assign me",
+      "unassignMe": "Unassign me",
+      "assign": "Assign person",
+      "setDue": "Set due date",
+      "setPriority": "Set priority",
+      "addChecklist": "Add checklist items",
+      "archive": "Archive",
+      "watch": "Watch",
+      "archiveColumn": "Archive cards in column",
+      "sortColumn": "Sort column",
+      "moveColumnCards": "Move all cards"
+    },
+    "describe": {
+      "move": "Move to {column}",
+      "addTag": "Add tag {tag}",
+      "removeTag": "Remove tag {tag}",
+      "assign": "Assign {name}",
+      "setDue": "Due in {n} day | Due in {n} days",
+      "clearDue": "Clear the due date",
+      "setPriority": "Priority {priority}",
+      "clearPriority": "Clear the priority",
+      "addChecklist": "Add {n} checklist item | Add {n} checklist items",
+      "archiveColumn": "Archive all cards in {column}",
+      "sortColumn": "Sort {column} by {by}",
+      "moveColumnCards": "Move all cards from {from} to {to}"
+    },
+    "errors": {
+      "save": "Couldn't save the button",
+      "delete": "Couldn't delete the button",
+      "run": "Couldn't run “{name}”"
     }
   },
   "automations": {

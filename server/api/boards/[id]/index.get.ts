@@ -13,7 +13,7 @@ export default defineUserHandler(async (event, tx): Promise<BoardDetail> => {
     .from(boards).leftJoin(teams, eq(teams.id, boards.teamId)).where(eq(boards.id, id))
   if (!board) notFound('Board not found')
 
-  const [cols, ruleRows, cardRows, templates, recurrences, automationRows, boardRuleRows, scheduledRows, tagRows, fields, columnGroups, assigneeGroups, savedViews, matrix, members, inviteRows, [me], memberAccess] = await Promise.all([
+  const [cols, ruleRows, cardRows, templates, recurrences, automationRows, boardRuleRows, scheduledRows, tagRows, fields, columnGroups, assigneeGroups, savedViews, buttons, matrix, members, inviteRows, [me], memberAccess] = await Promise.all([
     tx.select({ id: columns.id, title: columns.title, position: columns.position, color: columns.color, wipLimit: columns.wipLimit, outline: columns.outline })
       .from(columns).where(eq(columns.boardId, id)).orderBy(asc(columns.position)),
     tx.select({ ...columnRuleFields, columnId: columnRules.columnId })
@@ -35,6 +35,7 @@ export default defineUserHandler(async (event, tx): Promise<BoardDetail> => {
     loadColumnGroups(tx, id),
     loadAssigneeGroups(tx, id),
     loadSavedViews(tx, id),
+    loadButtons(tx, id),
     loadMatrixRoom(tx, id),
     tx.execute<Member & Record<string, unknown>>(sql`
       select p.user_id as "userId", p.role, p.board_role as "boardRole", p.team_role as "teamRole",
@@ -70,6 +71,7 @@ export default defineUserHandler(async (event, tx): Promise<BoardDetail> => {
     columnGroups,
     assigneeGroups,
     savedViews,
+    buttons,
     cards: cardRows,
     templates,
     recurrences,

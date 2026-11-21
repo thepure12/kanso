@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { BoardButton } from '#shared/buttons'
 import { VueDraggable, type SortableEvent } from 'vue-draggable-plus'
 import type { BoardField, Card, Column, Member, Tag } from '#shared/types/board'
 import { type ColumnOutline, columnOutlineStyle, effectiveColumnOutline } from '#shared/columnOutline'
@@ -24,6 +25,8 @@ const props = defineProps<{
   canEdit: boolean
   dragDisabled: boolean
   today: string
+  /** Card buttons for the cards' hover menu. */
+  buttons?: BoardButton[]
 }>()
 const emit = defineEmits<{
   'open': [cardId: string]
@@ -33,6 +36,7 @@ const emit = defineEmits<{
   'dragging': [value: boolean]
   'rename': [card: Card, title: string]
   'collapse': [columnId: string, value: boolean]
+  'runButton': [button: BoardButton, card: Card]
 }>()
 
 const { t } = useI18n()
@@ -211,8 +215,10 @@ function onCollapsedDrop(laneKey: string, columnId: string, e: SortableEvent) {
               :blocked="props.blockedIds.has(card.id)"
               :blocking="!!props.blockingIds?.has(card.id)"
               @open="emit('open', card.id)"
+              :buttons="props.buttons"
               @delete="emit('delete', card)"
               @rename="title => emit('rename', card, title)"
+              @run-button="b => emit('runButton', b, card)"
             />
           </VueDraggable>
         </template>
