@@ -1276,6 +1276,24 @@ describe('board accent', () => {
   })
 })
 
+describe('card button alignment', () => {
+  it('owners set and clear it; members see it; copies keep it', async () => {
+    const put = (who: typeof alice, align: unknown) => who.req(`/api/boards/${boardId}/button-align`, { method: 'PUT', body: { align } })
+    expect((await alice.req<BoardDetail>(`/api/boards/${boardId}`)).data.buttonAlign).toBeNull()
+    expect((await put(alice, 'center')).status).toBe(200)
+    expect((await put(alice, 'middle')).status).toBe(400)
+    expect((await put(bob, 'right')).status).toBe(404)
+    expect((await bob.req<BoardDetail>(`/api/boards/${boardId}`)).data.buttonAlign).toBe('center')
+
+    const copy = await alice.req<{ id: string }>(`/api/boards/${boardId}/copy`, { method: 'POST', body: { name: 'Align copy', withCards: false } })
+    extraBoards.push(copy.data.id)
+    expect((await alice.req<BoardDetail>(`/api/boards/${copy.data.id}`)).data.buttonAlign).toBe('center')
+
+    expect((await put(alice, null)).status).toBe(200)
+    expect((await bob.req<BoardDetail>(`/api/boards/${boardId}`)).data.buttonAlign).toBeNull()
+  })
+})
+
 describe('column outline', () => {
   it('owners set and clear it; members see it; copies keep it', async () => {
     const put = (who: typeof alice, outline: unknown) => who.req(`/api/boards/${boardId}/column-outline`, { method: 'PUT', body: { outline } })

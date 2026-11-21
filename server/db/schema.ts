@@ -9,7 +9,7 @@ import type { BoardBackground } from '../../shared/boardBackgrounds'
 import { type BoardAccent, boardAccents } from '../../shared/boardAccents'
 import type { ColumnOutline } from '../../shared/columnOutline'
 import type { SavedViewConfig } from '../../shared/savedViews'
-import type { ButtonColor, ButtonScope, ButtonStep } from '../../shared/buttons'
+import type { ButtonAlign, ButtonColor, ButtonScope, ButtonStep } from '../../shared/buttons'
 import type { NotificationPrefs } from '../../shared/notificationSettings'
 import { reactionEmojis } from '../../shared/reactions'
 
@@ -198,6 +198,9 @@ export const boards = pgTable('boards', {
   // it per column); null = default ring.
   // Owners change it (column grant); see shared/columnOutline.ts.
   columnOutline: jsonb('column_outline').$type<ColumnOutline>(),
+  // Where card buttons sit in their row on cards: left, center or right; null = left.
+  // Owners change it (column grant); see shared/buttons.ts.
+  buttonAlign: text('button_align').$type<ButtonAlign>(),
   createdAt: createdAt(),
 }, t => [
   check('boards_background_shape', sql`${t.background} is null
@@ -205,6 +208,7 @@ export const boards = pgTable('boards', {
     or (${t.background}->>'kind' in ('gradient', 'photo', 'upload') and ${t.background}->>'value' ~ '^[a-z0-9-]{1,40}$')`),
   check('boards_accent_known', sql`${t.accent} is null or ${t.accent} in (${sql.raw(boardAccents.map(a => `'${a}'`).join(', '))})`),
   check('boards_column_outline_shape', outlineShape(t.columnOutline)),
+  check('boards_button_align_known', sql`${t.buttonAlign} is null or ${t.buttonAlign} in ('left', 'center', 'right')`),
 ])
 
 // The uploaded image of a board whose background kind is 'upload'. One per board.

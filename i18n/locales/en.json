@@ -687,7 +687,8 @@
       "editedCard": "Edited card",
       "changedBackground": "Changed background",
       "changedAccent": "Changed accent colour",
-      "changedColumnOutline": "Changed column outline"
+      "changedColumnOutline": "Changed column outline",
+      "changedButtonAlign": "Changed button position"
     },
     "errors": {
       "moveCard": "Could not move card",
@@ -742,7 +743,8 @@
       "deleteScheduledAction": "Could not delete the scheduled action",
       "addBoardRule": "Could not add rule",
       "updateBoardRule": "Could not change rule",
-      "deleteBoardRule": "Could not delete rule"
+      "deleteBoardRule": "Could not delete rule",
+      "buttonAlign": "Could not change button position"
     },
     "bulk": {
       "toolbar": "Bulk actions",
@@ -1875,7 +1877,13 @@
     "showInColumns": "Show on cards in",
     "pickColumns": "Pick at least one column",
     "onlyIn": "Only on cards in {columns}",
-    "noColumns": "Shown nowhere: its columns were deleted"
+    "noColumns": "Shown nowhere: its columns were deleted",
+    "align": {
+      "label": "Position on cards",
+      "left": "Left",
+      "center": "Centre",
+      "right": "Right"
+    }
   },
   "automations": {
     "title": "Automations",

@@ -687,7 +687,8 @@
       "editedCard": "Karte bearbeitet",
       "changedBackground": "Hintergrund geändert",
       "changedAccent": "Akzentfarbe geändert",
-      "changedColumnOutline": "Spaltenrahmen geändert"
+      "changedColumnOutline": "Spaltenrahmen geändert",
+      "changedButtonAlign": "Position der Buttons geändert"
     },
     "errors": {
       "moveCard": "Karte konnte nicht verschoben werden",
@@ -742,7 +743,8 @@
       "deleteScheduledAction": "Geplante Aktion konnte nicht gelöscht werden",
       "addBoardRule": "Regel konnte nicht hinzugefügt werden",
       "updateBoardRule": "Regel konnte nicht geändert werden",
-      "deleteBoardRule": "Regel konnte nicht gelöscht werden"
+      "deleteBoardRule": "Regel konnte nicht gelöscht werden",
+      "buttonAlign": "Position der Buttons konnte nicht geändert werden"
     },
     "bulk": {
       "toolbar": "Sammelaktionen",
@@ -1875,7 +1877,13 @@
     "showInColumns": "Auf Karten anzeigen in",
     "pickColumns": "Mindestens eine Spalte wählen",
     "onlyIn": "Nur auf Karten in {columns}",
-    "noColumns": "Nirgends sichtbar: Ihre Spalten wurden gelöscht"
+    "noColumns": "Nirgends sichtbar: Ihre Spalten wurden gelöscht",
+    "align": {
+      "label": "Position auf Karten",
+      "left": "Links",
+      "center": "Mitte",
+      "right": "Rechts"
+    }
   },
   "automations": {
     "title": "Automatisierungen",

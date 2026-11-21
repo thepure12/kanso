@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { buttonIcons, buttonSortKeys, MAX_BUTTON_STEPS, type BoardButton, type ButtonColor, type ButtonScope, type ButtonStep, type ButtonStepKind } from '#shared/buttons'
+import { buttonAligns, buttonIcons, buttonSortKeys, MAX_BUTTON_STEPS, type BoardButton, type ButtonAlign, type ButtonColor, type ButtonScope, type ButtonStep, type ButtonStepKind } from '#shared/buttons'
 import { priorities, type Column, type Member, type Tag } from '#shared/types/board'
 
 const props = defineProps<{
@@ -12,7 +12,14 @@ const props = defineProps<{
   create: (input: Omit<BoardButton, 'id'>) => Promise<BoardButton>
   update: (button: BoardButton, patch: Partial<Pick<BoardButton, 'name' | 'icon' | 'color' | 'columnIds' | 'steps'>>) => Promise<BoardButton>
   remove: (button: BoardButton) => unknown
+  /** Where card buttons sit in their row on cards (board setting); null = left. */
+  align?: ButtonAlign | null
+  /** May change the alignment (owners of unarchived boards). */
+  canSetAlign?: boolean
 }>()
+const emit = defineEmits<{ setAlign: [align: ButtonAlign | null] }>()
+const alignIcons: Record<ButtonAlign, string> = { left: 'i-lucide-align-left', center: 'i-lucide-align-center', right: 'i-lucide-align-right' }
+const currentAlign = computed<ButtonAlign>(() => props.align ?? 'left')
 const open = defineModel<boolean>('open', { required: true })
 const { t } = useI18n()
 const confirm = useConfirm()
@@ -134,6 +141,23 @@ const checklistText = (step: { items: string[] }) => step.items.join('\n')
           <p class="text-xs text-muted">
             {{ t(`buttons.scopeHints.${scope}`) }}
           </p>
+          <div v-if="scope === 'card' && props.canSetAlign" class="flex items-center gap-2">
+            <span id="card-button-align" class="text-xs text-muted">{{ t('buttons.align.label') }}</span>
+            <UFieldGroup role="radiogroup" aria-labelledby="card-button-align">
+              <UTooltip v-for="a in buttonAligns" :key="a" :text="t(`buttons.align.${a}`)">
+                <UButton
+                  :icon="alignIcons[a]"
+                  size="xs"
+                  color="neutral"
+                  :variant="currentAlign === a ? 'solid' : 'outline'"
+                  role="radio"
+                  :aria-checked="currentAlign === a"
+                  :aria-label="t(`buttons.align.${a}`)"
+                  @click="currentAlign !== a && emit('setAlign', a === 'left' ? null : a)"
+                />
+              </UTooltip>
+            </UFieldGroup>
+          </div>
           <p v-if="!byScope(scope).length" class="text-sm text-dimmed">
             {{ t('buttons.empty') }}
           </p>

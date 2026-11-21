@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { BoardButton } from '#shared/buttons'
+import type { BoardButton, ButtonAlign } from '#shared/buttons'
 import { VueDraggable, type SortableEvent } from 'vue-draggable-plus'
 import type { BoardField, Card, Column, Member, Tag } from '#shared/types/board'
 import { type ColumnOutline, columnOutlineStyle, effectiveColumnOutline } from '#shared/columnOutline'
@@ -27,6 +27,8 @@ const props = defineProps<{
   today: string
   /** Card buttons shown at the bottom of each card. */
   buttons?: BoardButton[]
+  /** Where card buttons sit in their row. */
+  buttonAlign?: ButtonAlign | null
 }>()
 const emit = defineEmits<{
   'open': [cardId: string]
@@ -216,6 +218,7 @@ function onCollapsedDrop(laneKey: string, columnId: string, e: SortableEvent) {
               :blocking="!!props.blockingIds?.has(card.id)"
               @open="emit('open', card.id)"
               :buttons="props.buttons"
+              :button-align="props.buttonAlign"
               @delete="emit('delete', card)"
               @rename="title => emit('rename', card, title)"
               @run-button="b => emit('runButton', b, card)"

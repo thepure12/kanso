@@ -3,7 +3,7 @@ import { priorities, type AssigneeGroup, type BoardField, type Card, type CardLi
 import type { CardCounts } from '~/composables/useBoard'
 import { CARD_TITLE_MAX } from '#shared/cards'
 import type { BoardMatrixRoom } from '#shared/types/matrix'
-import { buttonShownIn, type BoardButton } from '#shared/buttons'
+import { buttonAlignClass, buttonShownIn, type BoardButton, type ButtonAlign } from '#shared/buttons'
 
 // Absent optional booleans would become false; undefined keeps the fallback.
 const props = withDefaults(defineProps<{
@@ -45,6 +45,8 @@ const props = withDefaults(defineProps<{
   automationCount?: number
   /** Card buttons to offer (shown while the card is editable, not for templates). */
   buttons?: BoardButton[]
+  /** Where the card buttons sit in their row (board setting); null = left. */
+  buttonAlign?: ButtonAlign | null
 }>(), { canComment: undefined, assigneeGroups: () => [] })
 const emit = defineEmits<{
   save: [patch: CardPatch]
@@ -483,7 +485,7 @@ const tabs = computed(() => [
               </UAvatarGroup>
             </UTooltip>
           </div>
-          <div v-if="shownButtons.length && props.canEdit && !props.template" class="flex flex-wrap gap-1.5" role="group" :aria-label="t('buttons.cardButtons')">
+          <div v-if="shownButtons.length && props.canEdit && !props.template" class="flex flex-wrap gap-1.5" :class="buttonAlignClass(props.buttonAlign)" role="group" :aria-label="t('buttons.cardButtons')">
             <UButton
               v-for="b in shownButtons"
               :key="b.id"

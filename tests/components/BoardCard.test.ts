@@ -181,4 +181,13 @@ describe('BoardCard', () => {
     const here = await mountSuspended(BoardCard, { props: { card: card(), tags, members, canEdit: true, today: '2026-10-13', buttons: [{ ...button, columnIds: ['col'] }] } })
     expect(here.find('[aria-label="Card buttons"]').exists()).toBe(true)
   })
+  it('places the card buttons by the board\'s alignment', async () => {
+    const buttons = [{ id: 'b1', scope: 'card' as const, name: 'Ship', icon: null, color: 'accent' as const, shared: true, columnIds: null, steps: [{ kind: 'archive' as const }] }]
+    const row = async (buttonAlign?: 'left' | 'center' | 'right' | null) =>
+      (await mountSuspended(BoardCard, { props: { card: card(), tags, members, canEdit: true, today: '2026-10-13', buttons, buttonAlign } })).find('[aria-label="Card buttons"]').classes()
+    expect(await row()).toContain('justify-start')
+    expect(await row(null)).toContain('justify-start')
+    expect(await row('center')).toContain('justify-center')
+    expect(await row('right')).toContain('justify-end')
+  })
 })

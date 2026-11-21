@@ -15,7 +15,7 @@ const id = route.params.id as string
 const boardTabs = useBoardTabs()
 const {
   board, error, refresh, columns, columnGroups, assigneeGroups, savedViews, buttons, lists, tags, fields, templates, recurrences, automations, rules, scheduledActions, archived, offline, canEdit, isOwner, limited, canEditCard, canCommentOn, canAddToColumn, dragging, remoteVersion,
-  renameBoard, setArchived, setBackground, setAccent, setColumnOutline, uploadBackground, deleteBoard, addColumn, renameColumn, setColumnAppearance, setColumnWipLimit, sortColumnByPriority, deleteColumn, columnMoved,
+  renameBoard, setArchived, setBackground, setAccent, setButtonAlign, setColumnOutline, uploadBackground, deleteBoard, addColumn, renameColumn, setColumnAppearance, setColumnWipLimit, sortColumnByPriority, deleteColumn, columnMoved,
   addColumnRule, deleteColumnRule, addAutomation, updateAutomation, deleteAutomation, addRule, updateRule, deleteRule, addScheduledAction, deleteScheduledAction, addCard, updateCard, setCardCounts, cardLinkChanged, archiveCard, snoozeCard, wakeCard, restoreCard, deleteCard, restoreTrashedCard,
   deleteArchivedCard, cardMoved, moveCard, addTag, updateTag, deleteTag,
   addField, updateField, fieldMoved, deleteField, setFieldValue,
@@ -899,6 +899,7 @@ const boardMenu = computed(() => {
         @move="moveToLane"
         @dragging="v => dragging = v"
         :buttons="cardButtons"
+        :button-align="board.buttonAlign"
         @rename="(card, title) => updateCard(card, { title })"
         @collapse="(columnId, value) => collapsedColumns.setCollapsed(columnId, value)"
         @run-button="(b, card) => runButton(b, card)"
@@ -1093,6 +1094,7 @@ const boardMenu = computed(() => {
                   @delete="deleteCard(card)"
                   @select="toggleSelected(card.id)"
                   :buttons="cardButtons"
+                  :button-align="board.buttonAlign"
                   @rename="title => updateCard(card, { title })"
                   @run-button="b => runButton(b, card)"
                 />
@@ -1172,6 +1174,7 @@ const boardMenu = computed(() => {
       @set-field="(field, value) => setFieldValue(editingCard!, field, value)"
       @move="columnId => moveCard(editingCard!, columnId)"
       :buttons="editingTemplate ? undefined : cardButtons"
+      :button-align="board.buttonAlign"
       @automations="openAutomations(null, editingCard!.id)"
       @run-button="b => runButton(b, editingCard!)"
     />
@@ -1222,6 +1225,9 @@ const boardMenu = computed(() => {
       :create="addButton"
       :update="updateButton"
       :remove="deleteButton"
+      :align="board.buttonAlign"
+      :can-set-align="isOwner && !archived && !offline"
+      @set-align="setButtonAlign"
     />
     <ColumnGroupsModal
       v-model:open="columnGroupsOpen"

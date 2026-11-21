@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { BoardField, Card, Member, Tag } from '#shared/types/board'
-import { buttonShownIn, type BoardButton } from '#shared/buttons'
+import { buttonAlignClass, buttonShownIn, type BoardButton, type ButtonAlign } from '#shared/buttons'
 import { CARD_TITLE_MAX } from '#shared/cards'
 
 const props = withDefaults(defineProps<{
@@ -23,6 +23,8 @@ const props = withDefaults(defineProps<{
   selectable?: boolean
   /** Card buttons, shown as a row at the bottom of the card while it is editable (those shown in its column). */
   buttons?: BoardButton[]
+  /** Where the card buttons sit in their row (board setting); null = left. */
+  buttonAlign?: ButtonAlign | null
 }>(), { fields: () => [], selectable: true, buttons: () => [] })
 const emit = defineEmits<{ open: [], delete: [], select: [], rename: [title: string], runButton: [button: BoardButton] }>()
 const { t, locale } = useI18n()
@@ -277,7 +279,7 @@ const dueAriaLabel = computed(() => {
         <UAvatar v-for="m in assignees" :key="m.userId" v-bind="personAvatar(m)" />
       </UAvatarGroup>
     </div>
-    <div v-if="showButtons" class="flex flex-wrap gap-1 mt-2" role="group" :aria-label="t('buttons.cardButtons')">
+    <div v-if="showButtons" class="flex flex-wrap gap-1 mt-2" :class="buttonAlignClass(props.buttonAlign)" role="group" :aria-label="t('buttons.cardButtons')">
       <UButton
         v-for="b in shownButtons"
         :key="b.id"

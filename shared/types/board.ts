@@ -4,7 +4,7 @@ import type { ColumnOutline } from '../columnOutline'
 import type { BoardNotificationLevel } from '../notificationSettings'
 import type { SavedViewConfig } from '../savedViews'
 import type { BoardBot } from './bots'
-import type { BoardButton } from '../buttons'
+import type { BoardButton, ButtonAlign } from '../buttons'
 import type { BoardMatrixRoom, CardMatrixThread } from './matrix'
 
 export type BoardRole = 'owner' | 'editor' | 'commenter' | 'viewer'
@@ -524,6 +524,8 @@ export interface BoardDetail {
   accent: BoardAccent | null
   /** Colour, thickness and glow of the column frames; null = default ring. */
   columnOutline: ColumnOutline | null
+  /** Where card buttons sit in their row; null = left. */
+  buttonAlign: ButtonAlign | null
   role: BoardRole
   /** Set while the board is archived: read-only for everyone until an owner unarchives it. */
   archivedAt: string | null

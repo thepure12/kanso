@@ -6,7 +6,7 @@ export default defineUserHandler(async (event, tx): Promise<BoardDetail> => {
   const { boards, boardAutomations, boardRules, cardScheduledActions, columns, columnRules, invites, tags, teams } = schema
 
   const [board] = await tx.select({
-    id: boards.id, name: boards.name, teamId: boards.teamId, teamName: teams.name, archivedAt: boards.archivedAt, background: boards.background, accent: boards.accent, columnOutline: boards.columnOutline,
+    id: boards.id, name: boards.name, teamId: boards.teamId, teamName: teams.name, archivedAt: boards.archivedAt, background: boards.background, accent: boards.accent, columnOutline: boards.columnOutline, buttonAlign: boards.buttonAlign,
     starred: sql<boolean>`exists(select 1 from board_stars s where s.board_id = ${boards.id} and s.user_id = app.current_user_id())`,
     notificationLevel: sql<'direct' | 'none' | null>`(select n.level from board_notification_settings n where n.board_id = ${boards.id} and n.user_id = app.current_user_id())`,
   })
@@ -66,6 +66,7 @@ export default defineUserHandler(async (event, tx): Promise<BoardDetail> => {
     background: board.background ?? null,
     accent: board.accent ?? null,
     columnOutline: board.columnOutline ?? null,
+    buttonAlign: board.buttonAlign ?? null,
     team: board.teamId ? { id: board.teamId, name: board.teamName! } : null,
     columns: cols.map(c => ({ ...c, rules: (rulesByColumn.get(c.id) ?? []).map(toColumnRule) })),
     columnGroups,

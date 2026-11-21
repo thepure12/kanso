@@ -14,6 +14,18 @@ export type ButtonScope = (typeof buttonScopes)[number]
 export type ButtonColor = 'accent' | `#${string}`
 export const buttonColorSchema = z.union([z.literal('accent'), z.string().regex(/^#[0-9a-f]{6}$/)]) as z.ZodType<ButtonColor>
 
+/**
+ * Where card buttons sit in their row (board cards and the card dialog), set per
+ * board by owners (boards.button_align; null = left). Check boards_button_align_known mirrors it.
+ */
+export const buttonAligns = ['left', 'center', 'right'] as const
+export type ButtonAlign = (typeof buttonAligns)[number]
+
+/** Flex class placing a row of card buttons. */
+export function buttonAlignClass(align: ButtonAlign | null | undefined): string {
+  return align === 'center' ? 'justify-center' : align === 'right' ? 'justify-end' : 'justify-start'
+}
+
 export const buttonIcons = [
   'i-lucide-zap', 'i-lucide-check', 'i-lucide-arrow-right', 'i-lucide-archive', 'i-lucide-tag', 'i-lucide-user-plus',
   'i-lucide-calendar', 'i-lucide-flag', 'i-lucide-list-checks', 'i-lucide-eye', 'i-lucide-rocket', 'i-lucide-star',

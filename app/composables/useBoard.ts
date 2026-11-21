@@ -3,7 +3,7 @@ import type { ColumnOutline } from '#shared/columnOutline'
 import type { BoardBackground } from '#shared/boardBackgrounds'
 import type { AssigneeGroup, BoardAutomation, BoardDetail, BoardRule, NewBoardRule, BoardField, BulkCardAction, Card, CardLink, CardPatch, CardRecurrence, Column, ColumnGroup, ColumnRule, FieldValue, NewBoardAutomation, NewColumnRule, NewScheduledCardAction, ScheduledCardAction, NewColumnRuleRequest, RecurrenceInput, SavedView, Tag } from '#shared/types/board'
 import type { SavedViewConfig } from '#shared/savedViews'
-import type { BoardButton, ButtonRunResult } from '#shared/buttons'
+import type { BoardButton, ButtonAlign, ButtonRunResult } from '#shared/buttons'
 
 /** Card fields kept in step with the card dialog's details. */
 export type CardCounts = Pick<Card, 'checklist' | 'commentCount' | 'attachmentCount' | 'timeMinutes' | 'coverAttachmentId' | 'watching'>
@@ -377,6 +377,11 @@ export async function useBoard(id: string) {
     await api(`/api/boards/${id}/accent`, { method: 'PUT', body: { accent } })
   }
 
+  async function putButtonAlign(align: ButtonAlign | null) {
+    board.value!.buttonAlign = align
+    await api(`/api/boards/${id}/button-align`, { method: 'PUT', body: { align } })
+  }
+
   async function putColumnOutline(outline: ColumnOutline | null) {
     board.value!.columnOutline = outline
     await api(`/api/boards/${id}/column-outline`, { method: 'PUT', body: { outline } })
@@ -481,6 +486,13 @@ export async function useBoard(id: string) {
       await putAccent(accent)
       if (before !== accent) record(t('board.undo.changedAccent'), () => putAccent(before), () => putAccent(accent))
     }, t('board.errors.accent')),
+
+    /** Sets where card buttons sit in their row, or null for the default (left) (owners). */
+    setButtonAlign: (align: ButtonAlign | null) => run(async () => {
+      const before = board.value!.buttonAlign
+      await putButtonAlign(align)
+      if (before !== align) record(t('board.undo.changedButtonAlign'), () => putButtonAlign(before), () => putButtonAlign(align))
+    }, t('board.errors.buttonAlign')),
 
     /** Sets the column frame colour, thickness and glow, or null for the default (owners). */
     setColumnOutline: (outline: ColumnOutline | null) => run(async () => {

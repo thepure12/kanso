@@ -1,0 +1,2 @@
+ALTER TABLE "boards" ADD COLUMN "button_align" text;--> statement-breakpoint
+ALTER TABLE "boards" ADD CONSTRAINT "boards_button_align_known" CHECK ("boards"."button_align" is null or "boards"."button_align" in ('left', 'center', 'right'));
