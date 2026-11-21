@@ -26,7 +26,7 @@ When the instance runs under a sub-path, include it in the base URL (`KANSO=http
   team viewer at most (no renaming, member changes or leaving). Deleting a board or losing access to it never widens
   the token.
 - **Allowed routes**: boards, cards, columns, tags, comments, checklists, checklist items, column rules, board automations, board rules, scheduled card actions, attachments, card links,
-  fields, column groups, time entries, teams, notifications, search and `/api/me`. Account, sign-in, two-factor, session, token,
+  fields, column groups, time entries, teams, notifications, search, `/api/me` and the event stream `/api/events`. Account, sign-in, two-factor, session, token,
   admin and webhook routes refuse tokens (`403`, or `401` for routes that only take the session cookie), so a leaked
   token cannot take over the account.
 - **Lifetime**: tokens work until revoked on the Account page, until they expire (30 days, 90 days, 1 year or never,
@@ -220,6 +220,45 @@ A simple loop: call `list_notifications` (or `GET /api/notifications`) every few
 ...; read the card with `get_card`), reply with `add_comment`, then `mark_notifications_read` with the handled ids
 (`PATCH /api/notifications/:id {read: true}`; `POST /api/notifications/read-all` for all) so the next poll shows only
 new ones.
+
+Instead of polling, open the event stream with `notifications=1` (see [Event stream](#event-stream)) and fetch the
+inbox when a `notifications` event arrives.
+
+## Event stream
+
+`GET /api/events` is a server-sent event stream (`text/event-stream`). Browsers use it with the session cookie; scripts
+and agents use any token (`Authorization: Bearer`, read scope is enough). Nothing needs to reach the listener: it opens
+the connection itself, so it works from a workstation without an open port, and it simply reconnects after a drop.
+
+Query parameters (comma-separated lists):
+
+| Parameter | What |
+| --- | --- |
+| `boards` | Board ids to follow (up to 50) |
+| `notifications=1` | Send `notifications` whenever you (or the bot) get a notification |
+| `activity` | Activity kinds to send as `activity` events (`created`, `moved`, `commented`, `assigned`, ... the same kinds as webhook events) |
+| `columns` | Only activity of cards (now) in these columns (up to 200); for `moved`, the column the card landed in. Without it, every column |
+| `clients` | Your client ids (up to 50, `[A-Za-z0-9_-]`, 1-64 characters). Requests sent with `x-client-id: <id>` are yours: `activity` leaves them out, `change` names them in `c` |
+| `change` | `1` or `0`: send `change` events. Default: on, off once `activity` is given |
+
+Events:
+
+- `activity` `{a, b, card, kind, column}`: activity entry `a` of card `card` on board `b`. Ids only; fetch the card
+  (`GET /api/cards/:id`) for details. Only entries you may read are sent: members limited to some columns or cards,
+  and bots, never hear about cards they cannot see. Personal reminders are not sent.
+- `change` `{b, c}`: something on board `b` changed (bursts within 250 ms are one event).
+- `notifications`: your inbox changed; read it with `GET /api/notifications`.
+- `gone` `{b}`: you cannot see board `b` (outside the token's boards, never shared, or access lost); it is dropped.
+- `ready` once everything is subscribed, `ping` at once and every 25 s.
+
+The token is checked again every 25 s; once it is revoked or expired the server closes the stream (reconnecting then
+gets `401`). A reverse proxy in front of Kanso must allow idle reads longer than 25 s.
+
+```bash
+# New and moved cards in two columns, without the listener's own changes
+curl -N -H "Authorization: Bearer $TOKEN" \
+  "$KANSO/api/events?boards=$BOARD&activity=created,moved&columns=$TODO,$BUGS&clients=my-worker"
+```
 
 ## Webhooks
 

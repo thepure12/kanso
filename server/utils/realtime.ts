@@ -4,6 +4,10 @@ type Listener = (clientId: string) => void
 
 const boardListeners = new Map<string, Set<Listener>>()
 const userListeners = new Map<string, Set<() => void>>()
+const activityListeners = new Map<string, Set<(e: ActivityNotice) => void>>()
+
+/** One card activity entry (card_activity NOTIFY, see 0115_activity_events.sql): ids only. */
+export interface ActivityNotice { a: string, b: string, card: string, kind: string, col: string | null, c: string }
 let conn: postgres.Sql | undefined
 const listening = new Map<string, Promise<unknown>>()
 
@@ -56,6 +60,16 @@ export async function onBoardChange(boardId: string, fn: Listener): Promise<() =
 export async function onUserNotification(userId: string, fn: () => void): Promise<() => void> {
   await listen('user_notifications', ({ u }) => userListeners.get(u!)?.forEach(l => l()))
   return subscribe(userListeners, userId, fn)
+}
+
+/**
+ * Calls `fn` with each card activity entry of `boardId` (card_activity, see
+ * 0115_activity_events.sql). No access check: callers check before passing it on.
+ * Returns the unsubscribe function.
+ */
+export async function onCardActivity(boardId: string, fn: (e: ActivityNotice) => void): Promise<() => void> {
+  await listen('card_activity', p => activityListeners.get(p.b!)?.forEach(l => l(p as unknown as ActivityNotice)))
+  return subscribe(activityListeners, boardId, fn)
 }
 
 /** Calls `fn` whenever webhook deliveries are queued (board_webhooks, see 0041_api_tokens_webhooks_rls.sql). */

@@ -70,7 +70,7 @@ async function runAfterCommitTasks(event: H3Event) {
  * tokens, GET/HEAD. Unknown, revoked and expired tokens are 401, and count
  * against a per-IP limit (429 past it).
  */
-async function requireTokenUser(event: H3Event, token: string): Promise<{ userId: string, auth: RequestAuth }> {
+export async function requireTokenUser(event: H3Event, token: string): Promise<{ userId: string, auth: RequestAuth }> {
   if (!tokenRouteAllowed((event.context.matchedRoute as { path?: string } | undefined)?.path)) {
     throw createError({ statusCode: 403, statusMessage: 'API tokens cannot be used for this route' })
   }
@@ -95,6 +95,12 @@ export async function resolveTokenUser(event: H3Event, token: string): Promise<{
     throw createError({ statusCode: 401, statusMessage: 'Invalid or expired API token' })
   }
   return { userId: row.user_id, tokenId: row.token_id, scopes: row.scopes, boardIds: row.board_ids, teamId: row.team_id }
+}
+
+/** Whether an API token still resolves (not revoked, not expired, account still there). No rate limit: for re-checks of a token that worked. */
+export async function apiTokenLive(token: string): Promise<boolean> {
+  const rows = await useAuthDb().execute(sql`select 1 from app.resolve_api_token(${hashApiToken(token)})`)
+  return rows.length > 0
 }
 
 /**

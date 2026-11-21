@@ -20,6 +20,7 @@ const adminEmail = `admin-${randomUUID()}@api.test`
 await setupApi({
   NUXT_ADMIN_EMAIL: adminEmail, NUXT_MAIL_SMTP_URL: '', NUXT_MAIL_LOG_LINKS: 'true',
   NUXT_WEBHOOK_ALLOW_PRIVATE: 'true', NUXT_PUBLIC_SITE_URL: 'https://kanso.example',
+  NUXT_EVENTS_TOKEN_CHECK_MS: '300',
 })
 
 let base = ''
@@ -32,13 +33,14 @@ const randomIp = () => `10.${[0, 0, 0].map(() => Math.floor(Math.random() * 250)
 interface Res<T> { status: number, data: T, headers: Headers }
 
 /** A request with optional cookie or bearer token, from `ip`. */
-async function call<T = any>(path: string, init: { method?: string, body?: unknown, cookie?: string, token?: string, ip?: string } = {}): Promise<Res<T>> {
+async function call<T = any>(path: string, init: { method?: string, body?: unknown, cookie?: string, token?: string, ip?: string, client?: string } = {}): Promise<Res<T>> {
   const res = await globalThis.fetch(base + path, {
     method: init.method ?? 'GET',
     redirect: 'manual',
     headers: {
       'x-forwarded-for': init.ip ?? randomIp(),
       ...(init.cookie && { cookie: init.cookie }),
+      ...(init.client && { 'x-client-id': init.client }),
       ...(init.token !== undefined && { authorization: `Bearer ${init.token}` }),
       ...(init.body !== undefined && { 'content-type': 'application/json' }),
     },
@@ -306,6 +308,144 @@ describe('showing tokens again', () => {
 
     const h = await withTwoFactor(hank)
     expect((await h.req(`/api/bots/${bot.id}/tokens/${tok.id}/reveal`, { method: 'POST', body: { code: await totp(h.secret) } })).status).toBe(403)
+  })
+})
+
+const sleep = (ms: number) => new Promise(r => setTimeout(r, ms))
+
+/** Reads a server-sent event stream opened with a token (or a cookie); `ended` once the server closes it. */
+async function listen(path: string, auth: { token?: string, cookie?: string }) {
+  const messages: { event: string, data: string }[] = []
+  const ctl = new AbortController()
+  const res = await globalThis.fetch(base + path, {
+    headers: {
+      'x-forwarded-for': randomIp(),
+      ...(auth.token && { authorization: `Bearer ${auth.token}` }),
+      ...(auth.cookie && { cookie: auth.cookie }),
+    },
+    signal: ctl.signal,
+  })
+  expect(res.status).toBe(200)
+  const state = { ended: false }
+  ;(async () => {
+    const dec = new TextDecoder()
+    try {
+      for await (const chunk of res.body as unknown as AsyncIterable<Uint8Array>) {
+        for (const m of dec.decode(chunk).matchAll(/event: (\w+)\ndata: ?(.*)/g)) messages.push({ event: m[1]!, data: m[2]! })
+      }
+      state.ended = true
+    }
+    catch { /* aborted */ }
+  })()
+  const of = (event: string) => messages.filter(m => m.event === event).map(m => JSON.parse(m.data || 'null'))
+  return { messages, of, state, stop: () => ctl.abort() }
+}
+
+describe('event streams for tokens', () => {
+  it('accept a read token, follow board limits and refuse bad parameters', async () => {
+    const read = await newToken(['read'])
+    const other = (await alice.req<{ id: string }>('/api/boards', { method: 'POST', body: { name: 'Second stream board' } })).data.id
+    boards.push(other)
+    const bobsBoard = (await bob.req<{ id: string }>('/api/boards', { method: 'POST', body: { name: 'Bob stream board' } })).data.id
+
+    const all = await listen(`/api/events?boards=${board.id},${other},${bobsBoard}`, { token: read.token })
+    await sleep(300)
+    expect(all.of('gone')).toEqual([{ b: bobsBoard }])
+    expect(all.messages.some(m => m.event === 'ready')).toBe(true)
+    all.stop()
+
+    const limited = (await alice.req<ApiToken & { token: string }>('/api/account/tokens', {
+      method: 'POST', body: { name: 'one board', scopes: ['read'], boardIds: [board.id] },
+    })).data
+    const one = await listen(`/api/events?boards=${board.id},${other}`, { token: limited.token })
+    await sleep(300)
+    expect(one.of('gone')).toEqual([{ b: other }])
+    await call(`/api/boards/${board.id}/cards`, { method: 'POST', body: { columnId: board.columns[0]!.id, title: 'Stream ping' }, cookie: alice.cookie })
+    await sleep(800)
+    expect(one.of('change').map(c => c.b)).toEqual([board.id])
+    one.stop()
+
+    expect((await call(`/api/events?boards=${board.id}`, { token: 'kb_nope' })).status).toBe(401)
+    expect((await call(`/api/events?boards=${board.id}&activity=nope`, { token: read.token })).status).toBe(400)
+    await bob.req(`/api/boards/${bobsBoard}`, { method: 'DELETE' })
+  })
+
+  it('close once the token is revoked', async () => {
+    const t = await newToken(['read'])
+    const stream = await listen(`/api/events?boards=${board.id}`, { token: t.token })
+    await sleep(200)
+    expect(stream.state.ended).toBe(false)
+    expect((await alice.req(`/api/account/tokens/${t.id}`, { method: 'DELETE' })).status).toBe(200)
+    await sleep(1000)
+    expect(stream.state.ended).toBe(true)
+  })
+
+  it('send activity filtered by kind and column, without own changes or change events', async () => {
+    const t = await newToken(['read', 'write'])
+    const [backlog, next] = [board.columns[0]!.id, board.columns[1]!.id]
+    const stream = await listen(`/api/events?boards=${board.id}&activity=created,moved&columns=${next}&clients=listener`, { token: t.token })
+    await sleep(300)
+    const create = (column: string, title: string, client?: string) =>
+      call<Card>(`/api/boards/${board.id}/cards`, { method: 'POST', body: { columnId: column, title }, cookie: alice.cookie, client })
+    const elsewhere = (await create(backlog, 'Elsewhere')).data
+    const here = (await create(next, 'Here')).data
+    await call(`/api/cards/${here.id}/comments`, { method: 'POST', body: { body: 'not a wanted kind' }, cookie: alice.cookie })
+    await call(`/api/cards/${elsewhere.id}/move`, { method: 'POST', body: { columnId: next, aboveId: null, belowId: null }, cookie: alice.cookie })
+    await create(next, 'Mine', 'listener')
+    await sleep(800)
+    stream.stop()
+    expect(stream.of('activity').map(({ a, ...rest }) => (expect(a).toMatch(/^[0-9a-f-]{36}$/), rest))).toEqual([
+      { b: board.id, card: here.id, kind: 'created', column: next },
+      { b: board.id, card: elsewhere.id, kind: 'moved', column: next },
+    ])
+    expect(stream.of('change')).toEqual([])
+
+    // change=1 keeps the change events too.
+    const both = await listen(`/api/events?boards=${board.id}&activity=created&change=1`, { token: t.token })
+    await sleep(300)
+    await create(backlog, 'Both')
+    await sleep(800)
+    both.stop()
+    expect(both.of('activity').map(e => e.kind)).toEqual(['created'])
+    expect(both.of('change').length).toBeGreaterThan(0)
+  })
+
+  it('never tell limited members about cards they cannot see', async () => {
+    const [open, hidden] = [board.columns[0]!.id, board.columns[1]!.id]
+    expect((await alice.req(`/api/boards/${board.id}/members/${bob.id}/access`, {
+      method: 'PUT', body: { defaultAccess: 'none', columns: { [open]: 'read' } },
+    })).status).toBe(200)
+    try {
+      const stream = await listen(`/api/events?boards=${board.id}&activity=created`, { cookie: bob.cookie })
+      await sleep(300)
+      const seen = (await call<Card>(`/api/boards/${board.id}/cards`, { method: 'POST', body: { columnId: open, title: 'Seen' }, cookie: alice.cookie })).data
+      await call(`/api/boards/${board.id}/cards`, { method: 'POST', body: { columnId: hidden, title: 'Hidden' }, cookie: alice.cookie })
+      await sleep(800)
+      stream.stop()
+      expect(stream.of('activity').map(e => e.card)).toEqual([seen.id])
+      expect(stream.of('gone')).toEqual([])
+    }
+    finally {
+      await alice.req(`/api/boards/${board.id}/members/${bob.id}/access`, { method: 'DELETE' })
+    }
+  })
+
+  it('tell a bot about its notifications', async () => {
+    const bot = (await alice.req<BoardBot>(`/api/boards/${board.id}/bots`, { method: 'POST', body: { name: 'Listener', role: 'editor' } })).data
+    try {
+      const tok = (await alice.req<BotToken & { token: string }>(`/api/bots/${bot.id}/tokens`, { method: 'POST', body: { name: 'agent', scopes: ['read'] } })).data
+      const stream = await listen(`/api/events?notifications=1&boards=${board.id}&activity=commented`, { token: tok.token })
+      await sleep(300)
+      const card = (await call<Card>(`/api/boards/${board.id}/cards`, { method: 'POST', body: { columnId: board.columns[0]!.id, title: 'For the bot' }, cookie: alice.cookie })).data
+      await call(`/api/cards/${card.id}/comments`, { method: 'POST', body: { body: `@[Listener](user:${bot.id}) please look` }, cookie: alice.cookie })
+      await sleep(800)
+      stream.stop()
+      expect(stream.messages.some(m => m.event === 'notifications')).toBe(true)
+      expect(stream.of('activity').map(e => [e.card, e.kind])).toEqual([[card.id, 'commented']])
+    }
+    finally {
+      await alice.req(`/api/bots/${bot.id}`, { method: 'DELETE' })
+    }
   })
 })
 
