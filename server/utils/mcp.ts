@@ -1,7 +1,7 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js'
 import { z } from 'zod'
-import { boardAutomationKinds, boardRuleEvents, priorities, scheduledCardActionKinds, type BoardDetail, type CardDetail } from '#shared/types/board'
+import { boardAutomationKinds, boardRuleEvents, cardLinkKinds, priorities, scheduledCardActionKinds, type BoardDetail, type CardDetail } from '#shared/types/board'
 import { boardAccents } from '#shared/boardAccents'
 import { CARD_TITLE_MAX } from '#shared/cards'
 
@@ -184,6 +184,12 @@ export function createMcpServer(caller: McpCaller): McpServer {
     inputSchema: { cardId: id, body: z.string().min(1).max(10_000) },
     annotations: write,
   }, ({ cardId, body }) => run(() => call(`/api/cards/${cardId}/comments`, { method: 'POST', body: { body } })))
+
+  server.registerTool('link_cards', {
+    description: 'Link two cards of the same board. kind "blocks": fromCardId blocks toCardId (toCardId is blocked by fromCardId until fromCardId reaches the last column); "relates" and "duplicates" (fromCardId duplicates toCardId) likewise. Blocking cycles and duplicate links are refused (409). Existing links are in get_card.',
+    inputSchema: { fromCardId: id, toCardId: id, kind: z.enum(cardLinkKinds) },
+    annotations: write,
+  }, ({ fromCardId, toCardId, kind }) => run(() => call(`/api/cards/${fromCardId}/links`, { method: 'POST', body: { toCardId, kind } })))
 
   server.registerTool('create_checklist', {
     description: 'Add an empty named checklist at the end of a card\'s checklists. Returns its id for add_checklist_item.',

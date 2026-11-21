@@ -159,6 +159,15 @@ describe('mcp endpoint', () => {
     ])
     expect(detail.recentActivity.map((a: { kind: string }) => a.kind)).toEqual(expect.arrayContaining(['created', 'moved', 'commented']))
 
+    // link_cards: the other card blocks this one, so get_card shows it as an incoming block.
+    const blocker = (await tool(writeToken, 'create_card', { boardId: board.id, columnId: todo!.id, title: 'Do first' })).json()
+    expect((await tool(writeToken, 'link_cards', { fromCardId: blocker.id, toCardId: card.id, kind: 'blocks' })).isError).toBe(false)
+    const blocked = (await tool(readToken, 'get_card', { boardId: board.id, cardId: card.id })).json()
+    expect(blocked.links).toEqual([expect.objectContaining({ kind: 'blocks', direction: 'in', card: expect.objectContaining({ id: blocker.id }) })])
+    const cycle = await tool(writeToken, 'link_cards', { fromCardId: card.id, toCardId: blocker.id, kind: 'blocks' })
+    expect(cycle.isError).toBe(true)
+    expect(cycle.text).toMatch(/^409/)
+
     // Write tools are not listed for read tokens, and calling one anyway fails.
     const refused = await mcp(readToken, 'tools/call', { name: 'create_card', arguments: { boardId: board.id, columnId: todo!.id, title: 'x' } })
     expect(refused.body.result?.isError ?? refused.body.error).toBeTruthy()

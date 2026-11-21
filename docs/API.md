@@ -123,7 +123,7 @@ same permissions, validation and scope rules apply, and changes show up live on 
   `get_card` (description, checklists with their items, comments, links, attachments, recent activity), `search`, `my_work`,
   `list_notifications`.
 - **Write tools** (listed only for read and write tokens): `create_card`, `update_card`, `move_card`,
-  `bulk_update_cards`, `add_comment`, `create_checklist`, `add_checklist_item`, `update_checklist_item`; board structure:
+  `bulk_update_cards`, `add_comment`, `link_cards` (blocks, relates, duplicates), `create_checklist`, `add_checklist_item`, `update_checklist_item`; board structure:
   `create_column`, `update_column` (title, colour, WIP limit, order), `create_tag`, `update_tag`, `create_column_tag`,
   `update_column_tag` (name, colour, columns), `create_assignee_group`, `update_assignee_group` (name, members), `create_automation` (board, column or card), `update_automation`, `create_rule`, `update_rule`, `schedule_card_action`, `set_board_accent`,
   `mark_notifications_read` (given ids, or all). There are no delete tools for these.
