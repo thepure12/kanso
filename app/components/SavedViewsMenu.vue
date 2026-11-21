@@ -72,7 +72,7 @@ function openSave() {
   nameError.value = null
   saveOpen.value = true
 }
-const isConflict = (err: unknown) => (err as { statusCode?: number })?.statusCode === 409
+const isConflict = isNameTaken
 async function save() {
   const name = draft.name.trim()
   if (!name || saving.value) return

@@ -30,11 +30,16 @@ export function toHttpError(err: unknown): never {
       if (pgConstraint(err) === 'board_automations_kind_fields') throw createError({ statusCode: 400, statusMessage: 'Invalid automation' })
       if (pgConstraint(err)?.startsWith('board_rules_')) throw createError({ statusCode: 400, statusMessage: 'Invalid rule' })
       if (pgConstraint(err) === 'card_links_not_self') throw createError({ statusCode: 400, statusMessage: 'A card cannot link to itself' })
+      // A named check constraint is bad input; the last-owner triggers raise
+      // 23514 without one.
+      if (pgConstraint(err)) throw createError({ statusCode: 400, statusMessage: 'Invalid value' })
       throw createError({ statusCode: 409, statusMessage: 'There must be at least one owner left' })
     case '23505':
       if (pgConstraint(err)?.startsWith('card_links_')) throw createError({ statusCode: 409, statusMessage: 'These cards are already linked' })
       if (pgConstraint(err) === 'board_automations_unique') throw createError({ statusCode: 409, statusMessage: 'The board already has this automation' })
-      throw createError({ statusCode: 409, statusMessage: 'That name is already taken' })
+      // `data.problem` only for real name conflicts, so forms never call
+      // another duplicate a taken name.
+      throw createError({ statusCode: 409, statusMessage: 'That name is already taken', data: pgConstraint(err)?.endsWith('name_unique') ? { problem: 'nameTaken' } : undefined })
     case 'KB001':
       throw createError({ statusCode: 403, statusMessage: 'Invites are limited to the allowed email domains and addresses' })
     case 'KB002':

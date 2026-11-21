@@ -93,7 +93,9 @@ describe('board buttons', () => {
     expect(mine.data.shared).toBe(false)
 
     expect((await vera.req(`/api/boards/${board.id}/buttons`, { method: 'POST', body: { scope: 'card', name: 'Nope', shared: true, steps: [{ kind: 'archive' }] } })).status).toBe(403)
-    expect((await alice.req(`/api/boards/${board.id}/buttons`, { method: 'POST', body: { scope: 'card', name: 'ship', shared: true, steps: [{ kind: 'archive' }] } })).status).toBe(409)
+    const taken = await alice.req<{ data?: { problem?: string } }>(`/api/boards/${board.id}/buttons`, { method: 'POST', body: { scope: 'card', name: 'ship', shared: true, steps: [{ kind: 'archive' }] } })
+    expect(taken.status).toBe(409)
+    expect(taken.data.data?.problem).toBe('nameTaken')
     // Board steps on a card button and vice versa are refused.
     expect((await alice.req(`/api/boards/${board.id}/buttons`, { method: 'POST', body: { scope: 'card', name: 'Bad', steps: [{ kind: 'archiveColumn', columnId: col(0) }] } })).status).toBe(400)
     expect((await alice.req(`/api/buttons/${shared.data.id}`, { method: 'PATCH', body: { steps: [{ kind: 'sortColumn', columnId: col(0), by: 'title' }] } })).status).toBe(400)

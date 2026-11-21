@@ -95,7 +95,7 @@ async function save() {
     draft.value = null
   }
   catch (err) {
-    if ((err as { statusCode?: number })?.statusCode === 409) nameError.value = t('buttons.nameTaken')
+    if (isNameTaken(err)) nameError.value = t('buttons.nameTaken')
     else showError(err, t('buttons.errors.save'))
   }
   finally {
