@@ -21,7 +21,7 @@ const props = withDefaults(defineProps<{
   selecting?: boolean
   /** Bulk selection is offered (off for people limited to some columns/cards). */
   selectable?: boolean
-  /** Card buttons, offered in a menu on hover while the card is editable. */
+  /** Card buttons, shown as a row at the bottom of the card while it is editable. */
   buttons?: BoardButton[]
 }>(), { fields: () => [], selectable: true, buttons: () => [] })
 const emit = defineEmits<{ open: [], delete: [], select: [], rename: [title: string], runButton: [button: BoardButton] }>()
@@ -32,7 +32,6 @@ const i18n = useI18nContext()
 const cardTags = computed(() => props.tags.filter(t => props.card.tagIds.includes(t.id)))
 const labels = useLabelDisplay()
 const showButtons = computed(() => props.canEdit && props.buttons.length > 0)
-const buttonItems = computed(() => props.buttons.map(b => ({ label: b.name, icon: b.icon ?? 'i-lucide-zap', onSelect: () => emit('runButton', b) })))
 const assignees = computed(() => props.members.filter(m => props.card.assigneeIds.includes(m.userId)))
 const due = computed(() => dueStatus(props.card.dueDate, props.today))
 const dueColor = computed(() => ({ overdue: 'error', today: 'warning', soon: 'warning', later: 'neutral' } as const)[due.value ?? 'later'])
@@ -142,18 +141,6 @@ const dueAriaLabel = computed(() => {
         @click.stop="emit('select')"
       />
     </UTooltip>
-    <UDropdownMenu v-if="showButtons" :items="buttonItems" :content="{ align: 'end' }">
-      <UButton
-        icon="i-lucide-zap"
-        size="xs"
-        color="neutral"
-        variant="ghost"
-        :aria-label="t('buttons.runOnCard')"
-        class="absolute z-10 top-1 pointer-fine:opacity-0 pointer-fine:group-hover:opacity-100 focus-visible:opacity-100 data-[state=open]:opacity-100 transition"
-        :class="props.selectable ? 'right-13' : 'right-7'"
-        @click.stop
-      />
-    </UDropdownMenu>
     <UTooltip v-if="props.canEdit" :text="t('boardCard.delete')">
       <UButton
         icon="i-lucide-x"
@@ -172,7 +159,7 @@ const dueAriaLabel = computed(() => {
       loading="lazy"
       class="-mx-3 -mt-3 mb-2 h-32 w-[calc(100%+1.5rem)] max-w-none object-cover rounded-t-lg"
     >
-    <div v-if="cardTags.length" class="flex flex-wrap gap-1 mb-2" :class="props.canEdit && (showButtons ? 'pe-18' : 'pe-12')">
+    <div v-if="cardTags.length" class="flex flex-wrap gap-1 mb-2" :class="props.canEdit && 'pe-12'">
       <TagChip v-for="t in cardTags" :key="t.id" :tag="t" :compact="!labels.tagNames" />
     </div>
     <UTextarea
@@ -184,7 +171,7 @@ const dueAriaLabel = computed(() => {
       :maxlength="CARD_TITLE_MAX"
       :aria-label="t('board.cardTitle')"
       class="card-title-edit w-full"
-      :class="props.canEdit && (showButtons ? 'pe-18' : 'pe-12')"
+      :class="props.canEdit && 'pe-12'"
       :ui="{ base: 'text-sm font-medium px-1 py-0.5' }"
       @click.stop
       @keydown.stop
@@ -195,7 +182,7 @@ const dueAriaLabel = computed(() => {
     <p
       v-else
       class="text-sm font-medium break-words"
-      :class="props.canEdit && (showButtons ? 'pe-18' : 'pe-12')"
+      :class="props.canEdit && 'pe-12'"
       @click="onTitleClick"
     >
       {{ props.card.title }}
@@ -288,6 +275,20 @@ const dueAriaLabel = computed(() => {
       <UAvatarGroup v-if="assignees.length" :max="3" size="2xs" class="ms-auto">
         <UAvatar v-for="m in assignees" :key="m.userId" v-bind="personAvatar(m)" />
       </UAvatarGroup>
+    </div>
+    <div v-if="showButtons" class="flex flex-wrap gap-1 mt-2" role="group" :aria-label="t('buttons.cardButtons')">
+      <UButton
+        v-for="b in props.buttons"
+        :key="b.id"
+        :icon="b.icon ?? 'i-lucide-zap'"
+        :label="b.name"
+        :color="b.color"
+        variant="soft"
+        size="xs"
+        class="max-w-full"
+        :ui="{ label: 'truncate' }"
+        @click.stop="emit('runButton', b)"
+      />
     </div>
   </UCard>
 </template>

@@ -25,7 +25,7 @@ const props = defineProps<{
   canEdit: boolean
   dragDisabled: boolean
   today: string
-  /** Card buttons for the cards' hover menu. */
+  /** Card buttons shown at the bottom of each card. */
   buttons?: BoardButton[]
 }>()
 const emit = defineEmits<{

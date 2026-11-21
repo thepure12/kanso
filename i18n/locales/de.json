@@ -1775,13 +1775,12 @@
     "manage": "Buttons verwalten…",
     "boardButtons": "Buttons",
     "cardButtons": "Karten-Buttons",
-    "runOnCard": "Button auf dieser Karte ausführen",
     "scopes": {
       "card": "Karten-Buttons",
       "board": "Board-Buttons"
     },
     "scopeHints": {
-      "card": "Im Kartendialog und im Hover-Menü der Karte.",
+      "card": "Im Kartendialog und unten auf jeder Karte.",
       "board": "In der Werkzeugleiste des Boards."
     },
     "new": {

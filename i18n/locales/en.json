@@ -1775,13 +1775,12 @@
     "manage": "Manage buttons…",
     "boardButtons": "Buttons",
     "cardButtons": "Card buttons",
-    "runOnCard": "Run a button on this card",
     "scopes": {
       "card": "Card buttons",
       "board": "Board buttons"
     },
     "scopeHints": {
-      "card": "Shown in the card dialog and in the card's hover menu.",
+      "card": "Shown in the card dialog and at the bottom of each card.",
       "board": "Shown in the board toolbar."
     },
     "new": {
