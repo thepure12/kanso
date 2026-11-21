@@ -14,6 +14,7 @@ export default defineUserHandler(async (event, tx): Promise<BoardButton> => {
     name: input.name,
     icon: input.icon,
     color: input.color,
+    columnIds: input.scope === 'card' ? input.columnIds : null,
     steps: input.steps,
   }).returning({ id: bb.id })
   return (await loadButton(tx, row!.id))!

@@ -1,11 +1,11 @@
 import { and, asc, eq, sql } from 'drizzle-orm'
-import type { BoardButton, BoardButtonStep, ButtonStep, CardButtonStep } from '#shared/buttons'
+import { buttonShownIn, type BoardButton, type BoardButtonStep, type ButtonStep, type CardButtonStep } from '#shared/buttons'
 
 const { boardButtons: bb } = schema
 
 const buttonFields = {
   id: bb.id, scope: bb.scope, name: bb.name, icon: bb.icon, color: bb.color,
-  shared: sql<boolean>`${bb.userId} is null`, steps: bb.steps,
+  shared: sql<boolean>`${bb.userId} is null`, columnIds: bb.columnIds, steps: bb.steps,
 }
 
 /** Shared buttons and the user's own (RLS hides other people's), by name. */
@@ -157,7 +157,7 @@ async function runBoardStep(tx: Tx, boardId: string, step: BoardButtonStep): Pro
  * step undoes all of them. Card buttons need `cardId` (a card of the button's
  * board the user can edit). Returns how many steps were skipped.
  */
-export async function runButton(tx: Tx, button: { boardId: string, scope: string, steps: ButtonStep[] }, cardId: string | undefined): Promise<number> {
+export async function runButton(tx: Tx, button: { boardId: string, scope: string, columnIds: string[] | null, steps: ButtonStep[] }, cardId: string | undefined): Promise<number> {
   let skipped = 0
   if (button.scope === 'card') {
     if (!cardId) throw createError({ statusCode: 400, statusMessage: 'cardId: Required for a card button' })
@@ -165,8 +165,11 @@ export async function runButton(tx: Tx, button: { boardId: string, scope: string
     // Touches the card first, so edit rights (RLS) are proven before any step.
     const rows = await tx.update(cards).set({ updatedAt: sql`now()` })
       .where(and(eq(cards.id, cardId), eq(cards.boardId, button.boardId), eq(cards.isTemplate, false)))
-      .returning({ id: cards.id })
+      .returning({ id: cards.id, columnId: cards.columnId })
     if (!rows.length) notFound('Card not found or not allowed')
+    if (!buttonShownIn(button, rows[0]!.columnId)) {
+      throw createError({ statusCode: 409, statusMessage: 'This button is not offered in the card\'s column' })
+    }
     for (const step of button.steps as CardButtonStep[]) {
       if (!await runCardStep(tx, button.boardId, cardId, step)) skipped++
     }

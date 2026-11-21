@@ -838,8 +838,8 @@ export async function useBoard(id: string) {
       return created
     },
 
-    /** Changes a button's name, look or steps. Throws on failure, like addButton. */
-    updateButton: async (button: BoardButton, patch: Partial<Pick<BoardButton, 'name' | 'icon' | 'color' | 'steps'>>) => {
+    /** Changes a button's name, look, columns or steps. Throws on failure, like addButton. */
+    updateButton: async (button: BoardButton, patch: Partial<Pick<BoardButton, 'name' | 'icon' | 'color' | 'columnIds' | 'steps'>>) => {
       const updated = await api<BoardButton>(`/api/buttons/${button.id}`, { method: 'PATCH', body: patch })
       buttons.value = sortSavedViews(buttons.value.map(b => b.id === updated.id ? updated : b))
       return updated

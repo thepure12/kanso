@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { BoardField, Card, Member, Tag } from '#shared/types/board'
-import type { BoardButton } from '#shared/buttons'
+import { buttonShownIn, type BoardButton } from '#shared/buttons'
 import { CARD_TITLE_MAX } from '#shared/cards'
 
 const props = withDefaults(defineProps<{
@@ -21,7 +21,7 @@ const props = withDefaults(defineProps<{
   selecting?: boolean
   /** Bulk selection is offered (off for people limited to some columns/cards). */
   selectable?: boolean
-  /** Card buttons, shown as a row at the bottom of the card while it is editable. */
+  /** Card buttons, shown as a row at the bottom of the card while it is editable (those shown in its column). */
   buttons?: BoardButton[]
 }>(), { fields: () => [], selectable: true, buttons: () => [] })
 const emit = defineEmits<{ open: [], delete: [], select: [], rename: [title: string], runButton: [button: BoardButton] }>()
@@ -31,7 +31,8 @@ const i18n = useI18nContext()
 /** The card's tags in board tag order (alphabetical). */
 const cardTags = computed(() => props.tags.filter(t => props.card.tagIds.includes(t.id)))
 const labels = useLabelDisplay()
-const showButtons = computed(() => props.canEdit && props.buttons.length > 0)
+const shownButtons = computed(() => props.buttons.filter(b => buttonShownIn(b, props.card.columnId)))
+const showButtons = computed(() => props.canEdit && shownButtons.value.length > 0)
 const assignees = computed(() => props.members.filter(m => props.card.assigneeIds.includes(m.userId)))
 const due = computed(() => dueStatus(props.card.dueDate, props.today))
 const dueColor = computed(() => ({ overdue: 'error', today: 'warning', soon: 'warning', later: 'neutral' } as const)[due.value ?? 'later'])
@@ -278,7 +279,7 @@ const dueAriaLabel = computed(() => {
     </div>
     <div v-if="showButtons" class="flex flex-wrap gap-1 mt-2" role="group" :aria-label="t('buttons.cardButtons')">
       <UButton
-        v-for="b in props.buttons"
+        v-for="b in shownButtons"
         :key="b.id"
         :icon="b.icon ?? 'i-lucide-zap'"
         :label="b.name"

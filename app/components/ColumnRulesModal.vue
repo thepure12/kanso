@@ -1,10 +1,22 @@
 <script setup lang="ts">
+import { buttonShownIn, type BoardButton } from '#shared/buttons'
 import type { Card, Column, ColumnRule, Member, NewColumnRule, Tag } from '#shared/types/board'
 
-const props = defineProps<{ column: Column, tags: Tag[], members: Member[], cards: Card[] }>()
+const props = withDefaults(defineProps<{
+  column: Column
+  tags: Tag[]
+  members: Member[]
+  cards: Card[]
+  /** Card buttons the user may change; each can be offered on this column's cards or not. */
+  buttons?: BoardButton[]
+  /** Ids of every column of the board, for a button that is shown everywhere until now. */
+  columnIds?: string[]
+}>(), { buttons: () => [], columnIds: () => [] })
 const emit = defineEmits<{
   add: [rule: NewColumnRule, applyToExisting: boolean]
   delete: [rule: ColumnRule]
+  /** New columns of a card button (null = every column). */
+  buttonColumns: [button: BoardButton, columnIds: string[] | null]
 }>()
 const open = defineModel<boolean>('open', { required: true })
 const { t } = useI18n()
@@ -58,6 +70,19 @@ function submit(rule: NewColumnRule, applyToExisting: boolean) {
   pending.value = null
   emit('add', rule, applyToExisting)
   Object.assign(draft, { applyTag: undefined, removeTag: undefined, userId: undefined })
+}
+
+const shownHere = (b: BoardButton) => buttonShownIn(b, props.column.id)
+// The button's only column: hiding it here would leave it nowhere.
+const onlyHere = (b: BoardButton) => b.columnIds?.length === 1 && b.columnIds[0] === props.column.id
+
+function toggleButton(b: BoardButton, show: boolean) {
+  const current = b.columnIds ?? props.columnIds
+  const next = show ? [...new Set([...current, props.column.id])] : current.filter(id => id !== props.column.id)
+  if (!next.length) return
+  // Every column again: back to "all columns", so new columns get the button too.
+  const all = props.columnIds.length > 0 && props.columnIds.every(id => next.includes(id))
+  emit('buttonColumns', b, all ? null : next)
 }
 
 const tagRules = computed<{ kind: TagKind, label: string, key: 'applyTag' | 'removeTag' }[]>(() => [
@@ -182,6 +207,32 @@ const tagRules = computed<{ kind: TagKind, label: string, key: 'applyTag' | 'rem
           <p v-if="hasDueRule" class="text-xs text-muted">
             {{ t('rules.dueRuleExists') }}
           </p>
+        </template>
+
+        <template v-if="props.buttons.length">
+          <USeparator class="my-4" />
+          <div class="space-y-2" role="group" :aria-label="t('rules.buttonsTitle')">
+            <p class="text-sm font-medium">
+              {{ t('rules.buttonsTitle') }}
+            </p>
+            <p class="text-xs text-muted">
+              {{ t('rules.buttonsHint') }}
+            </p>
+            <div v-for="b in props.buttons" :key="b.id" class="flex items-center gap-2">
+              <UTooltip :text="onlyHere(b) ? t('rules.buttonOnlyHere') : undefined" :disabled="!onlyHere(b)">
+                <UCheckbox
+                  :model-value="shownHere(b)"
+                  :disabled="onlyHere(b)"
+                  :aria-label="t('rules.showButton', { name: b.name })"
+                  @update:model-value="(v) => toggleButton(b, v === true)"
+                />
+              </UTooltip>
+              <UBadge :color="b.color" variant="soft" :icon="b.icon ?? undefined" :label="b.name" class="max-w-60 truncate" />
+              <span class="ms-auto text-xs text-muted">
+                {{ b.columnIds === null ? t('buttons.allColumns') : t('rules.buttonColumns', { n: b.columnIds.length }, b.columnIds.length) }}
+              </span>
+            </div>
+          </div>
         </template>
       </div>
     </template>

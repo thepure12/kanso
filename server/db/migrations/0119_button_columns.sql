@@ -1,0 +1,2 @@
+ALTER TABLE "board_buttons" ADD COLUMN "column_ids" uuid[];--> statement-breakpoint
+ALTER TABLE "board_buttons" ADD CONSTRAINT "board_buttons_columns" CHECK ("board_buttons"."column_ids" is null or ("board_buttons"."scope" = 'card' and cardinality("board_buttons"."column_ids") <= 100));

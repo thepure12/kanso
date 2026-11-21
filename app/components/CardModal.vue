@@ -3,7 +3,7 @@ import { priorities, type AssigneeGroup, type BoardField, type Card, type CardLi
 import type { CardCounts } from '~/composables/useBoard'
 import { CARD_TITLE_MAX } from '#shared/cards'
 import type { BoardMatrixRoom } from '#shared/types/matrix'
-import type { BoardButton } from '#shared/buttons'
+import { buttonShownIn, type BoardButton } from '#shared/buttons'
 
 // Absent optional booleans would become false; undefined keeps the fallback.
 const props = withDefaults(defineProps<{
@@ -69,6 +69,8 @@ const emit = defineEmits<{
   runButton: [button: BoardButton]
 }>()
 const open = defineModel<boolean>('open', { required: true })
+// Card buttons offered in the card's (saved) column.
+const shownButtons = computed(() => (props.buttons ?? []).filter(b => buttonShownIn(b, props.card.columnId)))
 const { t } = useI18n()
 // Phones get a full-screen dialog with Save in a footer instead of at the end of the sidebar.
 const isMobile = useIsMobile()
@@ -481,9 +483,9 @@ const tabs = computed(() => [
               </UAvatarGroup>
             </UTooltip>
           </div>
-          <div v-if="props.buttons?.length && props.canEdit && !props.template" class="flex flex-wrap gap-1.5" role="group" :aria-label="t('buttons.cardButtons')">
+          <div v-if="shownButtons.length && props.canEdit && !props.template" class="flex flex-wrap gap-1.5" role="group" :aria-label="t('buttons.cardButtons')">
             <UButton
-              v-for="b in props.buttons"
+              v-for="b in shownButtons"
               :key="b.id"
               :icon="b.icon ?? undefined"
               :label="b.name"

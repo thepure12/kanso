@@ -3,6 +3,7 @@ import { VueDraggable, type SortableEvent } from 'vue-draggable-plus'
 import type { DropdownMenuItem } from '@nuxt/ui'
 import type { BulkCardAction, Card, Column, MemberAccess, SavedView } from '#shared/types/board'
 import type { BoardMatrixRoom } from '#shared/types/matrix'
+import type { BoardButton } from '#shared/buttons'
 import { backgroundStyle } from '#shared/boardBackgrounds'
 import { columnOutlineStyle, effectiveColumnOutline } from '#shared/columnOutline'
 import { CARD_TITLE_MAX } from '#shared/cards'
@@ -263,6 +264,17 @@ const columnGroupsOpen = ref(false)
 const assigneeGroupsOpen = ref(false)
 const buttonsOpen = ref(false)
 const cardButtons = computed(() => buttons.value.filter(b => b.scope === 'card'))
+// Card buttons whose columns the user may change from the column's rules (shared ones need edit rights).
+const manageableCardButtons = computed(() => cardButtons.value.filter(b => !b.shared || canEdit.value))
+const buttonError = useApiError()
+async function setButtonColumns(button: BoardButton, columnIds: string[] | null) {
+  try {
+    await updateButton(button, { columnIds })
+  }
+  catch (err) {
+    buttonError(err, t('buttons.errors.save'))
+  }
+}
 const boardButtons = computed(() => buttons.value.filter(b => b.scope === 'board'))
 const boardButtonItems = computed(() => [
   boardButtons.value.map(b => ({ label: b.name, icon: b.icon ?? 'i-lucide-zap', slot: 'button' as const, iconColor: buttonCssColor(b.color), onSelect: () => runButton(b) })),
@@ -1179,8 +1191,11 @@ const boardMenu = computed(() => {
       :tags="tags"
       :members="board?.members ?? []"
       :cards="lists[rulesColumn.id] ?? []"
+      :buttons="manageableCardButtons"
+      :column-ids="columns.map(c => c.id)"
       @add="(rule, applyToExisting) => addColumnRule(rulesColumn!, rule, applyToExisting)"
       @delete="rule => deleteColumnRule(rulesColumn!, rule)"
+      @button-columns="setButtonColumns"
     />
     <TagsModal
       v-model:open="tagsOpen"

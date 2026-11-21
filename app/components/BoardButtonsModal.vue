@@ -10,7 +10,7 @@ const props = defineProps<{
   /** May make and change shared buttons (editors). Personal ones are always the user's. */
   canEdit: boolean
   create: (input: Omit<BoardButton, 'id'>) => Promise<BoardButton>
-  update: (button: BoardButton, patch: Partial<Pick<BoardButton, 'name' | 'icon' | 'color' | 'steps'>>) => Promise<BoardButton>
+  update: (button: BoardButton, patch: Partial<Pick<BoardButton, 'name' | 'icon' | 'color' | 'columnIds' | 'steps'>>) => Promise<BoardButton>
   remove: (button: BoardButton) => unknown
 }>()
 const open = defineModel<boolean>('open', { required: true })
@@ -35,6 +35,8 @@ interface Draft {
   icon: string | null
   color: ButtonColor
   shared: boolean
+  /** Card buttons: null = every column. */
+  columnIds: string[] | null
   steps: ButtonStep[]
 }
 const draft = ref<Draft | null>(null)
@@ -47,12 +49,12 @@ watch(open, (v) => {
 
 function startNew(scope: ButtonScope) {
   nameError.value = ''
-  draft.value = { id: null, scope, name: '', icon: null, color: 'accent', shared: props.canEdit, steps: [blankStep(scope === 'card' ? 'move' : 'archiveColumn')] }
+  draft.value = { id: null, scope, name: '', icon: null, color: 'accent', shared: props.canEdit, columnIds: null, steps: [blankStep(scope === 'card' ? 'move' : 'archiveColumn')] }
 }
 
 function startEdit(b: BoardButton) {
   nameError.value = ''
-  draft.value = { id: b.id, scope: b.scope, name: b.name, icon: b.icon, color: b.color, shared: b.shared, steps: structuredClone(toRaw(b.steps)) }
+  draft.value = { id: b.id, scope: b.scope, name: b.name, icon: b.icon, color: b.color, shared: b.shared, columnIds: b.columnIds ? [...b.columnIds] : null, steps: structuredClone(toRaw(b.steps)) }
 }
 
 const kindItems = computed(() => draft.value
@@ -75,7 +77,15 @@ function moveStep(index: number, by: number) {
   steps.splice(index + by, 0, step!)
 }
 
-const valid = computed(() => !!draft.value && !!draft.value.name.trim() && draft.value.steps.length > 0 && draft.value.steps.every(stepComplete))
+const valid = computed(() => !!draft.value && !!draft.value.name.trim() && draft.value.steps.length > 0 && draft.value.steps.every(stepComplete)
+  && (draft.value.columnIds === null || draft.value.columnIds.length > 0))
+
+/** "Only in Testing, Done" for card buttons limited to columns; gone columns are left out. */
+function columnsText(b: BoardButton) {
+  if (!b.columnIds) return null
+  const titles = props.columns.filter(c => b.columnIds!.includes(c.id)).map(c => c.title)
+  return titles.length ? t('buttons.onlyIn', { columns: titles.join(', ') }) : t('buttons.noColumns')
+}
 
 async function save() {
   const d = draft.value
@@ -86,10 +96,10 @@ async function save() {
   try {
     if (d.id) {
       const button = props.buttons.find(b => b.id === d.id)
-      if (button) await props.update(button, { name: d.name.trim(), icon: d.icon, color: d.color, steps })
+      if (button) await props.update(button, { name: d.name.trim(), icon: d.icon, color: d.color, ...(d.scope === 'card' && { columnIds: d.columnIds }), steps })
     }
     else {
-      await props.create({ scope: d.scope, name: d.name.trim(), icon: d.icon, color: d.color, shared: d.shared && props.canEdit, steps })
+      await props.create({ scope: d.scope, name: d.name.trim(), icon: d.icon, color: d.color, shared: d.shared && props.canEdit, columnIds: d.scope === 'card' ? d.columnIds : null, steps })
     }
     draft.value = null
   }
@@ -134,6 +144,10 @@ const checklistText = (step: { items: string[] }) => step.items.join('\n')
                 <div class="flex items-center gap-1">
                   <UIcon :name="b.shared ? 'i-lucide-users' : 'i-lucide-lock'" class="size-3.5" />
                   {{ b.shared ? t('buttons.sharedHint') : t('buttons.personalHint') }}
+                </div>
+                <div v-if="columnsText(b)" class="flex items-center gap-1">
+                  <UIcon name="i-lucide-columns-3" class="size-3.5" />
+                  {{ columnsText(b) }}
                 </div>
                 <ol class="mt-1 list-decimal ps-4">
                   <li v-for="(step, i) in b.steps" :key="i">
@@ -188,6 +202,25 @@ const checklistText = (step: { items: string[] }) => step.items.join('\n')
           :label="t('buttons.shareWithBoard')"
           :description="canEdit ? t('buttons.shareHint') : t('buttons.shareEditorsOnly')"
         />
+
+        <div v-if="draft.scope === 'card'" class="space-y-2">
+          <USwitch
+            :model-value="draft.columnIds === null"
+            :label="t('buttons.allColumns')"
+            :description="t('buttons.allColumnsHint')"
+            @update:model-value="(v: boolean) => { draft!.columnIds = v ? null : [] }"
+          />
+          <UFormField v-if="draft.columnIds !== null" :label="t('buttons.showInColumns')" :error="draft.columnIds.length ? undefined : t('buttons.pickColumns')">
+            <USelectMenu
+              v-model="draft.columnIds"
+              :items="columnItems"
+              value-key="value"
+              multiple
+              :placeholder="t('buttons.pickColumns')"
+              class="w-full"
+            />
+          </UFormField>
+        </div>
 
         <div class="space-y-2">
           <p class="text-sm font-medium">

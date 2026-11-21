@@ -196,6 +196,29 @@ describe('board buttons', () => {
     expect(left.filter(x => x.columnId === col(2) || x.columnId === col(0))).toEqual([])
   })
 
+  it('card buttons limited to columns: set, shown in the board, refused on cards elsewhere', async () => {
+    const button = await alice.req<BoardButton>(`/api/boards/${board.id}/buttons`, { method: 'POST', body: { scope: 'card', name: 'Only first', shared: true, columnIds: [col(0)], steps: [{ kind: 'setPriority', priority: 'low' }] } })
+    expect(button.status).toBe(200)
+    expect(button.data.columnIds).toEqual([col(0)])
+    const here = await newCard(0)
+    const there = await newCard(1)
+    expect((await bob.req(`/api/buttons/${button.data.id}/run`, { method: 'POST', body: { cardId: here.id } })).status).toBe(200)
+    expect((await bob.req(`/api/buttons/${button.data.id}/run`, { method: 'POST', body: { cardId: there.id } })).status).toBe(409)
+
+    const patched = await alice.req<BoardButton>(`/api/buttons/${button.data.id}`, { method: 'PATCH', body: { columnIds: null } })
+    expect(patched.data.columnIds).toBeNull()
+    expect((await bob.req(`/api/buttons/${button.data.id}/run`, { method: 'POST', body: { cardId: there.id } })).status).toBe(200)
+    expect((await alice.req(`/api/buttons/${button.data.id}`, { method: 'PATCH', body: { columnIds: [] } })).status).toBe(400)
+    expect((await alice.req(`/api/buttons/${button.data.id}`, { method: 'PATCH', body: { columnIds: [randomUUID()] } })).status).toBe(400)
+
+    // Board buttons have no columns.
+    const boardButton = await alice.req<BoardButton>(`/api/boards/${board.id}/buttons`, { method: 'POST', body: { scope: 'board', name: 'Sort first', shared: true, steps: [{ kind: 'sortColumn', columnId: col(0), by: 'title' }] } })
+    expect(boardButton.data.columnIds).toBeNull()
+    expect((await alice.req(`/api/buttons/${boardButton.data.id}`, { method: 'PATCH', body: { columnIds: [col(0)] } })).status).toBe(400)
+    await alice.req(`/api/buttons/${boardButton.data.id}`, { method: 'DELETE' })
+    await alice.req(`/api/buttons/${button.data.id}`, { method: 'DELETE' })
+  })
+
   it('runs with a write API token', async () => {
     const card = await newCard(0)
     const button = (await alice.req<BoardButton>(`/api/boards/${board.id}/buttons`, { method: 'POST', body: {

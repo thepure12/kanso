@@ -1582,7 +1582,12 @@
     "dueRuleExists": "Delete the due date rule to change it.",
     "existingPrompt": "This rule would change {count} card already in this column. Change it too? | This rule would change {count} cards already in this column. Change them too?",
     "applyExisting": "Change it too | Change all {count}",
-    "onlyNew": "Only new cards"
+    "onlyNew": "Only new cards",
+    "buttonsTitle": "Card buttons",
+    "buttonsHint": "Card buttons offered on cards in this column.",
+    "showButton": "Show {name} on cards in this column",
+    "buttonOnlyHere": "Shown only in this column. Pick other columns under Buttons first.",
+    "buttonColumns": "{n} column | {n} columns"
   },
   "boardBackground": {
     "title": "Background and accent",
@@ -1864,7 +1869,13 @@
       "save": "Couldn't save the button",
       "delete": "Couldn't delete the button",
       "run": "Couldn't run “{name}”"
-    }
+    },
+    "allColumns": "All columns",
+    "allColumnsHint": "Off: the button shows only on cards in the columns you pick.",
+    "showInColumns": "Show on cards in",
+    "pickColumns": "Pick at least one column",
+    "onlyIn": "Only on cards in {columns}",
+    "noColumns": "Shown nowhere: its columns were deleted"
   },
   "automations": {
     "title": "Automations",

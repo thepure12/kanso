@@ -160,4 +160,44 @@ describe('board buttons', () => {
     const [newTag] = await owner_`select t.id from tags t join tags o on o.name = t.name where t.board_id = ${copy} and o.id = ${tag!.id}`
     expect(rows[0]!.steps).toEqual([{ kind: 'move', columnId: newCol!.id }, { kind: 'addTag', tagId: newTag!.id }, { kind: 'assign', userId: editor.id }])
   })
+
+  it('card buttons can be limited to columns of their board; deleted columns drop out', async () => {
+    const [a, b] = await as(owner.id, sql => sql`insert into columns (board_id, title, position) values (${boardId}, 'A', 100001), (${boardId}, 'B', 100002) returning id`)
+    const id = await newButton(editor, { shared: true })
+    const setColumns = (by: User, ids: string[] | null) =>
+      as(by.id, async sql => (await sql`update board_buttons set column_ids = ${ids} where id = ${id}`).count)
+    expect(await setColumns(editor, [a!.id, b!.id])).toBe(1)
+    expect(await setColumns(viewer, [a!.id])).toBe(0)
+    // Columns of another board are refused.
+    const [other] = await as(owner.id, sql => sql`select id from app.create_board('Other')`)
+    boards.push(other!.id)
+    const [foreign] = await as(owner.id, sql => sql`insert into columns (board_id, title, position) values (${other!.id}, 'X', 1) returning id`)
+    await rejectsWith(setColumns(editor, [a!.id, foreign!.id]), '23503')
+    // Only card buttons.
+    await rejectsWith(as(editor.id, sql => sql`
+      insert into board_buttons (board_id, created_by, scope, name, steps, column_ids)
+      values (${boardId}, ${editor.id}, 'board', ${`B ${randomUUID().slice(0, 6)}`}, ${sql.json([{ kind: 'archiveColumn', columnId: a!.id }])}, ${[a!.id]})`), '23514')
+
+    // A viewer's personal button loses a column an editor deletes, too.
+    const mine = await newButton(viewer)
+    await as(viewer.id, sql => sql`update board_buttons set column_ids = ${[a!.id]} where id = ${mine}`)
+    await as(owner.id, sql => sql`delete from columns where id = ${a!.id}`)
+    const rows = await owner_`select id, column_ids from board_buttons where id in ${owner_([id, mine])}`
+    expect(rows.find(r => r.id === id)!.column_ids).toEqual([b!.id])
+    // Empty, not every column.
+    expect(rows.find(r => r.id === mine)!.column_ids).toEqual([])
+    await as(owner.id, sql => sql`delete from columns where id = ${b!.id}`)
+  })
+
+  it('copy_board maps the columns of limited buttons', async () => {
+    const [col] = await as(owner.id, sql => sql`insert into columns (board_id, title, position) values (${boardId}, 'Limited', 100003) returning id`)
+    const name = `Limited ${randomUUID().slice(0, 8)}`
+    const id = await newButton(owner, { shared: true, name })
+    await as(owner.id, sql => sql`update board_buttons set column_ids = ${[col!.id]} where id = ${id}`)
+    const copy = await as(owner.id, async sql => (await sql`select (app.copy_board(${boardId}, 'Copy', null, false)).id`)[0]!.id as string)
+    boards.push(copy)
+    const [row] = await owner_`select column_ids from board_buttons where board_id = ${copy} and name = ${name}`
+    const [newCol] = await owner_`select id from columns where board_id = ${copy} and title = 'Limited'`
+    expect(row!.column_ids).toEqual([newCol!.id])
+  })
 })

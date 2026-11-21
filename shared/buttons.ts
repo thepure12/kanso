@@ -61,6 +61,9 @@ export const MAX_BUTTON_STEPS = 10
 
 export const buttonName = z.string().trim().min(1).max(50)
 
+/** Card buttons: the columns whose cards offer the button; null = every column. */
+export const buttonColumnIds = z.array(id).min(1).max(100).nullable()
+
 const appearance = {
   name: buttonName,
   icon: z.enum(buttonIcons).nullable().default(null),
@@ -69,7 +72,7 @@ const appearance = {
 
 /** Body of POST /api/boards/:id/buttons. */
 export const createButtonSchema = z.discriminatedUnion('scope', [
-  z.object({ scope: z.literal('card'), ...appearance, shared: z.boolean().default(false), steps: z.array(cardButtonStepSchema).min(1).max(MAX_BUTTON_STEPS) }),
+  z.object({ scope: z.literal('card'), ...appearance, shared: z.boolean().default(false), columnIds: buttonColumnIds.default(null), steps: z.array(cardButtonStepSchema).min(1).max(MAX_BUTTON_STEPS) }),
   z.object({ scope: z.literal('board'), ...appearance, shared: z.boolean().default(false), steps: z.array(boardButtonStepSchema).min(1).max(MAX_BUTTON_STEPS) }),
 ])
 
@@ -86,7 +89,17 @@ export interface BoardButton {
   color: ButtonColor
   /** Shared on the board; false = only the current user sees it. */
   shared: boolean
+  /**
+   * Card buttons: offered only on cards in these columns; null = every column
+   * (always null for board buttons). Empty once all its columns were deleted.
+   */
+  columnIds: string[] | null
   steps: ButtonStep[]
+}
+
+/** Whether a card button is offered on a card in `columnId`. */
+export function buttonShownIn(button: Pick<BoardButton, 'columnIds'>, columnId: string): boolean {
+  return button.columnIds === null || button.columnIds.includes(columnId)
 }
 
 /** Response of POST /api/buttons/:id/run. */

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { boardStepKinds, buttonColorSchema, cardStepKinds, createButtonSchema, type ButtonStep } from '../../shared/buttons'
+import { boardStepKinds, buttonColorSchema, buttonShownIn, cardStepKinds, createButtonSchema, type ButtonStep } from '../../shared/buttons'
 import { blankStep, buttonCssColor, cleanStep, describeStep, stepComplete, stepKindsFor } from '../../app/utils/buttons'
 import { serverI18n } from '../../server/utils/i18n'
 
@@ -69,5 +69,21 @@ describe('button colours', () => {
   it('maps the accent to the primary colour variable', () => {
     expect(buttonCssColor('accent')).toBe('var(--ui-primary)')
     expect(buttonCssColor('#22c55e')).toBe('#22c55e')
+  })
+})
+
+describe('button columns', () => {
+  it('a card button shows in every column without a list, else only in the listed ones', () => {
+    expect(buttonShownIn({ columnIds: null }, 'c1')).toBe(true)
+    expect(buttonShownIn({ columnIds: ['c1'] }, 'c1')).toBe(true)
+    expect(buttonShownIn({ columnIds: ['c1'] }, 'c2')).toBe(false)
+    expect(buttonShownIn({ columnIds: [] }, 'c1')).toBe(false)
+  })
+
+  it('new card buttons need at least one column when limited', () => {
+    const base = { scope: 'card', name: 'X', steps: [{ kind: 'archive' }] }
+    expect(createButtonSchema.parse(base).columnIds).toBeNull()
+    expect(createButtonSchema.safeParse({ ...base, columnIds: [] }).success).toBe(false)
+    expect(createButtonSchema.safeParse({ ...base, columnIds: ['00000000-0000-4000-8000-000000000001'] }).success).toBe(true)
   })
 })

@@ -834,6 +834,20 @@
       "when": 1795241372713,
       "tag": "0118_button_colors",
       "breakpoints": true
+    },
+    {
+      "idx": 119,
+      "version": "7",
+      "when": 1795241651741,
+      "tag": "0119_button_columns",
+      "breakpoints": true
+    },
+    {
+      "idx": 120,
+      "version": "7",
+      "when": 1795241652741,
+      "tag": "0120_button_columns_rls",
+      "breakpoints": true
     }
   ]
 }
