@@ -77,6 +77,23 @@ function onDrop(laneKey: string, columnId: string, e: SortableEvent) {
     emit('move', card, columnId, index, changedLane ? laneKey : undefined)
   })
 }
+
+/**
+ * Drop on a collapsed cell: its list stays empty (the source cell drops the
+ * card itself) and the card goes to the end of the column, taking the lane.
+ */
+const collapsedDropSink: Card[] = []
+function onCollapsedDrop(laneKey: string, columnId: string, e: SortableEvent) {
+  const id = (e.item as HTMLElement).dataset.cardId
+  nextTick(() => {
+    collapsedDropSink.length = 0
+    const card = allCards.value.find(c => c.id === id)
+    if (!card) return
+    const index = (props.lists[columnId] ?? []).filter(c => c.id !== id).length
+    const changedLane = !laneKeysOf(card, props.groupBy, ctx.value).includes(laneKey)
+    emit('move', card, columnId, index, changedLane ? laneKey : undefined)
+  })
+}
 </script>
 
 <template>
@@ -128,18 +145,31 @@ function onDrop(laneKey: string, columnId: string, e: SortableEvent) {
       </h3>
       <div class="flex gap-4">
         <template v-for="col in props.columns" :key="col.id">
-          <button
+          <!-- Collapsed cell: click expands; a card dropped on it goes to the end of the column. -->
+          <VueDraggable
             v-if="isCollapsed(col.id)"
-            type="button"
-            class="shrink-0 rounded-lg bg-elevated/60 flex justify-center p-2 min-h-12 text-xs text-muted cursor-pointer hover:bg-accented/40"
-            :class="!frames[col.id] && 'ring ring-default'"
-            :style="[widthStyle(col.id), frames[col.id] ?? {}]"
-            :aria-label="t('board.column.expand', { title: col.title, count: cellCount(lane.key, col.id) })"
-            :title="t('board.column.expand', { title: col.title, count: cellCount(lane.key, col.id) })"
-            @click="emit('collapse', col.id, false)"
+            :model-value="collapsedDropSink"
+            :group="group(lane.key)"
+            :disabled="props.dragDisabled"
+            draggable="[data-card-id]"
+            class="shrink-0 flex flex-col rounded-lg has-[[data-card-id]]:ring-2 has-[[data-card-id]]:ring-primary [&>[data-card-id]]:hidden"
+            :style="widthStyle(col.id)"
+            :data-lane="lane.key"
+            :data-collapsed-column="col.id"
+            @add="onCollapsedDrop(lane.key, col.id, $event)"
           >
-            {{ cellCount(lane.key, col.id) || '' }}
-          </button>
+            <button
+              type="button"
+              class="flex-1 rounded-lg bg-elevated/60 flex justify-center p-2 min-h-12 text-xs text-muted cursor-pointer hover:bg-accented/40"
+              :class="!frames[col.id] && 'ring ring-default'"
+              :style="frames[col.id] ?? {}"
+              :aria-label="t('board.column.expand', { title: col.title, count: cellCount(lane.key, col.id) })"
+              :title="t('board.column.expand', { title: col.title, count: cellCount(lane.key, col.id) })"
+              @click="emit('collapse', col.id, false)"
+            >
+              {{ cellCount(lane.key, col.id) || '' }}
+            </button>
+          </VueDraggable>
           <VueDraggable
             v-else
             v-model="cells[lane.key]![col.id]!"

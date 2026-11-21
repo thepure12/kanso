@@ -522,6 +522,20 @@ function columnPoints(col: Column) {
 function onCardDrop(columnId: string, e: SortableEvent) {
   nextTick(() => cardMoved(columnId, e.newIndex!))
 }
+
+/**
+ * Drop target of a collapsed column: its list stays empty, the dropped card
+ * goes to the end of the column. The source list drops the card itself.
+ */
+const collapsedDropSink: Card[] = []
+function onCollapsedDrop(columnId: string, e: SortableEvent) {
+  const cardId = (e.item as HTMLElement).dataset.cardId
+  const card = cardId ? Object.values(lists.value).flat().find(c => c.id === cardId) : undefined
+  nextTick(() => {
+    collapsedDropSink.length = 0
+    if (card) moveCard(card, columnId)
+  })
+}
 function onColumnDrop(e: SortableEvent) {
   nextTick(() => columnMoved(e.newIndex!))
 }
@@ -877,26 +891,36 @@ const boardMenu = computed(() => {
             :class="[!effectiveColumnOutline(col, board.columnOutline) && ['ring', wipState(col) === 'over' ? 'ring-error' : 'ring-default'], backed ? 'bg-elevated/95 shadow-lg' : 'bg-elevated/60']"
             :style="[collapsedColumns.isCollapsed(col.id) ? { width: `${COLLAPSED_COLUMN_WIDTH}px` } : columnWidths.styleOf(col.id), columnOutlineStyle(effectiveColumnOutline(col, board.columnOutline), wipState(col) === 'over', col.color) ?? {}]"
           >
-            <!-- Collapsed: a narrow strip with the title and card count; click expands. Drag it to move the column. -->
-            <button
+            <!-- Collapsed: a narrow strip with the title and card count; click expands. Drag it to move the column; drop a card on it to move the card to the end. -->
+            <VueDraggable
               v-if="collapsedColumns.isCollapsed(col.id)"
-              type="button"
-              class="flex flex-col items-center gap-2 py-2 min-h-40 rounded-lg cursor-pointer hover:bg-accented/40 focus-visible:outline-2 focus-visible:outline-primary"
-              :class="canEdit && !shownGroup && 'column-handle'"
-              :style="col.color ? { backgroundColor: col.color, color: contrastText(col.color) } : undefined"
-              :aria-label="t('board.column.expand', { title: col.title, count: lists[col.id]?.length ?? 0 })"
-              :title="t('board.column.expand', { title: col.title, count: lists[col.id]?.length ?? 0 })"
-              @click="collapsedColumns.setCollapsed(col.id, false)"
+              :model-value="collapsedDropSink"
+              :group="{ name: 'cards', put: canAddToColumn(col.id) }"
+              :disabled="dragDisabled"
+              draggable="[data-card-id]"
+              class="flex flex-col rounded-lg has-[[data-card-id]]:ring-2 has-[[data-card-id]]:ring-primary [&>[data-card-id]]:hidden"
+              :data-collapsed-column="col.id"
+              @add="onCollapsedDrop(col.id, $event)"
             >
-              <UIcon name="i-lucide-unfold-horizontal" class="size-4 shrink-0" :class="!col.color && 'text-dimmed'" />
-              <UBadge
-                :color="wipState(col) === 'over' ? 'error' : wipState(col) === 'full' ? 'warning' : 'neutral'"
-                :variant="wipState(col) === 'over' ? 'solid' : 'soft'"
-                size="sm"
-                :label="col.wipLimit ? `${lists[col.id]?.length ?? 0}/${col.wipLimit}` : String(lists[col.id]?.length ?? 0)"
-              />
-              <span class="font-medium [writing-mode:vertical-rl] whitespace-nowrap overflow-hidden text-ellipsis max-h-[calc(100dvh-20rem)]">{{ col.title }}</span>
-            </button>
+              <button
+                type="button"
+                class="flex flex-col items-center gap-2 py-2 min-h-40 rounded-lg cursor-pointer hover:bg-accented/40 focus-visible:outline-2 focus-visible:outline-primary"
+                :class="canEdit && !shownGroup && 'column-handle'"
+                :style="col.color ? { backgroundColor: col.color, color: contrastText(col.color) } : undefined"
+                :aria-label="t('board.column.expand', { title: col.title, count: lists[col.id]?.length ?? 0 })"
+                :title="t('board.column.expand', { title: col.title, count: lists[col.id]?.length ?? 0 })"
+                @click="collapsedColumns.setCollapsed(col.id, false)"
+              >
+                <UIcon name="i-lucide-unfold-horizontal" class="size-4 shrink-0" :class="!col.color && 'text-dimmed'" />
+                <UBadge
+                  :color="wipState(col) === 'over' ? 'error' : wipState(col) === 'full' ? 'warning' : 'neutral'"
+                  :variant="wipState(col) === 'over' ? 'solid' : 'soft'"
+                  size="sm"
+                  :label="col.wipLimit ? `${lists[col.id]?.length ?? 0}/${col.wipLimit}` : String(lists[col.id]?.length ?? 0)"
+                />
+                <span class="font-medium [writing-mode:vertical-rl] whitespace-nowrap overflow-hidden text-ellipsis max-h-[calc(100dvh-20rem)]">{{ col.title }}</span>
+              </button>
+            </VueDraggable>
             <template v-else>
               <UTooltip :content="{ side: 'right' }" :text="t('board.column.resizeHint')">
                 <div
