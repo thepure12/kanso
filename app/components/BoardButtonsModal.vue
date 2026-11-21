@@ -35,7 +35,7 @@ interface Draft {
   icon: string | null
   color: ButtonColor
   shared: boolean
-  /** Card buttons: null = every column. */
+  /** Card buttons: null = every column. New ones start with none picked, so the user chooses. */
   columnIds: string[] | null
   steps: ButtonStep[]
 }
@@ -49,7 +49,7 @@ watch(open, (v) => {
 
 function startNew(scope: ButtonScope) {
   nameError.value = ''
-  draft.value = { id: null, scope, name: '', icon: null, color: 'accent', shared: props.canEdit, columnIds: null, steps: [blankStep(scope === 'card' ? 'move' : 'archiveColumn')] }
+  draft.value = { id: null, scope, name: '', icon: null, color: 'accent', shared: props.canEdit, columnIds: scope === 'card' ? [] : null, steps: [blankStep(scope === 'card' ? 'move' : 'archiveColumn')] }
 }
 
 function startEdit(b: BoardButton) {

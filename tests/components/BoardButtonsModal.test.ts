@@ -49,4 +49,16 @@ describe('BoardButtonsModal', () => {
     expect(save.disabled).toBe(true)
     w.unmount()
   })
+
+  it('starts a new card button with no columns picked instead of all columns', async () => {
+    const w = await mount(true)
+    await flushPromises()
+    const add = [...document.body.querySelectorAll('button')].find(b => b.textContent?.includes('New card button'))!
+    add.click()
+    await flushPromises()
+    const allColumns = [...document.body.querySelectorAll('[role="switch"]')].find(s => s.closest('div')?.parentElement?.textContent?.includes('All columns')) as HTMLElement
+    expect(allColumns.getAttribute('aria-checked')).toBe('false')
+    expect(document.body.textContent).toContain('Show on cards in')
+    w.unmount()
+  })
 })
