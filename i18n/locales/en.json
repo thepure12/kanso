@@ -1875,7 +1875,7 @@
     "allColumns": "All columns",
     "allColumnsHint": "Off: the button shows only on cards in the columns you pick.",
     "showInColumns": "Show on cards in",
-    "pickColumns": "Pick at least one column",
+    "pickColumns": "Choose columns (optional)",
     "onlyIn": "Only on cards in {columns}",
     "noColumns": "No column: only on cards it was added to",
     "align": {
