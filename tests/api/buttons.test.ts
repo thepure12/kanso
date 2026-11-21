@@ -135,7 +135,8 @@ describe('board buttons', () => {
     expect(now.priority).toBe('urgent')
     const due = new Date(); due.setDate(due.getDate() + 3)
     expect(now.dueDate).toBe(`${due.getFullYear()}-${String(due.getMonth() + 1).padStart(2, '0')}-${String(due.getDate()).padStart(2, '0')}`)
-    expect(detail.checklist.map(i => i.text)).toEqual(['Write', 'Test'])
+    expect(detail.checklists.map(l => l.name)).toEqual(['Checklist'])
+    expect(detail.checklists[0]!.items.map(i => i.text)).toEqual(['Write', 'Test'])
     expect(detail.watchers.map(w => w.userId)).toContain(bob.id)
 
     // Remove the tag, unassign me, clear the due date, then archive.

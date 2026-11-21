@@ -43,7 +43,7 @@ async function personOnBoard(tx: Tx, boardId: string, userId: string) {
 
 /** Runs one card step. Returns false when it was skipped (its column, tag or person is gone). */
 async function runCardStep(tx: Tx, boardId: string, cardId: string, step: CardButtonStep): Promise<boolean> {
-  const { cards, cardTags, cardAssignees, cardWatchers, checklistItems } = schema
+  const { cards, cardTags, cardAssignees, cardWatchers, checklistItems, checklists } = schema
   const card = eq(cards.id, cardId)
   switch (step.kind) {
     case 'move': {
@@ -86,9 +86,14 @@ async function runCardStep(tx: Tx, boardId: string, cardId: string, step: CardBu
       await tx.update(cards).set({ priority: step.priority }).where(card)
       return true
     case 'addChecklist': {
-      let position = await endPosition(tx, 'checklist', cardId)
+      // Into the card's first checklist, like POST /api/cards/:id/checklist without checklistId.
+      const [first] = await tx.select({ id: checklists.id }).from(checklists).where(eq(checklists.cardId, cardId))
+        .orderBy(asc(checklists.position), asc(checklists.createdAt), asc(checklists.id)).limit(1)
+      const checklistId = first?.id
+        ?? (await tx.insert(checklists).values({ cardId, boardId, name: 'Checklist', position: 1024 }).returning({ id: checklists.id }))[0]!.id
+      let position = await endPosition(tx, 'checklistItem', checklistId)
       for (const text of step.items) {
-        await tx.insert(checklistItems).values({ cardId, boardId, text, position })
+        await tx.insert(checklistItems).values({ cardId, boardId, checklistId, text, position })
         position += 1024
       }
       return true
