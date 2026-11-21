@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { boardStepKinds, cardStepKinds, createButtonSchema, type ButtonStep } from '../../shared/buttons'
-import { blankStep, cleanStep, describeStep, stepComplete, stepKindsFor } from '../../app/utils/buttons'
+import { boardStepKinds, buttonColorSchema, cardStepKinds, createButtonSchema, type ButtonStep } from '../../shared/buttons'
+import { blankStep, buttonCssColor, cleanStep, describeStep, stepComplete, stepKindsFor } from '../../app/utils/buttons'
 import { serverI18n } from '../../server/utils/i18n'
 
 const { t } = serverI18n('en')
@@ -54,5 +54,20 @@ describe('button steps', () => {
     expect(createButtonSchema.safeParse({ scope: 'card', name: 'x', steps: [{ kind: 'archiveColumn', columnId: id }] }).success).toBe(false)
     expect(createButtonSchema.safeParse({ scope: 'board', name: 'x', steps: [{ kind: 'moveColumnCards', from: id, to: id }] }).success).toBe(false)
     expect(createButtonSchema.safeParse({ scope: 'board', name: 'x', steps: [] }).success).toBe(false)
+  })
+})
+
+describe('button colours', () => {
+  it('accepts the board accent or a lower-case hex, defaulting to the accent', () => {
+    expect(buttonColorSchema.safeParse('accent').success).toBe(true)
+    expect(buttonColorSchema.safeParse('#22c55e').success).toBe(true)
+    for (const bad of ['primary', '#22C55E', '#fff', 'var(--x)']) expect(buttonColorSchema.safeParse(bad).success).toBe(false)
+    const parsed = createButtonSchema.parse({ scope: 'card', name: 'Go', steps: [{ kind: 'archive' }] })
+    expect(parsed.color).toBe('accent')
+  })
+
+  it('maps the accent to the primary colour variable', () => {
+    expect(buttonCssColor('accent')).toBe('var(--ui-primary)')
+    expect(buttonCssColor('#22c55e')).toBe('#22c55e')
   })
 })

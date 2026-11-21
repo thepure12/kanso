@@ -282,10 +282,12 @@ const dueAriaLabel = computed(() => {
         :key="b.id"
         :icon="b.icon ?? 'i-lucide-zap'"
         :label="b.name"
-        :color="b.color"
+        color="neutral"
         variant="soft"
         size="xs"
         class="max-w-full"
+        :class="buttonColorClass"
+        :style="buttonColorStyle(b.color)"
         :ui="{ label: 'truncate' }"
         @click.stop="emit('runButton', b)"
       />

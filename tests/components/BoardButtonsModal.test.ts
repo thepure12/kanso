@@ -5,8 +5,8 @@ import BoardButtonsModal from '~/components/BoardButtonsModal.vue'
 import type { BoardButton } from '#shared/buttons'
 
 const buttons: BoardButton[] = [
-  { id: 'b1', scope: 'card', name: 'Ship', icon: 'i-lucide-rocket', color: 'success', shared: true, steps: [{ kind: 'move', columnId: 'c2' }, { kind: 'assignMe' }] },
-  { id: 'b2', scope: 'board', name: 'Clean up', icon: null, color: 'neutral', shared: false, steps: [{ kind: 'archiveColumn', columnId: 'gone' }] },
+  { id: 'b1', scope: 'card', name: 'Ship', icon: 'i-lucide-rocket', color: '#22c55e', shared: true, steps: [{ kind: 'move', columnId: 'c2' }, { kind: 'assignMe' }] },
+  { id: 'b2', scope: 'board', name: 'Clean up', icon: null, color: 'accent', shared: false, steps: [{ kind: 'archiveColumn', columnId: 'gone' }] },
 ]
 const columns = [{ id: 'c1', title: 'Doing', position: 1, color: null, wipLimit: null, outline: null, rules: [] }, { id: 'c2', title: 'Done', position: 2, color: null, wipLimit: null, outline: null, rules: [] }]
 

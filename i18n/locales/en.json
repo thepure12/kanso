@@ -1798,6 +1798,8 @@
     "icon": "Icon",
     "noIcon": "No icon",
     "color": "Colour",
+    "accentColor": "Board colour",
+    "accentColorHint": "Follows the board's accent colour",
     "preview": "Preview",
     "shareWithBoard": "Share with the board",
     "shareHint": "Everyone on the board sees it; editors can change it.",
@@ -1823,14 +1825,6 @@
     "ran": "Ran “{name}”",
     "skipped": "{n} step skipped: its column, tag or person is gone. | {n} steps skipped: their column, tag or person is gone.",
     "gone": "?",
-    "colors": {
-      "neutral": "Grey",
-      "primary": "Accent",
-      "success": "Green",
-      "info": "Blue",
-      "warning": "Orange",
-      "error": "Red"
-    },
     "sortBy": {
       "priority": "priority",
       "due": "due date",

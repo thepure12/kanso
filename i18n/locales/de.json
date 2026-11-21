@@ -1798,6 +1798,8 @@
     "icon": "Symbol",
     "noIcon": "Kein Symbol",
     "color": "Farbe",
+    "accentColor": "Boardfarbe",
+    "accentColorHint": "Folgt der Akzentfarbe des Boards",
     "preview": "Vorschau",
     "shareWithBoard": "Mit dem Board teilen",
     "shareHint": "Alle auf dem Board sehen ihn; Bearbeiter können ihn ändern.",
@@ -1823,14 +1825,6 @@
     "ran": "„{name}“ ausgeführt",
     "skipped": "{n} Schritt übersprungen: Spalte, Tag oder Person gibt es nicht mehr. | {n} Schritte übersprungen: Spalte, Tag oder Person gibt es nicht mehr.",
     "gone": "?",
-    "colors": {
-      "neutral": "Grau",
-      "primary": "Akzent",
-      "success": "Grün",
-      "info": "Blau",
-      "warning": "Orange",
-      "error": "Rot"
-    },
     "sortBy": {
       "priority": "Priorität",
       "due": "Fälligkeit",

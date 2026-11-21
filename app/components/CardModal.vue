@@ -487,8 +487,10 @@ const tabs = computed(() => [
               :key="b.id"
               :icon="b.icon ?? undefined"
               :label="b.name"
-              :color="b.color"
+              color="neutral"
               variant="soft"
+              :class="buttonColorClass"
+              :style="buttonColorStyle(b.color)"
               size="sm"
               @click="emit('runButton', b)"
             />

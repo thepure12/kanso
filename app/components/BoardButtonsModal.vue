@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { buttonColors, buttonIcons, buttonSortKeys, MAX_BUTTON_STEPS, type BoardButton, type ButtonColor, type ButtonScope, type ButtonStep, type ButtonStepKind } from '#shared/buttons'
+import { buttonIcons, buttonSortKeys, MAX_BUTTON_STEPS, type BoardButton, type ButtonColor, type ButtonScope, type ButtonStep, type ButtonStepKind } from '#shared/buttons'
 import { priorities, type Column, type Member, type Tag } from '#shared/types/board'
 
 const props = defineProps<{
@@ -47,7 +47,7 @@ watch(open, (v) => {
 
 function startNew(scope: ButtonScope) {
   nameError.value = ''
-  draft.value = { id: null, scope, name: '', icon: null, color: 'neutral', shared: props.canEdit, steps: [blankStep(scope === 'card' ? 'move' : 'archiveColumn')] }
+  draft.value = { id: null, scope, name: '', icon: null, color: 'accent', shared: props.canEdit, steps: [blankStep(scope === 'card' ? 'move' : 'archiveColumn')] }
 }
 
 function startEdit(b: BoardButton) {
@@ -63,7 +63,6 @@ const tagItems = computed(() => props.tags.map(x => ({ label: x.name, value: x.i
 const memberItems = computed(() => props.members.map(m => ({ label: m.name, value: m.userId })))
 const priorityItems = computed(() => [...priorities.map(p => ({ label: t(`priority.${p}`), value: p as string })), { label: t('buttons.noPriority'), value: 'none' }])
 const sortItems = computed(() => buttonSortKeys.map(k => ({ label: t(`buttons.sortBy.${k}`), value: k })))
-const colorItems = computed(() => buttonColors.map(c => ({ label: t(`buttons.colors.${c}`), value: c })))
 const iconItems = computed(() => [{ label: t('buttons.noIcon'), value: 'none', icon: undefined as string | undefined }, ...buttonIcons.map(i => ({ label: i.replace('i-lucide-', ''), value: i, icon: i as string | undefined }))])
 
 function setKind(index: number, kind: ButtonStepKind) {
@@ -130,7 +129,7 @@ const checklistText = (step: { items: string[] }) => step.items.join('\n')
           </p>
           <ul class="space-y-2">
             <li v-for="b in byScope(scope)" :key="b.id" class="flex items-start gap-2 rounded-md border border-default p-2">
-              <UBadge :color="b.color" variant="soft" :icon="b.icon ?? undefined" :label="b.name" class="shrink-0 max-w-48 truncate" />
+              <UBadge color="neutral" variant="soft" :icon="b.icon ?? undefined" :label="b.name" class="shrink-0 max-w-48 truncate" :class="buttonColorClass" :style="buttonColorStyle(b.color)" />
               <div class="min-w-0 flex-1 text-xs text-muted">
                 <div class="flex items-center gap-1">
                   <UIcon :name="b.shared ? 'i-lucide-users' : 'i-lucide-lock'" class="size-3.5" />
@@ -175,12 +174,12 @@ const checklistText = (step: { items: string[] }) => step.items.join('\n')
             />
           </UFormField>
           <UFormField :label="t('buttons.color')">
-            <USelect v-model="draft.color" :items="colorItems" class="w-32" />
+            <ButtonColorField v-model="draft.color" />
           </UFormField>
         </div>
         <div class="flex items-center gap-2">
           <span class="text-sm text-muted">{{ t('buttons.preview') }}</span>
-          <UButton size="sm" :color="draft.color" variant="soft" :icon="draft.icon ?? undefined" :label="draft.name.trim() || t('buttons.name')" tabindex="-1" />
+          <UButton size="sm" color="neutral" variant="soft" :class="buttonColorClass" :style="buttonColorStyle(draft.color)" :icon="draft.icon ?? undefined" :label="draft.name.trim() || t('buttons.name')" tabindex="-1" />
         </div>
         <USwitch
           v-if="!draft.id"

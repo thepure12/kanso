@@ -375,7 +375,7 @@ export const boardButtons = pgTable('board_buttons', {
   scope: text('scope').$type<ButtonScope>().notNull(),
   name: text('name').notNull(),
   icon: text('icon'),
-  color: text('color').$type<ButtonColor>().notNull().default('neutral'),
+  color: text('color').$type<ButtonColor>().notNull().default('accent'),
   steps: jsonb('steps').$type<ButtonStep[]>().notNull(),
   createdBy: uuid('created_by').references(() => users.id, { onDelete: 'set null' }),
   createdAt: createdAt(),
@@ -383,6 +383,7 @@ export const boardButtons = pgTable('board_buttons', {
   uniqueIndex('board_buttons_name_unique').on(t.boardId, sql`coalesce(${t.userId}, '00000000-0000-0000-0000-000000000000'::uuid)`, t.scope, sql`lower(${t.name})`),
   index('board_buttons_user_idx').on(t.userId),
   check('board_buttons_scope', sql`${t.scope} in ('card', 'board')`),
+  check('board_buttons_color_shape', sql`${t.color} = 'accent' or ${t.color} ~ '^#[0-9a-f]{6}$'`),
   check('board_buttons_name_length', sql`char_length(${t.name}) between 1 and 50`),
   check('board_buttons_steps_shape', sql`jsonb_typeof(${t.steps}) = 'array' and jsonb_array_length(${t.steps}) between 1 and 10 and pg_column_size(${t.steps}) < 16384`),
 ])

@@ -120,6 +120,14 @@ describe('board buttons', () => {
     await rejectsWith(newButton(owner, { steps: Array.from({ length: 11 }, () => ({ kind: 'archive' })) }), '23514')
   })
 
+  it('colour is the board accent (default) or a lower-case #rrggbb', async () => {
+    const id = await newButton(owner, { shared: true })
+    const setColor = (color: string) => as(owner.id, sql => sql`update board_buttons set color = ${color} where id = ${id}`)
+    expect((await as(owner.id, sql => sql`select color from board_buttons where id = ${id}`))[0]!.color).toBe('accent')
+    await setColor('#22c55e')
+    for (const bad of ['primary', '#22C55E', '#fff', 'red']) await rejectsWith(setColor(bad), '23514')
+  })
+
   it('archived boards block shared buttons but keep personal ones', async () => {
     const shared = await newButton(owner, { shared: true })
     await as(owner.id, sql => sql`select app.set_board_archived(${boardId}, true)`)

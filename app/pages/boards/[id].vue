@@ -265,7 +265,7 @@ const buttonsOpen = ref(false)
 const cardButtons = computed(() => buttons.value.filter(b => b.scope === 'card'))
 const boardButtons = computed(() => buttons.value.filter(b => b.scope === 'board'))
 const boardButtonItems = computed(() => [
-  boardButtons.value.map(b => ({ label: b.name, icon: b.icon ?? 'i-lucide-zap', onSelect: () => runButton(b) })),
+  boardButtons.value.map(b => ({ label: b.name, icon: b.icon ?? 'i-lucide-zap', slot: 'button' as const, iconColor: buttonCssColor(b.color), onSelect: () => runButton(b) })),
   [{ label: t('buttons.manage'), icon: 'i-lucide-settings-2', onSelect: () => { buttonsOpen.value = true } }],
 ])
 // The swimlane select shows the chosen grouping's icon; the generic rows icon when none.
@@ -754,6 +754,9 @@ const boardMenu = computed(() => {
             @reset="resetView"
           />
           <UDropdownMenu v-if="canEdit && boardButtons.length" :items="boardButtonItems">
+            <template #button-leading="{ item, ui }">
+              <UIcon :name="item.icon" data-slot="itemLeadingIcon" :class="ui.itemLeadingIcon()" :style="{ color: item.iconColor }" />
+            </template>
             <UButton icon="i-lucide-zap" color="neutral" variant="ghost" size="sm" :aria-label="t('buttons.boardButtons')">
               <span class="group-data-c2/tb:sr-only">{{ t('buttons.boardButtons') }}</span>
             </UButton>

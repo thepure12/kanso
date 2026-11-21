@@ -7,8 +7,12 @@ import { priorities } from './types/board'
 export const buttonScopes = ['card', 'board'] as const
 export type ButtonScope = (typeof buttonScopes)[number]
 
-export const buttonColors = ['neutral', 'primary', 'success', 'info', 'warning', 'error'] as const
-export type ButtonColor = (typeof buttonColors)[number]
+/**
+ * Button colour: 'accent' follows the board accent colour, else any #rrggbb from the
+ * colour picker. Check board_buttons_color_shape mirrors it (0118).
+ */
+export type ButtonColor = 'accent' | `#${string}`
+export const buttonColorSchema = z.union([z.literal('accent'), z.string().regex(/^#[0-9a-f]{6}$/)]) as z.ZodType<ButtonColor>
 
 export const buttonIcons = [
   'i-lucide-zap', 'i-lucide-check', 'i-lucide-arrow-right', 'i-lucide-archive', 'i-lucide-tag', 'i-lucide-user-plus',
@@ -60,7 +64,7 @@ export const buttonName = z.string().trim().min(1).max(50)
 const appearance = {
   name: buttonName,
   icon: z.enum(buttonIcons).nullable().default(null),
-  color: z.enum(buttonColors).default('neutral'),
+  color: buttonColorSchema.default('accent'),
 }
 
 /** Body of POST /api/boards/:id/buttons. */

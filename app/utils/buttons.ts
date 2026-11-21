@@ -1,5 +1,5 @@
 // Helpers for board buttons (BoardButtonsModal, CardButtons, the board toolbar).
-import type { BoardButtonStep, ButtonScope, ButtonStep, ButtonStepKind, CardButtonStep } from '#shared/buttons'
+import type { BoardButtonStep, ButtonColor, ButtonScope, ButtonStep, ButtonStepKind, CardButtonStep } from '#shared/buttons'
 import { boardStepKinds, cardStepKinds } from '#shared/buttons'
 
 export const stepKindsFor = (scope: ButtonScope): readonly ButtonStepKind[] => scope === 'card' ? cardStepKinds : boardStepKinds
@@ -74,3 +74,13 @@ export function describeStep(step: CardButtonStep | BoardButtonStep, n: StepName
     default: return t(`buttons.kinds.${step.kind}`)
   }
 }
+
+/** The colour as CSS: the board accent (`--ui-primary`) or the picked hex. */
+export const buttonCssColor = (color: ButtonColor) => color === 'accent' ? 'var(--ui-primary)' : color
+
+/**
+ * Soft look of a button in its colour (tinted background, text in the colour, toned
+ * towards the page text so light colours stay readable); pair with `buttonColorClass`.
+ */
+export const buttonColorStyle = (color: ButtonColor) => ({ '--btn': buttonCssColor(color) })
+export const buttonColorClass = 'bg-[color-mix(in_oklab,var(--btn)_15%,transparent)] hover:bg-[color-mix(in_oklab,var(--btn)_24%,transparent)] text-[color-mix(in_oklab,var(--btn)_70%,var(--ui-text-highlighted))]'

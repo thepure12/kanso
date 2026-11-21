@@ -85,9 +85,9 @@ afterAll(async () => {
 
 describe('board buttons', () => {
   it('creates, lists, edits and deletes buttons; personal ones stay personal', async () => {
-    const shared = await alice.req<BoardButton>(`/api/boards/${board.id}/buttons`, { method: 'POST', body: { scope: 'card', name: 'Ship', shared: true, color: 'success', icon: 'i-lucide-rocket', steps: [{ kind: 'archive' }] } })
+    const shared = await alice.req<BoardButton>(`/api/boards/${board.id}/buttons`, { method: 'POST', body: { scope: 'card', name: 'Ship', shared: true, color: '#22c55e', icon: 'i-lucide-rocket', steps: [{ kind: 'archive' }] } })
     expect(shared.status).toBe(200)
-    expect(shared.data).toMatchObject({ scope: 'card', name: 'Ship', shared: true, color: 'success', icon: 'i-lucide-rocket' })
+    expect(shared.data).toMatchObject({ scope: 'card', name: 'Ship', shared: true, color: '#22c55e', icon: 'i-lucide-rocket' })
     const mine = await vera.req<BoardButton>(`/api/boards/${board.id}/buttons`, { method: 'POST', body: { scope: 'card', name: 'Watch it', steps: [{ kind: 'watch' }] } })
     expect(mine.status).toBe(200)
     expect(mine.data.shared).toBe(false)

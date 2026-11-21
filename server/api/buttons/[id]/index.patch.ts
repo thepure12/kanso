@@ -1,11 +1,11 @@
 import { eq } from 'drizzle-orm'
 import { z } from 'zod'
-import { buttonColors, buttonIcons, buttonName, stepsSchema, type BoardButton } from '#shared/buttons'
+import { buttonColorSchema, buttonIcons, buttonName, stepsSchema, type BoardButton } from '#shared/buttons'
 
 const body = z.object({
   name: buttonName.optional(),
   icon: z.enum(buttonIcons).nullable().optional(),
-  color: z.enum(buttonColors).optional(),
+  color: buttonColorSchema.optional(),
   // Checked against the button's scope below.
   steps: z.array(z.unknown()).optional(),
 })
