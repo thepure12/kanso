@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import type { Card, CardLink, CardLinkKind, Column } from '#shared/types/board'
+import type { Card, CardLink, Column } from '#shared/types/board'
+import type { LinkChoice } from '~/utils/cardLinks'
 import type { CardDetailApi } from '~/composables/useCardDetail'
 
 const props = defineProps<{
@@ -27,12 +28,13 @@ const cardItems = computed(() => props.cards
   .map(c => ({ label: c.title, value: c.id, description: columnTitle.value.get(c.columnId) })))
 
 const adding = ref(false)
-const kind = ref<CardLinkKind>('blocks')
+const kind = ref<LinkChoice>('blocks:out')
 const target = ref<string | undefined>()
 
 async function add() {
   if (!target.value) return
-  const link = await props.cd.addLink(target.value, kind.value)
+  const { kind: k, direction } = parseLinkChoice(kind.value)
+  const link = await props.cd.addLink(target.value, k, direction)
   if (link) emit('changed', link, true)
   target.value = undefined
   adding.value = false

@@ -31,11 +31,21 @@ export function groupLinks(links: CardLink[], t: Translate): { label: string, li
   return [...groups].filter(([, ls]) => ls.length).map(([key, ls]) => ({ label: t(key), links: ls }))
 }
 
-/** Link kinds offered when adding a link, worded from the open card's side. */
-export function linkKindItems(t: Translate): { label: string, value: CardLinkKind }[] {
+/** A link choice in the add form: kind plus direction seen from the open card. */
+export type LinkChoice = `${CardLinkKind}:${CardLink['direction']}`
+
+/** Link kinds offered when adding a link, worded from the open card's side ("Blocked by" = the other card blocks it). */
+export function linkKindItems(t: Translate): { label: string, value: LinkChoice }[] {
   return [
-    { label: t('cardLinks.blocks'), value: 'blocks' },
-    { label: t('cardLinks.relatesTo'), value: 'relates' },
-    { label: t('cardLinks.duplicates'), value: 'duplicates' },
+    { label: t('cardLinks.blocks'), value: 'blocks:out' },
+    { label: t('cardLinks.blockedBy'), value: 'blocks:in' },
+    { label: t('cardLinks.relatesTo'), value: 'relates:out' },
+    { label: t('cardLinks.duplicates'), value: 'duplicates:out' },
   ]
+}
+
+/** Splits a LinkChoice into the kind and direction the API takes. */
+export function parseLinkChoice(choice: LinkChoice): { kind: CardLinkKind, direction: CardLink['direction'] } {
+  const [kind, direction] = choice.split(':') as [CardLinkKind, CardLink['direction']]
+  return { kind, direction }
 }

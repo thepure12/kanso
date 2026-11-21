@@ -219,10 +219,11 @@ export function useCardDetail(cardId: Ref<string>) {
     }, t('reminders.errors.delete')),
 
     /** Links this card to another one; returns the new link. */
-    addLink: async (toCardId: string, kind: CardLinkKind) => {
+    /** `direction: 'in'` makes the other card the source ("blocked by"). */
+    addLink: async (toCardId: string, kind: CardLinkKind, direction: CardLink['direction'] = 'out') => {
       let created: CardLink | undefined
       await run(async (d) => {
-        created = await api<CardLink>(`${base()}/links`, { method: 'POST', body: { toCardId, kind } })
+        created = await api<CardLink>(`${base()}/links`, { method: 'POST', body: { toCardId, kind, direction } })
         d.links.push(created)
       }, t('cardLinks.errors.add'))
       return created

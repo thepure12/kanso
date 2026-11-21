@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { Card, CardLink } from '#shared/types/board'
-import { blockedCardIds, groupLinks } from '../../app/utils/cardLinks'
+import { blockedCardIds, groupLinks, linkKindItems, parseLinkChoice } from '../../app/utils/cardLinks'
 import { serverI18n } from '../../server/utils/i18n'
 
 const card = (id: string, columnId: string, blockerIds: string[] = []) => ({ id, columnId, blockerIds }) as Card
@@ -33,5 +33,14 @@ describe('groupLinks', () => {
     expect(groups.map(g => [g.label, g.links.map(l => l.id)])).toEqual([
       ['Blocks', ['3']], ['Blocked by', ['2']], ['Relates to', ['1', '4']], ['Duplicated by', ['5']],
     ])
+  })
+})
+
+describe('linkKindItems', () => {
+  it('offers blocked by as the reverse of blocks', () => {
+    const { t } = serverI18n('en')
+    expect(linkKindItems(t).map(i => i.label)).toEqual(['Blocks', 'Blocked by', 'Relates to', 'Duplicates'])
+    expect(parseLinkChoice('blocks:in')).toEqual({ kind: 'blocks', direction: 'in' })
+    expect(parseLinkChoice('relates:out')).toEqual({ kind: 'relates', direction: 'out' })
   })
 })

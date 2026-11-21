@@ -804,6 +804,15 @@ describe('watchers and links', () => {
     expect((await addLink(outsider, a.id, b.id, 'relates')).status).toBe(404)
     expect((await addLink(alice, c.id, a.id, 'relates')).status).toBe(200)
 
+    // "Blocked by": stored as the other card blocking this one, returned from this card's side.
+    const [d, e] = [await newCard('Waiting'), await newCard('Prerequisite')]
+    const reverse = await bob.req<CardLink>(`/api/cards/${d.id}/links`, { method: 'POST', body: { toCardId: e.id, kind: 'blocks', direction: 'in' } })
+    expect(reverse.status).toBe(200)
+    expect(reverse.data).toMatchObject({ kind: 'blocks', direction: 'in', card: { id: e.id } })
+    expect((await bob.req<CardDetail>(`/api/cards/${e.id}`)).data.links).toContainEqual(expect.objectContaining({ id: reverse.data.id, direction: 'out', card: expect.objectContaining({ id: d.id }) }))
+    expect((await bob.req<BoardDetail>(`/api/boards/${boardId}`)).data.cards.find(x => x.id === d.id)!.blockerIds).toEqual([e.id])
+    expect((await bob.req(`/api/card-links/${reverse.data.id}`, { method: 'DELETE' })).status).toBe(200)
+
     const other = (await alice.req<{ id: string }>('/api/boards', { method: 'POST', body: { name: 'Other', template: 'basic' } })).data.id
     extraBoards.push(other)
     const otherBoard = (await alice.req<BoardDetail>(`/api/boards/${other}`)).data
