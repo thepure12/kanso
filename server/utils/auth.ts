@@ -46,7 +46,7 @@ export async function issueSession(event: H3Event, u: UserRow) {
   await db.delete(schema.userSessions).where(and(eq(schema.userSessions.userId, u.id), lt(schema.userSessions.revokedAt, sql`now() - interval '30 days'`)))
   // replaceUserSession: a stale sessionVersion must not survive the merge.
   await replaceUserSession(event, {
-    user: toSessionUser(u), sessionVersion: u.sessionVersion, loggedInAt: Date.now(), secure: { sessionId: row!.id },
+    user: toSessionUser(u), sessionVersion: u.sessionVersion, loggedInAt: Date.now(), renewedAt: Date.now(), secure: { sessionId: row!.id },
   })
 }
 

@@ -145,9 +145,15 @@ export default defineNuxtConfig({
     // Browsers drop Secure cookies over plain http on hosts other than localhost (LAN dev access).
     // Under a base path the cookie is scoped to it and renamed, so another Nuxt app on
     // the same host (default name nuxt-session) neither sees nor overwrites it.
+    // cookie.maxAge: without it the cookie has no expiry and lives only as long
+    // as the browser session, which installed mobile apps end whenever the
+    // system closes them (signed out on every launch). Max-Age counts from each
+    // write, and requireSessionUser re-writes the cookie once a day, so it runs
+    // out only after 60 days without a visit. (Not session.maxAge: h3 counts
+    // that from the session's first creation, which no rewrite resets.)
     session: {
       ...(baseURL === '/' ? {} : { name: 'kanso-session' }),
-      cookie: { secure: process.env.NODE_ENV === 'production', path: baseURL.replace(/(.)\/$/, '$1') },
+      cookie: { secure: process.env.NODE_ENV === 'production', path: baseURL.replace(/(.)\/$/, '$1'), maxAge: 60 * 60 * 24 * 60 },
     },
   },
 })

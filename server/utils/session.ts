@@ -1,11 +1,23 @@
 import type { H3Event } from 'h3'
+import type { UserSession } from '#auth-utils'
 import { sql } from 'drizzle-orm'
 import { z } from 'zod'
 
 /** The session user's id and what withUser checks the session against. */
 export async function requireSessionUser(event: H3Event): Promise<{ userId: string, session: SessionRef }> {
   const s = await requireUserSession(event)
+  await renewSessionCookie(event, s)
   return { userId: s.user.id, session: { version: s.sessionVersion ?? 0, id: s.secure?.sessionId } }
+}
+
+/**
+ * Sliding expiry: the cookie's Max-Age (session.cookie.maxAge) counts from
+ * when it was written, so once a day a request re-writes it. Someone who
+ * keeps using the app stays signed in; only a long absence signs them out.
+ */
+async function renewSessionCookie(event: H3Event, s: UserSession) {
+  if (!sessionNeedsRenewal(s)) return
+  await setUserSession(event, { renewedAt: Date.now() })
 }
 
 /**

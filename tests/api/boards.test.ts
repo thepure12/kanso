@@ -2195,6 +2195,23 @@ describe('sessions', () => {
     expect((await user.req('/api/boards')).status).toBe(401)
   })
 
+  it('the session cookie outlives the browser session (installed apps)', async () => {
+    const ip = `10.${[0, 0, 0].map(() => Math.floor(Math.random() * 250)).join('.')}`
+    const user = await signUp('Persistent')
+    const res = await fetch('/api/auth/login', {
+      method: 'POST',
+      headers: { 'x-forwarded-for': ip, 'content-type': 'application/json' },
+      body: JSON.stringify({ email: user.email, password: 'password123' }),
+    })
+    expect(res.status).toBe(200)
+    const session = res.headers.getSetCookie().find(c => /^(nuxt|kanso)-session=./.test(c))!
+    expect(session).toMatch(/; Max-Age=5184000/i)
+    // A fresh cookie is not re-written on every request (once a day only).
+    const again = await fetch('/api/boards', { headers: { 'cookie': session.split(';')[0]!, 'x-forwarded-for': ip } })
+    expect(again.status).toBe(200)
+    expect(again.headers.getSetCookie().filter(c => /^(nuxt|kanso)-session=/.test(c))).toEqual([])
+  })
+
   it('signing out revokes the session row', async () => {
     const user = await signUp('Logout')
     const live = async () => (await authDb`select count(*)::int as n from user_sessions s join users u on u.id = s.user_id

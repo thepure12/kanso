@@ -9,6 +9,8 @@ declare module '#auth-utils' {
   interface UserSession {
     /** The account's `session_version` at sign-in; withUser rejects older ones. */
     sessionVersion?: number
+    /** When the cookie was last issued (ms); requireSessionUser renews it once a day to extend its expiry. */
+    renewedAt?: number
   }
 
   /** Server-only session fields (never sent to the browser). */
