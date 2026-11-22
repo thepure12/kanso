@@ -8,6 +8,11 @@ const { t, locale } = useI18n()
 const uiLocale = computed(() => ({ en, de })[locale.value as 'en' | 'de'] ?? en)
 useHead({ htmlAttrs: { lang: () => uiLocale.value.code, dir: () => uiLocale.value.dir } })
 
+// Status bar (and navigation bar of the installed app) follow the colour mode chosen
+// in the app, not only the system's.
+const colorMode = useColorMode()
+useHead({ meta: () => themeColorMeta(colorMode.value, colorMode.unknown) })
+
 // A new service worker waits (registerType 'prompt'); Reload activates it (app/utils/swUpdate.ts).
 // $pwa is only set in the browser, and the worker only exists in production builds.
 const { $pwa } = useNuxtApp()

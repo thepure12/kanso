@@ -13,10 +13,11 @@ export default defineNuxtConfig({
         { rel: 'icon', type: 'image/svg+xml', href: `${baseURL}favicon.svg` },
         { rel: 'apple-touch-icon', href: `${baseURL}apple-touch-icon-180x180.png` },
       ],
-      meta: [
-        { name: 'theme-color', media: '(prefers-color-scheme: light)', content: '#ffffff' },
-        { name: 'theme-color', media: '(prefers-color-scheme: dark)', content: '#18181b' },
-      ],
+      // viewport-fit=cover: the installed app draws edge to edge, so the area behind
+      // Android's navigation bar shows the page background instead of the manifest's
+      // white theme_color; the layout pads by env(safe-area-inset-*).
+      // theme-color tags come from app.vue (app/utils/themeColor.ts).
+      viewport: 'width=device-width, initial-scale=1, viewport-fit=cover',
     },
   },
   css: ['~/assets/css/main.css'],

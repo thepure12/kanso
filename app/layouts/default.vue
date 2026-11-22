@@ -54,7 +54,7 @@ defineShortcuts(computed(() => loggedIn.value
 </script>
 
 <template>
-  <div class="min-h-screen flex flex-col">
+  <div class="min-h-screen flex flex-col pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)]">
     <UHeader :toggle="false" :ui="{ container: 'max-w-none px-3 sm:px-4 lg:px-6' }">
       <template #title>
         <AppLogo />

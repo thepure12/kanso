@@ -706,7 +706,7 @@ const boardMenu = computed(() => {
   <div
     v-if="board"
     class="flex flex-col min-h-0"
-    :class="view !== 'board' || groupBy !== 'none' ? 'flex-none h-[calc(100dvh-var(--ui-header-height))]' : 'flex-1'"
+    :class="view !== 'board' || groupBy !== 'none' ? 'flex-none h-[calc(100dvh-var(--ui-header-height)-env(safe-area-inset-bottom))]' : 'flex-1'"
     :style="bgStyle"
   >
     <div class="sm:sticky sm:top-(--ui-header-height) z-20" :class="backed ? 'bg-default/85 backdrop-blur-sm' : 'bg-default/75 backdrop-blur'">
