@@ -89,7 +89,7 @@ describe('button columns', () => {
 })
 
 describe('applyButtonRules', () => {
-  const b = (id: string, cardIds: string[]) => ({ id, scope: 'card' as const, name: id, icon: null, color: 'accent' as const, shared: true, columnIds: null, cardIds, steps: [] })
+  const b = (id: string, cardIds: string[]) => ({ id, scope: 'card' as const, name: id, icon: null, color: 'accent' as const, tooltip: null, shared: true, columnIds: null, cardIds, steps: [] })
   it('adds and removes the card per the column\'s button rules', () => {
     const buttons = [b('b1', []), b('b2', ['k1']), b('b3', ['k2'])]
     const out = applyButtonRules(buttons, [

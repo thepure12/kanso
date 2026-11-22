@@ -499,18 +499,18 @@ const tabs = computed(() => [
             </UTooltip>
           </div>
           <div v-if="cardButtonItems.length && props.canEdit && !props.template" class="flex flex-wrap items-center gap-1.5" :class="buttonAlignClass(props.buttonAlign)" role="group" :aria-label="t('buttons.cardButtons')">
-            <UButton
-              v-for="b in shownButtons"
-              :key="b.id"
-              :icon="b.icon ?? undefined"
-              :label="b.name"
-              color="neutral"
-              variant="soft"
-              :class="buttonColorClass"
-              :style="buttonColorStyle(b.color)"
-              size="sm"
-              @click="emit('runButton', b)"
-            />
+            <UTooltip v-for="b in shownButtons" :key="b.id" :text="b.tooltip ?? undefined" :disabled="!b.tooltip">
+              <UButton
+                :icon="b.icon ?? undefined"
+                :label="b.name"
+                color="neutral"
+                variant="soft"
+                :class="buttonColorClass"
+                :style="buttonColorStyle(b.color)"
+                size="sm"
+                @click="emit('runButton', b)"
+              />
+            </UTooltip>
             <UDropdownMenu :items="[[{ type: 'label', label: t('buttons.onThisCardHint') }], cardButtonItems]" :content="{ align: 'start' }" :ui="{ label: 'font-normal text-muted' }">
               <UButton icon="i-lucide-plus" color="neutral" variant="ghost" size="sm" :aria-label="t('buttons.onThisCard')" :title="t('buttons.onThisCard')" />
             </UDropdownMenu>

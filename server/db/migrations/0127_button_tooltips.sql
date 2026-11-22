@@ -1,0 +1,2 @@
+ALTER TABLE "board_buttons" ADD COLUMN "tooltip" text;--> statement-breakpoint
+ALTER TABLE "board_buttons" ADD CONSTRAINT "board_buttons_tooltip_length" CHECK ("board_buttons"."tooltip" is null or char_length("board_buttons"."tooltip") between 1 and 200);

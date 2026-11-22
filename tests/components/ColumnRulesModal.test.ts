@@ -6,7 +6,7 @@ import type { BoardButton } from '#shared/buttons'
 
 const column = { id: 'c1', title: 'Testing', position: 1, color: null, wipLimit: null, outline: null, rules: [] }
 const button = (id: string, name: string, columnIds: string[] | null): BoardButton =>
-  ({ id, scope: 'card', name, icon: null, color: 'accent', shared: true, columnIds, cardIds: [], steps: [{ kind: 'archive' }] })
+  ({ id, scope: 'card', name, icon: null, color: 'accent', tooltip: null, shared: true, columnIds, cardIds: [], steps: [{ kind: 'archive' }] })
 const buttons = [button('b1', 'Everywhere', null), button('b2', 'Elsewhere', ['c2']), button('b3', 'Only here', ['c1'])]
 
 async function mount() {

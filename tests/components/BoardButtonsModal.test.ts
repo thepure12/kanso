@@ -5,9 +5,9 @@ import BoardButtonsModal from '~/components/BoardButtonsModal.vue'
 import type { BoardButton } from '#shared/buttons'
 
 const buttons: BoardButton[] = [
-  { id: 'b1', scope: 'card', name: 'Ship', icon: 'i-lucide-rocket', color: '#22c55e', shared: true, columnIds: null, cardIds: [], steps: [{ kind: 'move', columnId: 'c2' }, { kind: 'assignMe' }] },
-  { id: 'b3', scope: 'card', name: 'Approve', icon: null, color: '#22c55e', shared: true, columnIds: ['c2'], cardIds: [], steps: [{ kind: 'archive' }] },
-  { id: 'b2', scope: 'board', name: 'Clean up', icon: null, color: 'accent', shared: false, columnIds: null, cardIds: [], steps: [{ kind: 'archiveColumn', columnId: 'gone' }] },
+  { id: 'b1', scope: 'card', name: 'Ship', icon: 'i-lucide-rocket', color: '#22c55e', tooltip: null, shared: true, columnIds: null, cardIds: [], steps: [{ kind: 'move', columnId: 'c2' }, { kind: 'assignMe' }] },
+  { id: 'b3', scope: 'card', name: 'Approve', icon: null, color: '#22c55e', tooltip: 'Moves it on', shared: true, columnIds: ['c2'], cardIds: [], steps: [{ kind: 'archive' }] },
+  { id: 'b2', scope: 'board', name: 'Clean up', icon: null, color: 'accent', tooltip: null, shared: false, columnIds: null, cardIds: [], steps: [{ kind: 'archiveColumn', columnId: 'gone' }] },
 ]
 const columns = [{ id: 'c1', title: 'Doing', position: 1, color: null, wipLimit: null, outline: null, rules: [] }, { id: 'c2', title: 'Done', position: 2, color: null, wipLimit: null, outline: null, rules: [] }]
 
@@ -26,6 +26,7 @@ describe('BoardButtonsModal', () => {
     expect(text).toContain('Assign me')
     expect(text).toContain('Archive all cards in ?')
     expect(text).toContain('Only on cards in Done')
+    expect(text).toContain('Moves it on')
     expect(document.body.querySelector('[aria-label="Edit Ship"]')).not.toBeNull()
     w.unmount()
   })

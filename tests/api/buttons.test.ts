@@ -105,7 +105,13 @@ describe('board buttons', () => {
     expect((await alice.req<BoardDetail>(`/api/boards/${board.id}`)).data.buttons.map(b => b.name)).toEqual(['Ship'])
 
     const renamed = await alice.req<BoardButton>(`/api/buttons/${shared.data.id}`, { method: 'PATCH', body: { name: 'Ship it', steps: [{ kind: 'setPriority', priority: 'high' }] } })
-    expect(renamed.data).toMatchObject({ name: 'Ship it', steps: [{ kind: 'setPriority', priority: 'high' }] })
+    expect(renamed.data).toMatchObject({ name: 'Ship it', tooltip: null, steps: [{ kind: 'setPriority', priority: 'high' }] })
+    // Optional tooltip: trimmed, blank clears it, at most 200 characters.
+    expect((await alice.req<BoardButton>(`/api/buttons/${shared.data.id}`, { method: 'PATCH', body: { tooltip: '  Marks it high  ' } })).data.tooltip).toBe('Marks it high')
+    expect((await vera.req<BoardDetail>(`/api/boards/${board.id}`)).data.buttons.find(b => b.id === shared.data.id)?.tooltip).toBe('Marks it high')
+    expect((await alice.req(`/api/buttons/${shared.data.id}`, { method: 'PATCH', body: { tooltip: 'x'.repeat(201) } })).status).toBe(400)
+    expect((await alice.req<BoardButton>(`/api/buttons/${shared.data.id}`, { method: 'PATCH', body: { tooltip: '   ' } })).data.tooltip).toBeNull()
+    expect((await vera.req<BoardButton>(`/api/boards/${board.id}/buttons`, { method: 'POST', body: { scope: 'board', name: 'Tidy', tooltip: 'Sorts Doing', steps: [{ kind: 'sortColumn', columnId: col(0), by: 'title' }] } })).data.tooltip).toBe('Sorts Doing')
     expect((await vera.req(`/api/buttons/${shared.data.id}`, { method: 'PATCH', body: { name: 'Mine now' } })).status).toBe(404)
     expect((await alice.req(`/api/buttons/${mine.data.id}`, { method: 'DELETE' })).status).toBe(404)
     expect((await vera.req(`/api/buttons/${mine.data.id}`, { method: 'DELETE' })).status).toBe(200)

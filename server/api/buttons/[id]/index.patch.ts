@@ -1,11 +1,12 @@
 import { eq } from 'drizzle-orm'
 import { z } from 'zod'
-import { buttonColorSchema, buttonColumnIds, buttonIcons, buttonName, stepsSchema, type BoardButton } from '#shared/buttons'
+import { buttonColorSchema, buttonColumnIds, buttonIcons, buttonName, buttonTooltip, stepsSchema, type BoardButton } from '#shared/buttons'
 
 const body = z.object({
   name: buttonName.optional(),
   icon: z.enum(buttonIcons).nullable().optional(),
   color: buttonColorSchema.optional(),
+  tooltip: buttonTooltip.optional(),
   /** Card buttons only. */
   columnIds: buttonColumnIds.optional(),
   // Checked against the button's scope below.
@@ -34,6 +35,7 @@ export default defineUserHandler(async (event, tx): Promise<BoardButton> => {
     ...(input.name !== undefined && { name: input.name }),
     ...(input.icon !== undefined && { icon: input.icon }),
     ...(input.color !== undefined && { color: input.color }),
+    ...(input.tooltip !== undefined && { tooltip: input.tooltip }),
     ...(input.columnIds !== undefined && { columnIds: input.columnIds }),
     ...(steps && { steps }),
   }

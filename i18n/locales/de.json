@@ -1782,6 +1782,8 @@
     }
   },
   "buttons": {
+    "tooltip": "Tooltip",
+    "tooltipHint": "Optional. Wird beim Überfahren des Buttons angezeigt.",
     "title": "Buttons",
     "description": "Buttons führen mit einem Klick eine Liste von Schritten aus, auf einer Karte oder auf dem Board. Sie laufen unter deinem Namen und können nur, was du darfst.",
     "manage": "Buttons verwalten…",

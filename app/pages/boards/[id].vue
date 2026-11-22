@@ -279,7 +279,7 @@ async function setButtonColumns(button: BoardButton, columnIds: string[] | null)
 }
 const boardButtons = computed(() => buttons.value.filter(b => b.scope === 'board'))
 const boardButtonItems = computed(() => [
-  boardButtons.value.map(b => ({ label: b.name, icon: b.icon ?? 'i-lucide-zap', slot: 'button' as const, iconColor: buttonCssColor(b.color), onSelect: () => runButton(b) })),
+  boardButtons.value.map(b => ({ label: b.name, description: b.tooltip ?? undefined, icon: b.icon ?? 'i-lucide-zap', slot: 'button' as const, iconColor: buttonCssColor(b.color), onSelect: () => runButton(b) })),
   [{ label: t('buttons.manage'), icon: 'i-lucide-settings-2', onSelect: () => { buttonsOpen.value = true } }],
 ])
 // The swimlane select shows the chosen grouping's icon; the generic rows icon when none.

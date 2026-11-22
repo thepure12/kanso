@@ -73,6 +73,11 @@ export const MAX_BUTTON_STEPS = 10
 
 export const buttonName = z.string().trim().min(1).max(50)
 
+export const BUTTON_TOOLTIP_MAX = 200
+
+/** Optional hover text; blank becomes null (check `board_buttons_tooltip_length`). */
+export const buttonTooltip = z.string().trim().max(BUTTON_TOOLTIP_MAX).nullable().transform(v => v || null)
+
 /**
  * Card buttons: the columns whose cards offer the button; null = every column,
  * empty = none (the button is then offered only on the cards it was added to).
@@ -83,6 +88,7 @@ const appearance = {
   name: buttonName,
   icon: z.enum(buttonIcons).nullable().default(null),
   color: buttonColorSchema.default('accent'),
+  tooltip: buttonTooltip.default(null),
 }
 
 /** Body of POST /api/boards/:id/buttons. */
@@ -102,6 +108,8 @@ export interface BoardButton {
   name: string
   icon: string | null
   color: ButtonColor
+  /** Text shown when hovering the button; null = none. */
+  tooltip: string | null
   /** Shared on the board; false = only the current user sees it. */
   shared: boolean
   /**

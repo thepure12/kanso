@@ -280,20 +280,20 @@ const dueAriaLabel = computed(() => {
       </UAvatarGroup>
     </div>
     <div v-if="showButtons" class="flex flex-wrap gap-1 mt-2" :class="buttonAlignClass(props.buttonAlign)" role="group" :aria-label="t('buttons.cardButtons')">
-      <UButton
-        v-for="b in shownButtons"
-        :key="b.id"
-        :icon="b.icon ?? 'i-lucide-zap'"
-        :label="b.name"
-        color="neutral"
-        variant="soft"
-        size="xs"
-        class="max-w-full"
-        :class="buttonColorClass"
-        :style="buttonColorStyle(b.color)"
-        :ui="{ label: 'truncate' }"
-        @click.stop="emit('runButton', b)"
-      />
+      <UTooltip v-for="b in shownButtons" :key="b.id" :text="b.tooltip ?? undefined" :disabled="!b.tooltip">
+        <UButton
+          :icon="b.icon ?? 'i-lucide-zap'"
+          :label="b.name"
+          color="neutral"
+          variant="soft"
+          size="xs"
+          class="max-w-full"
+          :class="buttonColorClass"
+          :style="buttonColorStyle(b.color)"
+          :ui="{ label: 'truncate' }"
+          @click.stop="emit('runButton', b)"
+        />
+      </UTooltip>
     </div>
   </UCard>
 </template>

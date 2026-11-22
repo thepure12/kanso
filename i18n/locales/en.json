@@ -1782,6 +1782,8 @@
     }
   },
   "buttons": {
+    "tooltip": "Tooltip",
+    "tooltipHint": "Optional. Shown when hovering the button.",
     "title": "Buttons",
     "description": "Buttons run a list of steps with one click, on a card or on the board. They run as you, so they can only do what you may do.",
     "manage": "Manage buttons…",

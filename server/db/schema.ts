@@ -380,6 +380,8 @@ export const boardButtons = pgTable('board_buttons', {
   name: text('name').notNull(),
   icon: text('icon'),
   color: text('color').$type<ButtonColor>().notNull().default('accent'),
+  // Optional text shown when hovering the button; null = none.
+  tooltip: text('tooltip'),
   steps: jsonb('steps').$type<ButtonStep[]>().notNull(),
   // Card buttons only: the columns whose cards offer the button; null = every
   // column, empty = none (then only the cards in board_button_cards).
@@ -393,6 +395,7 @@ export const boardButtons = pgTable('board_buttons', {
   check('board_buttons_scope', sql`${t.scope} in ('card', 'board')`),
   check('board_buttons_color_shape', sql`${t.color} = 'accent' or ${t.color} ~ '^#[0-9a-f]{6}$'`),
   check('board_buttons_name_length', sql`char_length(${t.name}) between 1 and 50`),
+  check('board_buttons_tooltip_length', sql`${t.tooltip} is null or char_length(${t.tooltip}) between 1 and 200`),
   check('board_buttons_columns', sql`${t.columnIds} is null or (${t.scope} = 'card' and cardinality(${t.columnIds}) <= 100)`),
   check('board_buttons_steps_shape', sql`jsonb_typeof(${t.steps}) = 'array' and jsonb_array_length(${t.steps}) between 1 and 10 and pg_column_size(${t.steps}) < 16384`),
 ])

@@ -128,6 +128,17 @@ describe('board buttons', () => {
     for (const bad of ['primary', '#22C55E', '#fff', 'red']) await rejectsWith(setColor(bad), '23514')
   })
 
+  it('tooltip is optional, 1-200 characters, editable like the name', async () => {
+    const id = await newButton(owner, { shared: true })
+    const setTooltip = (u: { id: string }, tooltip: string | null) => as(u.id, sql => sql`update board_buttons set tooltip = ${tooltip} where id = ${id}`.then(r => r.count))
+    expect(await setTooltip(editor, 'Hover text')).toBe(1)
+    expect((await as(viewer.id, sql => sql`select tooltip from board_buttons where id = ${id}`))[0]!.tooltip).toBe('Hover text')
+    expect(await setTooltip(viewer, 'Mine')).toBe(0)
+    await rejectsWith(setTooltip(owner, ''), '23514')
+    await rejectsWith(setTooltip(owner, 'x'.repeat(201)), '23514')
+    expect(await setTooltip(owner, null)).toBe(1)
+  })
+
   it('archived boards block shared buttons but keep personal ones', async () => {
     const shared = await newButton(owner, { shared: true })
     await as(owner.id, sql => sql`select app.set_board_archived(${boardId}, true)`)
@@ -146,16 +157,18 @@ describe('board buttons', () => {
     const [col] = await as(owner.id, sql => sql`insert into columns (board_id, title, position) values (${boardId}, 'Done', 99999) returning id`)
     const [tag] = await as(owner.id, sql => sql`insert into tags (board_id, name, color) values (${boardId}, ${`t-${randomUUID().slice(0, 6)}`}, '#ff0000') returning id`)
     const name = `Copied ${randomUUID().slice(0, 8)}`
-    await newButton(owner, { shared: true, name, steps: [{ kind: 'move', columnId: col!.id }, { kind: 'addTag', tagId: tag!.id }, { kind: 'assign', userId: editor.id }] })
+    const copied = await newButton(owner, { shared: true, name, steps: [{ kind: 'move', columnId: col!.id }, { kind: 'addTag', tagId: tag!.id }, { kind: 'assign', userId: editor.id }] })
+    await as(owner.id, sql => sql`update board_buttons set tooltip = 'Ships it' where id = ${copied}`)
     await newButton(owner, { name: `${name} mine` })
     const copy = await as(owner.id, async (sql) => {
       const [b] = await sql`select (app.copy_board(${boardId}, 'Copy', null, false)).id`
       return b!.id as string
     })
     boards.push(copy)
-    const rows = await owner_`select name, user_id, steps from board_buttons where board_id = ${copy} and name like ${`${name}%`}`
+    const rows = await owner_`select name, user_id, tooltip, steps from board_buttons where board_id = ${copy} and name like ${`${name}%`}`
     expect(rows).toHaveLength(1)
     expect(rows[0]!.user_id).toBeNull()
+    expect(rows[0]!.tooltip).toBe('Ships it')
     const [newCol] = await owner_`select id from columns where board_id = ${copy} and title = 'Done'`
     const [newTag] = await owner_`select t.id from tags t join tags o on o.name = t.name where t.board_id = ${copy} and o.id = ${tag!.id}`
     expect(rows[0]!.steps).toEqual([{ kind: 'move', columnId: newCol!.id }, { kind: 'addTag', tagId: newTag!.id }, { kind: 'assign', userId: editor.id }])

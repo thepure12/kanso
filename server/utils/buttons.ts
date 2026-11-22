@@ -4,7 +4,7 @@ import { buttonShownOn, type BoardButton, type BoardButtonStep, type ButtonStep,
 const { boardButtons: bb, boardButtonCards: bbc } = schema
 
 const buttonFields = {
-  id: bb.id, scope: bb.scope, name: bb.name, icon: bb.icon, color: bb.color,
+  id: bb.id, scope: bb.scope, name: bb.name, icon: bb.icon, color: bb.color, tooltip: bb.tooltip,
   shared: sql<boolean>`${bb.userId} is null`, columnIds: bb.columnIds,
   // Cards it was added to that the user sees (RLS on board_button_cards and cards).
   cardIds: sql<string[]>`coalesce((select array_agg(${bbc.cardId} order by ${bbc.cardId}) from ${bbc} where ${bbc.buttonId} = ${bb.id}), '{}')`,

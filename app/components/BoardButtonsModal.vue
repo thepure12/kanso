@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { buttonAligns, buttonIcons, buttonSortKeys, MAX_BUTTON_STEPS, type BoardButton, type ButtonAlign, type ButtonColor, type ButtonScope, type ButtonStep, type ButtonStepKind } from '#shared/buttons'
+import { BUTTON_TOOLTIP_MAX, buttonAligns, buttonIcons, buttonSortKeys, MAX_BUTTON_STEPS, type BoardButton, type ButtonAlign, type ButtonColor, type ButtonScope, type ButtonStep, type ButtonStepKind } from '#shared/buttons'
 import { priorities, type Column, type Member, type Tag } from '#shared/types/board'
 
 const props = defineProps<{
@@ -10,7 +10,7 @@ const props = defineProps<{
   /** May make and change shared buttons (editors). Personal ones are always the user's. */
   canEdit: boolean
   create: (input: Omit<BoardButton, 'id' | 'cardIds'>) => Promise<BoardButton>
-  update: (button: BoardButton, patch: Partial<Pick<BoardButton, 'name' | 'icon' | 'color' | 'columnIds' | 'steps'>>) => Promise<BoardButton>
+  update: (button: BoardButton, patch: Partial<Pick<BoardButton, 'name' | 'icon' | 'color' | 'tooltip' | 'columnIds' | 'steps'>>) => Promise<BoardButton>
   remove: (button: BoardButton) => unknown
   /** Where card buttons sit in their row on cards (board setting); null = left. */
   align?: ButtonAlign | null
@@ -41,6 +41,8 @@ interface Draft {
   name: string
   icon: string | null
   color: ButtonColor
+  /** Hover text; blank = none. */
+  tooltip: string
   shared: boolean
   /** Card buttons: null = every column. New ones start with none picked, so the user chooses. */
   columnIds: string[] | null
@@ -56,12 +58,12 @@ watch(open, (v) => {
 
 function startNew(scope: ButtonScope) {
   nameError.value = ''
-  draft.value = { id: null, scope, name: '', icon: null, color: 'accent', shared: props.canEdit, columnIds: scope === 'card' ? [] : null, steps: [blankStep(scope === 'card' ? 'move' : 'archiveColumn')] }
+  draft.value = { id: null, scope, name: '', icon: null, color: 'accent', tooltip: '', shared: props.canEdit, columnIds: scope === 'card' ? [] : null, steps: [blankStep(scope === 'card' ? 'move' : 'archiveColumn')] }
 }
 
 function startEdit(b: BoardButton) {
   nameError.value = ''
-  draft.value = { id: b.id, scope: b.scope, name: b.name, icon: b.icon, color: b.color, shared: b.shared, columnIds: b.columnIds ? [...b.columnIds] : null, steps: structuredClone(toRaw(b.steps)) }
+  draft.value = { id: b.id, scope: b.scope, name: b.name, icon: b.icon, color: b.color, tooltip: b.tooltip ?? '', shared: b.shared, columnIds: b.columnIds ? [...b.columnIds] : null, steps: structuredClone(toRaw(b.steps)) }
 }
 
 const kindItems = computed(() => draft.value
@@ -100,13 +102,14 @@ async function save() {
   saving.value = true
   nameError.value = ''
   const steps = d.steps.map(cleanStep)
+  const tooltip = d.tooltip.trim() || null
   try {
     if (d.id) {
       const button = props.buttons.find(b => b.id === d.id)
-      if (button) await props.update(button, { name: d.name.trim(), icon: d.icon, color: d.color, ...(d.scope === 'card' && { columnIds: d.columnIds }), steps })
+      if (button) await props.update(button, { name: d.name.trim(), icon: d.icon, color: d.color, tooltip, ...(d.scope === 'card' && { columnIds: d.columnIds }), steps })
     }
     else {
-      await props.create({ scope: d.scope, name: d.name.trim(), icon: d.icon, color: d.color, shared: d.shared && props.canEdit, columnIds: d.scope === 'card' ? d.columnIds : null, steps })
+      await props.create({ scope: d.scope, name: d.name.trim(), icon: d.icon, color: d.color, tooltip, shared: d.shared && props.canEdit, columnIds: d.scope === 'card' ? d.columnIds : null, steps })
     }
     draft.value = null
   }
@@ -169,6 +172,10 @@ const checklistText = (step: { items: string[] }) => step.items.join('\n')
                   <UIcon :name="b.shared ? 'i-lucide-users' : 'i-lucide-lock'" class="size-3.5" />
                   {{ b.shared ? t('buttons.sharedHint') : t('buttons.personalHint') }}
                 </div>
+                <div v-if="b.tooltip" class="flex items-center gap-1 min-w-0">
+                  <UIcon name="i-lucide-message-square-text" class="size-3.5 shrink-0" />
+                  <span class="truncate" :title="b.tooltip">{{ b.tooltip }}</span>
+                </div>
                 <div v-if="columnsText(b)" class="flex items-center gap-1">
                   <UIcon name="i-lucide-columns-3" class="size-3.5" />
                   {{ columnsText(b) }}
@@ -219,9 +226,14 @@ const checklistText = (step: { items: string[] }) => step.items.join('\n')
             <ButtonColorField v-model="draft.color" />
           </UFormField>
         </div>
+        <UFormField :label="t('buttons.tooltip')" :help="t('buttons.tooltipHint')">
+          <UInput v-model="draft.tooltip" :maxlength="BUTTON_TOOLTIP_MAX" class="w-full" />
+        </UFormField>
         <div class="flex items-center gap-2">
           <span class="text-sm text-muted">{{ t('buttons.preview') }}</span>
-          <UButton size="sm" color="neutral" variant="soft" :class="buttonColorClass" :style="buttonColorStyle(draft.color)" :icon="draft.icon ?? undefined" :label="draft.name.trim() || t('buttons.name')" tabindex="-1" />
+          <UTooltip :text="draft.tooltip.trim() || undefined" :disabled="!draft.tooltip.trim()">
+            <UButton size="sm" color="neutral" variant="soft" :class="buttonColorClass" :style="buttonColorStyle(draft.color)" :icon="draft.icon ?? undefined" :label="draft.name.trim() || t('buttons.name')" tabindex="-1" />
+          </UTooltip>
         </div>
         <USwitch
           v-if="!draft.id"
