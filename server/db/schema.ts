@@ -26,7 +26,7 @@ const createdAt = () => timestamp('created_at', { withTimezone: true }).notNull(
 
 export const boardRole = pgEnum('board_role', ['owner', 'editor', 'commenter', 'viewer'])
 
-export const columnRuleKind = pgEnum('column_rule_kind', ['apply_tag', 'assign_to', 'remove_tag', 'set_due', 'assign_mover'])
+export const columnRuleKind = pgEnum('column_rule_kind', ['apply_tag', 'assign_to', 'remove_tag', 'set_due', 'assign_mover', 'add_button', 'remove_button'])
 
 export const signupMode = pgEnum('signup_mode', ['open', 'restricted'])
 
@@ -494,6 +494,8 @@ export const cardTags = pgTable('card_tags', {
 // assign_to: adds user_id to the card's assignees.
 // assign_mover: adds the person who created or moved the card (app.user_id) to its assignees.
 // set_due: sets the card's due date to today + due_days.
+// add_button / remove_button: adds the shared card button button_id to the card
+// (board_button_cards) or removes it from the card. See 0126_column_rule_buttons_rls.sql.
 // The check compares kind::text so a migration that adds a kind can use it in the same transaction.
 export const columnRules = pgTable('column_rules', {
   id: uuid('id').primaryKey().defaultRandom(),
@@ -503,22 +505,27 @@ export const columnRules = pgTable('column_rules', {
   tagId: uuid('tag_id'),
   userId: uuid('user_id').references(() => users.id, { onDelete: 'cascade' }),
   dueDays: integer('due_days'),
+  buttonId: uuid('button_id'),
   createdAt: createdAt(),
 }, t => [
   unique('column_rules_column_kind_tag_unique').on(t.columnId, t.kind, t.tagId),
   unique('column_rules_column_kind_user_unique').on(t.columnId, t.kind, t.userId),
+  unique('column_rules_column_kind_button_unique').on(t.columnId, t.kind, t.buttonId),
   foreignKey({ columns: [t.columnId, t.boardId], foreignColumns: [columns.id, columns.boardId], name: 'column_rules_column_board_fk' }).onDelete('cascade'),
   foreignKey({ columns: [t.tagId, t.boardId], foreignColumns: [tags.id, tags.boardId], name: 'column_rules_tag_board_fk' }).onDelete('cascade'),
+  foreignKey({ columns: [t.buttonId, t.boardId], foreignColumns: [boardButtons.id, boardButtons.boardId], name: 'column_rules_button_board_fk' }).onDelete('cascade'),
   // At most one set_due rule per column (due_days is set only on set_due rules, check below).
   uniqueIndex('column_rules_one_due_per_column').on(t.columnId).where(sql`${t.dueDays} is not null`),
-  // At most one assign_mover rule per column (the only kind with no tag, user or days).
-  uniqueIndex('column_rules_one_mover_per_column').on(t.columnId).where(sql`${t.tagId} is null and ${t.userId} is null and ${t.dueDays} is null`),
+  // At most one assign_mover rule per column (the only kind with no tag, user, days or button).
+  uniqueIndex('column_rules_one_mover_per_column').on(t.columnId).where(sql`${t.tagId} is null and ${t.userId} is null and ${t.dueDays} is null and ${t.buttonId} is null`),
   check('column_rules_kind_fields', sql`case ${t.kind}::text
-    when 'apply_tag' then ${t.tagId} is not null and ${t.userId} is null and ${t.dueDays} is null
-    when 'remove_tag' then ${t.tagId} is not null and ${t.userId} is null and ${t.dueDays} is null
-    when 'assign_to' then ${t.userId} is not null and ${t.tagId} is null and ${t.dueDays} is null
-    when 'set_due' then ${t.dueDays} between 0 and 365 and ${t.tagId} is null and ${t.userId} is null
-    when 'assign_mover' then ${t.tagId} is null and ${t.userId} is null and ${t.dueDays} is null
+    when 'apply_tag' then ${t.tagId} is not null and ${t.userId} is null and ${t.dueDays} is null and ${t.buttonId} is null
+    when 'remove_tag' then ${t.tagId} is not null and ${t.userId} is null and ${t.dueDays} is null and ${t.buttonId} is null
+    when 'assign_to' then ${t.userId} is not null and ${t.tagId} is null and ${t.dueDays} is null and ${t.buttonId} is null
+    when 'set_due' then ${t.dueDays} between 0 and 365 and ${t.tagId} is null and ${t.userId} is null and ${t.buttonId} is null
+    when 'assign_mover' then ${t.tagId} is null and ${t.userId} is null and ${t.dueDays} is null and ${t.buttonId} is null
+    when 'add_button' then ${t.buttonId} is not null and ${t.tagId} is null and ${t.userId} is null and ${t.dueDays} is null
+    when 'remove_button' then ${t.buttonId} is not null and ${t.tagId} is null and ${t.userId} is null and ${t.dueDays} is null
     else false
   end`),
 ])

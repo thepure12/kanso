@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { boardStepKinds, buttonColorSchema, buttonShownIn, cardStepKinds, createButtonSchema, type ButtonStep } from '../../shared/buttons'
-import { blankStep, buttonCssColor, cleanStep, describeStep, stepComplete, stepKindsFor } from '../../app/utils/buttons'
+import { applyButtonRules, blankStep, buttonCssColor, cleanStep, describeStep, stepComplete, stepKindsFor } from '../../app/utils/buttons'
 import { serverI18n } from '../../server/utils/i18n'
 
 const { t } = serverI18n('en')
@@ -85,5 +85,22 @@ describe('button columns', () => {
     expect(createButtonSchema.parse(base).columnIds).toBeNull()
     expect(createButtonSchema.parse({ ...base, columnIds: [] }).columnIds).toEqual([])
     expect(createButtonSchema.safeParse({ ...base, columnIds: ['00000000-0000-4000-8000-000000000001'] }).success).toBe(true)
+  })
+})
+
+describe('applyButtonRules', () => {
+  const b = (id: string, cardIds: string[]) => ({ id, scope: 'card' as const, name: id, icon: null, color: 'accent' as const, shared: true, columnIds: null, cardIds, steps: [] })
+  it('adds and removes the card per the column\'s button rules', () => {
+    const buttons = [b('b1', []), b('b2', ['k1']), b('b3', ['k2'])]
+    const out = applyButtonRules(buttons, [
+      { id: 'r1', kind: 'add_button', buttonId: 'b1' },
+      { id: 'r2', kind: 'remove_button', buttonId: 'b2' },
+    ], 'k1')
+    expect(out.map(x => x.cardIds)).toEqual([['k1'], [], ['k2']])
+    expect(out[2]).toBe(buttons[2])
+  })
+  it('returns the same array without button rules', () => {
+    const buttons = [b('b1', [])]
+    expect(applyButtonRules(buttons, [{ id: 'r', kind: 'set_due', dueDays: 1 }], 'k1')).toBe(buttons)
   })
 })

@@ -127,7 +127,8 @@ export default defineUserHandler(async (event, tx) => {
       color: c.color,
       wipLimit: c.wipLimit,
       ...(c.outline ? { outline: c.outline } : {}),
-      rules: rules.filter(r => r.columnId === c.id).map(({ columnId: _, ...r }) => {
+      // Buttons are not exported, so neither are the rules that add or remove them.
+      rules: rules.filter(r => r.columnId === c.id && r.buttonId === null).map(({ columnId: _, ...r }) => {
         const { id: _id, ...rule } = toColumnRule(r)
         return 'tagId' in rule ? { kind: rule.kind, tag: tagName.get(rule.tagId) }
           : 'userId' in rule ? { kind: rule.kind, user: person.get(rule.userId)?.email ?? null }

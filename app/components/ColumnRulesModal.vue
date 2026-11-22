@@ -11,7 +11,9 @@ const props = withDefaults(defineProps<{
   buttons?: BoardButton[]
   /** Ids of every column of the board, for a button that is shown everywhere until now. */
   columnIds?: string[]
-}>(), { buttons: () => [], columnIds: () => [] })
+  /** Shared card buttons, which add_button / remove_button rules can name. */
+  ruleButtons?: BoardButton[]
+}>(), { buttons: () => [], columnIds: () => [], ruleButtons: () => [] })
 const emit = defineEmits<{
   add: [rule: NewColumnRule, applyToExisting: boolean]
   delete: [rule: ColumnRule]
@@ -23,10 +25,16 @@ const { t } = useI18n()
 
 const tagById = computed(() => new Map(props.tags.map(t => [t.id, t])))
 const memberById = computed(() => new Map(props.members.map(m => [m.userId, m])))
+const buttonById = computed(() => new Map(props.ruleButtons.map(b => [b.id, b])))
 
 type TagKind = 'apply_tag' | 'remove_tag'
 // Tags without a rule of that kind yet.
 const tagsFor = (kind: TagKind) => props.tags.filter(t => !props.column.rules.some(r => r.kind === kind && r.tagId === t.id))
+type ButtonKind = 'add_button' | 'remove_button'
+// Shared card buttons without a rule of that kind yet.
+const buttonsFor = (kind: ButtonKind) => props.ruleButtons
+  .filter(b => !props.column.rules.some(r => r.kind === kind && r.buttonId === b.id))
+  .map(b => ({ label: b.name, value: b.id, icon: b.icon ?? undefined }))
 // People not yet assigned by a rule.
 const memberItems = computed(() => props.members
   .filter(m => !props.column.rules.some(r => r.kind === 'assign_to' && r.userId === m.userId))
@@ -42,11 +50,22 @@ const assignItems = computed(() => [
 // A column sets the due date at most once.
 const hasDueRule = computed(() => props.column.rules.some(r => r.kind === 'set_due'))
 
-const draft = reactive({ applyTag: undefined as string | undefined, removeTag: undefined as string | undefined, userId: undefined as string | undefined, dueDays: 3 })
+const draft = reactive({
+  applyTag: undefined as string | undefined,
+  removeTag: undefined as string | undefined,
+  addButton: undefined as string | undefined,
+  removeButton: undefined as string | undefined,
+  userId: undefined as string | undefined,
+  dueDays: 3,
+})
+const resetDraft = () => Object.assign(draft, { applyTag: undefined, removeTag: undefined, addButton: undefined, removeButton: undefined, userId: undefined })
 // A tag or assignee rule waiting for the answer to "change the cards already here too?".
 const pending = ref<{ rule: NewColumnRule, count: number } | null>(null)
 watch(open, (isOpen) => {
-  if (isOpen) Object.assign(draft, { applyTag: undefined, removeTag: undefined, userId: undefined, dueDays: 3 })
+  if (isOpen) {
+    resetDraft()
+    draft.dueDays = 3
+  }
   pending.value = null
 })
 
@@ -56,6 +75,14 @@ function affectedCount(rule: NewColumnRule) {
     case 'apply_tag': return props.cards.filter(c => !c.tagIds.includes(rule.tagId)).length
     case 'remove_tag': return props.cards.filter(c => c.tagIds.includes(rule.tagId)).length
     case 'assign_to': return props.cards.filter(c => !c.assigneeIds.includes(rule.userId)).length
+    case 'add_button': {
+      const ids = buttonById.value.get(rule.buttonId)?.cardIds ?? []
+      return props.cards.filter(c => !ids.includes(c.id)).length
+    }
+    case 'remove_button': {
+      const ids = buttonById.value.get(rule.buttonId)?.cardIds ?? []
+      return props.cards.filter(c => ids.includes(c.id)).length
+    }
     default: return 0
   }
 }
@@ -69,7 +96,7 @@ function add(rule: NewColumnRule) {
 function submit(rule: NewColumnRule, applyToExisting: boolean) {
   pending.value = null
   emit('add', rule, applyToExisting)
-  Object.assign(draft, { applyTag: undefined, removeTag: undefined, userId: undefined })
+  resetDraft()
 }
 
 const shownHere = (b: BoardButton) => buttonShownIn(b, props.column.id)
@@ -82,6 +109,11 @@ function toggleButton(b: BoardButton, show: boolean) {
   const all = props.columnIds.length > 0 && props.columnIds.every(id => next.includes(id))
   emit('buttonColumns', b, all ? null : next)
 }
+
+const buttonRules = computed<{ kind: ButtonKind, label: string, key: 'addButton' | 'removeButton' }[]>(() => [
+  { kind: 'add_button', label: t('rules.addButton'), key: 'addButton' },
+  { kind: 'remove_button', label: t('rules.removeButton'), key: 'removeButton' },
+])
 
 const tagRules = computed<{ kind: TagKind, label: string, key: 'applyTag' | 'removeTag' }[]>(() => [
   { kind: 'apply_tag', label: t('rules.applyTag'), key: 'applyTag' },
@@ -118,6 +150,20 @@ const tagRules = computed<{ kind: TagKind, label: string, key: 'applyTag' | 'rem
               <span>{{ memberById.get(rule.userId)!.name }}</span>
             </template>
             <span v-else class="text-muted">{{ t('rules.formerMember') }}</span>
+          </template>
+          <template v-else-if="rule.kind === 'add_button' || rule.kind === 'remove_button'">
+            <UIcon :name="rule.kind === 'add_button' ? 'i-lucide-square-plus' : 'i-lucide-square-minus'" class="size-4 text-dimmed shrink-0" />
+            <span>{{ rule.kind === 'add_button' ? t('rules.addButton') : t('rules.removeButton') }}</span>
+            <UBadge
+              v-if="buttonById.get(rule.buttonId)"
+              color="neutral"
+              variant="soft"
+              :class="buttonColorClass"
+              :style="buttonColorStyle(buttonById.get(rule.buttonId)!.color)"
+              :icon="buttonById.get(rule.buttonId)!.icon ?? undefined"
+              :label="buttonById.get(rule.buttonId)!.name"
+              class="max-w-60 truncate"
+            />
           </template>
           <template v-else-if="rule.kind === 'assign_mover'">
             <UIcon name="i-lucide-user-check" class="size-4 text-dimmed shrink-0" />
@@ -189,6 +235,29 @@ const tagRules = computed<{ kind: TagKind, label: string, key: 'applyTag' | 'rem
             />
             <UButton type="submit" icon="i-lucide-plus" :label="t('common.add')" :disabled="!draft.userId" />
           </form>
+
+          <template v-if="props.ruleButtons.length">
+            <form
+              v-for="r in buttonRules"
+              :key="r.kind"
+              class="flex items-center gap-2"
+              @submit.prevent="draft[r.key] && add({ kind: r.kind, buttonId: draft[r.key]! })"
+            >
+              <span class="text-sm shrink-0 w-24">{{ r.label }}</span>
+              <USelectMenu
+                v-model="draft[r.key]"
+                :items="buttonsFor(r.kind)"
+                value-key="value"
+                :placeholder="t('rules.chooseButton')"
+                class="flex-1"
+              >
+                <template #empty>
+                  {{ t('rules.everyButton') }}
+                </template>
+              </USelectMenu>
+              <UButton type="submit" icon="i-lucide-plus" :label="t('common.add')" :disabled="!draft[r.key]" />
+            </form>
+          </template>
 
           <form class="flex items-center gap-2" @submit.prevent="add({ kind: 'set_due', dueDays: draft.dueDays })">
             <span class="text-sm shrink-0 w-24">{{ t('rules.dueInDays') }}</span>

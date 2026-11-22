@@ -6,9 +6,10 @@ export const columnRuleFields = {
   tagId: schema.columnRules.tagId,
   userId: schema.columnRules.userId,
   dueDays: schema.columnRules.dueDays,
+  buttonId: schema.columnRules.buttonId,
 }
 
-type RuleRow = { id: string, kind: ColumnRule['kind'], tagId: string | null, userId: string | null, dueDays: number | null }
+type RuleRow = { id: string, kind: ColumnRule['kind'], tagId: string | null, userId: string | null, dueDays: number | null, buttonId: string | null }
 
 /** Drops the columns that do not belong to the rule's kind. */
 export function toColumnRule(r: RuleRow): ColumnRule {
@@ -22,5 +23,8 @@ export function toColumnRule(r: RuleRow): ColumnRule {
       return { id: r.id, kind: r.kind }
     case 'set_due':
       return { id: r.id, kind: r.kind, dueDays: r.dueDays! }
+    case 'add_button':
+    case 'remove_button':
+      return { id: r.id, kind: r.kind, buttonId: r.buttonId! }
   }
 }

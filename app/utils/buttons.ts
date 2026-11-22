@@ -1,5 +1,6 @@
 // Helpers for board buttons (BoardButtonsModal, CardButtons, the board toolbar).
-import type { BoardButtonStep, ButtonColor, ButtonScope, ButtonStep, ButtonStepKind, CardButtonStep } from '#shared/buttons'
+import type { ColumnRule } from '#shared/types/board'
+import type { BoardButton, BoardButtonStep, ButtonColor, ButtonScope, ButtonStep, ButtonStepKind, CardButtonStep } from '#shared/buttons'
 import { boardStepKinds, cardStepKinds } from '#shared/buttons'
 
 export const stepKindsFor = (scope: ButtonScope): readonly ButtonStepKind[] => scope === 'card' ? cardStepKinds : boardStepKinds
@@ -84,3 +85,19 @@ export const buttonCssColor = (color: ButtonColor) => color === 'accent' ? 'var(
  */
 export const buttonColorStyle = (color: ButtonColor) => ({ '--btn': buttonCssColor(color) })
 export const buttonColorClass = 'bg-[color-mix(in_oklab,var(--btn)_15%,transparent)] hover:bg-[color-mix(in_oklab,var(--btn)_24%,transparent)] text-[color-mix(in_oklab,var(--btn)_70%,var(--ui-text-highlighted))]'
+
+/**
+ * Buttons after a card entered a column with these rules: add_button adds the
+ * card to the button's cards, remove_button drops it (as the server's trigger
+ * does). Returns the same array when no button rule applies.
+ */
+export function applyButtonRules(buttons: BoardButton[], rules: ColumnRule[], cardId: string): BoardButton[] {
+  const add = new Set(rules.flatMap(r => r.kind === 'add_button' ? [r.buttonId] : []))
+  const remove = new Set(rules.flatMap(r => r.kind === 'remove_button' ? [r.buttonId] : []))
+  if (!add.size && !remove.size) return buttons
+  return buttons.map((b) => {
+    if (add.has(b.id) && !b.cardIds.includes(cardId)) return { ...b, cardIds: [...b.cardIds, cardId] }
+    if (remove.has(b.id) && b.cardIds.includes(cardId)) return { ...b, cardIds: b.cardIds.filter(id => id !== cardId) }
+    return b
+  })
+}

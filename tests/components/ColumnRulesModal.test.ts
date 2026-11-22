@@ -38,3 +38,23 @@ describe('ColumnRulesModal card buttons', () => {
     w.unmount()
   })
 })
+
+describe('ColumnRulesModal button rules', () => {
+  it('lists add_button / remove_button rules with the button name', async () => {
+    const withRules = { ...column, rules: [
+      { id: 'r1', kind: 'add_button' as const, buttonId: 'b1' },
+      { id: 'r2', kind: 'remove_button' as const, buttonId: 'b3' },
+    ] }
+    const w = await mountSuspended(ColumnRulesModal, {
+      attachTo: document.body,
+      props: { open: true, column: withRules, tags: [], members: [], cards: [], ruleButtons: buttons },
+    })
+    await flushPromises()
+    const text = document.body.textContent ?? ''
+    expect(text).toContain('Add button')
+    expect(text).toContain('Everywhere')
+    expect(text).toContain('Remove button')
+    expect(text).toContain('Only here')
+    w.unmount()
+  })
+})

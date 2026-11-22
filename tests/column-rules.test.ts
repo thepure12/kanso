@@ -229,3 +229,67 @@ describe('remove_tag and set_due rules', () => {
     expect(await dueOf(id)).toBe(d)
   })
 })
+
+describe('add_button and remove_button rules', () => {
+  let laneId: string
+  let sharedId: string
+  let personalId: string
+  let boardScopeId: string
+  let copyId: string | undefined
+  const newButton = (by: string, shared: boolean, scope = 'card') =>
+    as(by, async sql => (await sql`
+      insert into board_buttons (board_id, user_id, created_by, scope, name, steps)
+      values (${boardId}, ${shared ? null : by}, ${by}, ${scope}, ${`Button ${randomUUID().slice(0, 8)}`}, ${sql.json([{ kind: 'archive' }])})
+      returning id`)[0]!.id as string)
+  const buttonsOf = (cardId: string) =>
+    as(owner.id, async sql => (await sql`select button_id from board_button_cards where card_id = ${cardId}`).map(r => r.button_id as string))
+
+  beforeAll(async () => {
+    laneId = await as(owner.id, async sql => (await sql`insert into columns (board_id, title, position) values (${boardId}, 'Lane', 6) returning id`)[0]!.id as string)
+    sharedId = await newButton(owner.id, true)
+    personalId = await newButton(editor.id, false)
+    boardScopeId = await newButton(owner.id, true, 'board')
+  })
+
+  afterAll(async () => {
+    if (copyId) await as(owner.id, sql => sql`delete from boards where id = ${copyId!}`)
+  })
+
+  it('needs a button and only a shared card button', async () => {
+    await rejectsWith(as(owner.id, sql => sql`insert into column_rules (board_id, column_id, kind) values (${boardId}, ${laneId}, 'add_button')`), '23514')
+    await rejectsWith(as(owner.id, sql => sql`insert into column_rules (board_id, column_id, kind, button_id, tag_id) values (${boardId}, ${laneId}, 'add_button', ${sharedId}, ${doneTagId})`), '23514')
+    await rejectsWith(as(editor.id, sql => sql`insert into column_rules (board_id, column_id, kind, button_id) values (${boardId}, ${laneId}, 'add_button', ${personalId})`), '42501')
+    await rejectsWith(as(owner.id, sql => sql`insert into column_rules (board_id, column_id, kind, button_id) values (${boardId}, ${laneId}, 'add_button', ${boardScopeId})`), '42501')
+    await rejectsWith(as(viewer.id, sql => sql`insert into column_rules (board_id, column_id, kind, button_id) values (${boardId}, ${laneId}, 'add_button', ${sharedId})`), '42501')
+    await as(editor.id, sql => sql`insert into column_rules (board_id, column_id, kind, button_id) values (${boardId}, ${laneId}, 'add_button', ${sharedId})`)
+    await rejectsWith(as(editor.id, sql => sql`insert into column_rules (board_id, column_id, kind, button_id) values (${boardId}, ${laneId}, 'add_button', ${sharedId})`), '23505')
+    await as(editor.id, sql => sql`insert into column_rules (board_id, column_id, kind, button_id) values (${boardId}, ${doneId}, 'remove_button', ${sharedId})`)
+  })
+
+  it('adds the button on create and move in, removes it on move into a remove_button column', async () => {
+    const created = await as(editor.id, async sql => (await sql`insert into cards (board_id, column_id, title, position, created_by) values (${boardId}, ${laneId}, 'New', 1, ${editor.id}) returning id`)[0]!.id as string)
+    expect(await buttonsOf(created)).toEqual([sharedId])
+    const moved = await as(editor.id, async sql => (await sql`insert into cards (board_id, column_id, title, position, created_by) values (${boardId}, ${todoId}, 'Moved', 9, ${editor.id}) returning id`)[0]!.id as string)
+    expect(await buttonsOf(moved)).toEqual([])
+    await as(editor.id, sql => sql`update cards set column_id = ${laneId} where id = ${moved}`)
+    expect(await buttonsOf(moved)).toEqual([sharedId])
+    await as(editor.id, sql => sql`update cards set column_id = ${doneId} where id = ${moved}`)
+    expect(await buttonsOf(moved)).toEqual([])
+  })
+
+  it('copy_board copies button rules pointing at the copied buttons', async () => {
+    copyId = await as(owner.id, async sql => (await sql`select id from app.copy_board(${boardId}, 'Copy', null, false)`)[0]!.id as string)
+    const rows = await as(owner.id, sql => sql`
+      select r.kind::text as kind, b.board_id, b.name
+      from column_rules r join board_buttons b on b.id = r.button_id
+      where r.board_id = ${copyId!} order by r.kind::text`)
+    expect(rows.map(r => r.kind)).toEqual(['add_button', 'remove_button'])
+    expect(rows.every(r => r.board_id === copyId)).toBe(true)
+  })
+
+  it('deleting the button deletes its rules', async () => {
+    await as(owner.id, sql => sql`delete from board_buttons where id = ${sharedId}`)
+    const left = await as(owner.id, sql => sql`select 1 from column_rules where button_id = ${sharedId}`)
+    expect(left).toHaveLength(0)
+  })
+})

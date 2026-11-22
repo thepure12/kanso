@@ -103,11 +103,15 @@ export type NewColumnRule =
   | { kind: 'assign_mover' }
   /** Sets the due date to today + dueDays (0-365). At most one per column. */
   | { kind: 'set_due', dueDays: number }
+  /** Adds the shared card button buttonId to the card (as if added to it by hand). */
+  | { kind: 'add_button', buttonId: string }
+  /** Removes the shared card button buttonId from the card (its columns may still offer it). */
+  | { kind: 'remove_button', buttonId: string }
 
 export type ColumnRule = NewColumnRule & { id: string }
 
 /**
- * POST /api/columns/:id/rules body. A new tag or assignee rule also changes the
+ * POST /api/columns/:id/rules body. A new tag, assignee or button rule also changes the
  * cards already in the column unless applyToExisting is false (default true).
  */
 export type NewColumnRuleRequest = NewColumnRule & { applyToExisting?: boolean }

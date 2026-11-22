@@ -266,6 +266,8 @@ const buttonsOpen = ref(false)
 const cardButtons = computed(() => buttons.value.filter(b => b.scope === 'card'))
 // Card buttons whose columns the user may change from the column's rules (shared ones need edit rights).
 const manageableCardButtons = computed(() => cardButtons.value.filter(b => !b.shared || canEdit.value))
+// Shared card buttons: the ones column rules can add to or remove from cards.
+const sharedCardButtons = computed(() => cardButtons.value.filter(b => b.shared))
 const buttonError = useApiError()
 async function setButtonColumns(button: BoardButton, columnIds: string[] | null) {
   try {
@@ -1196,6 +1198,7 @@ const boardMenu = computed(() => {
       :members="board?.members ?? []"
       :cards="lists[rulesColumn.id] ?? []"
       :buttons="manageableCardButtons"
+      :rule-buttons="sharedCardButtons"
       :column-ids="columns.map(c => c.id)"
       @add="(rule, applyToExisting) => addColumnRule(rulesColumn!, rule, applyToExisting)"
       @delete="rule => deleteColumnRule(rulesColumn!, rule)"

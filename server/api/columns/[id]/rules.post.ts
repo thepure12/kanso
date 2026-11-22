@@ -8,6 +8,8 @@ const ruleBody = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('assign_to'), userId: z.uuid() }),
   z.object({ kind: z.literal('assign_mover') }),
   z.object({ kind: z.literal('set_due'), dueDays: z.number().int().min(0).max(365) }),
+  z.object({ kind: z.literal('add_button'), buttonId: z.uuid() }),
+  z.object({ kind: z.literal('remove_button'), buttonId: z.uuid() }),
 ])
 // applyToExisting: false leaves the cards already in the column alone (the UI asks).
 const body = z.intersection(ruleBody, z.object({ applyToExisting: z.boolean().default(true) }))
@@ -20,7 +22,8 @@ export default defineUserHandler(async (event, tx): Promise<ColumnRule> => {
   const [col] = await tx.select({ boardId: columns.boardId }).from(columns).where(eq(columns.id, id))
   if (!col) notFound('Column not found')
 
-  // Composite FK rejects a tag from another board; the insert policy rejects a non-member.
+  // Composite FK rejects a tag or button from another board; the insert policy rejects
+  // a non-member and buttons that are not shared card buttons.
   // Adding an existing rule is a no-op.
   const inserted = await tx.insert(columnRules).values({ boardId: col.boardId, columnId: id, ...rule })
     .onConflictDoNothing().returning({ id: columnRules.id })
@@ -28,7 +31,8 @@ export default defineUserHandler(async (event, tx): Promise<ColumnRule> => {
   const match = 'tagId' in rule
     ? eq(columnRules.tagId, rule.tagId)
     : 'userId' in rule ? eq(columnRules.userId, rule.userId)
-      : 'dueDays' in rule ? eq(columnRules.dueDays, rule.dueDays) : undefined
+      : 'dueDays' in rule ? eq(columnRules.dueDays, rule.dueDays)
+        : 'buttonId' in rule ? eq(columnRules.buttonId, rule.buttonId) : undefined
   const [row] = await tx.select(columnRuleFields).from(columnRules)
     .where(and(eq(columnRules.columnId, id), eq(columnRules.kind, rule.kind), match))
   // Only possible for set_due: the column already has one with other days.
@@ -39,7 +43,7 @@ export default defineUserHandler(async (event, tx): Promise<ColumnRule> => {
 type NewRule = z.infer<typeof ruleBody>
 
 /**
- * A new tag or assignee rule also covers the cards already in the column
+ * A new tag, assignee or button rule also covers the cards already in the column
  * (not templates or archived cards), through the caller's policies like the
  * trigger. set_due is left out: it would overwrite dates people set on purpose;
  * assign_mover too: who moved those cards in is not known.
@@ -59,6 +63,13 @@ async function applyToColumnCards(tx: Tx, columnId: string, rule: NewRule) {
       await tx.execute(sql`insert into card_assignees (card_id, user_id, board_id)
         select c.id, ${rule.userId}, c.board_id from (${cards}) c
         where app.is_member(c.board_id, ${rule.userId}) on conflict do nothing`)
+      break
+    case 'add_button':
+      await tx.execute(sql`insert into board_button_cards (button_id, card_id, board_id)
+        select ${rule.buttonId}, c.id, c.board_id from (${cards}) c on conflict do nothing`)
+      break
+    case 'remove_button':
+      await tx.execute(sql`delete from board_button_cards where button_id = ${rule.buttonId} and card_id in (select id from (${cards}) c)`)
       break
   }
 }

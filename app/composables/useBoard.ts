@@ -303,7 +303,14 @@ export async function useBoard(id: string) {
       method: 'POST',
       body: { columnId, aboveId: list[index - 1]?.id ?? null, belowId: list[index + 1]?.id ?? null },
     }))
+    columnButtonRules(columnId, card.id)
     return card
+  }
+
+  /** Mirrors the column's add_button / remove_button rules for a card that entered it. */
+  function columnButtonRules(columnId: string, cardId: string) {
+    const col = columns.value.find(c => c.id === columnId)
+    if (col) buttons.value = applyButtonRules(buttons.value, col.rules, cardId)
   }
 
   /** Undo/redo of a move: puts the card back next to the recorded neighbours. */
@@ -554,7 +561,7 @@ export async function useBoard(id: string) {
       const body: NewColumnRuleRequest = { ...rule, applyToExisting }
       const created = await api<ColumnRule>(`/api/columns/${col.id}/rules`, { method: 'POST', body })
       if (!col.rules.some(r => r.id === created.id)) col.rules.push(created)
-      // Tag and assignee rules can also change the cards already in the column.
+      // Tag, assignee and button rules can also change the cards already in the column.
       if (applyToExisting && created.kind !== 'set_due' && lists.value[col.id]?.length) await refresh()
     }, t('board.errors.addRule')),
 
@@ -638,6 +645,7 @@ export async function useBoard(id: string) {
       // Server returns tags, assignees and due date set by the column's rules.
       const card = await api<Card>(`/api/boards/${id}/cards`, { method: 'POST', body: { columnId, title } })
       lists.value[columnId]!.push(card)
+      columnButtonRules(columnId, card.id)
       return card
     }, t('board.errors.addCard')),
 
@@ -645,6 +653,7 @@ export async function useBoard(id: string) {
     addCardFromTemplate: (columnId: string, template: Card) => run(async () => {
       const card = await api<Card>(`/api/boards/${id}/cards`, { method: 'POST', body: { columnId, templateId: template.id } })
       lists.value[columnId]!.push(card)
+      columnButtonRules(columnId, card.id)
       return card
     }, t('board.errors.addCard')),
 
@@ -866,6 +875,8 @@ export async function useBoard(id: string) {
     deleteButton: (button: BoardButton) => run(async () => {
       await api(`/api/buttons/${button.id}`, { method: 'DELETE' })
       buttons.value = buttons.value.filter(b => b.id !== button.id)
+      // Column rules adding or removing it are deleted with it.
+      for (const col of columns.value) col.rules = col.rules.filter(r => !('buttonId' in r && r.buttonId === button.id))
     }, t('buttons.errors.delete')),
 
     /**

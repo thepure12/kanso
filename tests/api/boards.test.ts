@@ -518,6 +518,32 @@ describe('column rules', () => {
     expect(data.cards.find(c => c.id === already.id)!.assigneeIds).toEqual([])
     expect(data.columns.find(c => c.id === column.id)!.rules).toHaveLength(1)
   })
+
+  it('add_button / remove_button add a shared card button to cards, also ones already there; not exported', async () => {
+    const { data: column } = await alice.req<{ id: string }>(`/api/boards/${board.id}/columns`, { method: 'POST', body: { title: 'Button rules' } })
+    const { data: button } = await alice.req<{ id: string }>(`/api/boards/${board.id}/buttons`, { method: 'POST', body: { scope: 'card', name: 'Rule button', shared: true, steps: [{ kind: 'archive' }] } })
+    const { data: mine } = await alice.req<{ id: string }>(`/api/boards/${board.id}/buttons`, { method: 'POST', body: { scope: 'card', name: 'My rule button', steps: [{ kind: 'watch' }] } })
+    const already = await newCard('Before the button rule')
+    await alice.req(`/api/cards/${already.id}/move`, { method: 'POST', body: { columnId: column.id, aboveId: null, belowId: null } })
+
+    expect((await alice.req(`/api/columns/${column.id}/rules`, { method: 'POST', body: { kind: 'add_button', buttonId: mine.id } })).status).toBe(403)
+    const rule = await alice.req<ColumnRule>(`/api/columns/${column.id}/rules`, { method: 'POST', body: { kind: 'add_button', buttonId: button.id } })
+    expect(rule.status).toBe(200)
+    expect(rule.data).toEqual({ id: expect.any(String), kind: 'add_button', buttonId: button.id })
+
+    const cardIds = async () => (await alice.req<BoardDetail>(`/api/boards/${board.id}`)).data.buttons.find(b => b.id === button.id)!.cardIds
+    expect(await cardIds()).toEqual([already.id])
+    const later = await newCard('Moved in later')
+    await bob.req(`/api/cards/${later.id}/move`, { method: 'POST', body: { columnId: column.id, aboveId: null, belowId: null } })
+    expect((await cardIds()).sort()).toEqual([already.id, later.id].sort())
+
+    expect((await alice.req(`/api/columns/${col('Review').id}/rules`, { method: 'POST', body: { kind: 'remove_button', buttonId: button.id, applyToExisting: false } })).status).toBe(200)
+    await alice.req(`/api/cards/${later.id}/move`, { method: 'POST', body: { columnId: col('Review').id, aboveId: null, belowId: null } })
+    expect(await cardIds()).toEqual([already.id])
+
+    const exported = await alice.req<unknown>(`/api/boards/${board.id}/export?format=json`)
+    expect(JSON.stringify(exported.data)).not.toContain('_button')
+  })
 })
 
 describe('board automations', () => {
