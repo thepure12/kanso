@@ -17,6 +17,17 @@ const mount = (c: Card, canEdit = true, blocked = false, blocking = false) =>
   mountSuspended(BoardCard, { props: { card: c, tags, members, canEdit, today: '2026-10-13', blocked, blocking } })
 
 describe('BoardCard', () => {
+  // SortableJS animates cards by setting an inline transform with transitions cleared;
+  // a class transition on transform (Tailwind's bare `transition`) or opacity then
+  // slides the card towards its start offset instead, so cards jump during drags.
+  it('never transitions transform or opacity on the card itself', async () => {
+    const w = await mount(card())
+    const classes = w.classes()
+    expect(classes).not.toContain('transition')
+    expect(classes).not.toContain('transition-all')
+    expect(classes.filter(c => c.startsWith('transition')).join(' ')).not.toMatch(/transform|translate|opacity/)
+  })
+
   it('shows only the title for a bare card', async () => {
     const w = await mount(card())
     expect(w.text()).toContain('Fix it')

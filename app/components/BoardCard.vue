@@ -122,7 +122,7 @@ const dueAriaLabel = computed(() => {
 <template>
   <UCard
     :ui="{ body: 'p-3 sm:p-3' }"
-    class="group relative shrink-0 cursor-pointer hover:ring-primary/50 transition outline-none focus-visible:ring-2 focus-visible:ring-primary"
+    class="group relative shrink-0 cursor-pointer hover:ring-primary/50 transition-[color,background-color,box-shadow] outline-none focus-visible:ring-2 focus-visible:ring-primary"
     :class="props.selected && 'ring-2 ring-primary bg-primary/5'"
     tabindex="0"
     @click="onClick"
