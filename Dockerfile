@@ -17,7 +17,11 @@ COPY . .
 # Sub-path deployments (https://host/kanso/): --build-arg NUXT_APP_BASE_URL=/kanso/
 ARG NUXT_APP_BASE_URL=/
 ENV NUXT_APP_BASE_URL=$NUXT_APP_BASE_URL
-RUN pnpm install --frozen-lockfile --offline && pnpm build
+# Bundling the Nitro server needs more than Node's default heap (~1.7 GB on 64-bit),
+# else "JavaScript heap out of memory". MB; lower it on small hosts (--build-arg BUILD_HEAP_MB=3072).
+ARG BUILD_HEAP_MB=4096
+RUN pnpm install --frozen-lockfile --offline \
+ && NODE_OPTIONS="--max-old-space-size=$BUILD_HEAP_MB" pnpm build
 
 # ---------------------------------------------------------------- migrate
 # One-off: drizzle-kit migrate as kanban_owner (MIGRATION_DATABASE_URL).

@@ -480,7 +480,8 @@ release() {
   unset NODE_ENV # dev dependencies are needed to build
   export NUXT_APP_BASE_URL=$BASE_URL
   run pnpm install --frozen-lockfile
-  run pnpm build
+  # Bundling the Nitro server outgrows Node's default heap (~1.7 GB). Keep a caller's NODE_OPTIONS.
+  NODE_OPTIONS=${NODE_OPTIONS:---max-old-space-size=4096} run pnpm build
   step "Database migrations"
   # The environment wins over a .env in the checkout (drizzle.config.ts loads it with dotenv).
   MIGRATION_DATABASE_URL=$MIGRATION_URL run pnpm db:migrate
