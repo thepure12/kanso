@@ -659,6 +659,7 @@
         "manage": "Board verwalten"
       },
       "rules": "Regeln",
+      "agentRules": "Agentenregeln",
       "bots": "Bots"
     },
     "undo": {
@@ -745,6 +746,9 @@
       "addBoardRule": "Regel konnte nicht hinzugefügt werden",
       "updateBoardRule": "Regel konnte nicht geändert werden",
       "deleteBoardRule": "Regel konnte nicht gelöscht werden",
+      "addAgentRule": "Agentenregel konnte nicht hinzugefügt werden",
+      "updateAgentRule": "Agentenregel konnte nicht geändert werden",
+      "deleteAgentRule": "Agentenregel konnte nicht gelöscht werden",
       "buttonAlign": "Position der Buttons konnte nicht geändert werden"
     },
     "bulk": {
@@ -2050,6 +2054,65 @@
       "due": "Fälligkeit auf heute setzen | Fälligkeit auf morgen setzen | Fälligkeit auf in {n} Tagen setzen",
       "archive": "archivieren"
     }
+  },
+  "agentRules": {
+    "title": "Agentenregeln",
+    "description": "Wenn mit einer Karte etwas passiert, bearbeitet ein Bot sie nach deinen Anweisungen. Ein Runner mit dem Token des Bots (kanso agent run --board) folgt diesen Regeln.",
+    "empty": "Noch keine Agentenregeln.",
+    "readOnly": "Nur Bearbeiter können Agentenregeln ändern.",
+    "noBots": "Füge dem Board zuerst einen Bot hinzu (Boardmenü „Bots“) und wähle ihn dann hier.",
+    "active": "Aktiv",
+    "edit": "Agentenregel bearbeiten",
+    "delete": "Agentenregel löschen",
+    "addTitle": "Neue Agentenregel",
+    "editTitle": "Agentenregel bearbeiten",
+    "name": "Name",
+    "bot": "Bot",
+    "event": "Ereignis",
+    "whenLabel": "Wenn",
+    "movedInto": "Verschoben nach",
+    "inColumn": "Karte in Spalte",
+    "addedTag": "Karten-Tag hinzugefügt",
+    "withTag": "Karte hat Tag",
+    "any": "Beliebig",
+    "none": "Nichts",
+    "instructions": "Anweisungen",
+    "instructionsHelp": "Markdown. Der Agent bekommt sie zusammen mit der Karte.",
+    "afterLabel": "Nach dem Lauf",
+    "moveColumn": "Karte verschieben nach (nach erfolgreichem Lauf)",
+    "comment": "Ergebnis kommentieren",
+    "comments": {
+      "never": "Nie",
+      "failure": "Nur Fehler",
+      "always": "Immer"
+    },
+    "events": {
+      "card_created": "Karte erstellt",
+      "card_moved": "Karte verschoben",
+      "tag_added": "Karten-Tag hinzugefügt",
+      "assigned": "Bot zugewiesen",
+      "mentioned": "Bot erwähnt"
+    },
+    "when": {
+      "card_created": "Wenn eine Karte erstellt wird",
+      "card_moved": "Wenn eine Karte verschoben wird",
+      "card_moved_column": "Wenn eine Karte nach {column} verschoben wird",
+      "tag_added": "Wenn ein Karten-Tag hinzugefügt wird",
+      "tag_added_tag": "Wenn {tag} zu einer Karte hinzugefügt wird",
+      "assigned": "Wenn {bot} einer Karte zugewiesen wird",
+      "mentioned": "Wenn {bot} in einem Kommentar erwähnt wird"
+    },
+    "if": {
+      "prefix": "falls {conditions}",
+      "column": "die Karte in {column} ist",
+      "tag": "die Karte {tag} hat"
+    },
+    "and": " und ",
+    "then": {
+      "work": "{bot} bearbeitet die Karte nach den Anweisungen",
+      "move": "{bot} bearbeitet die Karte nach den Anweisungen und verschiebt sie dann nach {column}"
+    },
+    "runnerHint": "Regeln tun nichts, bis ein Runner mit einem Token des Bots läuft: kanso agent run --board BOARD_ID --claude"
   },
   "reminders": {
     "button": "Erinnern",

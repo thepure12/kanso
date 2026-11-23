@@ -39,6 +39,7 @@ const defaultInstructions = 'Do what the card asks (for a notification: what the
 /** The prompt of the --claude preset. */
 export function claudePrompt(ctx: CardContext, instructions?: string): string {
   const n = ctx.event.notification
+  const rule = ctx.rule ? `\nAgent rule: ${ctx.rule.name} (set on the board; its instructions follow)` : ''
   const event = n
     ? `notification: ${n.activity.kind}${n.activity.actorName ? ` by ${n.activity.actorName}` : ''}`
     : `${ctx.event.kind} (card activity)`
@@ -47,30 +48,30 @@ export function claudePrompt(ctx: CardContext, instructions?: string): string {
 Event: ${event}
 Board: ${ctx.board.name} (id ${ctx.board.id})
 Card: ${ctx.card.title} (id ${ctx.card.id})${ctx.column ? `, in column "${ctx.column.title}"` : ''}
-Link: ${ctx.card.url}
+Link: ${ctx.card.url}${rule}
 
 The card is on stdin as JSON: {event, board, column, card, detail} (detail has checklists, comments, links and activity).
 Use the kanso MCP tools to read and change the board (get_card with boardId and cardId, add_comment, update_card,
 move_card, ...). You act as the token's user and only see and change what it may.
 
-${instructions?.trim() || defaultInstructions}
+${ctx.rule?.instructions.trim() || instructions?.trim() || defaultInstructions}
 `
 }
 
 export const agent: Command = {
   name: 'agent',
   summary: 'Run a command for board events (agent run), e.g. Claude for cards landing in a column',
-  usage: 'agent run (--notifications | --board <id> [--columns <ids|titles>] [--activity <kinds>]) (--cmd "<command>" | --claude) [options]',
+  usage: 'agent run (--board <ids> [--columns <ids|titles>] [--activity <kinds>] | --notifications) (--cmd "<command>" | --claude) [options]',
   options: {
-    board: { type: 'string', value: '<ids>', description: 'Boards to follow, comma-separated (needed for --activity/--columns; limits --notifications)' },
+    board: { type: 'string', value: '<ids>', description: 'Boards to follow, comma-separated. Alone: follow the board\'s agent rules for this bot token' },
     columns: { type: 'string', value: '<ids|titles>', description: 'Only cards (now) in these columns; ids or titles, comma-separated. Default kinds then: created,moved' },
     activity: { type: 'string', value: '<kinds>', description: 'Activity kinds that start a run (created, moved, commented, assigned, tagged, ...)' },
     notifications: { type: 'boolean', description: 'Run for unread notifications (mentions, assignments, ...) and mark them read afterwards' },
     cmd: { type: 'string', value: '<command>', description: 'Shell command (sh -c) per event: KANSO_* variables, card JSON on stdin' },
     claude: { type: 'boolean', description: 'Run "claude -p" with this site\'s MCP server and a prompt built from the card' },
-    prompt: { type: 'string', value: '<text>', description: 'With --claude: instructions instead of the default ("do what the card asks, then comment")' },
+    prompt: { type: 'string', value: '<text>', description: 'With --claude: instructions instead of the default ("do what the card asks, then comment"); agent rules bring their own' },
     concurrency: { type: 'string', value: '<n>', description: 'Runs at once, 1-32 (default 1); never two on the same card' },
-    comment: { type: 'string', value: '<when>', description: 'Comment the exit status on the card: never (default), failure, always' },
+    comment: { type: 'string', value: '<when>', description: 'Comment the exit status on the card: never (default), failure, always (agent rules set their own)' },
     timeout: { type: 'string', value: '<minutes>', description: 'Stop a run after this long (SIGTERM, then SIGKILL after 10 s)' },
   },
   details: `
@@ -83,7 +84,14 @@ KANSO_EVENT_SOURCE (activity|notification), KANSO_ACTIVITY_ID, KANSO_NOTIFICATIO
 card JSON {event, board, column, card, detail} on stdin. The runner's own comments trigger nothing. Activity
 during a disconnect is not replayed; unread notifications are read again after every (re)connect.
 
+Agent rules: with only --board (no --activity, --columns or --notifications) and a bot's token, the runner
+follows the agent rules set on the board in the UI (board menu "Agent rules") for that bot: for each matching
+event it runs the command or Claude with the rule's instructions (KANSO_RULE_ID, KANSO_RULE_NAME; "rule" in the
+card JSON), then moves the card to the rule's column after a successful run and comments as the rule says. The
+rules are read again whenever the board changes; the bot's own changes never start a rule.
+
 Examples:
+  kanso agent run --board <id> --claude                  (agent rules, with a bot token)
   kanso agent run --board <id> --columns "To do" --claude --comment failure
   kanso agent run --notifications --cmd './handle-card.sh' --concurrency 2`,
   async run(ctx) {
@@ -96,7 +104,9 @@ Examples:
     const columnNames = splitList(v.columns)
     if (columnNames.length && !activity.length) activity = ['created', 'moved']
     const notifications = v.notifications === true
-    if (!notifications && !activity.length) throw new UsageError('Nothing to listen for: give --notifications, --activity or --columns.')
+    const rulesMode = !notifications && !activity.length && boardIds.length > 0
+    if (!notifications && !activity.length && !rulesMode) throw new UsageError('Nothing to listen for: give --board (agent rules), --notifications, --activity or --columns.')
+    if (rulesMode && v.comment !== undefined) throw new UsageError('Agent rules set their own --comment; give --activity or --columns to use it.')
     if (activity.length && !boardIds.length) throw new UsageError('--activity and --columns need --board.')
     const cmd = typeof v.cmd === 'string' ? v.cmd.trim() : ''
     if (!cmd === !v.claude) throw new UsageError('Give either --cmd "<command>" or --claude.')
@@ -113,6 +123,12 @@ Examples:
     // Fails early on a wrong id or a token limited to other boards, and gives the column titles.
     const boards = await Promise.all(boardIds.map(b => client.get<BoardDetail>(`/api/boards/${b}`)))
     const columnIds = resolveColumns(columnNames, boards)
+    let rulesFor: string | null = null
+    if (rulesMode) {
+      const me = await client.get<{ id: string, name: string, isBot: boolean }>('/api/me')
+      if (!me.isBot) throw new UsageError(`Agent rules name a bot; this token is ${me.name}'s, not a bot's. Use a token of the rule's bot (board menu "Bots"), or give --activity, --columns or --notifications.`)
+      rulesFor = me.id
+    }
 
     const log = (message: string, fields: Record<string, unknown> = {}) => {
       if (ctx.json) ctx.io.stdout(`${JSON.stringify({ at: new Date().toISOString(), message, ...fields })}\n`)
@@ -137,9 +153,10 @@ Examples:
 
       const options: AgentOptions = {
         url: creds.url, token: creds.token, boardIds, activity, columnIds, notifications, concurrency,
-        comment: comment as AgentOptions['comment'],
+        comment: comment as AgentOptions['comment'], rulesFor,
       }
-      log(`following ${[
+      if (rulesMode) log(`following the agent rules of ${boards.map(b => `"${b.name}"`).join(', ')}`)
+      else log(`following ${[
         notifications && 'notifications',
         activity.length && `${activity.join(',')} on ${boards.map(b => `"${b.name}"`).join(', ')}${columnNames.length ? ` in ${columnNames.join(', ')}` : ''}`,
       ].filter(Boolean).join(' and ')}`)

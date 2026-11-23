@@ -659,6 +659,7 @@
         "manage": "Manage board"
       },
       "rules": "Rules",
+      "agentRules": "Agent rules",
       "bots": "Bots"
     },
     "undo": {
@@ -745,6 +746,9 @@
       "addBoardRule": "Could not add rule",
       "updateBoardRule": "Could not change rule",
       "deleteBoardRule": "Could not delete rule",
+      "addAgentRule": "Could not add agent rule",
+      "updateAgentRule": "Could not change agent rule",
+      "deleteAgentRule": "Could not delete agent rule",
       "buttonAlign": "Could not change button position"
     },
     "bulk": {
@@ -2050,6 +2054,65 @@
       "due": "set the due date to today | set the due date to tomorrow | set the due date to {n} days from today",
       "archive": "archive it"
     }
+  },
+  "agentRules": {
+    "title": "Agent rules",
+    "description": "When something happens to a card, a bot works on it with your instructions. A runner started with the bot's token (kanso agent run --board) follows these rules.",
+    "empty": "No agent rules yet.",
+    "readOnly": "Only editors can change agent rules.",
+    "noBots": "Add a bot to this board first (board menu “Bots”), then pick it here.",
+    "active": "Active",
+    "edit": "Edit agent rule",
+    "delete": "Delete agent rule",
+    "addTitle": "New agent rule",
+    "editTitle": "Edit agent rule",
+    "name": "Name",
+    "bot": "Bot",
+    "event": "Event",
+    "whenLabel": "When",
+    "movedInto": "Moved into",
+    "inColumn": "Card in column",
+    "addedTag": "Card tag added",
+    "withTag": "Card has tag",
+    "any": "Any",
+    "none": "Nothing",
+    "instructions": "Instructions",
+    "instructionsHelp": "Markdown. The agent gets them together with the card.",
+    "afterLabel": "After the run",
+    "moveColumn": "Move the card to (after a successful run)",
+    "comment": "Comment the result",
+    "comments": {
+      "never": "Never",
+      "failure": "Only failures",
+      "always": "Always"
+    },
+    "events": {
+      "card_created": "Card created",
+      "card_moved": "Card moved",
+      "tag_added": "Card tag added",
+      "assigned": "Bot assigned",
+      "mentioned": "Bot mentioned"
+    },
+    "when": {
+      "card_created": "When a card is created",
+      "card_moved": "When a card is moved",
+      "card_moved_column": "When a card is moved into {column}",
+      "tag_added": "When a card tag is added",
+      "tag_added_tag": "When {tag} is added to a card",
+      "assigned": "When {bot} is assigned to a card",
+      "mentioned": "When {bot} is mentioned in a comment"
+    },
+    "if": {
+      "prefix": "if {conditions}",
+      "column": "the card is in {column}",
+      "tag": "the card has {tag}"
+    },
+    "and": " and ",
+    "then": {
+      "work": "{bot} works on the card with the instructions",
+      "move": "{bot} works on the card with the instructions, then moves it to {column}"
+    },
+    "runnerHint": "Rules do nothing until a runner is started with a token of the bot: kanso agent run --board BOARD_ID --claude"
   },
   "reminders": {
     "button": "Remind me",

@@ -43,6 +43,8 @@ export const boardNotificationLevel = pgEnum('board_notification_level', ['direc
 
 export const boardAutomationKind = pgEnum('board_automation_kind', ['archive_done', 'tag_stale', 'notify_stale', 'raise_priority', 'move_card'])
 export const boardRuleEvent = pgEnum('board_rule_event', ['card_created', 'card_moved', 'tag_added', 'assigned', 'due_set', 'checklist_completed', 'commented'])
+// What starts an agent rule (board_agent_rules), followed by `kanso agent run`.
+export const agentRuleEvent = pgEnum('agent_rule_event', ['card_created', 'card_moved', 'tag_added', 'assigned', 'mentioned'])
 // One-shot action on a card on a date (card_scheduled_actions).
 export const cardActionKind = pgEnum('card_action_kind', ['move', 'archive', 'priority', 'remind'])
 
@@ -631,6 +633,38 @@ export const boardRuleEvents = pgTable('board_rule_events', {
   tagId: uuid('tag_id'),
   userId: uuid('user_id'),
 })
+
+// Agent rules of a board (0130_board_agent_rules_rls.sql): "when <event> (and the
+// card is in column_id / carries tag_id), the bot bot_id works on the card with
+// these instructions". The database only stores them; `kanso agent run --board`
+// with the bot's token follows them (cli/src/agent.ts): it runs the command or
+// Claude per matching event and afterwards optionally moves the card to
+// move_column_id (on success) and comments the exit status (`comment`).
+// assigned / mentioned mean the rule's bot was assigned / mentioned. Deleting the
+// bot, a named column or tag deletes the rule.
+export const boardAgentRules = pgTable('board_agent_rules', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  boardId: uuid('board_id').notNull().references(() => boards.id, { onDelete: 'cascade' }),
+  name: text('name').notNull(),
+  botId: uuid('bot_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  event: agentRuleEvent('event').notNull(),
+  columnId: uuid('column_id'),
+  tagId: uuid('tag_id'),
+  instructions: text('instructions').notNull(),
+  moveColumnId: uuid('move_column_id'),
+  comment: text('comment').notNull().default('never'),
+  active: boolean('active').notNull().default(true),
+  createdBy: uuid('created_by').references(() => users.id, { onDelete: 'set null' }),
+  createdAt: createdAt(),
+}, t => [
+  index('board_agent_rules_board_idx').on(t.boardId),
+  foreignKey({ columns: [t.columnId, t.boardId], foreignColumns: [columns.id, columns.boardId], name: 'board_agent_rules_column_fk' }).onDelete('cascade'),
+  foreignKey({ columns: [t.tagId, t.boardId], foreignColumns: [tags.id, tags.boardId], name: 'board_agent_rules_tag_fk' }).onDelete('cascade'),
+  foreignKey({ columns: [t.moveColumnId, t.boardId], foreignColumns: [columns.id, columns.boardId], name: 'board_agent_rules_move_column_fk' }).onDelete('cascade'),
+  check('board_agent_rules_name_length', sql`char_length(btrim(${t.name})) between 1 and 100`),
+  check('board_agent_rules_instructions_length', sql`char_length(btrim(${t.instructions})) between 1 and 20000`),
+  check('board_agent_rules_comment_known', sql`${t.comment} in ('never', 'failure', 'always')`),
+])
 
 // One-shot actions on a card, run on run_on by app.run_scheduled_card_actions()
 // (cards:automations task) and then deleted. move: to the end of target_column_id;

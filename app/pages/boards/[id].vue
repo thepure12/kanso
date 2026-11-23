@@ -14,9 +14,9 @@ const route = useRoute()
 const id = route.params.id as string
 const boardTabs = useBoardTabs()
 const {
-  board, error, refresh, columns, columnGroups, assigneeGroups, savedViews, buttons, lists, tags, fields, templates, recurrences, automations, rules, scheduledActions, archived, offline, canEdit, isOwner, limited, canEditCard, canCommentOn, canAddToColumn, dragging, remoteVersion,
+  board, error, refresh, columns, columnGroups, assigneeGroups, savedViews, buttons, lists, tags, fields, templates, recurrences, automations, rules, agentRules, scheduledActions, archived, offline, canEdit, isOwner, limited, canEditCard, canCommentOn, canAddToColumn, dragging, remoteVersion,
   renameBoard, setArchived, setBackground, setAccent, setButtonAlign, setColumnOutline, uploadBackground, deleteBoard, addColumn, renameColumn, setColumnAppearance, setColumnWipLimit, sortColumnByPriority, deleteColumn, columnMoved,
-  addColumnRule, deleteColumnRule, addAutomation, updateAutomation, deleteAutomation, addRule, updateRule, deleteRule, addScheduledAction, deleteScheduledAction, addCard, updateCard, setCardCounts, cardLinkChanged, archiveCard, snoozeCard, wakeCard, restoreCard, deleteCard, restoreTrashedCard,
+  addColumnRule, deleteColumnRule, addAutomation, updateAutomation, deleteAutomation, addRule, updateRule, deleteRule, addAgentRule, updateAgentRule, deleteAgentRule, addScheduledAction, deleteScheduledAction, addCard, updateCard, setCardCounts, cardLinkChanged, archiveCard, snoozeCard, wakeCard, restoreCard, deleteCard, restoreTrashedCard,
   deleteArchivedCard, cardMoved, moveCard, addTag, updateTag, deleteTag,
   addField, updateField, fieldMoved, deleteField, setFieldValue,
   addColumnGroup, updateColumnGroup, columnGroupMoved, deleteColumnGroup, addAssigneeGroup, updateAssigneeGroup, deleteAssigneeGroup, addSavedView, updateSavedView, deleteSavedView, addButton, updateButton, deleteButton, runButton, setButtonOnCard,
@@ -153,6 +153,7 @@ function setMatrixRoom(room: BoardMatrixRoom | null) {
 }
 const automationsOpen = ref(false)
 const boardRulesOpen = ref(false)
+const agentRulesOpen = ref(false)
 // Column preselected in the automations dialog when opened from a column's menu.
 const automationsColumnId = ref<string | null>(null)
 // Card whose automations the dialog shows (opened from the card dialog); null = the board's.
@@ -645,6 +646,7 @@ const boardMenu = computed(() => {
       { label: t('board.menu.templates'), icon: 'i-lucide-file-stack', onSelect: () => { templatesOpen.value = true } },
       { label: t('board.menu.automations'), icon: 'i-lucide-timer', onSelect: () => openAutomations() },
       ...(limited.value ? [] : [{ label: t('board.menu.rules'), icon: 'i-lucide-workflow', onSelect: () => { boardRulesOpen.value = true } }]),
+      ...(limited.value ? [] : [{ label: t('board.menu.agentRules'), icon: 'i-lucide-bot-message-square', onSelect: () => { agentRulesOpen.value = true } }]),
       ...(!offline.value ? [{ label: t('board.menu.buttons'), icon: 'i-lucide-zap', onSelect: () => { buttonsOpen.value = true } }] : []),
       ...(editable ? [{ label: t('board.menu.background'), icon: 'i-lucide-image', onSelect: () => { backgroundOpen.value = true } }] : []),
       ...(owner ? [{ label: t('board.menu.bots'), icon: 'i-lucide-bot', onSelect: () => { botsOpen.value = true } }] : []),
@@ -1294,6 +1296,18 @@ const boardMenu = computed(() => {
       @add="addRule"
       @update="updateRule"
       @delete="deleteRule"
+    />
+    <BoardAgentRulesModal
+      v-if="agentRulesOpen"
+      v-model:open="agentRulesOpen"
+      :rules="agentRules"
+      :tags="tags"
+      :columns="columns"
+      :members="board?.members ?? []"
+      :can-edit="canEdit"
+      @add="addAgentRule"
+      @update="updateAgentRule"
+      @delete="deleteAgentRule"
     />
     <!-- Mounted on open, so its portal comes after an open card dialog and stacks over it. -->
     <BoardAutomationsModal

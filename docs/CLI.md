@@ -28,6 +28,8 @@ event stream (`GET /api/events`, see [API.md](API.md#event-stream)) with the tok
 - **card activity** (`--board <ids>` with `--activity <kinds>` and/or `--columns <ids or titles>`): for example
   cards created in or moved to "To do". `--columns` alone means `--activity created,moved`. For a move, the column
   is the one the card landed in.
+- **agent rules** (only `--board <ids>`, with a bot's token): the rules set on the board for that bot, see
+  [Agent rules](#agent-rules).
 - **notifications** (`--notifications`): unread notifications of the token's user, e.g. a bot that is mentioned in
   a comment or assigned to a card. Each one is marked read after its run (also when the run failed), so it runs
   once. With `--board`, only notifications of those boards.
@@ -44,8 +46,9 @@ gets:
 | `KANSO_EVENT_SOURCE` | `activity` or `notification` |
 | `KANSO_ACTIVITY_ID` | The activity entry |
 | `KANSO_NOTIFICATION_ID` | The notification (notifications only) |
+| `KANSO_RULE_ID`, `KANSO_RULE_NAME` | The agent rule (agent rules only) |
 
-and the card as JSON on stdin: `{event, board, column, card, detail}` (`card` as in `GET /api/boards/:id`,
+and the card as JSON on stdin: `{event, board, column, card, detail, rule?}` (`card` as in `GET /api/boards/:id`,
 `detail` as `GET /api/cards/:id`: checklists, comments, links, activity; `event.notification` holds the
 notification). A card that is gone by the time the run starts (archived, deleted, snoozed) is skipped. The
 command's output goes to the runner's stdout/stderr (the journal under systemd).
@@ -70,6 +73,27 @@ reads the unread notifications again. Card activity during a disconnect is not r
 when the token is refused (401), not allowed (403), a board is not found or not visible (404, `gone`) or the
 parameters are wrong (400); systemd's `Restart=` then decides. On SIGINT/SIGTERM it stops listening, sends SIGTERM
 to the runs in progress and waits for them (a second signal exits at once).
+
+### Agent rules
+
+Editors set agent rules on the board (board menu "Agent rules"): a name, the bot, the event (card created, card
+moved, card tag added, the bot assigned, the bot mentioned in a comment), optionally a column (the card is moved
+into / is in it) and a card tag (the card carries it; for "card tag added": the added tag), Markdown instructions,
+and what happens after the run: move the card to a column (only after a successful run) and comment the exit
+status (never, only failures, always).
+
+```bash
+KANSO_TOKEN=kb_bot... kanso agent run --board $BOARD --claude
+```
+
+With only `--board` the runner needs a bot's token (else exit 2) and follows that bot's active rules on those
+boards: it subscribes to every kind a rule can need, reads the rules at each (re)connect and again whenever the
+board changes (so rules added, edited or paused in the UI apply without a restart), and starts one run per
+matching rule. Before a run it checks the loaded card again: still in the rule's column, the tag, the bot really
+the one assigned or mentioned, and never an event the bot caused itself (so its own moves and comments do not loop).
+With `--claude` the rule's instructions replace `--prompt`; with `--cmd` they are `rule.instructions` on stdin. The
+runner's move goes to the end of the column (column rules run) and, like its comments, starts no run. `--comment`
+is refused in this mode (the rules set it). Rules are not copied with the board or exported.
 
 ### --claude
 

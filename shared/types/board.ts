@@ -208,6 +208,40 @@ export interface BoardRule extends NewBoardRule {
   active: boolean
 }
 
+export const agentRuleEvents = ['card_created', 'card_moved', 'tag_added', 'assigned', 'mentioned'] as const
+/** What starts an agent rule; assigned / mentioned mean the rule's bot was assigned or mentioned. */
+export type AgentRuleEvent = (typeof agentRuleEvents)[number]
+export const agentRuleComments = ['never', 'failure', 'always'] as const
+export type AgentRuleComment = (typeof agentRuleComments)[number]
+export const AGENT_RULE_NAME_MAX = 100
+export const AGENT_RULE_INSTRUCTIONS_MAX = 20000
+
+/**
+ * Agent rule (0130_board_agent_rules_rls.sql): "when <event> (and the card is in
+ * columnId / carries tagId; for tag_added: tagId is the added tag), the bot works
+ * on the card with these instructions". Followed by `kanso agent run --board`
+ * with the bot's token, which afterwards moves the card to moveColumnId (after a
+ * successful run) and comments the exit status as `comment` says. Deleting the
+ * bot or a column or tag the rule names deletes the rule.
+ */
+export interface NewAgentRule {
+  name: string
+  botId: string
+  event: AgentRuleEvent
+  columnId: string | null
+  tagId: string | null
+  /** Markdown prompt for the agent. */
+  instructions: string
+  moveColumnId: string | null
+  comment: AgentRuleComment
+  active?: boolean
+}
+
+export interface AgentRule extends NewAgentRule {
+  id: string
+  active: boolean
+}
+
 export type BoardAutomationKind = NewBoardAutomation['kind']
 export const boardAutomationKinds = ['archive_done', 'tag_stale', 'notify_stale', 'raise_priority', 'move_card'] as const satisfies readonly BoardAutomationKind[]
 
@@ -558,6 +592,8 @@ export interface BoardDetail {
   automations: BoardAutomation[]
   /** Event-triggered rules in creation order (none for members with limited access). */
   rules: BoardRule[]
+  /** Agent rules by name (limited members: only the ones of their own bot user). */
+  agentRules: AgentRule[]
   /** Scheduled card actions, soonest first. */
   scheduledActions: ScheduledCardAction[]
   tags: Tag[]

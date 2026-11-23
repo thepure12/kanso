@@ -904,6 +904,20 @@
       "when": 1795322410533,
       "tag": "0128_button_tooltips_rls",
       "breakpoints": true
+    },
+    {
+      "idx": 129,
+      "version": "7",
+      "when": 1795461190117,
+      "tag": "0129_board_agent_rules",
+      "breakpoints": true
+    },
+    {
+      "idx": 130,
+      "version": "7",
+      "when": 1795461196628,
+      "tag": "0130_board_agent_rules_rls",
+      "breakpoints": true
     }
   ]
 }

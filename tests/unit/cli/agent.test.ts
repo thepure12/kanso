@@ -1,15 +1,22 @@
 import { describe, expect, it, vi } from 'vitest'
 import type { BoardDetail, CardDetail } from '../../../shared/types/board'
 import type { Inbox, Notification } from '../../../shared/types/notifications'
-import { AGENT_CLIENT_ID, type AgentDeps, type AgentOptions, backoff, BoardGoneError, type CardContext, type ExecResult, type Job, runAgent, statusComment, streamQuery } from '../../../cli/src/agent'
+import type { AgentRule } from '../../../shared/types/board'
+import { AGENT_CLIENT_ID, type AgentDeps, type AgentOptions, backoff, BoardGoneError, type CardContext, type ExecResult, type Job, ruleSkipReason, rulesForEvent, runAgent, statusComment, streamQuery } from '../../../cli/src/agent'
 import { createClient } from '../../../cli/src/client'
 import { claudePrompt, resolveColumns, splitList } from '../../../cli/src/commands/agent'
 import { readServerEvents } from '../../../cli/src/sse'
 
 const B = '11111111-1111-4111-8111-111111111111'
 const TODO = '22222222-2222-4222-8222-222222222222'
-const card = (id: string) => ({ id, columnId: TODO, title: `Card ${id}` })
-const board = { id: B, name: 'Kanso', columns: [{ id: TODO, title: 'To do' }], cards: [card('c1'), card('c2')] } as unknown as BoardDetail
+const DONE = '33333333-3333-4333-8333-333333333333'
+const BOT = '44444444-4444-4444-8444-444444444444'
+const BUG = '55555555-5555-4555-8555-555555555555'
+const card = (id: string, extra: Record<string, unknown> = {}) => ({ id, columnId: TODO, title: `Card ${id}`, tagIds: [], assigneeIds: [], ...extra })
+const board = {
+  id: B, name: 'Kanso', columns: [{ id: TODO, title: 'To do' }, { id: DONE, title: 'Done' }],
+  cards: [card('c1'), card('c2'), card('c3', { tagIds: [BUG] }), card('c4', { columnId: DONE })], tags: [{ id: BUG, name: 'bug', color: '#f00' }],
+} as unknown as BoardDetail
 const detail = { checklists: [], comments: [], links: [], activity: [] } as unknown as CardDetail
 
 /** A controllable SSE response body. */
@@ -34,7 +41,7 @@ const until = async (fn: () => boolean) => {
   expect(fn()).toBe(true)
 }
 
-function harness(opts: Partial<AgentOptions> = {}, inbox: Notification[] = []) {
+function harness(opts: Partial<AgentOptions> = {}, inbox: Notification[] = [], agentRules: AgentRule[] = [], details: Record<string, CardDetail> = {}) {
   const streams: ReturnType<typeof stream>[] = []
   const requests: { method: string, url: string, body?: unknown, clientId: string | null }[] = []
   const stop = new AbortController()
@@ -49,7 +56,9 @@ function harness(opts: Partial<AgentOptions> = {}, inbox: Notification[] = []) {
       return new Response(s.body, { headers: { 'content-type': 'text/event-stream' } })
     }
     if (url.endsWith(`/api/boards/${B}`)) return Response.json(board)
-    if (/\/api\/cards\/c\d$/.test(url)) return Response.json(detail)
+    if (url.endsWith(`/api/boards/${B}/agent-rules`)) return Response.json(agentRules)
+    if (/\/api\/cards\/c\d$/.test(url)) return Response.json(details[url.slice(-2)] ?? detail)
+    if (method === 'POST' && url.endsWith('/move')) return Response.json({})
     if (url.includes('/api/notifications?')) return Response.json({ items: inbox.filter(n => !n.readAt) } as Partial<Inbox>)
     if (method === 'PATCH' && url.includes('/api/notifications/')) {
       const n = inbox.find(i => url.endsWith(i.id))
@@ -70,7 +79,7 @@ function harness(opts: Partial<AgentOptions> = {}, inbox: Notification[] = []) {
     exec: (job, env, stdin) => new Promise(resolve => runs.push({ job, env, stdin, finish: r => resolve({ code: 0, signal: null, timedOut: false, ...r }) })),
   }
   const done = runAgent(options, deps)
-  return { streams, requests, runs, deps, done, stop: () => stop.abort() }
+  return { streams, requests, runs, deps, done, stop: () => stop.abort(), agentRules }
 }
 
 describe('kanso agent run', () => {
@@ -187,7 +196,7 @@ describe('kanso agent run', () => {
   it('resolves columns by id or title and builds the claude prompt', () => {
     expect(splitList(' a, b,,a ')).toEqual(['a', 'b'])
     expect(resolveColumns(['to do', TODO.toUpperCase()], [board])).toEqual([TODO])
-    expect(() => resolveColumns(['Doing'], [board])).toThrow('No column "Doing" on the given boards (Kanso: "To do").')
+    expect(() => resolveColumns(['Doing'], [board])).toThrow('No column "Doing" on the given boards (Kanso: "To do", "Done").')
     const ctx = {
       event: { source: 'activity', kind: 'moved', activityId: 'a1', notificationId: null, notification: null },
       board: { id: B, name: 'Kanso', url: '' }, column: { id: TODO, title: 'To do' },
@@ -199,5 +208,82 @@ describe('kanso agent run', () => {
     expect(claudePrompt(ctx, 'Fix the bug.')).toMatch(/Fix the bug\.\n$/)
     expect(statusComment({ event: 'moved' } as Job, { code: 0, signal: null, timedOut: false }, 4)).toBe('kanso agent: the run for **moved** finished after 4 s.')
     expect(statusComment({ event: 'moved' } as Job, { code: null, signal: 'SIGTERM', timedOut: true }, 60)).toContain('stopped after the timeout')
+  })
+  it('follows the agent rules of its bot (rules mode)', async () => {
+    const rule = (id: string, extra: Partial<AgentRule> = {}): AgentRule => ({
+      id, name: `Rule ${id}`, botId: BOT, event: 'card_moved', columnId: TODO, tagId: null, instructions: `Do ${id}.`,
+      moveColumnId: null, comment: 'never', active: true, ...extra,
+    })
+    const act = (id: string, kind: string, actorId: string, data: Record<string, unknown> = {}) => ({ id, kind, actorId, actorName: null, data, createdAt: '' })
+    const rules = [
+      rule('r1', { moveColumnId: DONE, comment: 'always' }),
+      rule('r2', { event: 'mentioned', columnId: null }),
+      rule('r3', { botId: 'someone-else' }),
+      rule('r4', { event: 'tag_added', columnId: null, tagId: BUG }),
+    ]
+    const details: Record<string, CardDetail> = {
+      c1: { ...detail, activity: [act('a1', 'moved', 'u1'), act('a2', 'commented', 'u1', { mentions: [BOT] })] } as unknown as CardDetail,
+      c2: { ...detail, activity: [act('a3', 'commented', 'u1', { mentions: [] }), act('a4', 'moved', BOT)] } as unknown as CardDetail,
+      c3: { ...detail, activity: [act('a5', 'tagged', 'u1', { tag: 'bug' })] } as unknown as CardDetail,
+    }
+    const h = harness({ rulesFor: BOT, activity: [], columnIds: [], concurrency: 4 }, [], rules, details)
+    await until(() => h.streams.length === 1)
+    expect(h.requests[0]!.url).toContain('change=1')
+    const s = h.streams[0]!
+    s.send('ready')
+    await until(() => h.requests.some(r => r.url.endsWith('/agent-rules')))
+    s.send('activity', { a: 'a1', b: B, card: 'c1', kind: 'moved', column: TODO })
+    s.send('activity', { a: 'a3', b: B, card: 'c2', kind: 'commented', column: TODO })
+    s.send('activity', { a: 'a4', b: B, card: 'c2', kind: 'moved', column: TODO })
+    s.send('activity', { a: 'a5', b: B, card: 'c3', kind: 'tagged', column: TODO })
+    s.send('activity', { a: 'a6', b: B, card: 'c4', kind: 'moved', column: DONE })
+    await until(() => h.runs.length === 2)
+    await new Promise(r => setTimeout(r, 20))
+    // a3: the bot was not mentioned; a4: the bot moved it itself; a6: another column.
+    expect(h.runs.map(r => [r.job.cardId, r.job.rule?.id])).toEqual([['c1', 'r1'], ['c3', 'r4']])
+    expect(h.runs[0]!.env).toMatchObject({ KANSO_RULE_ID: 'r1', KANSO_RULE_NAME: 'Rule r1' })
+    expect(JSON.parse(h.runs[0]!.stdin).rule).toEqual({ id: 'r1', name: 'Rule r1', instructions: 'Do r1.' })
+
+    // A successful run moves the card to the end of the rule's column and comments (rule's comment mode).
+    h.runs[0]!.finish()
+    await until(() => h.requests.some(r => r.url.endsWith('/comments')))
+    const move = h.requests.find(r => r.url.endsWith('/move'))!
+    expect(move).toMatchObject({ url: 'https://k.test/api/cards/c1/move', body: { columnId: DONE, aboveId: 'c4', belowId: null }, clientId: AGENT_CLIENT_ID })
+    expect((h.requests.find(r => r.url.endsWith('/comments'))!.body as { body: string }).body).toContain('(agent rule "Rule r1")')
+    // r4 has comment never.
+    h.runs[1]!.finish({ code: 1 })
+
+    // A board change reloads the rules: a mention now starts r2.
+    h.agentRules.splice(0, h.agentRules.length, rule('r2', { event: 'mentioned', columnId: null }))
+    const reads = h.requests.filter(r => r.url.endsWith('/agent-rules')).length
+    s.send('change', { b: B, c: '' })
+    await until(() => h.requests.filter(r => r.url.endsWith('/agent-rules')).length > reads)
+    s.send('activity', { a: 'a2', b: B, card: 'c1', kind: 'commented', column: TODO })
+    await until(() => h.runs.length === 3)
+    expect(h.runs[2]!.job.rule?.id).toBe('r2')
+    h.runs[2]!.finish()
+    h.stop()
+    await h.done
+    expect(h.requests.filter(r => r.url.endsWith('/comments'))).toHaveLength(1)
+  })
+
+  it('matches rules to events', () => {
+    const r = { id: 'r', name: 'R', botId: BOT, event: 'mentioned', columnId: null, tagId: null, instructions: 'x', moveColumnId: null, comment: 'never', active: true } as AgentRule
+    expect(rulesForEvent([r], BOT, 'mentioned', TODO)).toEqual([r])
+    expect(rulesForEvent([r], BOT, 'moved', TODO)).toEqual([])
+    expect(rulesForEvent([{ ...r, active: false }], BOT, 'commented', TODO)).toEqual([])
+    const ctx = (activity: unknown[], extra: Record<string, unknown> = {}) => ({ card: card('c1', extra), column: { id: TODO, title: 'To do' }, detail: { ...detail, activity } }) as unknown as CardContext
+    const assigned = { ...r, event: 'assigned' } as AgentRule
+    expect(ruleSkipReason(assigned, BOT, ctx([{ id: 'a', actorId: 'u', data: { user_id: BOT } }]), [], 'a')).toBeNull()
+    expect(ruleSkipReason(assigned, BOT, ctx([{ id: 'a', actorId: 'u', data: { user_id: 'u2' } }]), [], 'a')).toBe('someone else was assigned')
+    // Activity no longer among the card's latest: falls back to the assignees.
+    expect(ruleSkipReason(assigned, BOT, ctx([], { assigneeIds: [BOT] }), [], 'a')).toBeNull()
+    expect(ruleSkipReason({ ...r, event: 'card_created', tagId: BUG } as AgentRule, BOT, ctx([]), [], 'a')).toBe('the card does not have the rule\'s tag')
+    expect(ruleSkipReason({ ...r, event: 'card_created', columnId: DONE } as AgentRule, BOT, ctx([]), [], 'a')).toBe('the card is no longer in the rule\'s column')
+    expect(streamQuery({ boardIds: [B], activity: [], columnIds: [], notifications: false, rulesFor: BOT }))
+      .toBe(`boards=${B}&activity=created%2Cmoved%2Ctagged%2Cassigned%2Ccommented%2Cmentioned&change=1&clients=kanso-agent`)
+    const prompt = claudePrompt({ ...ctx([]), event: { source: 'activity', kind: 'moved' }, board: { id: B, name: 'Kanso' }, rule: { id: 'r', name: 'Triage', instructions: 'Triage it.' } } as unknown as CardContext, 'ignored')
+    expect(prompt).toContain('Agent rule: Triage')
+    expect(prompt).toMatch(/Triage it\.\n$/)
   })
 })

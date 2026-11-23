@@ -1,7 +1,7 @@
 import type { BoardAccent } from '#shared/boardAccents'
 import type { ColumnOutline } from '#shared/columnOutline'
 import type { BoardBackground } from '#shared/boardBackgrounds'
-import type { AssigneeGroup, BoardAutomation, BoardDetail, BoardRule, NewBoardRule, BoardField, BulkCardAction, Card, CardLink, CardPatch, CardRecurrence, Column, ColumnGroup, ColumnRule, FieldValue, NewBoardAutomation, NewColumnRule, NewScheduledCardAction, ScheduledCardAction, NewColumnRuleRequest, RecurrenceInput, SavedView, Tag } from '#shared/types/board'
+import type { AgentRule, AssigneeGroup, BoardAutomation, NewAgentRule, BoardDetail, BoardRule, NewBoardRule, BoardField, BulkCardAction, Card, CardLink, CardPatch, CardRecurrence, Column, ColumnGroup, ColumnRule, FieldValue, NewBoardAutomation, NewColumnRule, NewScheduledCardAction, ScheduledCardAction, NewColumnRuleRequest, RecurrenceInput, SavedView, Tag } from '#shared/types/board'
 import type { SavedViewConfig } from '#shared/savedViews'
 import type { BoardButton, ButtonAlign, ButtonRunResult } from '#shared/buttons'
 
@@ -191,6 +191,8 @@ export async function useBoard(id: string) {
   const automations = ref<BoardAutomation[]>([])
   // Event-triggered rules (BoardRulesModal).
   const rules = ref<BoardRule[]>([])
+  // Agent rules, followed by `kanso agent run` (BoardAgentRulesModal).
+  const agentRules = ref<AgentRule[]>([])
   // One-shot actions on cards (card mode of BoardAutomationsModal).
   const scheduledActions = ref<ScheduledCardAction[]>([])
   watch(board, (b) => {
@@ -206,6 +208,7 @@ export async function useBoard(id: string) {
     recurrences.value = [...b.recurrences]
     automations.value = [...b.automations]
     rules.value = [...b.rules]
+    agentRules.value = [...b.agentRules]
     scheduledActions.value = [...b.scheduledActions]
     lists.value = Object.fromEntries(b.columns.map(c => [c.id, b.cards.filter(card => card.columnId === c.id)]))
   }, { immediate: true })
@@ -555,6 +558,7 @@ export async function useBoard(id: string) {
       automations.value = automations.value.filter(a => a.columnId !== col.id && !('targetColumnId' in a && a.targetColumnId === col.id))
       scheduledActions.value = scheduledActions.value.filter(s => !('targetColumnId' in s && s.targetColumnId === col.id))
       rules.value = rules.value.filter(r => !ruleColumnIds(r).includes(col.id))
+      agentRules.value = agentRules.value.filter(r => r.columnId !== col.id && r.moveColumnId !== col.id)
     }, t('board.errors.deleteColumn')),
 
     addColumnRule: (col: Column, rule: NewColumnRule, applyToExisting = true) => run(async () => {
@@ -603,6 +607,23 @@ export async function useBoard(id: string) {
       rules.value = rules.value.filter(r => r.id !== rule.id)
       await api(`/api/board-rules/${rule.id}`, { method: 'DELETE' })
     }, t('board.errors.deleteBoardRule')),
+
+    addAgentRule: (rule: NewAgentRule) => run(async () => {
+      const created = await api<AgentRule>(`/api/boards/${id}/agent-rules`, { method: 'POST', body: rule })
+      if (!agentRules.value.some(r => r.id === created.id)) agentRules.value.push(created)
+    }, t('board.errors.addAgentRule')),
+
+    /** Replaces an agent rule, or pauses/resumes it ({ active }). */
+    updateAgentRule: (rule: AgentRule, patch: NewAgentRule | { active: boolean }) => run(async () => {
+      Object.assign(rule, patch)
+      const updated = await api<AgentRule>(`/api/agent-rules/${rule.id}`, { method: 'PATCH', body: patch })
+      Object.assign(rule, updated)
+    }, t('board.errors.updateAgentRule')),
+
+    deleteAgentRule: (rule: AgentRule) => run(async () => {
+      agentRules.value = agentRules.value.filter(r => r.id !== rule.id)
+      await api(`/api/agent-rules/${rule.id}`, { method: 'DELETE' })
+    }, t('board.errors.deleteAgentRule')),
 
     addScheduledAction: (card: Card, action: NewScheduledCardAction) => run(async () => {
       const created = await api<ScheduledCardAction>(`/api/cards/${card.id}/scheduled-actions`, { method: 'POST', body: action })
@@ -767,6 +788,7 @@ export async function useBoard(id: string) {
       for (const col of columns.value) col.rules = col.rules.filter(r => !('tagId' in r && r.tagId === tag.id))
       automations.value = automations.value.filter(a => !('tagId' in a && a.tagId === tag.id))
       rules.value = rules.value.filter(r => !ruleTagIds(r).includes(tag.id))
+      agentRules.value = agentRules.value.filter(r => r.tagId !== tag.id)
     }, t('board.errors.deleteTag')),
 
     addField: (field: NewBoardField) => run(async () => {
@@ -953,7 +975,7 @@ export async function useBoard(id: string) {
   }
 
   return {
-    board, error, refresh, columns, columnGroups, assigneeGroups, savedViews, buttons, lists, tags, fields, templates, recurrences, automations, rules, scheduledActions, archived, offline, canEdit, isOwner, limited, canEditCard, canCommentOn, canAddToColumn, dragging, remoteVersion,
+    board, error, refresh, columns, columnGroups, assigneeGroups, savedViews, buttons, lists, tags, fields, templates, recurrences, automations, rules, agentRules, scheduledActions, archived, offline, canEdit, isOwner, limited, canEditCard, canCommentOn, canAddToColumn, dragging, remoteVersion,
     canUndo: undoStack.canUndo, canRedo: undoStack.canRedo, ...mutations,
   }
 }

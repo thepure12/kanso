@@ -265,6 +265,64 @@ describe('kanso agent run against the API', () => {
     expect(lines.some(l => l.message.startsWith('done commented'))).toBe(true)
   })
 
+  it('follows the agent rules set on the board for its bot', async () => {
+    const board = await (await alice.req('/api/boards', { method: 'POST', body: { name: 'Agent rules board' } })).json() as { id: string }
+    const detail = await (await alice.req(`/api/boards/${board.id}`)).json() as BoardDetail
+    const todo = detail.columns.find(c => c.title === 'To do')!
+    const doing = detail.columns.find(c => c.title === 'In progress')!
+    const bot = await (await alice.req(`/api/boards/${board.id}/bots`, { method: 'POST', body: { name: 'Runner', role: 'editor' } })).json() as { id: string }
+    const botToken = (await (await alice.req(`/api/bots/${bot.id}/tokens`, { method: 'POST', body: { name: 'agent', scopes: ['read', 'write'] } })).json() as { token: string }).token
+    const out = await mkdtemp(join(dir, 'rules-'))
+    const env = { KANSO_URL: base, OUT: out }
+
+    // A person's token is refused: rules name a bot.
+    const { token } = await alice.token(['read', 'write'])
+    const refused = await cli(['agent', 'run', '--board', board.id, '--cmd', 'true'], { ...env, KANSO_TOKEN: token })
+    expect(refused.code).toBe(2)
+    expect(refused.err).toContain('not a bot\'s')
+
+    // Routes: validation, then a rule; the bot token reads it (token route).
+    const bad = await alice.req(`/api/boards/${board.id}/agent-rules`, { method: 'POST', body: { name: 'x', botId: alice.id, event: 'card_moved', instructions: 'Go' } })
+    expect(bad.status).toBe(403)
+    const created = await alice.req(`/api/boards/${board.id}/agent-rules`, {
+      method: 'POST',
+      body: { name: 'Pick up', botId: bot.id, event: 'card_moved', columnId: todo.id, instructions: 'Work on it.', moveColumnId: doing.id, comment: 'always' },
+    })
+    expect(created.status).toBe(200)
+    const rule = await created.json() as { id: string, active: boolean, comment: string }
+    expect(rule).toMatchObject({ active: true, comment: 'always' })
+    const botGet = await globalThis.fetch(`${base}/api/boards/${board.id}/agent-rules`, { headers: { authorization: `Bearer ${botToken}`, 'x-forwarded-for': randomIp() } })
+    expect((await botGet.json() as { id: string }[]).map(r => r.id)).toEqual([rule.id])
+
+    const stop = new AbortController()
+    const running = cli(['agent', 'run', '--board', board.id, '--json', '--cmd', 'cat > "$OUT/$KANSO_RULE_NAME-$KANSO_CARD_ID.json"'], { ...env, KANSO_TOKEN: botToken }, stop.signal)
+    await new Promise(r => setTimeout(r, 500))
+    const card = (await (await alice.req(`/api/boards/${board.id}/cards`, { method: 'POST', body: { columnId: doing.id, title: 'Rule me' } })).json() as { id: string }).id
+    expect((await alice.req(`/api/cards/${card}/move`, { method: 'POST', body: { columnId: todo.id, aboveId: null, belowId: null } })).ok).toBe(true)
+    await until(async () => (await readdir(out)).includes(`Pick up-${card}.json`))
+    const ctx = JSON.parse(await readFile(join(out, `Pick up-${card}.json`), 'utf8'))
+    expect(ctx.rule).toEqual({ id: rule.id, name: 'Pick up', instructions: 'Work on it.' })
+    // Afterwards the card goes to "In progress" and the result is commented (the runner's own move starts nothing).
+    await until(async () => {
+      const b = await (await alice.req(`/api/boards/${board.id}`)).json() as BoardDetail
+      return b.cards.find(c => c.id === card)?.columnId === doing.id
+    })
+    await until(async () => ((await (await alice.req(`/api/cards/${card}`)).json()) as CardDetail).comments.length === 1)
+
+    // Pausing the rule (a board change) stops it.
+    expect((await alice.req(`/api/agent-rules/${rule.id}`, { method: 'PATCH', body: { active: false } })).ok).toBe(true)
+    await new Promise(r => setTimeout(r, 800))
+    expect((await alice.req(`/api/cards/${card}/move`, { method: 'POST', body: { columnId: todo.id, aboveId: null, belowId: null } })).ok).toBe(true)
+    await new Promise(r => setTimeout(r, 800))
+    stop.abort()
+    const result = await running
+    expect(result.code).toBe(0)
+    const messages = result.out.trim().split('\n').map(l => (JSON.parse(l) as { message: string }).message)
+    expect(messages.filter(m => m.startsWith('run '))).toHaveLength(1)
+    expect(messages.some(m => m.includes('no active agent rules'))).toBe(true)
+    expect((await alice.req(`/api/agent-rules/${rule.id}`, { method: 'DELETE' })).ok).toBe(true)
+  })
+
   it('refuses a board the token cannot see', async () => {
     const { token } = await alice.token(['read'])
     const r = await cli(['agent', 'run', '--board', randomUUID(), '--activity', 'moved', '--cmd', 'true'], { KANSO_URL: base, KANSO_TOKEN: token })

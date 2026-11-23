@@ -50,6 +50,15 @@ describe('locale catalogues', () => {
       }
     }
   })
+
+  // The strict message check of @nuxtjs/i18n refuses the whole locale at runtime
+  // (every text shows its key) when a message looks like HTML, e.g. "<board id>".
+  it('hold nothing that looks like an HTML tag', () => {
+    const tag = /<\/?[\w\s="/.':;#-]+>/
+    for (const l of locales) {
+      for (const [key, message] of Object.entries(flat[l]!)) expect(tag.test(message), `${l}: ${key}`).toBe(false)
+    }
+  })
 })
 
 describe('createTranslator', () => {

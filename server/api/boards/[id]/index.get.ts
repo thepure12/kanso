@@ -13,7 +13,7 @@ export default defineUserHandler(async (event, tx): Promise<BoardDetail> => {
     .from(boards).leftJoin(teams, eq(teams.id, boards.teamId)).where(eq(boards.id, id))
   if (!board) notFound('Board not found')
 
-  const [cols, ruleRows, cardRows, templates, recurrences, automationRows, boardRuleRows, scheduledRows, tagRows, fields, columnGroups, assigneeGroups, savedViews, buttons, matrix, members, inviteRows, [me], memberAccess] = await Promise.all([
+  const [cols, ruleRows, cardRows, templates, recurrences, automationRows, boardRuleRows, agentRules, scheduledRows, tagRows, fields, columnGroups, assigneeGroups, savedViews, buttons, matrix, members, inviteRows, [me], memberAccess] = await Promise.all([
     tx.select({ id: columns.id, title: columns.title, position: columns.position, color: columns.color, wipLimit: columns.wipLimit, outline: columns.outline })
       .from(columns).where(eq(columns.boardId, id)).orderBy(asc(columns.position)),
     tx.select({ ...columnRuleFields, columnId: columnRules.columnId })
@@ -27,6 +27,7 @@ export default defineUserHandler(async (event, tx): Promise<BoardDetail> => {
       .where(and(eq(boardAutomations.boardId, id), sql`(${boardAutomations.cardId} is null or exists (select 1 from cards c where c.id = ${boardAutomations.cardId}))`))
       .orderBy(asc(boardAutomations.createdAt)),
     tx.select(boardRuleFields).from(boardRules).where(eq(boardRules.boardId, id)).orderBy(asc(boardRules.createdAt), asc(boardRules.id)),
+    loadAgentRules(tx, id),
     tx.select(scheduledActionFields).from(cardScheduledActions)
       .where(and(eq(cardScheduledActions.boardId, id), sql`exists (select 1 from cards c where c.id = ${cardScheduledActions.cardId})`)).orderBy(asc(cardScheduledActions.runOn), asc(cardScheduledActions.createdAt)),
     tx.select({ id: tags.id, name: tags.name, color: tags.color })
@@ -78,6 +79,7 @@ export default defineUserHandler(async (event, tx): Promise<BoardDetail> => {
     recurrences,
     automations: automationRows.map(toBoardAutomation),
     rules: boardRuleRows.map(toBoardRule),
+    agentRules,
     scheduledActions: scheduledRows.map(toScheduledAction),
     tags: tagRows,
     fields,
