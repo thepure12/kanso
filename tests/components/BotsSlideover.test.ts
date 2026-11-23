@@ -63,9 +63,12 @@ describe('BotsSlideover', () => {
     await vi.waitFor(() => expect(w.find('[data-testid="new-token"]').exists()).toBe(true))
     expect((w.find('input[data-testid="new-token"], [data-testid="new-token"] input').element as HTMLInputElement).value).toBe('kb_secretsecretsecret')
     expect(w.text()).toContain('Copy the token now')
-    const command = (w.find('textarea').element as HTMLTextAreaElement).value
+    const command = (w.find('textarea[data-testid="mcp-command"], [data-testid="mcp-command"] textarea').element as HTMLTextAreaElement).value
     expect(command).toContain('claude mcp add --transport http kanso')
     expect(command).toContain('Bearer kb_secretsecretsecret')
+    // How to install the CLI and log in with the new token.
+    const panel = w.findAll('[data-testid="cli-install"]').at(-1)!
+    expect((panel.find('textarea').element as HTMLTextAreaElement).value).toMatch(/\/cli\/install\.sh \| sh\nkanso login --url http/)
     // The list keeps only the token's metadata.
     const row = w.find('[data-testid="bot-token"]')
     expect(row.text()).toContain('kb_Ab12Cd')

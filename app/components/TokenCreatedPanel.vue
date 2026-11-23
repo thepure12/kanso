@@ -1,6 +1,6 @@
 <script setup lang="ts">
 // A new API token, shown once: the token with a copy button, the MCP URL and a
-// `claude mcp add` command. Used by ApiTokenList (personal) and BotsSlideover (bots).
+// `claude mcp add` command, and how to install the kanso CLI and log in with it. Used by ApiTokenList (personal) and BotsSlideover (bots).
 const props = defineProps<{
   token: string
   /** Who the token acts as, for the warning; defaults to the personal wording. */
@@ -50,11 +50,12 @@ async function copyMcpCommand() {
         </template>
       </i18n-t>
       <div class="flex items-start gap-1">
-        <UTextarea :model-value="mcpCommand" readonly autoresize :rows="2" class="flex-1 font-mono text-xs" @focus="($event.target as HTMLTextAreaElement).select()" />
+        <UTextarea :model-value="mcpCommand" data-testid="mcp-command" readonly autoresize :rows="2" class="flex-1 font-mono text-xs" @focus="($event.target as HTMLTextAreaElement).select()" />
         <UTooltip :text="t('tokens.mcpCopy')">
           <UButton color="neutral" variant="ghost" size="sm" icon="i-lucide-copy" :aria-label="t('tokens.mcpCopy')" @click="copyMcpCommand" />
         </UTooltip>
       </div>
     </div>
+    <CliInstallHint login />
   </div>
 </template>

@@ -330,3 +330,24 @@ describe('kanso agent run against the API', () => {
     expect(r.err).toContain('Not found (404')
   })
 })
+
+describe('installing the CLI from the instance', () => {
+  it('serves the CLI built with the server and an install script pointing at the site, without signing in', async () => {
+    const js = await globalThis.fetch(`${base}/cli/kanso.mjs`)
+    expect(js.status).toBe(200)
+    expect(js.headers.get('content-type')).toContain('javascript')
+    const body = await js.text()
+    expect(body.startsWith('#!/usr/bin/env node')).toBe(true)
+    const { VERSION } = await import('../../cli/src/version')
+    expect(body).toContain(VERSION)
+
+    const sh = await globalThis.fetch(`${base}/cli/install.sh`)
+    expect(sh.status).toBe(200)
+    expect(sh.headers.get('content-type')).toContain('text/x-shellscript')
+    expect(sh.headers.get('cache-control')).toBe('no-store')
+    const script = await sh.text()
+    expect(script.startsWith('#!/bin/sh')).toBe(true)
+    // NUXT_PUBLIC_SITE_URL when the environment sets one, else the request's origin.
+    expect(script).toContain(`site='${process.env.NUXT_PUBLIC_SITE_URL?.replace(/\/+$/, '') || base}'`)
+  })
+})

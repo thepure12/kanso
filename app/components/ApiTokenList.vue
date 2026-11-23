@@ -102,6 +102,7 @@ defineExpose({ refresh })
         <code>Authorization: Bearer &lt;token&gt;</code>
       </template>
     </i18n-t>
+    <CliInstallHint />
     <ul v-if="live.length" class="divide-y divide-default">
       <li v-for="tk in live" :key="tk.id" class="flex items-center gap-3 py-3">
         <UIcon name="i-lucide-key-round" class="size-5 text-muted shrink-0" />

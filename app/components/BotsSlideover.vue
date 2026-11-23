@@ -283,6 +283,8 @@ async function revoke(bot: BoardBot, token: BotToken) {
         </li>
       </ul>
 
+      <CliInstallHint v-if="list.length" class="mt-6" />
+
       <input ref="pictureInput" type="file" :accept="AVATAR_TYPES.join(',')" class="hidden" :aria-label="t('account.profile.picture')" @change="onPicture">
 
       <UModal v-model:open="tokenOpen" :title="created ? t('tokens.copyTitle') : t('bots.newTokenTitle', { name: tokenBot?.name ?? '' })">

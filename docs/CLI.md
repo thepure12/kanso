@@ -3,6 +3,26 @@
 `kanso` (workspace package `cli/`, built into one file `cli/dist/kanso.mjs`) talks to a Kanso site with an API
 token. Node 22, no runtime dependencies.
 
+## Install
+
+Every Kanso site serves the CLI it was built with, so the version always matches the server:
+
+```bash
+curl -fsSL https://kanso.example.org/cli/install.sh | sh     # under a base path: https://host/kanso/cli/install.sh
+kanso login --url https://kanso.example.org                    # paste an API token when asked
+```
+
+The script needs Node.js 22 or newer and curl or wget. It downloads `<site>/cli/kanso.mjs` into `~/.local/bin/kanso`
+(`KANSO_BIN_DIR=<dir>` to put it elsewhere) and prints the version; run it again to update. Without the script:
+`curl -fsSL <site>/cli/kanso.mjs -o ~/.local/bin/kanso && chmod +x ~/.local/bin/kanso`. The account page (API
+tokens, bots) and the bots panel of a board show these commands with the site filled in. Nothing is published to npm.
+
+The site in the script is `NUXT_PUBLIC_SITE_URL`, else the address the script was fetched from. `pnpm build` (and
+so the Docker image and `deploy/install.sh`) builds the CLI before the app and bundles `cli/dist` into the server;
+in development run `pnpm --filter kanso-cli build` once, else `/cli/kanso.mjs` answers 404.
+
+From a checkout:
+
 ```bash
 pnpm --filter kanso-cli build
 node cli/dist/kanso.mjs --help

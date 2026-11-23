@@ -34,4 +34,11 @@ describe('ApiTokenList', () => {
     expect(items[0]!.find('[data-testid="reveal-token"]').exists()).toBe(true)
     expect(items[1]!.find('[data-testid="reveal-token"]').exists()).toBe(false)
   })
+
+  it('shows how to install the kanso CLI from this site', async () => {
+    const w = await mountSuspended(ApiTokenList)
+    const hint = w.find('[data-testid="cli-install"]')
+    expect(hint.exists()).toBe(true)
+    expect((hint.find('textarea').element as HTMLTextAreaElement).value).toMatch(/^curl -fsSL http.*\/cli\/install\.sh \| sh$/)
+  })
 })

@@ -49,6 +49,12 @@ jobs:
 
       - run: pnpm typecheck
 
+      # The kanso CLI (cli/): its own typecheck, and the build the server serves at /cli/kanso.mjs.
+      # Its tests run in the unit (tests/unit/cli/) and api (tests/api/cli.test.ts) projects.
+      - run: pnpm --filter kanso-cli typecheck
+
+      - run: pnpm --filter kanso-cli build
+
       - run: pnpm vitest run --project unit
 
       - run: pnpm vitest run --project components

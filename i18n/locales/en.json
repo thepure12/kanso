@@ -495,6 +495,13 @@
     "mcpTitle": "Use with AI agents (MCP)",
     "mcpHelp": "Agents such as Claude Code can work with your boards through the MCP server at {url}, sending this token. A read-only token only lets them look. To add it to Claude Code:",
     "mcpCopy": "Copy command",
+    "cli": {
+      "title": "Use from the command line (kanso CLI)",
+      "help": "Command line: install the kanso CLI (Node.js 22 or newer) from this site, then log in with a token.",
+      "helpLogin": "Install the kanso CLI (Node.js 22 or newer), then log in and paste this token when asked:",
+      "copy": "Copy commands",
+      "copied": "Commands copied"
+    },
     "mcpCopied": "Command copied",
     "reveal": {
       "button": "Show token",

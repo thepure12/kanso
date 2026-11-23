@@ -1,3 +1,5 @@
+import { fileURLToPath } from 'node:url'
+
 // Sub-path deployments (https://host/kanso/): set NUXT_APP_BASE_URL=/kanso/ at build
 // time (in .env, or as the Docker build arg). Nuxt routes, $fetch and assets follow it;
 // app/utils/basePath.ts and server/utils/basePath.ts cover the hand-built URLs.
@@ -36,6 +38,9 @@ export default defineNuxtConfig({
   },
   nitro: {
     experimental: { tasks: true },
+    // The kanso CLI (cli/dist/kanso.mjs, built by `pnpm build` before Nuxt) bundled into the
+    // server and served at /cli/kanso.mjs (server/routes/cli/), next to /cli/install.sh.
+    serverAssets: [{ baseName: 'cli', dir: fileURLToPath(new URL('./cli/dist', import.meta.url)) }],
     // Daily email digest (server/tasks/notifications/digest.ts), server time;
     // recurring cards (server/tasks/cards/recurring.ts); board automations (server/tasks/cards/automations.ts); trash purge (server/tasks/cards/trash.ts); card reminders (server/tasks/cards/reminders.ts); webhook retries (server/tasks/webhooks/deliver.ts); push retries (server/tasks/push/deliver.ts).
     scheduledTasks: { '0 7 * * *': ['notifications:digest'], '*/15 * * * *': ['cards:recurring'], '0 * * * *': ['cards:automations'], '30 3 * * *': ['cards:trash'], '* * * * *': ['webhooks:deliver', 'push:deliver', 'matrix:deliver', 'cards:reminders'] },

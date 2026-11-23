@@ -225,6 +225,7 @@ async function revoke(bot: AccountBot, token: BotToken) {
         {{ t('bots.account.description') }}
       </p>
     </div>
+    <CliInstallHint />
 
     <form class="flex gap-2" data-testid="add-account-bot" @submit.prevent="add">
       <UInput v-model="name" :placeholder="t('bots.namePlaceholder')" :aria-label="t('common.name')" icon="i-lucide-bot" maxlength="100" class="flex-1" />
