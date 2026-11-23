@@ -1,7 +1,7 @@
 import { parseArgs } from 'node:util'
 import { UsageError } from './io.ts'
 
-export type OptionSpec = { type: 'string' | 'boolean', short?: string, description: string, value?: string }
+export type OptionSpec = { type: 'string' | 'boolean', short?: string, description: string, value?: string, /** May be given several times (values collected in order). */ multiple?: boolean }
 export type OptionSpecs = Record<string, OptionSpec>
 
 /** Options every command takes. */
@@ -11,10 +11,10 @@ export const globalOptions: OptionSpecs = {
   help: { type: 'boolean', short: 'h', description: 'Show help' },
 }
 
-export type Values = Record<string, string | boolean | undefined>
+export type Values = Record<string, string | boolean | string[] | undefined>
 
 export interface Parsed {
-  /** First positional word, or null when there is none (e.g. `kanso --help`). */
+  /** The command words (e.g. `cards ls`), or null when there is none (e.g. `kanso --help`). */
   command: string | null
   positionals: string[]
   values: Values
@@ -37,11 +37,22 @@ export function findCommand(argv: string[]): { command: string | null, rest: str
   return { command: null, rest: argv }
 }
 
-/** Parses the arguments after the command with the global options plus the command's own; unknown options are usage errors. */
-export function parseCommandArgs(argv: string[], options: OptionSpecs = {}): Parsed {
-  const { command, rest } = findCommand(argv)
+/**
+ * Parses the arguments after the command (`words` words long, e.g. 2 for `cards ls`) with the
+ * global options plus the command's own; unknown options are usage errors.
+ */
+export function parseCommandArgs(argv: string[], options: OptionSpecs = {}, words = 1): Parsed {
+  const names: string[] = []
+  let rest = argv
+  for (let i = 0; i < words; i++) {
+    const found = findCommand(rest)
+    if (found.command === null) break
+    names.push(found.command)
+    rest = found.rest
+  }
+  const command = names.length ? names.join(' ') : null
   const all = { ...globalOptions, ...options }
-  const config = Object.fromEntries(Object.entries(all).map(([k, o]) => [k, { type: o.type, ...(o.short && { short: o.short }) }]))
+  const config = Object.fromEntries(Object.entries(all).map(([k, o]) => [k, { type: o.type, ...(o.short && { short: o.short }), ...(o.multiple && { multiple: true }) }]))
   try {
     const { values, positionals } = parseArgs({ args: rest, options: config, allowPositionals: true, strict: true })
     return { command, positionals, values: values as Values }

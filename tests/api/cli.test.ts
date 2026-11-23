@@ -1,5 +1,6 @@
-// The kanso CLI (cli/) against a real server: login and whoami with API tokens,
-// run in-process through `run` with a temporary config file and the global fetch.
+// The kanso CLI (cli/) against a real server: login and whoami with API tokens, then the board,
+// card, comment, my-work, notification and search commands, run in-process through `run` with a
+// temporary config file and the global fetch.
 import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -76,6 +77,7 @@ beforeAll(async () => {
 afterAll(async () => {
   if (savedSettings) await admin?.req('/api/admin/settings', { method: 'PUT', body: savedSettings })
   await ownerDb`delete from admin_audit_log where data->>'actor_email' like '%@cli.test' or data->>'target_email' like '%@cli.test'`
+  await ownerDb`delete from boards where owner_id in (select id from users where email like '%@cli.test')`
   await ownerDb`delete from users where email like '%@cli.test'`
   await Promise.all([authDb.end(), ownerDb.end()])
   if (dir) await rm(dir, { recursive: true, force: true })
@@ -112,5 +114,89 @@ describe('kanso cli against the API', () => {
   it('logs out of the profile', async () => {
     expect((await cli(['logout'])).code).toBe(0)
     expect((await cli(['whoami'])).code).toBe(1)
+  })
+})
+
+describe('kanso cli board and card commands', () => {
+  let env: Record<string, string> = {}
+  let boardId = ''
+  let bob: Awaited<ReturnType<typeof signUp>>
+  const json = async (argv: string[]) => {
+    const r = await cli([...argv, '--json'], env)
+    expect(r.err).toBe('')
+    expect(r.code).toBe(0)
+    return JSON.parse(r.out)
+  }
+
+  beforeAll(async () => {
+    bob = await signUp('Bob')
+    const board = await (await alice.req('/api/boards', { method: 'POST', body: { name: `CLI board ${randomUUID()}` } })).json() as { id: string, name: string }
+    boardId = board.id
+    expect((await alice.req(`/api/boards/${boardId}/tags`, { method: 'POST', body: { name: 'Bug', color: '#ff0000' } })).status).toBe(200)
+    expect((await alice.req(`/api/boards/${boardId}/members`, { method: 'POST', body: { email: bob.email, role: 'editor' } })).status).toBe(200)
+    env = { KANSO_URL: base, KANSO_TOKEN: (await alice.token(['read', 'write'])).token }
+  })
+
+  it('finds the board by name and shows its columns', async () => {
+    const boards = await json(['boards', 'ls'])
+    const name = boards.find((b: { id: string }) => b.id === boardId).name as string
+    const shown = await json(['board', 'show', name])
+    expect(shown.columns.map((c: { title: string }) => c.title)).toEqual(['To do', 'In progress', 'Done'])
+    expect(shown.members.map((m: { email: string }) => m.email).sort()).toEqual([alice.email, bob.email].sort())
+  })
+
+  it('adds, edits, moves, comments on, lists and archives a card', async () => {
+    const added = await json(['card', 'add', boardId, 'to do', 'Fix the login'])
+    expect(added).toMatchObject({ title: 'Fix the login', column: 'To do' })
+
+    const edited = await json(['card', 'edit', boardId, 'fix the login', '--due', '2026-12-24', '--priority', 'high', '--add-tag', 'bug', '--assign', bob.email, '--assign', 'me'])
+    expect(edited).toMatchObject({ dueDate: '2026-12-24', priority: 'high', tags: [{ name: 'Bug' }] })
+    expect(edited.assignees.map((a: { email: string }) => a.email).sort()).toEqual([alice.email, bob.email].sort())
+
+    expect(await json(['card', 'mv', boardId, added.id.slice(0, 8), 'In progress'])).toMatchObject({ column: 'In progress' })
+    expect(await json(['comment', 'add', boardId, added.id, 'Looking into it'])).toMatchObject({ body: 'Looking into it', author: 'Alice' })
+
+    const listed = await json(['cards', 'ls', boardId, '--assignee', 'Bob', '--tag', 'Bug', '--column', 'in progress'])
+    expect(listed.map((c: { id: string }) => c.id)).toEqual([added.id])
+    const shown = await json(['card', 'show', boardId, added.id])
+    expect(shown.comments).toEqual([expect.objectContaining({ body: 'Looking into it' })])
+
+    const work = await json(['my-work'])
+    expect(work.map((c: { id: string }) => c.id)).toContain(added.id)
+    const found = await json(['search', 'login'])
+    expect(found.cards.map((c: { id: string }) => c.id)).toContain(added.id)
+
+    await json(['card', 'archive', boardId, added.id])
+    expect(await json(['cards', 'ls', boardId])).toEqual([])
+    await json(['card', 'archive', boardId, added.id, '--restore'])
+    expect((await json(['cards', 'ls', boardId])).map((c: { id: string }) => c.id)).toEqual([added.id])
+  })
+
+  it('refuses an ambiguous card title with the matches', async () => {
+    await json(['card', 'add', boardId, 'To do', 'Twin one'])
+    await json(['card', 'add', boardId, 'To do', 'Twin two'])
+    const r = await cli(['card', 'show', boardId, 'twin', '--json'], env)
+    expect(r.code).toBe(1)
+    expect(JSON.parse(r.err).error.matches.map((m: { name: string }) => m.name).sort()).toEqual(['Twin one', 'Twin two'])
+  })
+
+  it('lists notifications and marks them read', async () => {
+    const bobEnv = { KANSO_URL: base, KANSO_TOKEN: (await bob.token(['read', 'write'])).token }
+    const inbox = JSON.parse((await cli(['notifications', 'ls', '--unread', '--json'], bobEnv)).out)
+    expect(inbox.unread).toBeGreaterThan(0)
+    const first = inbox.items[0]
+    expect(first).toMatchObject({ read: false, board: expect.stringContaining('CLI board') })
+    const read = await cli(['notifications', 'read', first.id.slice(0, 8)], bobEnv)
+    expect(read.out).toBe('Marked 1 notification read.\n')
+    const all = await cli(['notifications', 'read', '--all', '--json'], bobEnv)
+    expect(all.code).toBe(0)
+    expect(JSON.parse((await cli(['notifications', 'ls', '--json'], bobEnv)).out).unread).toBe(0)
+  })
+
+  it('refuses writes with a read-only token', async () => {
+    const readEnv = { KANSO_URL: base, KANSO_TOKEN: (await alice.token(['read'])).token }
+    const r = await cli(['card', 'add', boardId, 'To do', 'Nope', '--json'], readEnv)
+    expect(r.code).toBe(1)
+    expect(JSON.parse(r.err).error.status).toBe(403)
   })
 })
