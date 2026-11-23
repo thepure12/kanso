@@ -27,7 +27,7 @@ export function describeApiError(status: number, serverMessage: string, method: 
 }
 
 /** A JSON client for one Kanso site, sending the API token as a Bearer token. */
-export function createClient(creds: Pick<Credentials, 'url' | 'token'>, fetch: typeof globalThis.fetch) {
+export function createClient(creds: Pick<Credentials, 'url' | 'token'>, fetch: typeof globalThis.fetch, clientId = 'cli') {
   async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
     let res: Response
     try {
@@ -38,8 +38,9 @@ export function createClient(creds: Pick<Credentials, 'url' | 'token'>, fetch: t
           'authorization': `Bearer ${creds.token}`,
           'accept': 'application/json',
           'user-agent': `kanso-cli/${VERSION}`,
-          // Board change events from this client are not skipped by any browser tab.
-          'x-client-id': 'cli',
+          // Board change events from this client are not skipped by any browser tab;
+          // `kanso agent run` uses its own id so its event stream skips its own comments.
+          'x-client-id': clientId,
           ...(body !== undefined && { 'content-type': 'application/json' }),
         },
         body: body === undefined ? undefined : JSON.stringify(body),

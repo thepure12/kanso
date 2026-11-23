@@ -233,6 +233,9 @@ new ones.
 Instead of polling, open the event stream with `notifications=1` (see [Event stream](#event-stream)) and fetch the
 inbox when a `notifications` event arrives.
 
+`kanso agent run --notifications --cmd ...` (see [CLI.md](CLI.md#kanso-agent-run)) does all of this: it follows the
+stream, runs a command per unread notification with the card on stdin and marks it read afterwards.
+
 ## Event stream
 
 `GET /api/events` is a server-sent event stream (`text/event-stream`). Browsers use it with the session cookie; scripts

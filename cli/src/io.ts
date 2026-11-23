@@ -8,6 +8,8 @@ export interface Io {
   /** Reads a secret (the token) when `kanso login` has no --token: a prompt without echo on a terminal, else one line of stdin. */
   readSecret: (prompt: string) => Promise<string>
   fetch: typeof globalThis.fetch
+  /** Aborted on SIGINT/SIGTERM: long-running commands (`kanso agent run`) stop then. */
+  signal?: AbortSignal
 }
 
 /** A failure to report as `error: <message>` with this exit code (1 = failed, 2 = usage). */

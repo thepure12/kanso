@@ -1,6 +1,7 @@
 import { describeOptions, findCommand, globalOptions, parseCommandArgs } from './args.ts'
 import { ApiError } from './client.ts'
 import { configPath, profileName } from './config.ts'
+import { agent } from './commands/agent.ts'
 import { login, logout, whoami } from './commands/auth.ts'
 import { boardShow, boardsLs } from './commands/boards.ts'
 import { cardAdd, cardArchive, cardEdit, cardMv, cardShow, cardsLs, commentAdd } from './commands/cards.ts'
@@ -16,6 +17,7 @@ export const commands: Command[] = [
   boardsLs, boardShow,
   cardsLs, cardShow, cardAdd, cardMv, cardEdit, cardArchive,
   commentAdd, myWork, notificationsLs, notificationsRead, search,
+  agent,
 ]
 
 /** Command groups take singular and plural alike: `board ls` = `boards ls`, `cards show` = `card show`. */

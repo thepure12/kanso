@@ -22,6 +22,15 @@ async function readSecret(prompt: string): Promise<string> {
   }
 }
 
+// SIGINT/SIGTERM stop long-running commands gracefully; a second one exits at once.
+const stop = new AbortController()
+for (const sig of ['SIGINT', 'SIGTERM'] as const) {
+  process.on(sig, () => {
+    if (stop.signal.aborted) process.exit(130)
+    stop.abort()
+  })
+}
+
 process.exitCode = await run(process.argv.slice(2), {
   env: process.env,
   home: homedir(),
@@ -29,6 +38,7 @@ process.exitCode = await run(process.argv.slice(2), {
   stderr: text => process.stderr.write(text),
   readSecret,
   fetch: globalThis.fetch,
+  signal: stop.signal,
 }).catch((err: unknown) => {
   process.stderr.write(`kanso: unexpected error: ${(err as Error)?.stack ?? err}\n`)
   return 1

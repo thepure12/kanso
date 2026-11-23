@@ -1,7 +1,7 @@
 // The kanso CLI (cli/) against a real server: login and whoami with API tokens, then the board,
-// card, comment, my-work, notification and search commands, run in-process through `run` with a
-// temporary config file and the global fetch.
-import { mkdtemp, rm } from 'node:fs/promises'
+// card, comment, my-work, notification and search commands, and agent run, run in-process through
+// `run` with a temporary config file and the global fetch.
+import { mkdtemp, readdir, readFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { randomUUID } from 'node:crypto'
@@ -10,6 +10,7 @@ import postgres from 'postgres'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import type { ApiToken } from '#shared/types/account'
 import type { InstanceSettings } from '#shared/types/admin'
+import type { BoardDetail, CardDetail } from '#shared/types/board'
 import type { Io } from '../../cli/src/io'
 import { run } from '../../cli/src/main'
 import { signEmailToken } from '../../server/utils/emailToken'
@@ -45,7 +46,7 @@ async function signUp(name: string, email = `${name.toLowerCase()}-${randomUUID(
 }
 
 /** One CLI run against the test server; the client sends its own x-forwarded-for so the token rate limit stays per test. */
-async function cli(argv: string[], env: Record<string, string> = {}) {
+async function cli(argv: string[], env: Record<string, string> = {}, signal?: AbortSignal) {
   const out: string[] = []
   const err: string[] = []
   const ip = randomIp()
@@ -56,6 +57,7 @@ async function cli(argv: string[], env: Record<string, string> = {}) {
     stderr: t => err.push(t),
     readSecret: async () => '',
     fetch: (input, init = {}) => globalThis.fetch(input, { ...init, headers: { ...(init.headers as Record<string, string>), 'x-forwarded-for': ip } }),
+    signal,
   }
   const code = await run(argv, io)
   return { code, out: out.join(''), err: err.join('') }
@@ -78,6 +80,7 @@ afterAll(async () => {
   if (savedSettings) await admin?.req('/api/admin/settings', { method: 'PUT', body: savedSettings })
   await ownerDb`delete from admin_audit_log where data->>'actor_email' like '%@cli.test' or data->>'target_email' like '%@cli.test'`
   await ownerDb`delete from boards where owner_id in (select id from users where email like '%@cli.test')`
+  await ownerDb`delete from boards where id in (select board_id from board_members m join users u on u.id = m.user_id where u.email like '%@cli.test')`
   await ownerDb`delete from users where email like '%@cli.test'`
   await Promise.all([authDb.end(), ownerDb.end()])
   if (dir) await rm(dir, { recursive: true, force: true })
@@ -198,5 +201,74 @@ describe('kanso cli board and card commands', () => {
     const r = await cli(['card', 'add', boardId, 'To do', 'Nope', '--json'], readEnv)
     expect(r.code).toBe(1)
     expect(JSON.parse(r.err).error.status).toBe(403)
+  })
+})
+
+describe('kanso agent run against the API', () => {
+  const until = async (fn: () => Promise<boolean>) => {
+    for (let i = 0; i < 200; i++) {
+      if (await fn()) return
+      await new Promise(r => setTimeout(r, 50))
+    }
+    throw new Error('timed out')
+  }
+
+  it('runs the command for cards landing in a column and for a bot\'s mentions', async () => {
+    const board = await (await alice.req('/api/boards', { method: 'POST', body: { name: 'Agent board' } })).json() as { id: string }
+    const detail = await (await alice.req(`/api/boards/${board.id}`)).json() as BoardDetail
+    const todo = detail.columns.find(c => c.title === 'To do')!
+    const doing = detail.columns.find(c => c.title === 'In progress')!
+    const out = await mkdtemp(join(dir, 'runs-'))
+    const files = async () => (await readdir(out)).sort()
+
+    // Activity: cards created in or moved to "To do", as Alice.
+    const { token } = await alice.token(['read', 'write'])
+    const stop = new AbortController()
+    const env = { KANSO_URL: base, KANSO_TOKEN: token, OUT: out }
+    const running = cli(['agent', 'run', '--board', board.id, '--columns', 'to do', '--comment', 'always',
+      '--cmd', 'cat > "$OUT/$KANSO_EVENT-$KANSO_CARD_ID.json"'], env, stop.signal)
+    await new Promise(r => setTimeout(r, 500))
+    const create = async (columnId: string, title: string) => (await (await alice.req(`/api/boards/${board.id}/cards`, { method: 'POST', body: { columnId, title } })).json() as { id: string }).id
+    const inTodo = await create(todo.id, 'Do it')
+    const elsewhere = await create(doing.id, 'Not mine')
+    expect((await alice.req(`/api/cards/${elsewhere}/move`, { method: 'POST', body: { columnId: todo.id, aboveId: null, belowId: null } })).ok).toBe(true)
+    await until(async () => (await files()).length === 2)
+    expect(await files()).toEqual([`created-${inTodo}.json`, `moved-${elsewhere}.json`].sort())
+    const ctx = JSON.parse(await readFile(join(out, `created-${inTodo}.json`), 'utf8'))
+    expect(ctx).toMatchObject({ event: { source: 'activity', kind: 'created' }, board: { id: board.id, name: 'Agent board' }, column: { title: 'To do' }, card: { id: inTodo, title: 'Do it' } })
+    // The status comment is posted, and does not trigger a run of its own.
+    await until(async () => ((await (await alice.req(`/api/cards/${inTodo}`)).json()) as CardDetail).comments.length === 1)
+    const comment = ((await (await alice.req(`/api/cards/${inTodo}`)).json()) as CardDetail).comments[0]!
+    expect(comment.body).toContain('the run for **created** finished')
+    stop.abort()
+    const result = await running
+    expect(result.err).toContain('kanso agent: stopped')
+    expect(result.code).toBe(0)
+
+    // Notifications: a bot mentioned in a comment.
+    const bot = await (await alice.req(`/api/boards/${board.id}/bots`, { method: 'POST', body: { name: 'Helper', role: 'editor' } })).json() as { id: string }
+    const botToken = (await (await alice.req(`/api/bots/${bot.id}/tokens`, { method: 'POST', body: { name: 'agent', scopes: ['read', 'write'] } })).json() as { token: string }).token
+    const stopBot = new AbortController()
+    const botRun = cli(['agent', 'run', '--notifications', '--json', '--cmd', 'echo "$KANSO_NOTIFICATION_ID" > "$OUT/note-$KANSO_CARD_ID"'], { ...env, KANSO_TOKEN: botToken }, stopBot.signal)
+    await new Promise(r => setTimeout(r, 500))
+    expect((await alice.req(`/api/cards/${inTodo}/comments`, { method: 'POST', body: { body: `@[Helper](user:${bot.id}) please look` } })).ok).toBe(true)
+    await until(async () => (await files()).includes(`note-${inTodo}`))
+    const botApi = (path: string) => globalThis.fetch(base + path, { headers: { authorization: `Bearer ${botToken}`, 'x-forwarded-for': randomIp() } })
+    await until(async () => ((await (await botApi('/api/notifications?unread=1')).json()) as { unread: number }).unread === 0)
+    const notificationId = (await readFile(join(out, `note-${inTodo}`), 'utf8')).trim()
+    const inbox = await (await botApi('/api/notifications')).json() as { items: { id: string, readAt: string | null }[] }
+    expect(inbox.items.find(n => n.id === notificationId)?.readAt).toBeTruthy()
+    stopBot.abort()
+    const botResult = await botRun
+    expect(botResult.code).toBe(0)
+    const lines = botResult.out.trim().split('\n').map(l => JSON.parse(l) as { message: string })
+    expect(lines.some(l => l.message.startsWith('done commented'))).toBe(true)
+  })
+
+  it('refuses a board the token cannot see', async () => {
+    const { token } = await alice.token(['read'])
+    const r = await cli(['agent', 'run', '--board', randomUUID(), '--activity', 'moved', '--cmd', 'true'], { KANSO_URL: base, KANSO_TOKEN: token })
+    expect(r.code).toBe(1)
+    expect(r.err).toContain('Not found (404')
   })
 })
