@@ -1555,8 +1555,8 @@ describe('rate limit', () => {
 
 describe('admin', () => {
   it('the admin email becomes admin; others get 403', async () => {
-    expect((await admin.req<{ isAdmin: boolean }>('/api/me')).data).toEqual({ isAdmin: true, locale: null })
-    expect((await alice.req<{ isAdmin: boolean }>('/api/me')).data).toEqual({ isAdmin: false, locale: null })
+    expect((await admin.req<{ isAdmin: boolean }>('/api/me')).data).toMatchObject({ isAdmin: true, locale: null, isBot: false })
+    expect((await alice.req<{ isAdmin: boolean }>('/api/me')).data).toMatchObject({ isAdmin: false, locale: null, isBot: false, email: alice.email })
     expect((await alice.req('/api/admin/settings')).status).toBe(403)
     expect((await alice.req('/api/admin/settings', { method: 'PUT', body: savedSettings })).status).toBe(403)
     expect((await alice.req('/api/admin/users')).status).toBe(403)

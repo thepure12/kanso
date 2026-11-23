@@ -26,7 +26,7 @@ When the instance runs under a sub-path, include it in the base URL (`KANSO=http
   team viewer at most (no renaming, member changes or leaving). Deleting a board or losing access to it never widens
   the token.
 - **Allowed routes**: boards, cards, columns, tags, comments, checklists, checklist items, column rules, board automations, board rules, scheduled card actions, attachments, card links,
-  fields, column groups, time entries, teams, notifications, search, `/api/me` and the event stream `/api/events`. Account, sign-in, two-factor, session, token,
+  fields, column groups, time entries, teams, notifications, search, `/api/me` (`{id, name, email, isBot, isAdmin, locale}`: who the token acts as) and the event stream `/api/events`. Account, sign-in, two-factor, session, token,
   admin and webhook routes refuse tokens (`403`, or `401` for routes that only take the session cookie), so a leaked
   token cannot take over the account.
 - **Lifetime**: tokens work until revoked on the Account page, until they expire (30 days, 90 days, 1 year or never,

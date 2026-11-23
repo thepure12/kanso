@@ -1,8 +1,13 @@
 import type { Locale } from '../i18n'
 import type { NotificationPrefs } from '../notificationSettings'
 
-/** GET /api/me. */
+/** GET /api/me (cookie or API token; `kanso whoami`). */
 export interface Me {
+  id: string
+  name: string
+  email: string
+  /** A board, team or account bot (its email is `bot-<id>@bots.invalid`). */
+  isBot: boolean
   isAdmin: boolean
   /** Saved UI language; null = follow the browser. */
   locale: Locale | null

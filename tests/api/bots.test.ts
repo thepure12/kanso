@@ -211,7 +211,7 @@ describe('board bots', () => {
 
     const me = await api<Me>('/api/me')
     expect(me.status).toBe(200)
-    expect(me.data.isAdmin).toBe(false)
+    expect(me.data).toMatchObject({ id: bot.id, name: 'Worker', isBot: true, isAdmin: false })
 
     const boards = await api<{ id: string }[]>('/api/boards')
     expect(boards.data.map(b => b.id)).toEqual([board.id])

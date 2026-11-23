@@ -1,0 +1,25 @@
+{
+  "name": "kanso-cli",
+  "version": "0.1.0",
+  "description": "Command line client for Kanso boards, using API tokens.",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "kanso": "./dist/kanso.mjs"
+  },
+  "files": [
+    "dist"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "tsup",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.5",
+    "tsup": "^9.0.0",
+    "typescript": "~5.9.3"
+  }
+}
