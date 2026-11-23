@@ -12,8 +12,9 @@ import type { Command } from './types.ts'
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 /** "a, b,,c" → ["a", "b", "c"] */
-export function splitList(value: string | boolean | undefined): string[] {
-  return typeof value === 'string' ? [...new Set(value.split(',').map(s => s.trim()).filter(Boolean))] : []
+export function splitList(value: string | boolean | string[] | undefined): string[] {
+  const text = Array.isArray(value) ? value.join(',') : value
+  return typeof text === 'string' ? [...new Set(text.split(',').map(s => s.trim()).filter(Boolean))] : []
 }
 
 /** Column ids for --columns: ids, or titles (case-insensitive) of columns on the given boards. */
