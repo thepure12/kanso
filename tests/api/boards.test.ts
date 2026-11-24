@@ -303,6 +303,29 @@ describe('cards', () => {
     expect((await alice.req(`/api/cards/${card.id}`, { method: 'PATCH', body: { priority: 'meh' } })).status).toBe(400)
   })
 
+  it('puts emoji stickers on a card; export and import keep them', async () => {
+    const card = await newCard('Stickered')
+    expect(card.stickers).toEqual([])
+    const patch = (who: typeof alice, stickers: unknown) => who.req<Card>(`/api/cards/${card.id}`, { method: 'PATCH', body: { stickers } })
+    expect((await patch(bob, ['🔥', '⭐', '🔥'])).data.stickers).toEqual(['🔥', '⭐'])
+    expect((await alice.req<BoardDetail>(`/api/boards/${boardId}`)).data.cards.find(c => c.id === card.id)!.stickers).toEqual(['🔥', '⭐'])
+    expect((await patch(bob, ['🥔'])).status).toBe(400)
+    expect((await patch(bob, ['⭐', '🔥', '🎉', '🚀', '💡', '🎯', '🏆', '✅', '❗'])).status).toBe(400)
+    expect((await patch(outsider, [])).status).toBe(404)
+
+    const raw = (await alice.req<string | Record<string, unknown>>(`/api/boards/${boardId}/export?format=json`)).data
+    const exported = (typeof raw === 'string' ? JSON.parse(raw) : raw) as { cards: { title: string, stickers?: string[] }[] }
+    expect(exported.cards.find(c => c.title === 'Stickered')!.stickers).toEqual(['🔥', '⭐'])
+    expect(exported.cards.find(c => c.title !== 'Stickered')).not.toHaveProperty('stickers')
+    const data = { ...exported, cards: [{ ...exported.cards.find(c => c.title === 'Stickered')!, stickers: ['🥔', '🔥', '🔥', '⭐'] }] }
+    const imported = await alice.req<{ id: string }>('/api/boards/import', { method: 'POST', body: { name: 'Stickers import', data } })
+    extraBoards.push(imported.data.id)
+    // Unknown stickers are dropped, duplicates kept once.
+    expect((await alice.req<BoardDetail>(`/api/boards/${imported.data.id}`)).data.cards.map(c => c.stickers)).toEqual([['🔥', '⭐']])
+
+    expect((await patch(bob, [])).data.stickers).toEqual([])
+  })
+
   it('names the creator of a card', async () => {
     const card = await newCard('Made by Alice')
     expect(card).toMatchObject({ createdBy: userId('Alice'), createdByName: 'Alice' })

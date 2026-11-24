@@ -2,6 +2,7 @@ import { and, eq, notInArray, sql } from 'drizzle-orm'
 import { z } from 'zod'
 import { priorities, type Card } from '#shared/types/board'
 import { CARD_TITLE_MAX } from '#shared/cards'
+import { STICKERS_MAX, stickerEmojis } from '#shared/stickers'
 
 // Story points; the column is numeric(6, 2).
 const estimate = z.number().min(0).max(9999)
@@ -20,6 +21,8 @@ const body = z.object({
   skipAutomations: z.boolean().optional(),
   // Hide the card from the board until this date (woken by the hourly task); null wakes it now.
   snoozedUntil: z.iso.date().nullable().optional(),
+  // Emoji stickers on the card's front, in this order (replaces the whole list).
+  stickers: z.array(z.enum(stickerEmojis)).max(STICKERS_MAX).transform(s => [...new Set(s)]).optional(),
   archived: z.boolean().optional(),
   // Mark the card complete (it stays in its column) or open again.
   completed: z.boolean().optional(),

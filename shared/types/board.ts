@@ -327,6 +327,8 @@ export interface Card {
   fields: Record<string, FieldValue>
   /** Board and column automations leave the card alone (its own automations and scheduled actions still run). */
   skipAutomations?: boolean
+  /** Emoji stickers on the card's front, in the order added (shared/stickers.ts). */
+  stickers: string[]
   /** Who created the card; null once their account is gone (or for automations without a person). */
   createdBy: string | null
   /** The creator's name, null when they are gone or no longer visible to the caller. */
@@ -342,7 +344,7 @@ export interface Card {
  * from the archive. (The PATCH also takes snoozedUntil and completed, sent by
  * useBoard.snoozeCard / wakeCard / setCardCompleted.)
  */
-export type CardPatch = Partial<Pick<Card, 'title' | 'description' | 'assigneeIds' | 'tagIds' | 'startDate' | 'dueDate' | 'priority' | 'estimate' | 'coverAttachmentId' | 'skipAutomations'> & { archived: boolean }>
+export type CardPatch = Partial<Pick<Card, 'title' | 'description' | 'assigneeIds' | 'tagIds' | 'startDate' | 'dueDate' | 'priority' | 'estimate' | 'coverAttachmentId' | 'skipAutomations' | 'stickers'> & { archived: boolean }>
 
 /**
  * One change applied to several cards at once (POST /api/boards/:id/cards/bulk).

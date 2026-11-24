@@ -34,9 +34,9 @@ export default defineUserHandler(async (event, tx) => {
       .from(columns).where(eq(columns.boardId, id)).orderBy(asc(columns.position)),
     tx.select({ ...columnRuleFields, columnId: columnRules.columnId }).from(columnRules).where(eq(columnRules.boardId, id)),
     tx.select({ id: tags.id, name: tags.name, color: tags.color }).from(tags).where(eq(tags.boardId, id)).orderBy(asc(tags.name)),
-    tx.execute<{ id: string, columnId: string, title: string, description: string, startDate: string | null, dueDate: string | null, priority: string | null, estimate: number | null, archivedAt: string | null, createdAt: string, tagIds: string[], assigneeIds: string[] }>(sql`
+    tx.execute<{ id: string, columnId: string, title: string, description: string, startDate: string | null, dueDate: string | null, priority: string | null, estimate: number | null, stickers: string[], archivedAt: string | null, createdAt: string, tagIds: string[], assigneeIds: string[] }>(sql`
       select c.id, c.column_id as "columnId", c.title, c.description, c.start_date::text as "startDate",
-             c.due_date::text as "dueDate", c.priority, c.estimate::float8 as estimate,
+             c.due_date::text as "dueDate", c.priority, c.estimate::float8 as estimate, c.stickers,
              c.archived_at as "archivedAt", c.created_at as "createdAt",
              array(select ct.tag_id::text from card_tags ct where ct.card_id = c.id) as "tagIds",
              array(select a.user_id::text from card_assignees a where a.card_id = c.id) as "assigneeIds"
@@ -81,6 +81,7 @@ export default defineUserHandler(async (event, tx) => {
     dueDate: c.dueDate,
     priority: c.priority,
     estimate: c.estimate,
+    ...(c.stickers.length && { stickers: c.stickers }),
     archived: c.archivedAt !== null,
     createdAt: c.createdAt,
     tags: c.tagIds.map(t => tagName.get(t)!).sort(),

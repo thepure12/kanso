@@ -209,6 +209,9 @@ const dueAriaLabel = computed(() => {
         {{ props.card.title }}
       </p>
     </div>
+    <div v-if="props.card.stickers?.length" class="flex flex-wrap gap-0.5 mt-1.5 text-xl leading-none" role="img" :aria-label="t('stickers.onCard', { stickers: props.card.stickers.join(' ') })">
+      <span v-for="s in props.card.stickers" :key="s" aria-hidden="true">{{ s }}</span>
+    </div>
     <div v-if="fieldChips.length" class="flex flex-wrap gap-1 mt-2">
       <template v-for="chip in fieldChips" :key="chip.id">
         <UTooltip v-if="chip.color" :text="`${chip.name}: ${chip.text}`">

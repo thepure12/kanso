@@ -1,0 +1,3 @@
+ALTER TABLE "cards" ADD COLUMN IF NOT EXISTS "stickers" text[] DEFAULT '{}'::text[] NOT NULL;--> statement-breakpoint
+ALTER TABLE "cards" DROP CONSTRAINT IF EXISTS "cards_stickers_known";--> statement-breakpoint
+ALTER TABLE "cards" ADD CONSTRAINT "cards_stickers_known" CHECK (cardinality("cards"."stickers") <= 8 and "cards"."stickers" <@ array['⭐', '🔥', '🎉', '🚀', '💡', '🎯', '🏆', '✅', '❗', '❓', '⚠️', '🐛', '🔒', '📌', '💰', '⏳', '❤️', '👍', '👀', '😄', '😎', '🤔', '🙏', '☕', '🌱', '🍀', '🦄', '🐢']::text[]);

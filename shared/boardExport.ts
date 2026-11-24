@@ -67,6 +67,8 @@ export const boardExportSchema = z.object({
     dueDate: z.iso.date().nullish(),
     priority: z.enum(['low', 'medium', 'high', 'urgent']).nullish(),
     estimate: z.number().min(0).max(9999).nullish(),
+    // Emoji stickers (shared/stickers.ts); unknown ones are dropped on import.
+    stickers: z.array(z.string()).max(50).default([]),
     archived: z.boolean().default(false),
     tags: z.array(z.string()).max(50).default([]),
     assignees: z.array(z.string()).max(50).default([]),

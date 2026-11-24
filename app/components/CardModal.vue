@@ -518,6 +518,12 @@ const tabs = computed(() => [
               </UAvatarGroup>
             </UTooltip>
           </div>
+          <CardStickers
+            v-if="!props.template"
+            :stickers="props.card.stickers ?? []"
+            :can-edit="props.canEdit"
+            @update="stickers => emit('save', { stickers })"
+          />
           <div v-if="cardButtonItems.length && props.canEdit && !props.template" class="flex flex-wrap items-center gap-1.5" :class="buttonAlignClass(props.buttonAlign)" role="group" :aria-label="t('buttons.cardButtons')">
             <UTooltip v-for="b in shownButtons" :key="b.id" :text="b.tooltip ?? undefined" :disabled="!b.tooltip">
               <UButton

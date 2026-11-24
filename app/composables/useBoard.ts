@@ -31,6 +31,7 @@ const cardEditLabels: Record<string, string> = {
   tagIds: 'changedTags',
   assigneeIds: 'changedAssignees',
   coverAttachmentId: 'changedCover',
+  stickers: 'changedStickers',
 }
 function cardEditLabel(keys: string[]) {
   const labels = new Set(keys.map(k => cardEditLabels[k] ?? 'editedCard'))

@@ -13,6 +13,7 @@ import type { MyWorkPanelConfig } from '../../shared/myWork'
 import type { ButtonAlign, ButtonColor, ButtonScope, ButtonStep } from '../../shared/buttons'
 import type { NotificationPrefs } from '../../shared/notificationSettings'
 import { reactionEmojis } from '../../shared/reactions'
+import { STICKERS_MAX, stickerEmojis } from '../../shared/stickers'
 
 // Shape of a column outline (shared/columnOutline.ts): exactly color, width, glow.
 const outlineShape = (c: AnyPgColumn) => sql`${c} is null or (
@@ -460,6 +461,9 @@ export const cards = pgTable('cards', {
   // `completed` / `reopened` and can trigger board rules (card_completed).
   // Never on templates. See 0135_card_completed_rls.sql.
   completedAt: timestamp('completed_at', { withTimezone: true }),
+  // Emoji stickers on the card's front, in the order added (shared/stickers.ts).
+  // Set by editors through the card PATCH; no activity.
+  stickers: text('stickers').array().notNull().default(sql`'{}'::text[]`),
   // Null once the creator's account is removed.
   createdBy: uuid('created_by').references(() => users.id, { onDelete: 'set null' }),
   createdAt: createdAt(),
@@ -478,6 +482,8 @@ export const cards = pgTable('cards', {
   check('cards_completed_not_template', sql`not (${t.isTemplate} and ${t.completedAt} is not null)`),
   // CARD_TITLE_MAX (shared/cards.ts).
   check('cards_title_length', sql`char_length(${t.title}) <= 1000`),
+  // stickerEmojis and STICKERS_MAX (shared/stickers.ts).
+  check('cards_stickers_known', sql`cardinality(${t.stickers}) <= ${sql.raw(String(STICKERS_MAX))} and ${t.stickers} <@ array[${sql.raw(stickerEmojis.map(e => `'${e}'`).join(', '))}]::text[]`),
 ])
 
 // Card buttons added to single cards: offered there whatever the button's

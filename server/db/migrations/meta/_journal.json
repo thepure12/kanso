@@ -981,6 +981,13 @@
       "when": 1795551640696,
       "tag": "0139_my_work_panels_rls",
       "breakpoints": true
+    },
+    {
+      "idx": 140,
+      "version": "7",
+      "when": 1795554273909,
+      "tag": "0140_card_stickers",
+      "breakpoints": true
     }
   ]
 }

@@ -18,7 +18,7 @@ export async function loadCards(tx: Tx, where: SQL): Promise<Card[]> {
     select c.id, c.column_id as "columnId", c.title, c.description, c.position,
            c.start_date::text as "startDate", c.due_date::text as "dueDate", c.priority,
            c.estimate::float8 as estimate, c.cover_attachment_id as "coverAttachmentId",
-           c.skip_automations as "skipAutomations",
+           c.skip_automations as "skipAutomations", c.stickers,
            c.completed_at as "completedAt",
            c.created_by as "createdBy", c.created_at as "createdAt",
            (select u.name from users u where u.id = c.created_by) as "createdByName",

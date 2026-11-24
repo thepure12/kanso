@@ -63,6 +63,7 @@ function cardSummary(board: BoardDetail, card: Card, { blocked, blocking }: Bloc
     blocks: blocking.has(card.id) || undefined,
     skipAutomations: card.skipAutomations || undefined,
     completed: card.completedAt ? true : undefined,
+    stickers: card.stickers?.length ? card.stickers : undefined,
     fields: Object.keys(card.fields).length ? fieldValues(board, card.fields) : undefined,
   }
 }

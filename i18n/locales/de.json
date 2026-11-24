@@ -703,7 +703,8 @@
       "changedButtonAlign": "Position der Buttons geändert",
       "editedColumn": "Spalte bearbeitet",
       "completedCard": "Karte als erledigt markiert",
-      "reopenedCard": "Karte wieder geöffnet"
+      "reopenedCard": "Karte wieder geöffnet",
+      "changedStickers": "Sticker geändert"
     },
     "errors": {
       "moveCard": "Karte konnte nicht verschoben werden",
@@ -2443,5 +2444,14 @@
       "save": "Ansicht konnte nicht gespeichert werden",
       "delete": "Ansicht konnte nicht gelöscht werden"
     }
+  },
+  "stickers": {
+    "label": "Sticker",
+    "add": "Sticker hinzufügen",
+    "remove": "Zum Entfernen klicken",
+    "removeOne": "Sticker {emoji} entfernen",
+    "hint": "Wähle Sticker für die Vorderseite der Karte. Nochmal wählen entfernt ihn.",
+    "full": "Eine Karte trägt höchstens {max} Sticker.",
+    "onCard": "Sticker: {stickers}"
   }
 }

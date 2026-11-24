@@ -5,6 +5,7 @@ import { boardExportSchema, type BoardImport } from '#shared/boardExport'
 import { convertImport, detectImportFormat, importFormats, type ConvertResult } from '#shared/import'
 import { isValidFieldValue } from '#shared/fields'
 import type { BoardField } from '#shared/types/board'
+import { STICKERS_MAX, isStickerEmoji } from '#shared/stickers'
 
 const MAX_BYTES = 5 * 1024 * 1024
 const CHUNK = 500
@@ -185,6 +186,7 @@ async function importBoard(tx: Tx, userId: string, name: string, teamId: string 
     cardRows.push({
       id, boardId, columnId: col, title: c.title, description: c.description, position, createdBy: userId,
       startDate: c.startDate ?? null, dueDate: c.dueDate ?? null, priority: c.priority ?? null, estimate: c.estimate ?? null,
+      stickers: [...new Set(c.stickers.filter(isStickerEmoji))].slice(0, STICKERS_MAX),
       archivedAt: c.archived ? new Date() : null,
     })
     for (const t of new Set(c.tags)) {

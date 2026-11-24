@@ -5,6 +5,7 @@ import { boardAutomationKinds, boardRuleEvents, cardLinkKinds, priorities, sched
 import { boardAccents } from '#shared/boardAccents'
 import { CARD_TITLE_MAX } from '#shared/cards'
 import { COLUMN_DESCRIPTION_MAX } from '#shared/columns'
+import { STICKERS_MAX, stickerEmojis } from '#shared/stickers'
 
 /**
  * The MCP server behind POST /api/mcp. Every tool is a call to an existing REST
@@ -152,6 +153,7 @@ export function createMcpServer(caller: McpCaller): McpServer {
       archived: z.boolean().optional(),
       completed: z.boolean().optional().describe('true: mark the card complete (it stays in its column); false: open again'),
       skipAutomations: z.boolean().optional().describe('true: board and column automations leave the card alone (its own still run)'),
+      stickers: z.array(z.enum(stickerEmojis)).max(STICKERS_MAX).optional().describe(`Emoji stickers on the card's front; replaces the whole list. One of: ${stickerEmojis.join(' ')}`),
       snoozedUntil: z.iso.date().nullable().optional().describe('Hide the card from the board until this date (it comes back that day, watchers are notified); null brings it back now'),
     },
     annotations: write,

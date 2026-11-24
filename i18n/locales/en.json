@@ -703,7 +703,8 @@
       "changedButtonAlign": "Changed button position",
       "editedColumn": "Edited column",
       "completedCard": "Marked card complete",
-      "reopenedCard": "Reopened card"
+      "reopenedCard": "Reopened card",
+      "changedStickers": "Changed stickers"
     },
     "errors": {
       "moveCard": "Could not move card",
@@ -2443,5 +2444,14 @@
       "save": "Could not save the view",
       "delete": "Could not delete the view"
     }
+  },
+  "stickers": {
+    "label": "Stickers",
+    "add": "Add sticker",
+    "remove": "Click to remove",
+    "removeOne": "Remove sticker {emoji}",
+    "hint": "Pick stickers for the front of the card. Pick one again to take it off.",
+    "full": "A card holds at most {max} stickers.",
+    "onCard": "Stickers: {stickers}"
   }
 }
