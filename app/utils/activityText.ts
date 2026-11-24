@@ -48,6 +48,8 @@ export function describeActivity(a: Pick<Activity, 'kind' | 'data'>, i18n: I18nC
       return d.note ? t('activity.reminderNote', { note: d.note }) : t('activity.reminder')
     case 'snoozed': return t('activity.snoozed', { date: d.until ? formatDate(d.until, locale) : '' })
     case 'woke': return t('activity.woke')
+    case 'completed': return t('activity.completed')
+    case 'reopened': return t('activity.reopened')
     case 'checklist_assigned': return t('activity.checklistAssigned', { user: d.user ?? t('common.someone'), item: d.item ?? '' })
   }
   return a.kind

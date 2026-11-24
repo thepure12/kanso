@@ -28,6 +28,23 @@ describe('BoardCard', () => {
     expect(classes.filter(c => c.startsWith('transition')).join(' ')).not.toMatch(/transform|translate|opacity/)
   })
 
+  it('toggles completion for editors and shows completed cards to everyone', async () => {
+    const w = await mount(card())
+    await w.find('button[aria-label="Mark complete"]').trigger('click')
+    expect(w.emitted('complete')).toEqual([[true]])
+    expect(w.emitted('open')).toBeUndefined()
+
+    const done = await mount(card({ completedAt: '2026-10-13T10:00:00.000Z' }))
+    const button = done.find('button[aria-pressed="true"]')
+    expect(button.attributes('aria-label')).toContain('reopen')
+    await button.trigger('click')
+    expect(done.emitted('complete')).toEqual([[false]])
+
+    expect((await mount(card(), false)).find('button[aria-label="Mark complete"]').exists()).toBe(false)
+    const readOnlyDone = await mount(card({ completedAt: '2026-10-13T10:00:00.000Z' }), false)
+    expect(readOnlyDone.find('button[aria-pressed="true"]').attributes('disabled')).toBeDefined()
+  })
+
   it('shows only the title for a bare card', async () => {
     const w = await mount(card())
     expect(w.text()).toContain('Fix it')

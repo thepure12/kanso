@@ -24,13 +24,16 @@ interface BlockState { blocked: Set<string>, blocking: Set<string> }
 
 /**
  * As in the UI: `blocked` = cards with a 'blocks' link from a card still open
- * (on the board and not in the last column); `blocking` = open cards that
+ * (on the board, not marked complete, not in the last column); `blocking` = open cards that
  * block another open card.
  */
 function blockState(board: BoardDetail): BlockState {
   const done = board.columns.at(-1)?.id
-  const columnOf = new Map(board.cards.map(c => [c.id, c.columnId]))
-  const open = (id: string) => columnOf.has(id) && columnOf.get(id) !== done
+  const byId = new Map(board.cards.map(c => [c.id, c]))
+  const open = (id: string) => {
+    const c = byId.get(id)
+    return !!c && !c.completedAt && c.columnId !== done
+  }
   const blocked = new Set<string>()
   const blocking = new Set<string>()
   for (const c of board.cards) {
@@ -59,6 +62,7 @@ function cardSummary(board: BoardDetail, card: Card, { blocked, blocking }: Bloc
     blocked: blocked.has(card.id) || undefined,
     blocks: blocking.has(card.id) || undefined,
     skipAutomations: card.skipAutomations || undefined,
+    completed: card.completedAt ? true : undefined,
     fields: Object.keys(card.fields).length ? fieldValues(board, card.fields) : undefined,
   }
 }

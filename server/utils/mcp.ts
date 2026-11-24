@@ -150,6 +150,7 @@ export function createMcpServer(caller: McpCaller): McpServer {
       tagIds: z.array(id).optional(),
       assigneeIds: z.array(id).optional(),
       archived: z.boolean().optional(),
+      completed: z.boolean().optional().describe('true: mark the card complete (it stays in its column); false: open again'),
       skipAutomations: z.boolean().optional().describe('true: board and column automations leave the card alone (its own still run)'),
       snoozedUntil: z.iso.date().nullable().optional().describe('Hide the card from the board until this date (it comes back that day, watchers are notified); null brings it back now'),
     },
@@ -318,7 +319,7 @@ export function createMcpServer(caller: McpCaller): McpServer {
       archive: z.boolean().optional(),
     }).describe('At least one'),
   }
-  const ruleHelp = 'Events: card_created, card_moved, tag_added, assigned, due_set, checklist_completed (every item done), commented. '
+  const ruleHelp = 'Events: card_created, card_moved, tag_added, assigned, due_set, checklist_completed (every item done), commented, card_completed (marked complete). '
     + 'Rules run when the triggering change is saved, without an actor; their own changes trigger no rules.'
 
   server.registerTool('create_rule', {

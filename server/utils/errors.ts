@@ -23,6 +23,7 @@ export function toHttpError(err: unknown): never {
       if (pgConstraint(err) === 'cards_start_before_due') throw createError({ statusCode: 400, statusMessage: 'The start date must be on or before the due date' })
       if (pgConstraint(err) === 'cards_title_length') throw createError({ statusCode: 400, statusMessage: 'The title is too long' })
       if (pgConstraint(err) === 'cards_snooze_not_template') throw createError({ statusCode: 400, statusMessage: 'Templates cannot be snoozed' })
+      if (pgConstraint(err) === 'cards_completed_not_template') throw createError({ statusCode: 400, statusMessage: 'Templates cannot be completed' })
       if (pgConstraint(err) === 'cards_estimate_range') throw createError({ statusCode: 400, statusMessage: 'The estimate cannot be negative' })
       if (pgConstraint(err)?.startsWith('card_recurrences_')) throw createError({ statusCode: 400, statusMessage: 'Invalid schedule' })
       if (pgConstraint(err) === 'board_automations_scope') throw createError({ statusCode: 400, statusMessage: 'Invalid automation' })

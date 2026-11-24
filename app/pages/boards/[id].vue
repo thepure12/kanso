@@ -17,7 +17,7 @@ const boardTabs = useBoardTabs()
 const {
   board, error, refresh, columns, columnGroups, assigneeGroups, savedViews, buttons, lists, tags, fields, templates, recurrences, automations, rules, agentRules, scheduledActions, archived, offline, canEdit, isOwner, limited, canEditCard, canCommentOn, canAddToColumn, dragging, remoteVersion,
   renameBoard, setArchived, setBackground, setAccent, setButtonAlign, setColumnOutline, uploadBackground, deleteBoard, addColumn, renameColumn, editColumn, setColumnAppearance, sortColumnByPriority, deleteColumn, columnMoved,
-  addColumnRule, deleteColumnRule, addAutomation, updateAutomation, deleteAutomation, addRule, updateRule, deleteRule, addAgentRule, updateAgentRule, deleteAgentRule, addScheduledAction, deleteScheduledAction, addCard, updateCard, setCardCounts, cardLinkChanged, archiveCard, snoozeCard, wakeCard, restoreCard, deleteCard, restoreTrashedCard,
+  addColumnRule, deleteColumnRule, addAutomation, updateAutomation, deleteAutomation, addRule, updateRule, deleteRule, addAgentRule, updateAgentRule, deleteAgentRule, addScheduledAction, deleteScheduledAction, addCard, updateCard, setCardCounts, cardLinkChanged, archiveCard, setCardCompleted, snoozeCard, wakeCard, restoreCard, deleteCard, restoreTrashedCard,
   deleteArchivedCard, cardMoved, moveCard, addTag, updateTag, deleteTag,
   addField, updateField, fieldMoved, deleteField, setFieldValue,
   addColumnGroup, updateColumnGroup, columnGroupMoved, deleteColumnGroup, addAssigneeGroup, updateAssigneeGroup, deleteAssigneeGroup, addSavedView, updateSavedView, deleteSavedView, addButton, updateButton, deleteButton, runButton, setButtonOnCard,
@@ -940,6 +940,7 @@ const settingsOpen = computed({
         :buttons="cardButtons"
         :button-align="board.buttonAlign"
         @rename="(card, title) => updateCard(card, { title })"
+        @complete="(card, value) => setCardCompleted(card, value)"
         @collapse="(columnId, value) => collapsedColumns.setCollapsed(columnId, value)"
         @run-button="(b, card) => runButton(b, card)"
       />
@@ -1139,6 +1140,7 @@ const settingsOpen = computed({
                   :buttons="cardButtons"
                   :button-align="board.buttonAlign"
                   @rename="title => updateCard(card, { title })"
+                  @complete="value => setCardCompleted(card, value)"
                   @run-button="b => runButton(b, card)"
                 />
               </VueDraggable>
@@ -1208,6 +1210,7 @@ const settingsOpen = computed({
       @counts="counts => setCardCounts(editingCard!, counts)"
       @archive="archiveCard(editingCard!)"
       @snooze="until => snoozeCard(editingCard!, until)"
+      @complete="value => setCardCompleted(editingCard!, value)"
       @delete="editingTemplate ? deleteTemplate(editingCard!) : deleteCard(editingCard!)"
       @save-template="withAssignees => saveAsTemplate(editingCard!, withAssignees)"
       @set-recurrence="input => setRecurrence(editingCard!, input)"

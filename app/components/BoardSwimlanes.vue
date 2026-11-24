@@ -37,6 +37,7 @@ const emit = defineEmits<{
   'move': [card: Card, columnId: string, index: number, laneKey?: string]
   'dragging': [value: boolean]
   'rename': [card: Card, title: string]
+  'complete': [card: Card, completed: boolean]
   'collapse': [columnId: string, value: boolean]
   'runButton': [button: BoardButton, card: Card]
 }>()
@@ -222,6 +223,7 @@ function onCollapsedDrop(laneKey: string, columnId: string, e: SortableEvent) {
               :button-align="props.buttonAlign"
               @delete="emit('delete', card)"
               @rename="title => emit('rename', card, title)"
+              @complete="value => emit('complete', card, value)"
               @run-button="b => emit('runButton', b, card)"
             />
           </VueDraggable>

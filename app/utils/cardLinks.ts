@@ -1,29 +1,35 @@
 import type { Translate } from '#shared/i18n'
 import type { Card, CardLink, CardLinkKind, Column } from '#shared/types/board'
 
+/** Whether a card id is open: on the board (unarchived), not marked complete, not in the last column. */
+function openCheck(cards: Card[], columns: Pick<Column, 'id'>[]): (id: string) => boolean {
+  const doneColumnId = columns.at(-1)?.id
+  const byId = new Map(cards.map(c => [c.id, c]))
+  return (id) => {
+    const c = byId.get(id)
+    return !!c && !c.completedAt && c.columnId !== doneColumnId
+  }
+}
+
 /**
  * Cards that are blocked: some card with a 'blocks' link to them is still open.
- * A blocker is open while it is on the board (not archived) and not in the
- * board's last column, which counts as "done". `cards` are the board's
+ * A blocker is open while it is on the board (not archived), not marked
+ * complete and not in the board's last column, which counts as "done". `cards` are the board's
  * unarchived cards and `columns` are in board order.
  */
 export function blockedCardIds(cards: Card[], columns: Pick<Column, 'id'>[]): Set<string> {
-  const doneColumnId = columns.at(-1)?.id
-  const columnOf = new Map(cards.map(c => [c.id, c.columnId]))
-  const open = (id: string) => columnOf.has(id) && columnOf.get(id) !== doneColumnId
+  const open = openCheck(cards, columns)
   return new Set(cards.filter(c => c.blockerIds.some(open)).map(c => c.id))
 }
 
 /**
  * Cards that block: they are open and block some other open card, the
- * counterpart of `blockedCardIds` (same idea of open: on the board, not in the
- * last column). A card whose blocked cards are all done or archived blocks
+ * counterpart of `blockedCardIds` (same idea of open: on the board, not
+ * complete, not in the last column). A card whose blocked cards are all done or archived blocks
  * nothing any more.
  */
 export function blockingCardIds(cards: Card[], columns: Pick<Column, 'id'>[]): Set<string> {
-  const doneColumnId = columns.at(-1)?.id
-  const columnOf = new Map(cards.map(c => [c.id, c.columnId]))
-  const open = (id: string) => columnOf.has(id) && columnOf.get(id) !== doneColumnId
+  const open = openCheck(cards, columns)
   const blocking = new Set<string>()
   for (const c of cards) {
     if (!open(c.id)) continue

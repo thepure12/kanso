@@ -19,6 +19,12 @@ describe('blockedCardIds', () => {
     expect([...blockedCardIds(cards, columns)].sort()).toEqual(['mixed', 'open'])
   })
 
+  it('treats completed blockers as done', () => {
+    const done = { ...card('a', 'todo'), completedAt: '2026-11-24T00:00:00.000Z' } as Card
+    expect(blockedCardIds([done, card('b', 'todo', ['a'])], columns).size).toBe(0)
+    expect(blockingCardIds([done, card('b', 'todo', ['a'])], columns).size).toBe(0)
+  })
+
   it('treats the only column as done', () => {
     expect(blockedCardIds([card('a', 'todo'), card('b', 'todo', ['a'])], [{ id: 'todo' }]).size).toBe(0)
   })

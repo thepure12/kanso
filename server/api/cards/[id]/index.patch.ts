@@ -21,6 +21,8 @@ const body = z.object({
   // Hide the card from the board until this date (woken by the hourly task); null wakes it now.
   snoozedUntil: z.iso.date().nullable().optional(),
   archived: z.boolean().optional(),
+  // Mark the card complete (it stays in its column) or open again.
+  completed: z.boolean().optional(),
   // Replace the card's whole tag / assignee set.
   tagIds: ids.optional(),
   assigneeIds: ids.optional(),
@@ -28,12 +30,13 @@ const body = z.object({
 
 export default defineUserHandler(async (event, tx): Promise<Card> => {
   const { id } = await paramsValidated(event, uuidParam)
-  const { tagIds, assigneeIds, archived, ...patch } = await readValidated(event, body)
+  const { tagIds, assigneeIds, archived, completed, ...patch } = await readValidated(event, body)
   const { cards, cardTags, cardAssignees } = schema
   // Always touches the row, so a tag-only change still proves edit rights (RLS) and bumps updated_at.
   const [row] = await tx.update(cards).set({
     ...patch,
     ...(archived !== undefined && { archivedAt: archived ? sql`coalesce(${cards.archivedAt}, now())` : null }),
+    ...(completed !== undefined && { completedAt: completed ? sql`coalesce(${cards.completedAt}, now())` : null }),
     updatedAt: sql`now()`,
   }).where(eq(cards.id, id)).returning({ boardId: cards.boardId })
   if (!row) notFound('Card not found or not allowed')

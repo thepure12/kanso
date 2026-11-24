@@ -10,7 +10,7 @@ export async function cardTagIds(tx: Tx, cardId: string): Promise<string[]> {
   return rows.map(r => r.tagId)
 }
 
-type CardRow = Omit<Card, 'checklist' | 'createdAt'> & { checklistDone: number, checklistTotal: number, createdAt: Date | string }
+type CardRow = Omit<Card, 'checklist' | 'createdAt' | 'completedAt'> & { checklistDone: number, checklistTotal: number, createdAt: Date | string, completedAt: Date | string | null }
 
 /** Cards matching `where` (a condition on alias c), in position order, with tags, assignees, field values and counts. */
 export async function loadCards(tx: Tx, where: SQL): Promise<Card[]> {
@@ -19,6 +19,7 @@ export async function loadCards(tx: Tx, where: SQL): Promise<Card[]> {
            c.start_date::text as "startDate", c.due_date::text as "dueDate", c.priority,
            c.estimate::float8 as estimate, c.cover_attachment_id as "coverAttachmentId",
            c.skip_automations as "skipAutomations",
+           c.completed_at as "completedAt",
            c.created_by as "createdBy", c.created_at as "createdAt",
            (select u.name from users u where u.id = c.created_by) as "createdByName",
            array(select ct.tag_id::text from card_tags ct join tags t on t.id = ct.tag_id
@@ -38,9 +39,10 @@ export async function loadCards(tx: Tx, where: SQL): Promise<Card[]> {
     where ${where}
     order by c.position
   `)
-  return rows.map(({ checklistDone, checklistTotal, createdAt, ...c }) => ({
+  return rows.map(({ checklistDone, checklistTotal, createdAt, completedAt, ...c }) => ({
     ...c,
     createdAt: new Date(createdAt).toISOString(),
+    completedAt: completedAt ? new Date(completedAt).toISOString() : null,
     checklist: { done: checklistDone, total: checklistTotal },
   }))
 }

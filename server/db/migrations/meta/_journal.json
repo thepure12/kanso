@@ -939,6 +939,20 @@
       "when": 1795542997431,
       "tag": "0133_column_description_rls",
       "breakpoints": true
+    },
+    {
+      "idx": 134,
+      "version": "7",
+      "when": 1795545737516,
+      "tag": "0134_card_completed",
+      "breakpoints": true
+    },
+    {
+      "idx": 135,
+      "version": "7",
+      "when": 1795545742582,
+      "tag": "0135_card_completed_rls",
+      "breakpoints": true
     }
   ]
 }

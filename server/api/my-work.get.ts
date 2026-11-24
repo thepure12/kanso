@@ -15,7 +15,8 @@ export default defineUserHandler(async (_event, tx, userId): Promise<MyWork> => 
   const items = sql<MyChecklistItem[]>`coalesce((select json_agg(json_build_object('id', ${ci.id}, 'text', ${ci.text}, 'dueDate', ${ci.dueDate}) order by ${ci.position})
     from ${ci} where ${ci.cardId} = ${cards.id} and ${ci.assigneeId} = ${userId} and not ${ci.done}), '[]')`
   const hasItems = sql<boolean>`exists (select 1 from ${ci} where ${ci.cardId} = ${cards.id} and ${ci.assigneeId} = ${userId} and not ${ci.done})`
-  const done = sql<boolean>`not exists (select 1 from ${columns} c2 where c2.board_id = ${cards.boardId} and c2.position > ${columns.position})`
+  // Marked complete, or in the board's last column.
+  const done = sql<boolean>`${cards.completedAt} is not null or not exists (select 1 from ${columns} c2 where c2.board_id = ${cards.boardId} and c2.position > ${columns.position})`
 
   const rows = await tx.select({
     id: cards.id, title: cards.title, boardId: cards.boardId, boardName: boards.name, columnId: cards.columnId, columnTitle: columns.title,

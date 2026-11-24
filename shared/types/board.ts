@@ -161,7 +161,7 @@ export const scheduledCardActionKinds = ['move', 'archive', 'priority', 'remind'
 export type ScheduledCardAction = NewScheduledCardAction & { id: string, cardId: string }
 
 /** Events a board rule reacts to (board_rule_event). */
-export const boardRuleEvents = ['card_created', 'card_moved', 'tag_added', 'assigned', 'due_set', 'checklist_completed', 'commented'] as const
+export const boardRuleEvents = ['card_created', 'card_moved', 'tag_added', 'assigned', 'due_set', 'checklist_completed', 'card_completed', 'commented'] as const
 export type BoardRuleEvent = (typeof boardRuleEvents)[number]
 
 /** All given (non-null) conditions must hold for the card when the rule runs. */
@@ -333,12 +333,14 @@ export interface Card {
   createdByName: string | null
   /** ISO time the card was created. */
   createdAt: string
+  /** ISO time it was marked complete (it stays in its column), null while open. Never on templates. */
+  completedAt: string | null
 }
 
 /**
  * Fields a card PATCH may change in the dialog. archived moves the card to or
- * from the archive. (The PATCH also takes snoozedUntil, sent by
- * useBoard.snoozeCard / wakeCard.)
+ * from the archive. (The PATCH also takes snoozedUntil and completed, sent by
+ * useBoard.snoozeCard / wakeCard / setCardCompleted.)
  */
 export type CardPatch = Partial<Pick<Card, 'title' | 'description' | 'assigneeIds' | 'tagIds' | 'startDate' | 'dueDate' | 'priority' | 'estimate' | 'coverAttachmentId' | 'skipAutomations'> & { archived: boolean }>
 
@@ -469,7 +471,7 @@ export interface Attachment {
 export type ActivityKind =
   | 'created' | 'moved' | 'renamed' | 'described' | 'start' | 'due' | 'priority' | 'estimate' | 'archived' | 'restored'
   | 'tagged' | 'untagged' | 'assigned' | 'unassigned' | 'commented' | 'mentioned' | 'attached' | 'detached'
-  | 'linked' | 'unlinked' | 'field' | 'stale' | 'reminder' | 'snoozed' | 'woke'
+  | 'linked' | 'unlinked' | 'field' | 'stale' | 'reminder' | 'snoozed' | 'woke' | 'completed' | 'reopened'
   | 'checklist_assigned'
 
 export interface Activity {
@@ -485,6 +487,7 @@ export interface Activity {
    * reminder: { note? } (a scheduled remind action), or { user_id, note? } (a personal reminder, seen only by that user).
    * checklist_assigned: { user, user_id, item } (a checklist item's assignee was set; only that person is notified).
    * snoozed: { until } (YYYY-MM-DD); woke: {} (snooze cleared, by hand or by the hourly task).
+   * completed / reopened: {} (marked complete, or open again).
    * Activity of a board automation has no actor and `automation: true`.
    */
   data: Record<string, string | null>

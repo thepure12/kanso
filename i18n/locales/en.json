@@ -88,7 +88,9 @@
     "reminderPersonalNote": "reminded you: {note}",
     "snoozed": "snoozed this card until {date}",
     "woke": "brought this card back from snooze",
-    "checklistAssigned": "assigned {user} to checklist item “{item}”"
+    "checklistAssigned": "assigned {user} to checklist item “{item}”",
+    "completed": "marked this card complete",
+    "reopened": "reopened this card"
   },
   "notification": {
     "assignedYou": "assigned you to this card",
@@ -699,7 +701,9 @@
       "changedAccent": "Changed accent colour",
       "changedColumnOutline": "Changed column outline",
       "changedButtonAlign": "Changed button position",
-      "editedColumn": "Edited column"
+      "editedColumn": "Edited column",
+      "completedCard": "Marked card complete",
+      "reopenedCard": "Reopened card"
     },
     "errors": {
       "moveCard": "Could not move card",
@@ -951,7 +955,11 @@
       "searchTags": "Search card tags…",
       "searchPeople": "Search people…",
       "selected": "Selected"
-    }
+    },
+    "markComplete": "Mark complete",
+    "markCompleteHint": "Shows the card as done without moving it",
+    "completed": "Completed",
+    "reopen": "Click to reopen"
   },
   "checklist": {
     "title": "Checklist",
@@ -1508,7 +1516,9 @@
     "hasDescription": "Has description",
     "timeLogged": "{time} logged",
     "select": "Select card",
-    "deselect": "Deselect card"
+    "deselect": "Deselect card",
+    "complete": "Mark complete",
+    "reopen": "Completed · click to reopen"
   },
   "listView": {
     "sortBy": "Sort by {column}",
@@ -2037,7 +2047,8 @@
       "assigned": "Person assigned",
       "due_set": "Due date set",
       "checklist_completed": "Checklist completed",
-      "commented": "Comment added"
+      "commented": "Comment added",
+      "card_completed": "Card marked complete"
     },
     "when": {
       "card_created": "When a card is created",
@@ -2048,7 +2059,8 @@
       "assigned_user": "When {name} is assigned",
       "due_set": "When a due date is set",
       "checklist_completed": "When the checklist is completed",
-      "commented": "When someone comments"
+      "commented": "When someone comments",
+      "card_completed": "When a card is marked complete"
     },
     "if": {
       "prefix": "if {conditions}",

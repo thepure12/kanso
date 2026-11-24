@@ -311,6 +311,20 @@ describe('cards', () => {
     expect(listed).toMatchObject({ createdBy: userId('Alice'), createdByName: 'Alice', createdAt: card.createdAt })
   })
 
+  it('marks a card complete in place and opens it again', async () => {
+    const card = await newCard('Finish me')
+    expect(card.completedAt).toBeNull()
+    const done = (await alice.req<Card>(`/api/cards/${card.id}`, { method: 'PATCH', body: { completed: true } })).data
+    expect(done.columnId).toBe(card.columnId)
+    expect(new Date(done.completedAt!).toISOString()).toBe(done.completedAt)
+    // Completing again keeps the first time.
+    const again = (await alice.req<Card>(`/api/cards/${card.id}`, { method: 'PATCH', body: { completed: true } })).data
+    expect(again.completedAt).toBe(done.completedAt)
+    const listed = (await bob.req<BoardDetail>(`/api/boards/${boardId}`)).data.cards.find(c => c.id === card.id)
+    expect(listed?.completedAt).toBe(done.completedAt)
+    expect((await alice.req<Card>(`/api/cards/${card.id}`, { method: 'PATCH', body: { completed: false } })).data.completedAt).toBeNull()
+  })
+
   it('accepts titles up to 1000 characters and names the problem past that', async () => {
     const card = await newCard('Long')
     const ok = await alice.req<Card>(`/api/cards/${card.id}`, { method: 'PATCH', body: { title: 'x'.repeat(1000) } })

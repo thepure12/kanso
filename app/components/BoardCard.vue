@@ -26,7 +26,7 @@ const props = withDefaults(defineProps<{
   /** Where the card buttons sit in their row (board setting); null = left. */
   buttonAlign?: ButtonAlign | null
 }>(), { fields: () => [], selectable: true, buttons: () => [] })
-const emit = defineEmits<{ open: [], delete: [], select: [], rename: [title: string], runButton: [button: BoardButton] }>()
+const emit = defineEmits<{ open: [], delete: [], select: [], rename: [title: string], runButton: [button: BoardButton], complete: [completed: boolean] }>()
 const { t, locale } = useI18n()
 const i18n = useI18nContext()
 
@@ -38,6 +38,7 @@ const showButtons = computed(() => props.canEdit && shownButtons.value.length > 
 const assignees = computed(() => props.members.filter(m => props.card.assigneeIds.includes(m.userId)))
 const due = computed(() => dueStatus(props.card.dueDate, props.today))
 const dueColor = computed(() => ({ overdue: 'error', today: 'warning', soon: 'warning', later: 'neutral' } as const)[due.value ?? 'later'])
+const completed = computed(() => !!props.card.completedAt)
 const checklistDone = computed(() => props.card.checklist.total > 0 && props.card.checklist.done === props.card.checklist.total)
 const hasMeta = computed(() => {
   const c = props.card
@@ -182,14 +183,32 @@ const dueAriaLabel = computed(() => {
       @keydown.esc.prevent="finishTitleEditByKey($event, false)"
       @blur="finishTitleEdit(true)"
     />
-    <p
-      v-else
-      class="text-sm font-medium break-words"
-      :class="props.canEdit && 'pe-12'"
-      @click="onTitleClick"
-    >
-      {{ props.card.title }}
-    </p>
+    <div v-else class="flex items-start gap-1" :class="props.canEdit && 'pe-12'">
+      <!-- Complete toggle: always shown once complete; editors see the empty circle on hover (touch: in the dialog). -->
+      <UTooltip v-if="props.canEdit || completed" :text="t(completed ? 'boardCard.reopen' : 'boardCard.complete')" :disabled="!props.canEdit">
+        <button
+          type="button"
+          class="card-complete shrink-0 -ms-0.5 mt-px size-4 inline-flex items-center justify-center rounded-full outline-none focus-visible:ring-2 focus-visible:ring-primary"
+          :class="[
+            completed ? 'text-success' : 'text-dimmed hover:text-success pointer-fine:hidden pointer-fine:group-hover:inline-flex pointer-fine:focus-visible:inline-flex pointer-coarse:hidden',
+            !props.canEdit && 'cursor-default',
+          ]"
+          :aria-label="t(completed ? 'boardCard.reopen' : 'boardCard.complete')"
+          :aria-pressed="completed"
+          :disabled="!props.canEdit"
+          @click.stop="emit('complete', !completed)"
+        >
+          <UIcon :name="completed ? 'i-lucide-circle-check' : 'i-lucide-circle'" class="size-4" />
+        </button>
+      </UTooltip>
+      <p
+        class="min-w-0 flex-1 text-sm font-medium break-words"
+        :class="completed && 'text-muted'"
+        @click="onTitleClick"
+      >
+        {{ props.card.title }}
+      </p>
+    </div>
     <div v-if="fieldChips.length" class="flex flex-wrap gap-1 mt-2">
       <template v-for="chip in fieldChips" :key="chip.id">
         <UTooltip v-if="chip.color" :text="`${chip.name}: ${chip.text}`">

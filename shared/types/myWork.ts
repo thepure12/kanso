@@ -24,7 +24,7 @@ export interface MyWorkCard {
   estimate: number | null
   assigned: boolean
   watching: boolean
-  /** The card is in its board's last column ("done", as for blocked cards). */
+  /** The card is marked complete or in its board's last column ("done", as for blocked cards). */
   done: boolean
   /** Open checklist items of this card assigned to the current user (empty when none). */
   checklistItems: MyChecklistItem[]

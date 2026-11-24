@@ -42,7 +42,7 @@ export const recurrenceRule = pgEnum('recurrence_rule', ['daily', 'weekly', 'mon
 export const boardNotificationLevel = pgEnum('board_notification_level', ['direct', 'none'])
 
 export const boardAutomationKind = pgEnum('board_automation_kind', ['archive_done', 'tag_stale', 'notify_stale', 'raise_priority', 'move_card'])
-export const boardRuleEvent = pgEnum('board_rule_event', ['card_created', 'card_moved', 'tag_added', 'assigned', 'due_set', 'checklist_completed', 'commented'])
+export const boardRuleEvent = pgEnum('board_rule_event', ['card_created', 'card_moved', 'tag_added', 'assigned', 'due_set', 'checklist_completed', 'commented', 'card_completed'])
 // What starts an agent rule (board_agent_rules), followed by `kanso agent run`.
 export const agentRuleEvent = pgEnum('agent_rule_event', ['card_created', 'card_moved', 'tag_added', 'assigned', 'mentioned'])
 // One-shot action on a card on a date (card_scheduled_actions).
@@ -439,6 +439,10 @@ export const cards = pgTable('cards', {
   // Snoozed: hidden from the board (like archived) until the hourly task wakes
   // it on this date; automations skip it. Never on templates. See 0094_card_snooze_rls.sql.
   snoozedUntil: date('snoozed_until'),
+  // Marked complete: shown as done on the board without moving it; logs
+  // `completed` / `reopened` and can trigger board rules (card_completed).
+  // Never on templates. See 0135_card_completed_rls.sql.
+  completedAt: timestamp('completed_at', { withTimezone: true }),
   // Null once the creator's account is removed.
   createdBy: uuid('created_by').references(() => users.id, { onDelete: 'set null' }),
   createdAt: createdAt(),
@@ -454,6 +458,7 @@ export const cards = pgTable('cards', {
   check('cards_start_before_due', sql`${t.startDate} <= ${t.dueDate}`),
   check('cards_estimate_range', sql`${t.estimate} >= 0`),
   check('cards_snooze_not_template', sql`not (${t.isTemplate} and ${t.snoozedUntil} is not null)`),
+  check('cards_completed_not_template', sql`not (${t.isTemplate} and ${t.completedAt} is not null)`),
   // CARD_TITLE_MAX (shared/cards.ts).
   check('cards_title_length', sql`char_length(${t.title}) <= 1000`),
 ])

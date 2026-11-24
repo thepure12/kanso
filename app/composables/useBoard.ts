@@ -423,6 +423,13 @@ export async function useBoard(id: string) {
     if (!until) await refresh()
   }
 
+  /** Marks a card complete or open again (optimistic: completedAt now, the server's time replaces it). */
+  async function setCardCompleted(cardId: string, completed: boolean) {
+    const card = findCard(cardId)
+    card.completedAt = completed ? (card.completedAt ?? new Date().toISOString()) : null
+    Object.assign(card, await api<Card>(`/api/cards/${cardId}`, { method: 'PATCH', body: { completed } }))
+  }
+
   async function setCardArchived(cardId: string, archived: boolean) {
     if (archived) removeCard(findCard(cardId))
     await api(`/api/cards/${cardId}`, { method: 'PATCH', body: { archived } })
@@ -743,6 +750,14 @@ export async function useBoard(id: string) {
       await api(`/api/cards/${card.id}`, { method: 'PATCH', body: { archived: true } })
       record(t('board.undo.archivedCard'), () => setCardArchived(card.id, false), () => setCardArchived(card.id, true))
     }, t('board.errors.archiveCard')),
+
+    /** Marks the card complete (it stays in its column) or open again; undoable. */
+    setCardCompleted: (card: Card, completed: boolean) => run(async () => {
+      if (!!card.completedAt === completed) return
+      await setCardCompleted(card.id, completed)
+      record(t(completed ? 'board.undo.completedCard' : 'board.undo.reopenedCard'),
+        () => setCardCompleted(card.id, !completed), () => setCardCompleted(card.id, completed))
+    }, t('board.errors.saveCard')),
 
     /** Hides the card from the board until `until` (YYYY-MM-DD); undo wakes it. */
     snoozeCard: (card: Card, until: string) => run(async () => {

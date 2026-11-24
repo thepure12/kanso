@@ -26,6 +26,7 @@ const eventIcons: Record<BoardRuleEvent, string> = {
   assigned: 'i-lucide-user-plus',
   due_set: 'i-lucide-calendar',
   checklist_completed: 'i-lucide-list-checks',
+  card_completed: 'i-lucide-circle-check',
   commented: 'i-lucide-message-square',
 }
 

@@ -88,7 +88,9 @@
     "reminderPersonalNote": "hat dich erinnert: {note}",
     "snoozed": "hat diese Karte bis {date} zurückgestellt",
     "woke": "hat diese Karte aus dem Zurückstellen geholt",
-    "checklistAssigned": "hat {user} den Checklistenpunkt „{item}“ zugewiesen"
+    "checklistAssigned": "hat {user} den Checklistenpunkt „{item}“ zugewiesen",
+    "completed": "hat diese Karte als erledigt markiert",
+    "reopened": "hat diese Karte wieder geöffnet"
   },
   "notification": {
     "assignedYou": "hat dir diese Karte zugewiesen",
@@ -699,7 +701,9 @@
       "changedAccent": "Akzentfarbe geändert",
       "changedColumnOutline": "Spaltenrahmen geändert",
       "changedButtonAlign": "Position der Buttons geändert",
-      "editedColumn": "Spalte bearbeitet"
+      "editedColumn": "Spalte bearbeitet",
+      "completedCard": "Karte als erledigt markiert",
+      "reopenedCard": "Karte wieder geöffnet"
     },
     "errors": {
       "moveCard": "Karte konnte nicht verschoben werden",
@@ -951,7 +955,11 @@
       "searchTags": "Karten-Tags suchen…",
       "searchPeople": "Personen suchen…",
       "selected": "Ausgewählt"
-    }
+    },
+    "markComplete": "Als erledigt markieren",
+    "markCompleteHint": "Zeigt die Karte als erledigt, ohne sie zu verschieben",
+    "completed": "Erledigt",
+    "reopen": "Klicken zum Wiederöffnen"
   },
   "checklist": {
     "title": "Checkliste",
@@ -1508,7 +1516,9 @@
     "hasDescription": "Hat eine Beschreibung",
     "timeLogged": "{time} erfasst",
     "select": "Karte auswählen",
-    "deselect": "Karte abwählen"
+    "deselect": "Karte abwählen",
+    "complete": "Als erledigt markieren",
+    "reopen": "Erledigt · klicken zum Wiederöffnen"
   },
   "listView": {
     "sortBy": "Nach {column} sortieren",
@@ -2037,7 +2047,8 @@
       "assigned": "Person zugewiesen",
       "due_set": "Fälligkeit gesetzt",
       "checklist_completed": "Checkliste erledigt",
-      "commented": "Kommentar hinzugefügt"
+      "commented": "Kommentar hinzugefügt",
+      "card_completed": "Karte als erledigt markiert"
     },
     "when": {
       "card_created": "Wenn eine Karte erstellt wird",
@@ -2048,7 +2059,8 @@
       "assigned_user": "Wenn {name} zugewiesen wird",
       "due_set": "Wenn eine Fälligkeit gesetzt wird",
       "checklist_completed": "Wenn die Checkliste erledigt ist",
-      "commented": "Wenn jemand kommentiert"
+      "commented": "Wenn jemand kommentiert",
+      "card_completed": "Wenn eine Karte als erledigt markiert wird"
     },
     "if": {
       "prefix": "falls {conditions}",

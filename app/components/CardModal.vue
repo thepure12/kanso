@@ -55,6 +55,8 @@ const emit = defineEmits<{
   archive: []
   /** Hide the card from the board until this date (YYYY-MM-DD). */
   snooze: [until: string]
+  /** Mark the card complete (it stays in its column) or open again. */
+  complete: [completed: boolean]
   delete: []
   /** Open another card (a linked one) instead of this one. */
   openCard: [cardId: string]
@@ -461,6 +463,20 @@ const tabs = computed(() => [
               {{ columnTitle }}
             </p>
           </UFormField>
+          <UTooltip v-if="!props.template && (props.canEdit || props.card.completedAt)" :text="t(props.card.completedAt ? 'card.reopen' : 'card.markCompleteHint')" :disabled="!props.canEdit">
+            <UButton
+              block
+              :icon="props.card.completedAt ? 'i-lucide-circle-check' : 'i-lucide-circle'"
+              :label="props.card.completedAt ? t('card.completed') : t('card.markComplete')"
+              :color="props.card.completedAt ? 'success' : 'neutral'"
+              :variant="props.card.completedAt ? 'soft' : 'outline'"
+              :disabled="!props.canEdit"
+              :aria-pressed="!!props.card.completedAt"
+              class="justify-start"
+              data-testid="card-complete"
+              @click="emit('complete', !props.card.completedAt)"
+            />
+          </UTooltip>
           <div v-if="cd.detail.value && !props.template" class="flex items-center gap-2">
             <UButton
               :icon="cd.detail.value.watching ? 'i-lucide-eye-off' : 'i-lucide-eye'"

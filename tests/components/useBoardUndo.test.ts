@@ -103,6 +103,19 @@ describe('useBoard undo', () => {
     expect(m.refresh).toHaveBeenCalled()
   })
 
+  it('marks a card complete and undoes it', async () => {
+    const b = await mountBoard()
+    const a = b.lists.value.c1![0]!
+    await b.setCardCompleted(a, true)
+    expect(a.completedAt).toBeTruthy()
+    expect(calls()).toContainEqual(['/api/cards/a', 'PATCH', { completed: true }])
+    expect(m.toastAdd).toHaveBeenLastCalledWith(expect.objectContaining({ title: 'Marked card complete' }))
+    m.api.mockClear()
+    await b.undo()
+    expect(calls()).toEqual([['/api/cards/a', 'PATCH', { completed: false }]])
+    expect(a.completedAt).toBeNull()
+  })
+
   it('patches the previous values of an edit', async () => {
     const b = await mountBoard()
     const a = b.lists.value.c1![0]!
