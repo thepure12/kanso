@@ -2369,5 +2369,38 @@
     "noLimit": "No limit",
     "showDescription": "Column description",
     "showDescriptionOf": "Description of {title}"
+  },
+  "customViews": {
+    "title": "Custom views",
+    "new": "New view",
+    "edit": "Edit view",
+    "editColumns": "Columns",
+    "actions": "View actions",
+    "description": "Columns from any of your boards side by side. Cards open as on their board but are not dragged here.",
+    "name": "Name",
+    "namePlaceholder": "View name",
+    "nameTaken": "You already have a view with this name.",
+    "columns": "Columns",
+    "columnsHelp": "Only columns you can see. Put them in the order to show them in.",
+    "pickColumns": "Pick columns",
+    "searchColumns": "Search columns or boards…",
+    "columnCount": "{count} column | {count} columns",
+    "moveUp": "Move up",
+    "moveDown": "Move down",
+    "removeColumn": "Remove column",
+    "tooMany": "At most {max} columns.",
+    "create": "Create",
+    "notFound": "View not found",
+    "readOnlyHint": "Open a card to change it; cards are not dragged here.",
+    "emptyTitle": "No columns to show",
+    "emptyDescription": "Pick columns from your boards.",
+    "unavailable": "The columns of this view are not available to you (any more).",
+    "noCards": "No cards",
+    "deleteConfirm": "Delete the view “{name}”?",
+    "errors": {
+      "columns": "Could not load columns",
+      "save": "Could not save the view",
+      "delete": "Could not delete the view"
+    }
   }
 }

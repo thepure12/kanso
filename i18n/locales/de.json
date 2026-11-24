@@ -2369,5 +2369,38 @@
     "noLimit": "Kein Limit",
     "showDescription": "Spaltenbeschreibung",
     "showDescriptionOf": "Beschreibung von {title}"
+  },
+  "customViews": {
+    "title": "Eigene Ansichten",
+    "new": "Neue Ansicht",
+    "edit": "Ansicht bearbeiten",
+    "editColumns": "Spalten",
+    "actions": "Ansicht-Aktionen",
+    "description": "Spalten aus beliebigen deiner Boards nebeneinander. Karten öffnen sich wie auf ihrem Board, werden hier aber nicht verschoben.",
+    "name": "Name",
+    "namePlaceholder": "Name der Ansicht",
+    "nameTaken": "Du hast schon eine Ansicht mit diesem Namen.",
+    "columns": "Spalten",
+    "columnsHelp": "Nur Spalten, die du sehen kannst. In der Reihenfolge, in der sie erscheinen sollen.",
+    "pickColumns": "Spalten wählen",
+    "searchColumns": "Spalten oder Boards suchen…",
+    "columnCount": "{count} Spalte | {count} Spalten",
+    "moveUp": "Nach oben",
+    "moveDown": "Nach unten",
+    "removeColumn": "Spalte entfernen",
+    "tooMany": "Höchstens {max} Spalten.",
+    "create": "Erstellen",
+    "notFound": "Ansicht nicht gefunden",
+    "readOnlyHint": "Öffne eine Karte, um sie zu ändern; hier wird nicht verschoben.",
+    "emptyTitle": "Keine Spalten zum Anzeigen",
+    "emptyDescription": "Wähle Spalten aus deinen Boards.",
+    "unavailable": "Die Spalten dieser Ansicht sind für dich nicht (mehr) verfügbar.",
+    "noCards": "Keine Karten",
+    "deleteConfirm": "Ansicht „{name}“ löschen?",
+    "errors": {
+      "columns": "Spalten konnten nicht geladen werden",
+      "save": "Ansicht konnte nicht gespeichert werden",
+      "delete": "Ansicht konnte nicht gelöscht werden"
+    }
   }
 }

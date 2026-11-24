@@ -39,6 +39,14 @@ function cardEditLabel(keys: string[]) {
 
 const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b)
 
+export interface UseBoardOptions {
+  /**
+   * Called instead of leaving for the home page when the board is gone or no
+   * longer visible (a board loaded only for a card dialog, as on /views/:id).
+   */
+  onGone?: () => void
+}
+
 /** Thrown by an undo whose card or column is gone (logged only; the toast says the board changed). */
 function gone(what: string): never {
   throw new Error(`The ${what} is no longer on the board`)
@@ -49,11 +57,17 @@ function gone(what: string): never {
  * Changes by other people arrive as server-sent events and reload the board,
  * deferred while a drag or a mutation is in progress so they do not undo it.
  */
-export async function useBoard(id: string) {
+export async function useBoard(id: string, opts: UseBoardOptions = {}) {
   const showError = useApiError()
   const toast = useToast()
   const { t } = useI18n()
   const boardTabs = useBoardTabs()
+  /** The board is gone or no longer visible: leave it (or let the embedding page decide). */
+  async function leaveBoard() {
+    if (opts.onGone) return opts.onGone()
+    boardTabs.forget(id)
+    await navigateTo('/')
+  }
 
   // Undo stack of this tab's changes (a new one per board page). Undo reapplies
   // the old state through the API, so it fails cleanly when the target is gone.
@@ -119,8 +133,7 @@ export async function useBoard(id: string) {
         unsubscribe?.()
         unsubscribe = undefined
         toast.add({ title: t('board.noAccess'), color: 'warning' })
-        boardTabs.forget(id)
-        navigateTo('/')
+        leaveBoard()
       },
       // The stream was down or changed hands (or the device was offline): changes made meanwhile are unknown.
       resync: () => remoteChanged(),
@@ -228,8 +241,7 @@ export async function useBoard(id: string) {
     await refresh()
     if (error.value?.statusCode === 404) {
       toast.add({ title: t('board.goneOrNoAccess'), color: 'warning' })
-      boardTabs.forget(id)
-      await navigateTo('/')
+      await leaveBoard()
       return
     }
     remoteVersion.value++

@@ -1,12 +1,17 @@
 <script setup lang="ts">
 import type { BoardSummary, TeamSummary } from '#shared/types/board'
+import type { CustomView, CustomViewSummary } from '#shared/types/customViews'
 import { boardTemplates } from '#shared/boardTemplates'
 import { csvHasIssueKeys, detectImportFormat, slimTrelloExport, type ImportFormat } from '#shared/import'
 
-const [{ data: boards, refresh: refreshBoards }, { data: teams, refresh: refreshTeams }] = await Promise.all([
+const [{ data: boards, refresh: refreshBoards }, { data: teams, refresh: refreshTeams }, { data: views }] = await Promise.all([
   useFetch<BoardSummary[]>('/api/boards', { default: () => [] }),
   useFetch<TeamSummary[]>('/api/teams', { default: () => [] }),
+  useFetch<CustomViewSummary[]>('/api/views', { default: () => [] }),
 ])
+// Custom views (columns from several boards): new ones open at once.
+const viewOpen = ref(false)
+const onViewSaved = (view: CustomView) => navigateTo(`/views/${view.id}`)
 const refresh = () => Promise.all([refreshBoards(), refreshTeams()])
 const showError = useApiError()
 const { t } = useI18n()
@@ -243,6 +248,9 @@ async function onLeftTeam() {
         {{ t('home.title') }}
       </h1>
       <div class="flex gap-2">
+        <UButton icon="i-lucide-columns-3" color="neutral" variant="outline" :aria-label="t('customViews.new')" @click="viewOpen = true">
+          <span class="hidden sm:inline">{{ t('customViews.new') }}</span>
+        </UButton>
         <UButton icon="i-lucide-users" color="neutral" variant="outline" :aria-label="t('home.newTeam')" @click="teamOpen = true">
           <span class="hidden sm:inline">{{ t('home.newTeam') }}</span>
         </UButton>
@@ -259,6 +267,24 @@ async function onLeftTeam() {
         {{ t('home.starred') }}
       </h2>
       <BoardGrid :boards="starredBoards" @star="toggleStar" />
+    </section>
+
+    <section v-if="views.length" data-testid="custom-views">
+      <h2 class="text-lg font-semibold mb-4 flex items-center gap-2">
+        <UIcon name="i-lucide-columns-3" class="size-5 text-muted" />
+        {{ t('customViews.title') }}
+      </h2>
+      <div class="grid gap-3 grid-cols-[repeat(auto-fill,minmax(14rem,1fr))]">
+        <ULink
+          v-for="v in views"
+          :key="v.id"
+          :to="`/views/${v.id}`"
+          class="rounded-lg ring ring-default bg-elevated/50 px-4 py-3 hover:bg-elevated transition-colors"
+        >
+          <span class="block font-medium text-highlighted truncate">{{ v.name }}</span>
+          <span class="block text-sm text-muted">{{ t('customViews.columnCount', {}, v.columnCount) }}</span>
+        </ULink>
+      </div>
     </section>
 
     <section v-for="team in teams" :key="team.id">
@@ -349,6 +375,8 @@ async function onLeftTeam() {
         </form>
       </template>
     </UModal>
+
+    <CustomViewModal v-model:open="viewOpen" @saved="onViewSaved" />
 
     <UModal v-model:open="teamOpen" :title="t('home.newTeamDialog.title')" :description="t('home.newTeamDialog.description')">
       <template #body>

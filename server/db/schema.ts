@@ -1191,3 +1191,28 @@ export const boardMemberAccess = pgTable('board_member_access', {
   uniqueIndex('board_member_access_column_unique').on(t.boardId, t.userId, t.columnId).where(sql`${t.columnId} is not null`),
   uniqueIndex('board_member_access_card_unique').on(t.boardId, t.userId, t.cardId).where(sql`${t.cardId} is not null`),
 ])
+
+// Custom views (see 0133_custom_views_rls.sql): a person's own named set of
+// columns from any boards they can see, shown side by side on /views/:id.
+// Personal only. Columns the person can no longer see are left out by the
+// columns policies when the view is read; deleting a column removes it.
+export const customViews = pgTable('custom_views', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  name: text('name').notNull(),
+  createdAt: createdAt(),
+}, t => [
+  uniqueIndex('custom_views_name_unique').on(t.userId, sql`lower(${t.name})`),
+  check('custom_views_name_length', sql`char_length(${t.name}) between 1 and 100`),
+])
+
+export const customViewColumns = pgTable('custom_view_columns', {
+  viewId: uuid('view_id').notNull().references(() => customViews.id, { onDelete: 'cascade' }),
+  columnId: uuid('column_id').notNull(),
+  boardId: uuid('board_id').notNull(),
+  position: integer('position').notNull(),
+}, t => [
+  primaryKey({ columns: [t.viewId, t.columnId] }),
+  foreignKey({ columns: [t.columnId, t.boardId], foreignColumns: [columns.id, columns.boardId], name: 'custom_view_columns_column_fk' }).onDelete('cascade'),
+  index('custom_view_columns_column_idx').on(t.columnId),
+])
