@@ -10,6 +10,16 @@ export interface Io {
   fetch: typeof globalThis.fetch
   /** Aborted on SIGINT/SIGTERM: long-running commands (`kanso agent run`) stop then. */
   signal?: AbortSignal
+  /** The running CLI (`kanso agent install` writes these into the systemd unit). */
+  self?: { node: string, script: string, cwd: string }
+  /** Runs a program without a shell (systemctl, loginctl); `code` is null when it could not be started. */
+  runProgram?: (file: string, args: string[]) => Promise<ProgramResult>
+}
+
+export interface ProgramResult {
+  code: number | null
+  stdout: string
+  stderr: string
 }
 
 /** A failure to report as `error: <message>` with this exit code (1 = failed, 2 = usage). */

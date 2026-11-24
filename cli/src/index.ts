@@ -1,5 +1,8 @@
+import { execFile } from 'node:child_process'
 import { homedir } from 'node:os'
+import { resolve } from 'node:path'
 import { createInterface } from 'node:readline'
+import type { ProgramResult } from './io.ts'
 import { run } from './main.ts'
 
 /** Reads the token: without echo on a terminal, else the first line of stdin. */
@@ -20,6 +23,17 @@ async function readSecret(prompt: string): Promise<string> {
     rl.close()
     process.stderr.write('\n')
   }
+}
+
+/** Runs a program (systemctl, loginctl) without a shell; code null when it cannot be started. */
+function runProgram(file: string, args: string[]): Promise<ProgramResult> {
+  return new Promise((done) => {
+    execFile(file, args, { encoding: 'utf8', timeout: 60_000 }, (err, stdout, stderr) => {
+      const code = (err as NodeJS.ErrnoException | null)?.code
+      if (typeof code === 'string') done({ code: null, stdout: '', stderr: err!.message })
+      else done({ code: err ? (typeof code === 'number' ? code : 1) : 0, stdout, stderr })
+    })
+  })
 }
 
 // A reader that stops early (kanso cards ls | head) closes the pipe: stop quietly.
@@ -47,6 +61,8 @@ process.exitCode = await run(process.argv.slice(2), {
   readSecret,
   fetch: globalThis.fetch,
   signal: stop.signal,
+  self: { node: process.execPath, script: resolve(process.argv[1] ?? ''), cwd: process.cwd() },
+  runProgram,
 }).catch((err: unknown) => {
   process.stderr.write(`kanso: unexpected error: ${(err as Error)?.stack ?? err}\n`)
   return 1

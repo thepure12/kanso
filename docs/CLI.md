@@ -42,8 +42,9 @@ Every command takes `--json`.
 
 ## kanso agent run
 
-A long-running process that runs a command for board events, meant to run as a systemd user unit. It opens the
-event stream (`GET /api/events`, see [API.md](API.md#event-stream)) with the token and starts a run for:
+A long-running process that runs a command for board events, meant to run as a systemd user unit
+([`kanso agent install`](#running-it-as-a-service)). It opens the event stream (`GET /api/events`, see
+[API.md](API.md#event-stream)) with the token and starts a run for:
 
 - **card activity** (`--board <ids or names>` with `--activity <kinds>` and/or `--columns <ids or titles>`): for example
   cards created in or moved to "To do". `--columns` alone means `--activity created,moved`. For a move, the column
@@ -149,47 +150,37 @@ title=$(printf '%s' "$card" | jq -r .card.title)
 echo "working on $title ($KANSO_EVENT)"
 ```
 
-### systemd user unit
+### Running it as a service
 
-Give the runner its own token (a bot's token is best: board → Bots), stored in an environment file only you can
-read, and keep `KANSO_URL`/`KANSO_TOKEN` out of your shell profile.
-
-`~/.config/kanso/agent.env` (mode 600):
+`kanso agent install` sets the runner up as a systemd user service, so it starts by itself (at login, or at
+boot with linger) and restarts after failures. It takes the same options as `agent run`:
 
 ```bash
-KANSO_URL=https://kanso.example.org
-KANSO_TOKEN=kb_...
+kanso login --profile triage --url https://kanso.example.org --token kb_bot...   # a bot's token is best (board → Bots)
+cd ~/work                                                     # the runs' working directory (or --workdir)
+kanso agent install --profile triage --name triage --board Kanso --claude
+loginctl enable-linger "$USER"                                # keep it running while you are logged out
 ```
 
-`~/.config/systemd/user/kanso-agent.service`:
+It checks the options and the token like `agent run` (boards, columns, agent rules need a bot), then:
 
-```ini
-[Unit]
-Description=kanso agent run (Kanso board events)
-After=network-online.target
+- writes `~/.config/kanso/agent-<name>.env` (mode 600) with `KANSO_URL` and `KANSO_TOKEN` of the chosen profile
+  (or `KANSO_URL`/`KANSO_TOKEN`), so the token never appears in the unit or on a command line;
+- writes `~/.config/systemd/user/kanso-agent-<name>.service` (`$XDG_CONFIG_HOME` is honoured) with the absolute
+  paths of `node` and the `kanso` script, boards and columns as ids (names in a comment), a `PATH` with node's and
+  `claude`'s directories first, `Restart=on-failure`, `KillMode=mixed` (runs get SIGTERM from the runner first);
+- runs `systemctl --user daemon-reload`, `enable` and `restart`, and says when linger is off.
 
-[Service]
-EnvironmentFile=%h/.config/kanso/agent.env
-WorkingDirectory=%h/work
-ExecStart=/usr/bin/node %h/.local/lib/kanso/kanso.mjs agent run \
-  --board 00000000-0000-0000-0000-000000000000 --columns "To do" \
-  --claude --comment failure --timeout 60
-Restart=on-failure
-RestartSec=30
-# Runs get SIGTERM from the runner first; give them time to finish.
-KillMode=mixed
-TimeoutStopSec=120
-
-[Install]
-WantedBy=default.target
-```
+`--name` tells several agents apart (without it: `kanso-agent.service`, `agent.env`). Run `install` again with new
+options to change an agent (it restarts it). `--dry-run` prints both files (token masked) and the commands and changes
+nothing; without a systemd user manager (macOS, most containers) it prints the same and writes nothing. With `--claude`,
+`claude` must be on `PATH` (or `KANSO_CLAUDE_BIN`) and logged in for the same user. The unit pins the current `node`
+binary: after moving to another Node version (nvm), run `install` again.
 
 ```bash
-systemctl --user daemon-reload
-systemctl --user enable --now kanso-agent
-journalctl --user -u kanso-agent -f
-loginctl enable-linger "$USER"   # keep it running while you are logged out
+journalctl --user -u kanso-agent-triage -f      # its output
+systemctl --user status kanso-agent-triage
+kanso agent uninstall --name triage             # stops, disables, removes both files
 ```
 
-`claude` must be on the unit's `PATH` (add `Environment=PATH=...` when it lives in `~/.local/bin`) and logged in
-for the same user.
+`uninstall` does not revoke the token; revoke it in Kanso when nothing else uses it.
