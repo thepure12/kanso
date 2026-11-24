@@ -1063,7 +1063,7 @@ const settingsOpen = computed({
                 </div>
               </UTooltip>
               <header
-                class="flex flex-wrap items-center gap-x-2 gap-y-1.5 px-3 py-2 rounded-t-lg"
+                class="flex flex-wrap items-center justify-end gap-x-2 gap-y-1.5 px-3 py-2 rounded-t-lg"
                 :style="col.color ? { backgroundColor: col.color, color: contrastText(col.color) } : undefined"
               >
                 <UIcon v-if="canEdit && !shownGroup" name="i-lucide-grip-vertical" class="column-handle cursor-grab pointer-coarse:size-6" :class="col.color ? 'opacity-60' : 'text-dimmed'" />
@@ -1078,9 +1078,10 @@ const settingsOpen = computed({
                   @keydown.esc.stop.prevent="finishColumnRename(col, false)"
                   @blur="finishColumnRename(col, true)"
                 >
+                <!-- The title wraps instead of truncating, and keeps at least min-w-24: when the icons and badges leave less, they wrap below it, on the right. -->
                 <h2
                   v-else
-                  class="min-w-0 flex-1 font-medium truncate"
+                  class="min-w-24 flex-1 font-medium wrap-anywhere"
                   :class="canEdit && 'cursor-text select-none'"
                   @dblclick="startColumnRename(col)"
                 >
