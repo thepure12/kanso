@@ -29,6 +29,7 @@ const rule = z.discriminatedUnion('kind', [
   z.object({ kind: z.enum(['apply_tag', 'remove_tag']), tag: z.string().nullish() }),
   z.object({ kind: z.literal('assign_to'), user: z.string().nullish() }),
   z.object({ kind: z.literal('assign_mover') }),
+  z.object({ kind: z.literal('mark_completed') }),
   z.object({ kind: z.literal('set_due'), dueDays: z.number().int().min(0).max(365) }),
 ])
 

@@ -47,6 +47,8 @@ const assignItems = computed(() => [
   ...hasMoverRule.value ? [] : [{ label: t('rules.mover'), value: MOVER, icon: 'i-lucide-user-check' }],
   ...memberItems.value,
 ])
+// At most one "mark complete" rule per column.
+const hasCompleteRule = computed(() => props.column.rules.some(r => r.kind === 'mark_completed'))
 // A column sets the due date at most once.
 const hasDueRule = computed(() => props.column.rules.some(r => r.kind === 'set_due'))
 
@@ -75,6 +77,7 @@ function affectedCount(rule: NewColumnRule) {
     case 'apply_tag': return props.cards.filter(c => !c.tagIds.includes(rule.tagId)).length
     case 'remove_tag': return props.cards.filter(c => c.tagIds.includes(rule.tagId)).length
     case 'assign_to': return props.cards.filter(c => !c.assigneeIds.includes(rule.userId)).length
+    case 'mark_completed': return props.cards.filter(c => !c.completedAt).length
     case 'add_button': {
       const ids = buttonById.value.get(rule.buttonId)?.cardIds ?? []
       return props.cards.filter(c => !ids.includes(c.id)).length
@@ -164,6 +167,10 @@ const tagRules = computed<{ kind: TagKind, label: string, key: 'applyTag' | 'rem
               :label="buttonById.get(rule.buttonId)!.name"
               class="max-w-60 truncate"
             />
+          </template>
+          <template v-else-if="rule.kind === 'mark_completed'">
+            <UIcon name="i-lucide-circle-check" class="size-4 text-dimmed shrink-0" />
+            <span>{{ t('rules.markCompleted') }}</span>
           </template>
           <template v-else-if="rule.kind === 'assign_mover'">
             <UIcon name="i-lucide-user-check" class="size-4 text-dimmed shrink-0" />
@@ -274,6 +281,12 @@ const tagRules = computed<{ kind: TagKind, label: string, key: 'applyTag' | 'rem
           <p v-if="hasDueRule" class="text-xs text-muted">
             {{ t('rules.dueRuleExists') }}
           </p>
+
+          <form v-if="!hasCompleteRule" class="flex items-center gap-2" @submit.prevent="add({ kind: 'mark_completed' })">
+            <UIcon name="i-lucide-circle-check" class="size-4 text-dimmed shrink-0" />
+            <span class="text-sm flex-1">{{ t('rules.markCompleted') }}</span>
+            <UButton type="submit" icon="i-lucide-plus" :label="t('common.add')" :aria-label="t('rules.addMarkCompleted')" />
+          </form>
         </template>
 
         <template v-if="props.buttons.length">

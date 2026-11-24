@@ -20,6 +20,7 @@ export function toColumnRule(r: RuleRow): ColumnRule {
     case 'assign_to':
       return { id: r.id, kind: r.kind, userId: r.userId! }
     case 'assign_mover':
+    case 'mark_completed':
       return { id: r.id, kind: r.kind }
     case 'set_due':
       return { id: r.id, kind: r.kind, dueDays: r.dueDays! }

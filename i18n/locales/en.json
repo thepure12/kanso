@@ -1597,7 +1597,7 @@
   },
   "rules": {
     "title": "Rules for {column}",
-    "description": "Rules run when a card is added to this column or moved into it. A new card tag, assignee or button rule can also change the cards already here.",
+    "description": "Rules run when a card is added to this column or moved into it. A new card tag, assignee, button or complete rule can also change the cards already here.",
     "empty": "No rules yet.",
     "applyTag": "Apply card tag",
     "removeTag": "Remove card tag",
@@ -1609,6 +1609,8 @@
     "formerMember": "a former member (skipped)",
     "mover": "Whoever puts it here",
     "assignMover": "Assign whoever adds or moves the card here",
+    "markCompleted": "Mark the card complete",
+    "addMarkCompleted": "Add rule: mark the card complete",
     "setDue": "Set due date today | Set due date tomorrow | Set due date in {n} days",
     "delete": "Delete rule",
     "chooseTag": "Choose a card tag",

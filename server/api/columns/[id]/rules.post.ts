@@ -7,6 +7,7 @@ const ruleBody = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('remove_tag'), tagId: z.uuid() }),
   z.object({ kind: z.literal('assign_to'), userId: z.uuid() }),
   z.object({ kind: z.literal('assign_mover') }),
+  z.object({ kind: z.literal('mark_completed') }),
   z.object({ kind: z.literal('set_due'), dueDays: z.number().int().min(0).max(365) }),
   z.object({ kind: z.literal('add_button'), buttonId: z.uuid() }),
   z.object({ kind: z.literal('remove_button'), buttonId: z.uuid() }),
@@ -43,7 +44,7 @@ export default defineUserHandler(async (event, tx): Promise<ColumnRule> => {
 type NewRule = z.infer<typeof ruleBody>
 
 /**
- * A new tag, assignee or button rule also covers the cards already in the column
+ * A new tag, assignee, button or mark_completed rule also covers the cards already in the column
  * (not templates or archived cards), through the caller's policies like the
  * trigger. set_due is left out: it would overwrite dates people set on purpose;
  * assign_mover too: who moved those cards in is not known.
@@ -70,6 +71,10 @@ async function applyToColumnCards(tx: Tx, columnId: string, rule: NewRule) {
       break
     case 'remove_button':
       await tx.execute(sql`delete from board_button_cards where button_id = ${rule.buttonId} and card_id in (select id from (${cards}) c)`)
+      break
+    case 'mark_completed':
+      await tx.execute(sql`update cards set completed_at = now()
+        where completed_at is null and id in (select id from (${cards}) c)`)
       break
   }
 }

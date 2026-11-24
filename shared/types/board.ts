@@ -103,6 +103,8 @@ export type NewColumnRule =
   | { kind: 'assign_to', userId: string }
   /** Adds the person who creates the card in the column or moves it there. At most one per column. */
   | { kind: 'assign_mover' }
+  /** Marks the card complete (it stays complete when it leaves the column). At most one per column. */
+  | { kind: 'mark_completed' }
   /** Sets the due date to today + dueDays (0-365). At most one per column. */
   | { kind: 'set_due', dueDays: number }
   /** Adds the shared card button buttonId to the card (as if added to it by hand). */

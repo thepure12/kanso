@@ -589,6 +589,31 @@ describe('column rules', () => {
     expect(data.columns.find(c => c.id === column.id)!.rules).toHaveLength(1)
   })
 
+  it('mark_completed marks cards added or moved in complete, and the cards already there when asked', async () => {
+    const { data: column } = await alice.req<{ id: string }>(`/api/boards/${board.id}/columns`, { method: 'POST', body: { title: 'Complete' } })
+    const already = await newCard('Before the complete rule')
+    await alice.req(`/api/cards/${already.id}/move`, { method: 'POST', body: { columnId: column.id, aboveId: null, belowId: null } })
+
+    const rule = await alice.req<ColumnRule>(`/api/columns/${column.id}/rules`, { method: 'POST', body: { kind: 'mark_completed', applyToExisting: false } })
+    expect(rule.data).toEqual({ id: expect.any(String), kind: 'mark_completed' })
+    expect((await alice.req<ColumnRule>(`/api/columns/${column.id}/rules`, { method: 'POST', body: { kind: 'mark_completed' } })).data.id).toBe(rule.data.id)
+
+    const card = await newCard('Moved by Bob')
+    const { data: moved } = await bob.req<Card>(`/api/cards/${card.id}/move`, { method: 'POST', body: { columnId: column.id, aboveId: null, belowId: null } })
+    expect(moved.completedAt).toEqual(expect.any(String))
+    const { data: created } = await alice.req<Card>(`/api/boards/${boardId}/cards`, { method: 'POST', body: { columnId: column.id, title: 'Created complete' } })
+    expect(created.completedAt).toEqual(expect.any(String))
+    let { data } = await alice.req<BoardDetail>(`/api/boards/${board.id}`)
+    expect(data.cards.find(c => c.id === already.id)!.completedAt).toBeNull()
+
+    // Deleted and added again, this time for the cards already there too.
+    await alice.req(`/api/column-rules/${rule.data.id}`, { method: 'DELETE' })
+    await alice.req(`/api/columns/${column.id}/rules`, { method: 'POST', body: { kind: 'mark_completed' } })
+    ;({ data } = await alice.req<BoardDetail>(`/api/boards/${board.id}`))
+    expect(data.cards.find(c => c.id === already.id)!.completedAt).toEqual(expect.any(String))
+    expect(data.cards.find(c => c.id === moved.id)!.completedAt).toBe(moved.completedAt)
+  })
+
   it('add_button / remove_button add a shared card button to cards, also ones already there; not exported', async () => {
     const { data: column } = await alice.req<{ id: string }>(`/api/boards/${board.id}/columns`, { method: 'POST', body: { title: 'Button rules' } })
     const { data: button } = await alice.req<{ id: string }>(`/api/boards/${board.id}/buttons`, { method: 'POST', body: { scope: 'card', name: 'Rule button', shared: true, steps: [{ kind: 'archive' }] } })

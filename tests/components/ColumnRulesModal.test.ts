@@ -58,3 +58,35 @@ describe('ColumnRulesModal button rules', () => {
     w.unmount()
   })
 })
+
+describe('ColumnRulesModal mark_completed rule', () => {
+  const addButton = () => document.body.querySelector('[aria-label="Add rule: mark the card complete"]') as HTMLButtonElement | null
+
+  it('adds it, asking about the open cards already in the column', async () => {
+    const cards = [{ id: 'k1', completedAt: null }, { id: 'k2', completedAt: '2026-11-24T00:00:00Z' }]
+    const w = await mountSuspended(ColumnRulesModal, {
+      attachTo: document.body,
+      props: { open: true, column, tags: [], members: [], cards: cards as never },
+    })
+    await flushPromises()
+    addButton()!.click()
+    await flushPromises()
+    expect(document.body.textContent).toContain('This rule would change 1 card already in this column.')
+    const all = [...document.body.querySelectorAll('button')].find(b => b.textContent?.trim() === 'Change it too')!
+    all.click()
+    await flushPromises()
+    expect(w.emitted('add')).toEqual([[{ kind: 'mark_completed' }, true]])
+    w.unmount()
+  })
+
+  it('lists an existing one and offers no second', async () => {
+    const w = await mountSuspended(ColumnRulesModal, {
+      attachTo: document.body,
+      props: { open: true, column: { ...column, rules: [{ id: 'r1', kind: 'mark_completed' as const }] }, tags: [], members: [], cards: [] },
+    })
+    await flushPromises()
+    expect(document.body.textContent).toContain('Mark the card complete')
+    expect(addButton()).toBeNull()
+    w.unmount()
+  })
+})

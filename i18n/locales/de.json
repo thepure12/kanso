@@ -1597,7 +1597,7 @@
   },
   "rules": {
     "title": "Regeln für {column}",
-    "description": "Regeln greifen, wenn eine Karte in dieser Spalte angelegt oder hierher verschoben wird. Neue Karten-Tag-, Zuweisungs- und Button-Regeln können auch die Karten ändern, die schon hier sind.",
+    "description": "Regeln greifen, wenn eine Karte in dieser Spalte angelegt oder hierher verschoben wird. Neue Karten-Tag-, Zuweisungs-, Button- und Erledigt-Regeln können auch die Karten ändern, die schon hier sind.",
     "empty": "Noch keine Regeln.",
     "applyTag": "Karten-Tag setzen",
     "removeTag": "Karten-Tag entfernen",
@@ -1609,6 +1609,8 @@
     "formerMember": "ein ehemaliges Mitglied (wird übersprungen)",
     "mover": "Wer sie hier ablegt",
     "assignMover": "Die Person zuweisen, die die Karte hier anlegt oder hierher verschiebt",
+    "markCompleted": "Karte als erledigt markieren",
+    "addMarkCompleted": "Regel hinzufügen: Karte als erledigt markieren",
     "setDue": "Fälligkeit auf heute setzen | Fälligkeit auf morgen setzen | Fälligkeit in {n} Tagen setzen",
     "delete": "Regel löschen",
     "chooseTag": "Karten-Tag auswählen",

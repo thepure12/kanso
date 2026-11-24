@@ -196,6 +196,52 @@ describe('assign_mover rules', () => {
   })
 })
 
+describe('mark_completed rules', () => {
+  let columnId: string
+  const addRule = (by: string) =>
+    as(by, sql => sql`insert into column_rules (board_id, column_id, kind) values (${boardId}, ${columnId}, 'mark_completed')`)
+  const completedOf = (cardId: string) =>
+    as(owner.id, async sql => (await sql`select completed_at from cards where id = ${cardId}`)[0]!.completed_at as Date | null)
+  const kindsOf = (cardId: string) =>
+    as(owner.id, async sql => (await sql`select kind from card_activity where card_id = ${cardId} and kind <> 'assigned' order by created_at`).map(r => r.kind as string))
+
+  beforeAll(async () => {
+    [{ id: columnId }] = await as(owner.id, sql => sql`insert into columns (board_id, title, position) values (${boardId}, 'Complete', 6) returning id`) as any
+  })
+
+  it('takes no tag, user or days, one per column, next to an assign_mover rule', async () => {
+    await rejectsWith(as(owner.id, sql => sql`insert into column_rules (board_id, column_id, kind, tag_id) values (${boardId}, ${columnId}, 'mark_completed', ${doneTagId})`), '23514')
+    await rejectsWith(addRule(viewer.id), '42501')
+    await as(owner.id, sql => sql`insert into column_rules (board_id, column_id, kind) values (${boardId}, ${columnId}, 'assign_mover')`)
+    await addRule(editor.id)
+    await rejectsWith(addRule(owner.id), '23505')
+  })
+
+  it('marks cards created in the column or moved there complete, logged; they stay complete when moved on', async () => {
+    const [{ id: created }] = await as(editor.id, sql => sql`insert into cards (board_id, column_id, title, position, created_by) values (${boardId}, ${columnId}, 'Card', 1, ${editor.id}) returning id`) as any
+    expect(await completedOf(created)).toBeInstanceOf(Date)
+    expect(await kindsOf(created)).toEqual(['created', 'completed'])
+
+    const [{ id: moved }] = await as(editor.id, sql => sql`insert into cards (board_id, column_id, title, position, created_by) values (${boardId}, ${todoId}, 'Card', 1, ${editor.id}) returning id`) as any
+    expect(await completedOf(moved)).toBeNull()
+    await as(editor.id, sql => sql`update cards set column_id = ${columnId} where id = ${moved}`)
+    const first = await completedOf(moved)
+    expect(first).toBeInstanceOf(Date)
+    expect(await kindsOf(moved)).toEqual(['created', 'moved', 'completed'])
+
+    await as(editor.id, sql => sql`update cards set column_id = ${todoId} where id = ${moved}`)
+    expect(await completedOf(moved)).toEqual(first)
+    // Coming back keeps the first completion time.
+    await as(editor.id, sql => sql`update cards set column_id = ${columnId} where id = ${moved}`)
+    expect(await completedOf(moved)).toEqual(first)
+  })
+
+  it('leaves templates alone', async () => {
+    const [{ id }] = await as(editor.id, sql => sql`insert into cards (board_id, column_id, title, position, created_by, is_template) values (${boardId}, ${columnId}, 'Template', 1, ${editor.id}, true) returning id`) as any
+    expect(await completedOf(id)).toBeNull()
+  })
+})
+
 describe('remove_tag and set_due rules', () => {
   let tagId: string
   let shipId: string
