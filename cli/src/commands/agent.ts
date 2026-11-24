@@ -10,8 +10,10 @@ import {
 import {
   type CardWorktree, claudeArgs, downloadAttachments, type Git, localDate, prepareWorktree, timeEntry, workSection,
 } from '../claudeWork.ts'
+import { agentWizard, installCommand, wizardUsable } from '../agentWizard.ts'
+import { parseCommandArgs } from '../args.ts'
 import { type Client, createClient } from '../client.ts'
-import { type Credentials, loadConfig, resolveCredentials } from '../config.ts'
+import { type Credentials, loadConfig, profileName, resolveCredentials } from '../config.ts'
 import { CliError, UsageError } from '../io.ts'
 import { json } from '../output.ts'
 import { loadBoard } from '../resolve.ts'
@@ -70,6 +72,7 @@ export const agent: Command = {
   summary: 'Run a command for board events (agent run), e.g. Claude for cards landing in a column; install it as a service',
   usage: `agent run (--board <ids|names> [--columns <ids|titles>] [--activity <kinds>] | --notifications) (--cmd "<command>" | --claude) [options]
        kanso agent install [--name <name>] [--workdir <dir>] [--dry-run] <agent run options>
+       kanso agent setup     (asks for everything; also "kanso agent install" without options)
        kanso agent uninstall [--name <name>]`,
   options: {
     board: { type: 'string', value: '<ids|names>', description: 'Boards to follow (ids or names), comma-separated. Alone: follow the board\'s agent rules for this bot token' },
@@ -112,6 +115,10 @@ with the site and token (~/.config/kanso/agent[-<name>].env, mode 600), and enab
 and columns are stored as ids. Run it again to change the agent; "kanso agent uninstall" removes it. For the
 agent to run while you are logged out: loginctl enable-linger.
 
+Setup: "kanso agent setup" (or "kanso agent install" without options, on a terminal) asks for the site and
+token, boards, trigger, what runs and the limits, prints the equivalent "kanso agent install ..." command for
+scripts, then installs it (or shows a dry run).
+
 Examples:
   kanso agent run --board <id> --claude                  (agent rules, with a bot token)
   kanso agent install --name triage --board Kanso --claude
@@ -119,10 +126,15 @@ Examples:
   kanso agent run --notifications --cmd './handle-card.sh' --concurrency 2`,
   async run(ctx) {
     const sub = ctx.positionals[0]
-    if (ctx.positionals.length !== 1 || !sub || !['run', 'install', 'uninstall'].includes(sub)) {
-      throw new UsageError('Usage: kanso agent run|install|uninstall [options]. See kanso agent --help.')
+    if (ctx.positionals.length !== 1 || !sub || !['run', 'install', 'uninstall', 'setup'].includes(sub)) {
+      throw new UsageError('Usage: kanso agent run|install|uninstall|setup [options]. See kanso agent --help.')
     }
     if (sub === 'uninstall') return uninstallAgent(ctx)
+    const noOptions = Object.keys(agent.options!).every(k => ctx.values[k] === undefined)
+    if (sub === 'setup' || (sub === 'install' && noOptions)) {
+      if (sub === 'setup' && !noOptions) throw new UsageError('kanso agent setup asks for everything; give the options to kanso agent install instead.')
+      return setupAgent(ctx)
+    }
     if (sub === 'run') {
       for (const k of installOnly) if (ctx.values[k] !== undefined) throw new UsageError(`--${k} goes with kanso agent install.`)
     }
@@ -431,6 +443,23 @@ Remove:  kanso agent uninstall${nameOpt}
   loginctl enable-linger ${user || '$USER'}
 `)
   }
+}
+
+/** The wizard: asks, prints the equivalent command, then installs through the same checks as the flags. */
+async function setupAgent(ctx: Context): Promise<void> {
+  wizardUsable(ctx.io, ctx.json)
+  needProgramRunner(ctx)
+  const result = await agentWizard({ io: ctx.io, configPath: ctx.configPath, profile: ctx.profile })
+  if (result.action === 'stop') {
+    ctx.io.stdout('Nothing was installed. Run the command above when you are ready.\n')
+    return
+  }
+  const argv = [...result.argv, ...(result.action === 'dry-run' ? ['--dry-run'] : [])]
+  const { values } = parseCommandArgs(['agent', 'install', ...argv], agent.options, 1)
+  const install: Context = { ...ctx, values, positionals: ['install'], profile: profileName(values.profile as string | undefined, ctx.io.env) }
+  ctx.io.stdout('\n')
+  await installAgent(install, await prepareRun(install))
+  if (result.action === 'dry-run') ctx.io.stdout(`\nTo install it: ${installCommand(result.argv)}\n`)
 }
 
 async function uninstallAgent(ctx: Context): Promise<void> {

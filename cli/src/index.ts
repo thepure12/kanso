@@ -25,6 +25,25 @@ async function readSecret(prompt: string): Promise<string> {
   }
 }
 
+/** One question on the terminal; null on Ctrl+D or Ctrl+C. A fresh interface per question, so readSecret can take stdin in between. */
+function ask(question: string): Promise<string | null> {
+  const rl = createInterface({ input: process.stdin, output: process.stdout, terminal: true })
+  return new Promise((done) => {
+    let answered = false
+    rl.on('SIGINT', () => rl.close())
+    rl.on('close', () => {
+      if (answered) return
+      process.stdout.write('\n')
+      done(null)
+    })
+    rl.question(question, (answer) => {
+      answered = true
+      rl.close()
+      done(answer)
+    })
+  })
+}
+
 /** Runs a program (systemctl, loginctl) without a shell; code null when it cannot be started. */
 function runProgram(file: string, args: string[]): Promise<ProgramResult> {
   return new Promise((done) => {
@@ -59,6 +78,8 @@ process.exitCode = await run(process.argv.slice(2), {
   stdout: text => process.stdout.write(text),
   stderr: text => process.stderr.write(text),
   readSecret,
+  ask,
+  interactive: !!process.stdin.isTTY && !!process.stdout.isTTY,
   fetch: globalThis.fetch,
   signal: stop.signal,
   self: { node: process.execPath, script: resolve(process.argv[1] ?? ''), cwd: process.cwd() },

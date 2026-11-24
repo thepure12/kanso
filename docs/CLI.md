@@ -195,6 +195,24 @@ kanso agent install --profile triage --name triage --board Kanso --claude
 loginctl enable-linger "$USER"                                # keep it running while you are logged out
 ```
 
+Not sure which options you need? `kanso agent setup` (or `kanso agent install` with no options) asks for them on
+the terminal, each with a default you take with Enter:
+
+1. **Site and token**: a saved profile, or a site URL and token (checked with `GET /api/me` and saved as a profile).
+   It says whether the token is a bot's; a bot's token is recommended. `KANSO_URL`/`KANSO_TOKEN`, when set, are used.
+2. **Boards**: picked from the token's boards (numbers, ranges such as `2-4`, or `all`).
+3. **Trigger**: the board's agent rules (bot tokens only; shows how many are active for the bot), cards landing in
+   columns (picked from the boards' columns, plus the activity kinds, default `created,moved`), or notifications.
+4. **What runs**: Claude (what it may touch: only the board, `acceptEdits` or `auto`; a git worktree per card, default
+   the git repository you are in; a `--setup` command; `--log-time`; `--prompt` outside rules mode) or a `--cmd`.
+5. **Limits**: concurrency, timeout, `--comment` (outside rules mode), service name (default from the board name,
+   `none` for plain `kanso-agent`), working directory.
+6. **Summary**: prints the equivalent `kanso agent install ...` command (for scripts and other machines), then
+   installs it, shows a dry run, or stops.
+
+The wizard only builds the options: the install below checks them like typed ones. It needs a terminal; without one
+(or with `--json`) it stops with a usage error, and Ctrl+C or Ctrl+D cancels without changing anything.
+
 It checks the options and the token like `agent run` (boards, columns, agent rules need a bot), then:
 
 - writes `~/.config/kanso/agent-<name>.env` (mode 600) with `KANSO_URL` and `KANSO_TOKEN` of the chosen profile

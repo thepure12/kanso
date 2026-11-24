@@ -7,6 +7,10 @@ export interface Io {
   stderr: (text: string) => void
   /** Reads a secret (the token) when `kanso login` has no --token: a prompt without echo on a terminal, else one line of stdin. */
   readSecret: (prompt: string) => Promise<string>
+  /** Asks one question on the terminal (the agent setup wizard); null when the input ended or Ctrl+C. */
+  ask?: (question: string) => Promise<string | null>
+  /** stdin and stdout are a terminal, so the wizard may ask questions. */
+  interactive?: boolean
   fetch: typeof globalThis.fetch
   /** Aborted on SIGINT/SIGTERM: long-running commands (`kanso agent run`) stop then. */
   signal?: AbortSignal
