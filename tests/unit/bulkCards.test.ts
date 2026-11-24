@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { bulkInverse, bulkLabel } from '../../app/utils/bulkCards'
+import { bulkInverse, bulkLabel, gatherGroup, savedNeighbours } from '../../app/utils/bulkCards'
 
 const card = (id: string, over: { tagIds?: string[], assigneeIds?: string[], priority?: 'high' | 'low' | null, dueDate?: string | null } = {}) =>
   ({ id, tagIds: [], assigneeIds: [], priority: null, dueDate: null, ...over })
@@ -42,5 +42,32 @@ describe('bulkLabel', () => {
     expect(bulkLabel({ archived: false })).toBe('board.bulk.done.restored')
     expect(bulkLabel({ removeTagIds: ['t'] })).toBe('board.bulk.done.tags')
     expect(bulkLabel({ dueDate: null })).toBe('board.bulk.done.dueDate')
+  })
+})
+
+describe('gatherGroup', () => {
+  it('gathers the selected cards around the dropped one in board order', () => {
+    // b was dragged from "a" to between x and y; a1 and c1 are selected with it.
+    const lists = { a: ['a1', 'a2'], b: ['x', 'b', 'y'], c: ['c1', 'c2'] }
+    expect(gatherGroup(lists, 'b', 'b', ['a1', 'b', 'c1'])).toEqual({ a: ['a2'], b: ['x', 'a1', 'b', 'c1', 'y'], c: ['c2'] })
+  })
+
+  it('reorders within one column', () => {
+    const lists = { a: ['b', 'c', 'a', 'd'] }
+    expect(gatherGroup(lists, 'a', 'a', ['a', 'c'])).toEqual({ a: ['b', 'a', 'c', 'd'] })
+  })
+
+  it('leaves the lists alone when the dragged card is not in the column', () => {
+    const lists = { a: ['a'] }
+    expect(gatherGroup(lists, 'b', 'a', ['a'])).toBe(lists)
+  })
+})
+
+describe('savedNeighbours', () => {
+  it('skips cards not saved in the column yet', () => {
+    const ids = ['x', 'a', 'b', 'c', 'y']
+    expect(savedNeighbours(ids, 1, new Set(['b', 'c']))).toEqual({ aboveId: 'x', belowId: 'y' })
+    expect(savedNeighbours(ids, 2, new Set(['c']))).toEqual({ aboveId: 'a', belowId: 'y' })
+    expect(savedNeighbours(['a'], 0, new Set())).toEqual({ aboveId: null, belowId: null })
   })
 })

@@ -82,6 +82,30 @@ describe('useBoard undo', () => {
     expect(ids(b, 'c1')).toEqual(['a', 'b'])
   })
 
+  it('takes the other selected cards along on a drag, saved in order, undone as one step', async () => {
+    const b = await mountBoard()
+    b.dragging.value = true
+    // b dragged from c1 to below x; a (above it in the board) is selected too.
+    const dragged = b.lists.value.c1![1]!
+    b.lists.value.c1 = [b.lists.value.c1![0]!]
+    b.lists.value.c2 = [b.lists.value.c2![0]!, dragged]
+    b.dragging.value = false
+    await nextTick()
+    await b.cardsMoved('c2', 1, ['a'])
+    expect(ids(b, 'c1')).toEqual([])
+    expect(ids(b, 'c2')).toEqual(['x', 'a', 'b'])
+    expect(calls()).toEqual([
+      ['/api/cards/a/move', 'POST', { columnId: 'c2', aboveId: 'x', belowId: null }],
+      ['/api/cards/b/move', 'POST', { columnId: 'c2', aboveId: 'a', belowId: null }],
+    ])
+    expect(m.toastAdd).toHaveBeenLastCalledWith(expect.objectContaining({ title: 'Moved 2 cards' }))
+
+    m.api.mockClear()
+    await b.undo()
+    expect(ids(b, 'c1')).toEqual(['a', 'b'])
+    expect(ids(b, 'c2')).toEqual(['x'])
+  })
+
   it('unarchives an archived card and reloads the board', async () => {
     const b = await mountBoard()
     await b.archiveCard(b.lists.value.c1![0]!)

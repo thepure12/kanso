@@ -18,7 +18,7 @@ const {
   board, error, refresh, columns, columnGroups, assigneeGroups, savedViews, buttons, lists, tags, fields, templates, recurrences, automations, rules, agentRules, scheduledActions, archived, offline, canEdit, isOwner, limited, canEditCard, canCommentOn, canAddToColumn, dragging, remoteVersion,
   renameBoard, setArchived, setBackground, setAccent, setButtonAlign, setColumnOutline, uploadBackground, deleteBoard, addColumn, renameColumn, editColumn, setColumnAppearance, sortColumnByPriority, deleteColumn, columnMoved,
   addColumnRule, deleteColumnRule, addAutomation, updateAutomation, deleteAutomation, addRule, updateRule, deleteRule, addAgentRule, updateAgentRule, deleteAgentRule, addScheduledAction, deleteScheduledAction, addCard, updateCard, setCardCounts, cardLinkChanged, archiveCard, setCardCompleted, snoozeCard, wakeCard, restoreCard, deleteCard, restoreTrashedCard,
-  deleteArchivedCard, cardMoved, moveCard, addTag, updateTag, deleteTag,
+  deleteArchivedCard, cardMoved, cardsMoved, moveCard, addTag, updateTag, deleteTag,
   addField, updateField, fieldMoved, deleteField, setFieldValue,
   addColumnGroup, updateColumnGroup, columnGroupMoved, deleteColumnGroup, addAssigneeGroup, updateAssigneeGroup, deleteAssigneeGroup, addSavedView, updateSavedView, deleteSavedView, addButton, updateButton, deleteButton, runButton, setButtonOnCard,
   addCardFromTemplate, saveAsTemplate, deleteTemplate, setRecurrence, deleteRecurrence, bulkUpdate, undo, redo, undoGroup,
@@ -550,9 +550,28 @@ function columnTime(col: Column) {
   return (lists.value[col.id] ?? []).reduce((sum, c) => visibleIds.value.has(c.id) ? sum + c.timeMinutes : sum, 0)
 }
 
+// A selected card being dragged takes the other selected cards along: they fade while
+// it is dragged and gather around it on drop, in board order (`cardsMoved`).
+const draggedCardId = ref<string | null>(null)
+function onCardDragStart(e: SortableEvent) {
+  draggedCardId.value = (e.item as HTMLElement).dataset.cardId ?? null
+  dragging.value = true
+}
+function onCardDragEnd() {
+  draggedCardId.value = null
+  dragging.value = false
+}
+/** The other selected cards that go along with a drag of `cardId` (none when it is not selected). */
+function dragCompanions(cardId: string | undefined) {
+  if (!cardId || !selected.value.has(cardId)) return []
+  return [...selected.value].filter(other => other !== cardId)
+}
+const groupDragging = computed(() => dragCompanions(draggedCardId.value ?? undefined).length > 0)
+
 // Draggable handlers run after vue-draggable-plus has updated the bound arrays.
 function onCardDrop(columnId: string, e: SortableEvent) {
-  nextTick(() => cardMoved(columnId, e.newIndex!))
+  const others = dragCompanions((e.item as HTMLElement).dataset.cardId)
+  nextTick(() => others.length ? cardsMoved(columnId, e.newIndex!, others) : cardMoved(columnId, e.newIndex!))
 }
 
 /**
@@ -563,9 +582,10 @@ const collapsedDropSink: Card[] = []
 function onCollapsedDrop(columnId: string, e: SortableEvent) {
   const cardId = (e.item as HTMLElement).dataset.cardId
   const card = cardId ? Object.values(lists.value).flat().find(c => c.id === cardId) : undefined
+  const others = dragCompanions(cardId)
   nextTick(() => {
     collapsedDropSink.length = 0
-    if (card) moveCard(card, columnId)
+    if (card) moveCard(card, columnId, undefined, others)
   })
 }
 function onColumnDrop(e: SortableEvent) {
@@ -1112,8 +1132,8 @@ const settingsOpen = computed({
                 :prevent-on-filter="false"
                 ghost-class="opacity-40"
                 class="flex flex-col gap-2 px-3 py-2 min-h-8 overflow-y-auto"
-                @start="dragging = true"
-                @end="dragging = false"
+                @start="onCardDragStart"
+                @end="onCardDragEnd"
                 @add="onCardDrop(col.id, $event)"
                 @update="onCardDrop(col.id, $event)"
               >
@@ -1128,7 +1148,7 @@ const settingsOpen = computed({
                   :members="board.members"
                   :can-edit="canEditCard(card)"
                   :selectable="!limited"
-                  :class="!canEditCard(card) && 'card-locked'"
+                  :class="[!canEditCard(card) && 'card-locked', groupDragging && card.id !== draggedCardId && selected.has(card.id) && 'opacity-40']"
                   :today="today"
                   :blocked="blockedIds.has(card.id)"
                   :blocking="blockingIds.has(card.id)"

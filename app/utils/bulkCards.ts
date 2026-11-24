@@ -47,3 +47,29 @@ export function bulkLabel(action: BulkCardAction): string {
   if (action.priority !== undefined) return 'board.bulk.done.priority'
   return 'board.bulk.done.dueDate'
 }
+
+/**
+ * Card ids per column after dragging `draggedId` (already at its drop place in
+ * `lists`) together with the other selected cards: `groupIds` (board order,
+ * dragged card included) gather around it in `columnId`, keeping their order,
+ * so cards above the dragged one land above it and the rest below.
+ */
+export function gatherGroup(lists: Record<string, string[]>, columnId: string, draggedId: string, groupIds: string[]): Record<string, string[]> {
+  const others = new Set(groupIds.filter(id => id !== draggedId))
+  const next = Object.fromEntries(Object.entries(lists).map(([col, ids]) => [col, ids.filter(id => !others.has(id))]))
+  const target = next[columnId] ?? []
+  const at = target.indexOf(draggedId)
+  if (at < 0) return lists
+  target.splice(at, 1, ...(groupIds.includes(draggedId) ? groupIds : [draggedId, ...groupIds]))
+  next[columnId] = target
+  return next
+}
+
+/** Neighbours of `ids[index]` for a move request, skipping cards in `skip` (not yet saved there). */
+export function savedNeighbours(ids: string[], index: number, skip: Set<string>) {
+  let above: string | null = null
+  for (let i = index - 1; i >= 0; i--) if (!skip.has(ids[i]!)) { above = ids[i]!; break }
+  let below: string | null = null
+  for (let i = index + 1; i < ids.length; i++) if (!skip.has(ids[i]!)) { below = ids[i]!; break }
+  return { aboveId: above, belowId: below }
+}

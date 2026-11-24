@@ -309,15 +309,18 @@ export async function useBoard(id: string, opts: UseBoardOptions = {}) {
     return below >= 0 ? below : ids.length
   }
 
-  /** Persists the card at `index` of `columnId` (already placed locally). */
-  async function persistMove(columnId: string, index: number) {
+  /**
+   * Persists the card at `index` of `columnId` (already placed locally). Neighbours
+   * in `pending` (placed locally, not saved there yet) are skipped.
+   */
+  async function persistMove(columnId: string, index: number, pending = new Set<string>()) {
     const list = lists.value[columnId]!
     const card = list[index]!
     card.columnId = columnId
     // The target column's rules may have changed tags, assignees or the due date.
     Object.assign(card, await api<Card>(`/api/cards/${card.id}/move`, {
       method: 'POST',
-      body: { columnId, aboveId: list[index - 1]?.id ?? null, belowId: list[index + 1]?.id ?? null },
+      body: { columnId, ...savedNeighbours(list.map(c => c.id), index, pending) },
     }))
     columnButtonRules(columnId, card.id)
     return card
@@ -349,6 +352,34 @@ export async function useBoard(id: string, opts: UseBoardOptions = {}) {
       const to = placementIn(listIds(), cardId)!
       if (from && !same(from, to)) record(t('board.undo.movedCard'), () => placeCard(cardId, from!), () => placeCard(cardId, to))
     }, t('board.errors.moveCard'))
+  }
+
+  /**
+   * Persists a drag of several selected cards: the dragged card sits at `index` of
+   * `columnId` (lists already updated) and `otherIds` gather around it in board order
+   * (`gatherGroup`). Saved top to bottom, one undo step.
+   */
+  function cardsMoved(columnId: string, index: number, otherIds: string[]) {
+    const draggedId = lists.value[columnId]![index]!.id
+    const start = dragStart?.cards ?? listIds()
+    const inGroup = new Set([draggedId, ...otherIds])
+    const groupIds = columns.value.flatMap(c => start[c.id] ?? []).filter(cardId => inGroup.has(cardId))
+    if (!groupIds.includes(draggedId)) groupIds.push(draggedId)
+    const from = new Map(groupIds.map(cardId => [cardId, placementIn(start, cardId)]))
+    const byId = new Map(Object.values(lists.value).flat().map(c => [c.id, c]))
+    const order = gatherGroup(listIds(), columnId, draggedId, groupIds.filter(cardId => byId.has(cardId)))
+    lists.value = Object.fromEntries(Object.entries(order).map(([col, ids]) => [col, ids.map(cardId => byId.get(cardId)!)]))
+    const label = t('board.bulk.done.moved', { n: groupIds.length }, groupIds.length)
+    return undoStack.group(label, () => run(async () => {
+      const pending = new Set(order[columnId]!.filter(cardId => inGroup.has(cardId)))
+      for (const cardId of [...pending]) {
+        pending.delete(cardId)
+        await persistMove(columnId, lists.value[columnId]!.findIndex(c => c.id === cardId), pending)
+        const to = placementIn(listIds(), cardId)!
+        const was = from.get(cardId)
+        if (was && !same(was, to)) record(label, () => placeCard(cardId, was), () => placeCard(cardId, to))
+      }
+    }, t('board.errors.moveCard')))
   }
 
   /** Undo/redo of a column move. */
@@ -989,18 +1020,20 @@ export async function useBoard(id: string, opts: UseBoardOptions = {}) {
 
     /** Persists a card's new place after a drag (lists already updated). */
     cardMoved,
+    /** Persists a drag that takes the other selected cards along (lists already updated for the dragged one). */
+    cardsMoved,
 
     /**
      * Moves a card to `index` of a column's full card list (default: the end)
      * and persists it. Used by views that do not drag the lists themselves.
      */
-    moveCard: (card: Card, columnId: string, index?: number) => {
+    moveCard: (card: Card, columnId: string, index?: number, otherIds: string[] = []) => {
       const from = placementIn(listIds(), card.id)
       removeCard(card)
       const list = lists.value[columnId]!
       const at = index ?? list.length
       list.splice(at, 0, card)
-      return cardMoved(columnId, at, from)
+      return otherIds.length ? cardsMoved(columnId, at, otherIds) : cardMoved(columnId, at, from)
     },
 
     /** Reverts this tab's latest undoable change (Ctrl/Cmd+Z). */
