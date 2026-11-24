@@ -543,6 +543,11 @@ function columnPoints(col: Column) {
   return estimates.length ? Number(estimates.reduce((a, b) => a + b, 0).toFixed(2)) : null
 }
 
+/** Minutes logged on the column's visible cards (0 when none). */
+function columnTime(col: Column) {
+  return (lists.value[col.id] ?? []).reduce((sum, c) => visibleIds.value.has(c.id) ? sum + c.timeMinutes : sum, 0)
+}
+
 // Draggable handlers run after vue-draggable-plus has updated the bound arrays.
 function onCardDrop(columnId: string, e: SortableEvent) {
   nextTick(() => cardMoved(columnId, e.newIndex!))
@@ -1053,6 +1058,9 @@ const settingsOpen = computed({
                 </UTooltip>
                 <UTooltip v-if="columnPoints(col) !== null" :text="filtering ? t('board.column.pointsShown', { points: formatPoints(columnPoints(col)!, i18n) }) : formatPoints(columnPoints(col)!, i18n)">
                   <UBadge color="neutral" variant="outline" size="sm" icon="i-lucide-sigma" :label="String(columnPoints(col))" :class="col.color && 'text-inherit'" />
+                </UTooltip>
+                <UTooltip v-if="columnTime(col)" :text="t(filtering ? 'board.column.timeShown' : 'board.column.timeLogged', { time: formatDuration(columnTime(col), t) })">
+                  <UBadge color="neutral" variant="outline" size="sm" icon="i-lucide-timer" :label="formatDuration(columnTime(col), t)" :class="col.color && 'text-inherit'" />
                 </UTooltip>
                 <UTooltip v-if="col.wipLimit" :text="wipState(col) === 'over' ? t('board.column.overWip', { limit: col.wipLimit }) : t('board.column.wip', { limit: col.wipLimit })">
                   <UBadge

@@ -624,6 +624,8 @@
       "sortPriority": "Sort by priority",
       "deleteConfirm": "Delete “{title}” and its cards?",
       "ruleCount": "{count} rule | {count} rules",
+      "timeLogged": "{time} logged",
+      "timeShown": "{time} logged in shown cards",
       "pointsShown": "{points} in shown cards",
       "overWip": "Over the WIP limit of {limit}",
       "collapse": "Collapse column",

@@ -624,6 +624,8 @@
       "sortPriority": "Nach Priorität sortieren",
       "deleteConfirm": "„{title}“ und alle Karten darin löschen?",
       "ruleCount": "{count} Regel | {count} Regeln",
+      "timeLogged": "{time} erfasst",
+      "timeShown": "{time} in angezeigten Karten erfasst",
       "pointsShown": "{points} in angezeigten Karten",
       "overWip": "Über dem WIP-Limit von {limit}",
       "collapse": "Spalte einklappen",
