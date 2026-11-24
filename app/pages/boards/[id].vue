@@ -551,8 +551,8 @@ function columnTime(col: Column) {
   return (lists.value[col.id] ?? []).reduce((sum, c) => visibleIds.value.has(c.id) ? sum + c.timeMinutes : sum, 0)
 }
 
-// A selected card being dragged takes the other selected cards along: they fade while
-// it is dragged and gather around it on drop, in board order (`cardsMoved`).
+// A selected card being dragged takes the other selected cards along: they leave their
+// places while it is dragged and gather around it on drop, in board order (`cardsMoved`).
 // The dragged card is drawn as a stack with the group's size: a native drag picture
 // (`cardDragData`, at the grab point) or, for touch drags, Sortable's clone of the
 // card, which copies the count attribute set on it here.
@@ -584,6 +584,15 @@ function dragCompanions(cardId: string | undefined) {
   return [...selected.value].filter(other => other !== cardId)
 }
 const groupDragging = computed(() => dragCompanions(draggedCardId.value ?? undefined).length > 0)
+/**
+ * Whether `cardId` travels with the card being dragged, so it leaves its place until the
+ * drop. Hidden with v-show (inline `display: none`): Sortable skips such cards when it
+ * looks for drop targets but still counts them in indexes, which keeps `newIndex` in step
+ * with the column lists.
+ */
+function draggedAlong(cardId: string) {
+  return groupDragging.value && cardId !== draggedCardId.value && selected.value.has(cardId)
+}
 
 // Draggable handlers run after vue-draggable-plus has updated the bound arrays.
 function onCardDrop(columnId: string, e: SortableEvent) {
@@ -1157,7 +1166,7 @@ const settingsOpen = computed({
               >
                 <BoardCard
                   v-for="card in lists[col.id]"
-                  v-show="visibleIds.has(card.id)"
+                  v-show="visibleIds.has(card.id) && !draggedAlong(card.id)"
                   :key="card.id"
                   :data-card-id="card.id"
                   :card="card"
@@ -1166,7 +1175,7 @@ const settingsOpen = computed({
                   :members="board.members"
                   :can-edit="canEditCard(card)"
                   :selectable="!limited"
-                  :class="[!canEditCard(card) && 'card-locked', groupDragging && card.id !== draggedCardId && selected.has(card.id) && 'opacity-40']"
+                  :class="!canEditCard(card) && 'card-locked'"
                   :today="today"
                   :blocked="blockedIds.has(card.id)"
                   :blocking="blockingIds.has(card.id)"
