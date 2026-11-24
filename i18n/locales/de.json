@@ -145,7 +145,9 @@
     "pickTags": "Karten-Tags wählen",
     "pickDueDate": "Fälligkeitsdatum setzen",
     "archiveCard": "Karte archivieren",
-    "inbox": "Zum Posteingang"
+    "inbox": "Zum Posteingang",
+    "onMyWork": "Auf Meine Arbeit",
+    "searchMyWork": "Deine Karten durchsuchen"
   },
   "mail": {
     "linkExpiry": "Der Link ist {expiry} gültig. Falls der Button nicht funktioniert, kopiere diesen Link in deinen Browser:",
@@ -1785,6 +1787,25 @@
       "collapse": "Zuklappen",
       "empty": "Keine Karten passen zu diesem Bereich.",
       "intro": "Füge Bereiche für weitere Listen hinzu, zum Beispiel die dir zugewiesenen Karten in der Spalte „To do“ auf jedem Board oder überfällige Karten mit hoher Priorität."
+    },
+    "markedComplete": "\"{title}\" als erledigt markiert",
+    "reopened": "\"{title}\" wieder geöffnet",
+    "complete": "Als erledigt markieren",
+    "reopen": "Wieder öffnen",
+    "inDoneColumn": "Erledigt: in der letzten Spalte des Boards",
+    "search": "Deine Karten durchsuchen",
+    "clearSearch": "Suche leeren",
+    "noMatches": "Keine passenden Karten",
+    "allClear": "Alles erledigt",
+    "groupBy": {
+      "label": "Gruppieren nach",
+      "due": "Fälligkeit",
+      "board": "Board"
+    },
+    "summary": {
+      "label": "Offene Karten nach Fälligkeit",
+      "open": "Offen",
+      "clear": "Alle Fälligkeiten zeigen"
     }
   },
   "columnGroups": {

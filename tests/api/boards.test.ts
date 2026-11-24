@@ -2371,8 +2371,8 @@ describe('my work', () => {
     })
     expect(cards[0]).toEqual({
       id: assigned.id, title: 'Assigned', boardId: id, boardName: 'My work', columnId: todo!.id, columnTitle: 'To do',
-      startDate: null, dueDate: '2026-01-02', priority: 'high', estimate: null, assigned: true, watching: false, done: false, checklistItems: [],
-      assignees: [{ id: bobId, name: 'Bob', avatarUrl: null }],
+      startDate: null, dueDate: '2026-01-02', priority: 'high', estimate: null, assigned: true, watching: false, done: false, completed: false, checklistItems: [],
+      assignees: [{ id: bobId, name: 'Bob', avatarUrl: null }], tags: [],
     })
     expect(cards.find(c => c.id === finished.id)).toMatchObject({ done: true, columnTitle: 'Done' })
     expect(cards.find(c => c.id === watched.id)).toMatchObject({ assigned: false, watching: true })
@@ -2396,6 +2396,10 @@ describe('my work', () => {
     expect(await panel(bob, `people=people&user=${bobId}`)).toEqual(['Assigned', 'Finished'])
     expect(await panel(bob, 'people=people')).toEqual([])
     expect(await panel(bob, 'people=anyone&tag=urgent%20STUFF')).toEqual(['Not mine'])
+    expect((await alice.req<MyWork>('/api/my-work')).data.cards.find(c => c.id === notMine.id)!.tags).toEqual([{ id: tag.id, name: 'Urgent stuff', color: '#ff0000' }])
+    await alice.req(`/api/cards/${notMine.id}`, { method: 'PATCH', body: { completed: true } })
+    expect((await alice.req<MyWork>('/api/my-work')).data.cards.find(c => c.id === notMine.id)).toMatchObject({ completed: true, done: true })
+    await alice.req(`/api/cards/${notMine.id}`, { method: 'PATCH', body: { completed: false } })
     expect(await panel(bob, 'people=anyone&priority=high&priority=low')).toEqual(['Assigned', 'Not mine'])
     expect(await panel(bob, 'people=anyone&priority=none')).toEqual(['Finished', 'Item for Bob', 'Watched'])
     expect(await panel(bob, `people=anyone&board=${randomUUID()}`)).toEqual([])

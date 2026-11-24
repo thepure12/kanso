@@ -1,4 +1,4 @@
-import type { Priority } from './board'
+import type { Priority, Tag } from './board'
 import type { MyWorkPanelConfig } from '../myWork'
 
 /** An open checklist item assigned to the current user. */
@@ -27,10 +27,14 @@ export interface MyWorkCard {
   watching: boolean
   /** The card is marked complete or in its board's last column ("done", as for blocked cards). */
   done: boolean
+  /** The card is marked complete (it may still sit in any column). */
+  completed: boolean
   /** Open checklist items of this card assigned to the current user (empty when none). */
   checklistItems: MyChecklistItem[]
   /** The card's assignees, by name. */
   assignees: MyWorkPerson[]
+  /** The card's tags, by name. */
+  tags: Tag[]
 }
 
 export interface MyWorkPerson {

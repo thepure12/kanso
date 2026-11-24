@@ -35,6 +35,12 @@ export const shortcutGroups: { label: string, items: ShortcutHelp[] }[] = [
     ],
   },
   {
+    label: 'shortcuts.onMyWork',
+    items: [
+      { kbds: ['/'], description: 'shortcuts.searchMyWork' },
+    ],
+  },
+  {
     label: 'shortcuts.onCard',
     items: [
       { kbds: ['arrowleft', 'arrowdown', 'arrowup', 'arrowright'], description: 'shortcuts.moveFocus' },

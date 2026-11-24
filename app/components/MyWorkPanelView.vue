@@ -2,6 +2,7 @@
 import type { DropdownMenuItem } from '@nuxt/ui'
 import type { MyWork, MyWorkCard, MyWorkPanel } from '#shared/types/myWork'
 import { myWorkQuery } from '#shared/myWork'
+import type { MyWorkGroupBy } from '~/utils/myWork'
 
 // One saved My work panel: loads its cards (GET /api/my-work with the panel's
 // query), filters due and done locally and lists them read-only.
@@ -13,6 +14,9 @@ const props = defineProps<{
   last: boolean
   /** Bumped by the page's refresh button. */
   reloadKey: number
+  /** The page's search text. */
+  search?: string
+  groupBy?: MyWorkGroupBy
 }>()
 const emit = defineEmits<{ edit: [], remove: [], move: [dir: -1 | 1], toggle: [] }>()
 const { t } = useI18n()
@@ -41,7 +45,11 @@ async function load() {
 onMounted(load)
 watch(() => [props.panel.config, props.reloadKey], load, { deep: true })
 
-const shown = computed(() => filterPanelCards(cards.value ?? [], props.panel.config, props.today))
+const shown = computed(() => searchMyWork(filterPanelCards(cards.value ?? [], props.panel.config, props.today), props.search ?? ''))
+const { setCompleted } = useMyWorkComplete(
+  (id, completed) => { if (cards.value) cards.value = withCompleted(cards.value, id, completed) },
+  load,
+)
 /** Avatars help when the panel is not only about the user's own cards. */
 const showAssignees = computed(() => props.panel.config.people === 'anyone' || props.panel.config.people === 'people')
 
@@ -55,7 +63,7 @@ const menu = computed<DropdownMenuItem[][]>(() => [[
 </script>
 
 <template>
-  <section class="space-y-3 rounded-lg border border-default p-4" :aria-label="panel.name">
+  <section class="space-y-3 rounded-xl border border-default bg-elevated/25 p-4" :aria-label="panel.name">
     <div class="flex items-center gap-2">
       <UButton
         :icon="collapsed ? 'i-lucide-chevron-right' : 'i-lucide-chevron-down'"
@@ -66,6 +74,7 @@ const menu = computed<DropdownMenuItem[][]>(() => [[
         :aria-expanded="!collapsed"
         @click="emit('toggle')"
       />
+      <UIcon name="i-lucide-layout-list" class="size-4 shrink-0 text-muted" />
       <h2 class="font-semibold truncate">
         {{ panel.name }}
       </h2>
@@ -78,9 +87,16 @@ const menu = computed<DropdownMenuItem[][]>(() => [[
     <template v-if="!collapsed">
       <UAlert v-if="failed" color="error" variant="subtle" icon="i-lucide-circle-alert" :title="t('myWork.loadFailed')" />
       <p v-else-if="cards && !shown.length" class="text-sm text-muted">
-        {{ t('myWork.panels.empty') }}
+        {{ search?.trim() ? t('myWork.noMatches') : t('myWork.panels.empty') }}
       </p>
-      <MyWorkCardList v-else-if="cards" :cards="shown" :today="today" :show-assignees="showAssignees" />
+      <MyWorkCardList
+        v-else-if="cards"
+        :cards="shown"
+        :today="today"
+        :group-by="groupBy"
+        :show-assignees="showAssignees"
+        @complete="(c, done) => setCompleted(c, done)"
+      />
     </template>
   </section>
 </template>

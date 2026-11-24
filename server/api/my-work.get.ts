@@ -2,6 +2,7 @@ import { and, asc, eq, isNull, sql, type SQL } from 'drizzle-orm'
 import { z } from 'zod'
 import { priorities, type Priority } from '#shared/types/board'
 import { myWorkPeople } from '#shared/myWork'
+import type { Tag } from '#shared/types/board'
 import type { MyChecklistItem, MyWork, MyWorkPerson } from '#shared/types/myWork'
 
 const LIMIT = 500
@@ -40,6 +41,10 @@ export default defineUserHandler(async (event, tx, userId): Promise<MyWork> => {
   const assignees = sql<MyWorkPerson[]>`coalesce((select json_agg(json_build_object('id', u.id, 'name', u.name, 'avatarUrl', u.avatar_url) order by u.name)
     from ${ca} join ${users} u on u.id = ${ca.userId} where ${ca.cardId} = ${cards.id}), '[]')`
 
+  // The card's tags, by name.
+  const cardTagList = sql<Tag[]>`coalesce((select json_agg(json_build_object('id', t.id, 'name', t.name, 'color', t.color) order by t.name)
+    from ${ct} join ${tags} t on t.id = ${ct.tagId} where ${ct.cardId} = ${cards.id}), '[]')`
+
   const where: (SQL | undefined)[] = [
     isNull(cards.archivedAt), isNull(cards.snoozedUntil), eq(cards.isTemplate, false), isNull(boards.archivedAt),
   ]
@@ -66,7 +71,7 @@ export default defineUserHandler(async (event, tx, userId): Promise<MyWork> => {
   const rows = await tx.select({
     id: cards.id, title: cards.title, boardId: cards.boardId, boardName: boards.name, columnId: cards.columnId, columnTitle: columns.title,
     startDate: cards.startDate, dueDate: cards.dueDate, priority: cards.priority, estimate: cards.estimate,
-    assigned, watching, done, checklistItems: items, assignees,
+    assigned, watching, done, completed: sql<boolean>`${cards.completedAt} is not null`, checklistItems: items, assignees, tags: cardTagList,
   }).from(cards)
     .innerJoin(boards, eq(boards.id, cards.boardId))
     .innerJoin(columns, eq(columns.id, cards.columnId))

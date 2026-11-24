@@ -145,7 +145,9 @@
     "pickTags": "Choose card tags",
     "pickDueDate": "Set the due date",
     "archiveCard": "Archive the card",
-    "inbox": "Go to inbox"
+    "inbox": "Go to inbox",
+    "onMyWork": "On My work",
+    "searchMyWork": "Search your cards"
   },
   "mail": {
     "linkExpiry": "The link expires in {expiry}. If the button does not work, paste this link into your browser:",
@@ -1785,6 +1787,25 @@
       "collapse": "Collapse",
       "empty": "No cards match this panel.",
       "intro": "Add panels for other lists, for example the cards assigned to you in the column \"To do\" on every board, or overdue cards with high priority."
+    },
+    "markedComplete": "Marked \"{title}\" complete",
+    "reopened": "Opened \"{title}\" again",
+    "complete": "Mark complete",
+    "reopen": "Open again",
+    "inDoneColumn": "Done: in the board's last column",
+    "search": "Search your cards",
+    "clearSearch": "Clear search",
+    "noMatches": "No cards match",
+    "allClear": "All clear",
+    "groupBy": {
+      "label": "Group by",
+      "due": "Due date",
+      "board": "Board"
+    },
+    "summary": {
+      "label": "Open cards by due date",
+      "open": "Open",
+      "clear": "Show all due dates"
     }
   },
   "columnGroups": {
