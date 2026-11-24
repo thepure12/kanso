@@ -121,4 +121,10 @@ describe('CustomViewModal', () => {
     expect(patched).toEqual({ name: 'Renamed mix', columnIds: ['b1c2'] })
     expect(w.emitted('saved')).toHaveLength(1)
   })
+  it('keeps the column search when a column is picked, so several matches can be ticked in a row', async () => {
+    const w = await mountSuspended(CustomViewModal, { props: { open: true }, global: { stubs: { UModal: Overlay } } })
+    const picker = w.findComponent({ name: 'USelectMenu' })
+    expect(picker.exists()).toBe(true)
+    expect(picker.props('resetSearchTermOnSelect')).toBe(false)
+  })
 })

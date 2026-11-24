@@ -94,6 +94,7 @@ async function save() {
             :loading="loading"
             :placeholder="t('customViews.pickColumns')"
             :search-input="{ placeholder: t('customViews.searchColumns') }"
+            :reset-search-term-on-select="false"
             class="w-full"
             data-testid="view-column-picker"
           >
