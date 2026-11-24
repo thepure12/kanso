@@ -45,6 +45,12 @@ describe('BoardCard', () => {
     expect(readOnlyDone.find('button[aria-pressed="true"]').attributes('disabled')).toBeDefined()
   })
 
+  it('strikes through the title of completed cards only', async () => {
+    const title = (w: Awaited<ReturnType<typeof mount>>) => w.findAll('p').find(p => p.text() === 'Fix it')!
+    expect(title(await mount(card())).classes()).not.toContain('line-through')
+    expect(title(await mount(card({ completedAt: '2026-10-13T10:00:00.000Z' }))).classes()).toContain('line-through')
+  })
+
   it('shows only the title for a bare card', async () => {
     const w = await mount(card())
     expect(w.text()).toContain('Fix it')

@@ -55,6 +55,16 @@ describe('BoardListView', () => {
     expect(titles(w)).toEqual(['Card a', 'Card b'])
   })
 
+  it('strikes through titles of completed cards only', async () => {
+    const w = await mountSuspended(BoardListView, { props: {
+      cards: [card('x', { completedAt: '2026-10-13T10:00:00.000Z' }), card('y', { columnId: 'c2' })],
+      columns, members, tags: [], fields, canEdit: false, today: '2026-10-14', selectedIds: new Set<string>(),
+    } })
+    const button = (title: string) => w.findAll('tbody button').find(b => b.text() === title)!
+    expect(button('Card x').classes()).toContain('line-through')
+    expect(button('Card y').classes()).not.toContain('line-through')
+  })
+
   it('opens a card from its title', async () => {
     const w = await mount()
     await w.findAll('tbody button').find(b => b.text() === 'Card a')!.trigger('click')

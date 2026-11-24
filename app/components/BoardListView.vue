@@ -157,7 +157,7 @@ const dueClass = (card: Card) => {
             />
           </template>
           <template #title-cell="{ row }">
-            <button type="button" class="text-left font-medium hover:underline focus-visible:underline max-w-48 sm:max-w-80 truncate block" @click="emit('open', row.original.id)">
+            <button type="button" class="text-left font-medium hover:underline focus-visible:underline max-w-48 sm:max-w-80 truncate block" :class="row.original.completedAt && 'line-through text-muted'" @click="emit('open', row.original.id)">
               {{ row.original.title }}
             </button>
           </template>

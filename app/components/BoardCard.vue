@@ -203,7 +203,7 @@ const dueAriaLabel = computed(() => {
       </UTooltip>
       <p
         class="min-w-0 flex-1 text-sm font-medium break-words"
-        :class="completed && 'text-muted'"
+        :class="completed && 'line-through text-muted'"
         @click="onTitleClick"
       >
         {{ props.card.title }}
