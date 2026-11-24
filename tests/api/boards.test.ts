@@ -240,6 +240,31 @@ describe('boards', () => {
     expect((await alice.req(`/api/columns/${id}`, { method: 'PATCH', body: { wipLimit: null } })).data).toMatchObject({ wipLimit: null })
   })
 
+  it('sets a column description; export, import and copy keep it', async () => {
+    const { data: { id: db } } = await alice.req<{ id: string }>('/api/boards', { method: 'POST', body: { name: 'Described', template: 'basic' } })
+    extraBoards.push(db)
+    const [first] = (await alice.req<BoardDetail>(`/api/boards/${db}`)).data.columns
+    const patch = (body: unknown) => alice.req<Column>(`/api/columns/${first!.id}`, { method: 'PATCH', body })
+    expect((await patch({ description: '  Ready to **start**  ' })).data).toMatchObject({ description: 'Ready to **start**' })
+    expect((await patch({ description: 'x'.repeat(2001) })).status).toBe(400)
+    expect((await alice.req<BoardDetail>(`/api/boards/${db}`)).data.columns[0]).toMatchObject({ description: 'Ready to **start**' })
+
+    const raw = (await alice.req<string | Record<string, unknown>>(`/api/boards/${db}/export?format=json`)).data
+    const exported = (typeof raw === 'string' ? JSON.parse(raw) : raw) as { columns: { description?: string }[] }
+    expect(exported.columns[0]!.description).toBe('Ready to **start**')
+    expect(exported.columns[1]).not.toHaveProperty('description')
+    const imported = await alice.req<{ id: string }>('/api/boards/import', { method: 'POST', body: { name: 'Described import', data: exported } })
+    extraBoards.push(imported.data.id)
+    expect((await alice.req<BoardDetail>(`/api/boards/${imported.data.id}`)).data.columns.map(c => c.description))
+      .toEqual(['Ready to **start**', ...exported.columns.slice(1).map(() => null)])
+    const { data: copy } = await alice.req<{ id: string }>(`/api/boards/${db}/copy`, { method: 'POST', body: { name: 'Described copy' } })
+    extraBoards.push(copy.id)
+    expect((await alice.req<BoardDetail>(`/api/boards/${copy.id}`)).data.columns[0]).toMatchObject({ description: 'Ready to **start**' })
+
+    // Blank clears it.
+    expect((await patch({ description: '   ' })).data).toMatchObject({ description: null })
+  })
+
   it('reorders a column\'s cards in one go', async () => {
     const column = (await alice.req<Column>(`/api/boards/${boardId}/columns`, { method: 'POST', body: { title: 'Sorted' } })).data
     const add = async (title: string) =>

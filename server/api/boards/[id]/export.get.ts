@@ -30,7 +30,7 @@ export default defineUserHandler(async (event, tx) => {
   if (!board) notFound('Board not found')
 
   const [cols, rules, tagRows, cards, people, lists, checklist, comments, attachments, links, fields, values, columnGroups, assigneeGroups] = await Promise.all([
-    tx.select({ id: columns.id, title: columns.title, color: columns.color, wipLimit: columns.wipLimit, outline: columns.outline })
+    tx.select({ id: columns.id, title: columns.title, description: columns.description, color: columns.color, wipLimit: columns.wipLimit, outline: columns.outline })
       .from(columns).where(eq(columns.boardId, id)).orderBy(asc(columns.position)),
     tx.select({ ...columnRuleFields, columnId: columnRules.columnId }).from(columnRules).where(eq(columnRules.boardId, id)),
     tx.select({ id: tags.id, name: tags.name, color: tags.color }).from(tags).where(eq(tags.boardId, id)).orderBy(asc(tags.name)),
@@ -126,6 +126,7 @@ export default defineUserHandler(async (event, tx) => {
       title: c.title,
       color: c.color,
       wipLimit: c.wipLimit,
+      ...(c.description ? { description: c.description } : {}),
       ...(c.outline ? { outline: c.outline } : {}),
       // Buttons are not exported, so neither are the rules that add or remove them.
       rules: rules.filter(r => r.columnId === c.id && r.buttonId === null).map(({ columnId: _, ...r }) => {

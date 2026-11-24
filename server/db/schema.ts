@@ -283,6 +283,9 @@ export const columns = pgTable('columns', {
   id: uuid('id').primaryKey().defaultRandom(),
   boardId: uuid('board_id').notNull().references(() => boards.id, { onDelete: 'cascade' }),
   title: text('title').notNull(),
+  // What the column is for (Markdown), shown from the column header. Null = none.
+  // Up to COLUMN_DESCRIPTION_MAX (shared/columns.ts).
+  description: text('description'),
   position: doublePrecision('position').notNull(),
   // Heading colour as lowercase #rrggbb. Null = default.
   color: text('color'),
@@ -295,6 +298,7 @@ export const columns = pgTable('columns', {
   unique('columns_id_board_id_unique').on(t.id, t.boardId),
   check('columns_color_hex', sql`${t.color} ~ '^#[0-9a-f]{6}$'`),
   check('columns_wip_limit_range', sql`${t.wipLimit} between 1 and 999`),
+  check('columns_description_length', sql`char_length(${t.description}) between 1 and 2000`),
   check('columns_outline_shape', outlineShape(t.outline)),
 ])
 

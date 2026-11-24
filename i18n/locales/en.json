@@ -613,7 +613,6 @@
       "members": "{count} member | {count} members"
     },
     "column": {
-      "rename": "Rename",
       "titlePrompt": "Column title",
       "colour": "Colour",
       "wipLimit": "WIP limit",
@@ -633,7 +632,8 @@
       "resize": "Resize column",
       "resizeHint": "Drag to resize, double-click to reset",
       "wip": "WIP limit {limit}",
-      "actions": "Column actions"
+      "actions": "Column actions",
+      "edit": "Edit column"
     },
     "menu": {
       "fields": "Custom fields",
@@ -679,7 +679,6 @@
       "movedCard": "Moved card",
       "renamedColumn": "Renamed column",
       "changedColumnColor": "Changed column colour",
-      "setWipLimit": "Changed WIP limit",
       "movedColumn": "Moved column",
       "sortedColumn": "Sorted column",
       "archivedCard": "Archived card",
@@ -699,7 +698,8 @@
       "changedBackground": "Changed background",
       "changedAccent": "Changed accent colour",
       "changedColumnOutline": "Changed column outline",
-      "changedButtonAlign": "Changed button position"
+      "changedButtonAlign": "Changed button position",
+      "editedColumn": "Edited column"
     },
     "errors": {
       "moveCard": "Could not move card",
@@ -708,7 +708,6 @@
       "addColumn": "Could not add column",
       "renameColumn": "Could not rename column",
       "columnColor": "Could not change column colour",
-      "wipLimit": "Could not set WIP limit",
       "deleteColumn": "Could not delete column",
       "addRule": "Could not add rule",
       "deleteRule": "Could not delete rule",
@@ -758,7 +757,8 @@
       "addAgentRule": "Could not add agent rule",
       "updateAgentRule": "Could not change agent rule",
       "deleteAgentRule": "Could not delete agent rule",
-      "buttonAlign": "Could not change button position"
+      "buttonAlign": "Could not change button position",
+      "editColumn": "Could not save the column"
     },
     "bulk": {
       "toolbar": "Bulk actions",
@@ -2346,5 +2346,16 @@
       "unarchive": "Makes the board editable again.",
       "delete": "Deletes the board with all its cards. This cannot be undone."
     }
+  },
+  "columnEdit": {
+    "title": "Edit column",
+    "titleRequired": "Enter a title of up to 100 characters.",
+    "description": "Description",
+    "descriptionHelp": "What the column is for or when a card belongs here. Shown from the info button in the column header.",
+    "descriptionPlaceholder": "Describe this column (Markdown)",
+    "descriptionTooLong": "At most {max} characters.",
+    "noLimit": "No limit",
+    "showDescription": "Column description",
+    "showDescriptionOf": "Description of {title}"
   }
 }

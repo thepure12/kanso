@@ -16,7 +16,7 @@ const id = route.params.id as string
 const boardTabs = useBoardTabs()
 const {
   board, error, refresh, columns, columnGroups, assigneeGroups, savedViews, buttons, lists, tags, fields, templates, recurrences, automations, rules, agentRules, scheduledActions, archived, offline, canEdit, isOwner, limited, canEditCard, canCommentOn, canAddToColumn, dragging, remoteVersion,
-  renameBoard, setArchived, setBackground, setAccent, setButtonAlign, setColumnOutline, uploadBackground, deleteBoard, addColumn, renameColumn, setColumnAppearance, setColumnWipLimit, sortColumnByPriority, deleteColumn, columnMoved,
+  renameBoard, setArchived, setBackground, setAccent, setButtonAlign, setColumnOutline, uploadBackground, deleteBoard, addColumn, renameColumn, editColumn, setColumnAppearance, sortColumnByPriority, deleteColumn, columnMoved,
   addColumnRule, deleteColumnRule, addAutomation, updateAutomation, deleteAutomation, addRule, updateRule, deleteRule, addAgentRule, updateAgentRule, deleteAgentRule, addScheduledAction, deleteScheduledAction, addCard, updateCard, setCardCounts, cardLinkChanged, archiveCard, snoozeCard, wakeCard, restoreCard, deleteCard, restoreTrashedCard,
   deleteArchivedCard, cardMoved, moveCard, addTag, updateTag, deleteTag,
   addField, updateField, fieldMoved, deleteField, setFieldValue,
@@ -180,6 +180,8 @@ function templateMenu(col: Column) {
 }
 
 const colouringColumn = ref<Column | null>(null)
+const editingColumn = ref<Column | null>(null)
+const columnEditOpen = computed({ get: () => !!editingColumn.value, set: (v) => { if (!v) editingColumn.value = null } })
 const colourOpen = computed({ get: () => !!colouringColumn.value, set: (v) => { if (!v) colouringColumn.value = null } })
 
 const rulesColumn = ref<Column | null>(null)
@@ -593,24 +595,8 @@ function focusRenameInput(el: unknown) {
 
 function columnMenu(col: Column) {
   return [[
-    { label: t('board.column.rename'), icon: 'i-lucide-pencil', onSelect: async () => {
-      const title = (await ask({ title: t('board.column.rename'), label: t('board.column.titlePrompt'), initial: col.title }))?.trim()
-      if (title) renameColumn(col, title)
-    } },
+    { label: t('board.column.edit'), icon: 'i-lucide-pencil', onSelect: () => { editingColumn.value = col } },
     { label: t('board.column.colour'), icon: 'i-lucide-palette', onSelect: () => { colouringColumn.value = col } },
-    { label: t('board.column.wipLimit'), icon: 'i-lucide-gauge', onSelect: async () => {
-      const parse = (input: string) => input.trim() ? Number(input) : null
-      const valid = (value: number | null) => value === null || (Number.isInteger(value) && value >= 1 && value <= 999)
-      const input = await ask({
-        title: t('board.column.wipLimit'),
-        description: t('board.column.wipPrompt'),
-        initial: col.wipLimit?.toString() ?? '',
-        validate: v => valid(parse(v)) ? undefined : t('board.column.wipInvalid'),
-      })
-      if (input === null) return
-      const value = parse(input)
-      setColumnWipLimit(col, value)
-    } },
     { label: t('board.column.rules'), icon: 'i-lucide-zap', onSelect: () => { rulesColumn.value = col } },
     { label: t('board.column.automations'), icon: 'i-lucide-timer', onSelect: () => openAutomations(col.id) },
     { label: t('board.column.sortPriority'), icon: 'i-lucide-arrow-down-wide-narrow', disabled: (lists.value[col.id]?.length ?? 0) < 2, onSelect: () => sortColumnByPriority(col) },
@@ -1053,6 +1039,7 @@ const settingsOpen = computed({
                 >
                   {{ col.title }}
                 </h2>
+                <ColumnDescription v-if="col.description" :title="col.title" :description="col.description" :coloured="!!col.color" />
                 <UTooltip v-if="col.rules.length" :text="t('board.column.ruleCount', { count: col.rules.length }, col.rules.length)">
                   <UIcon name="i-lucide-zap" class="size-4 shrink-0" :class="!col.color && 'text-dimmed'" />
                 </UTooltip>
@@ -1234,6 +1221,12 @@ const settingsOpen = computed({
       @automations="openAutomations(null, editingCard!.id)"
       @run-button="b => runButton(b, editingCard!)"
       @button-on-card="(b, on) => setButtonOnCard(b, editingCard!, on)"
+    />
+    <ColumnEditModal
+      v-if="editingColumn"
+      v-model:open="columnEditOpen"
+      :column="editingColumn"
+      @save="value => editColumn(editingColumn!, value)"
     />
     <ColumnColorModal
       v-if="colouringColumn"

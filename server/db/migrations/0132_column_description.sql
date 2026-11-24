@@ -1,0 +1,2 @@
+ALTER TABLE "columns" ADD COLUMN "description" text;--> statement-breakpoint
+ALTER TABLE "columns" ADD CONSTRAINT "columns_description_length" CHECK (char_length("columns"."description") between 1 and 2000);

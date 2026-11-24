@@ -75,6 +75,7 @@ export function boardForAgent(board: BoardDetail) {
     columns: board.columns.map(c => ({
       id: c.id,
       title: c.title,
+      description: c.description ?? undefined,
       color: c.color ?? undefined,
       wipLimit: c.wipLimit ?? undefined,
       cards: board.cards.filter(card => card.columnId === c.id).map(card => cardSummary(board, card, blocked)),

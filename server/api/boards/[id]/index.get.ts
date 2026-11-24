@@ -14,7 +14,7 @@ export default defineUserHandler(async (event, tx): Promise<BoardDetail> => {
   if (!board) notFound('Board not found')
 
   const [cols, ruleRows, cardRows, templates, recurrences, automationRows, boardRuleRows, agentRules, scheduledRows, tagRows, fields, columnGroups, assigneeGroups, savedViews, buttons, matrix, members, inviteRows, [me], memberAccess] = await Promise.all([
-    tx.select({ id: columns.id, title: columns.title, position: columns.position, color: columns.color, wipLimit: columns.wipLimit, outline: columns.outline })
+    tx.select({ id: columns.id, title: columns.title, description: columns.description, position: columns.position, color: columns.color, wipLimit: columns.wipLimit, outline: columns.outline })
       .from(columns).where(eq(columns.boardId, id)).orderBy(asc(columns.position)),
     tx.select({ ...columnRuleFields, columnId: columnRules.columnId })
       .from(columnRules).where(eq(columnRules.boardId, id)).orderBy(asc(columnRules.createdAt)),

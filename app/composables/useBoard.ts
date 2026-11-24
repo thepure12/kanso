@@ -348,8 +348,8 @@ export async function useBoard(id: string) {
     await api(`/api/columns/${col.id}`, { method: 'PATCH', body: { aboveId: rest[at - 1]?.id ?? null, belowId: rest[at + 1]?.id ?? null } })
   }
 
-  /** Undo/redo of a column title, colour or WIP limit change. */
-  async function patchColumn(columnId: string, patch: Partial<Pick<Column, 'title' | 'color' | 'wipLimit' | 'outline'>>) {
+  /** Undo/redo of a column title, description, colour or WIP limit change. */
+  async function patchColumn(columnId: string, patch: Partial<Pick<Column, 'title' | 'description' | 'color' | 'wipLimit' | 'outline'>>) {
     Object.assign(findColumn(columnId), patch)
     await api(`/api/columns/${columnId}`, { method: 'PATCH', body: patch })
   }
@@ -547,7 +547,15 @@ export async function useBoard(id: string) {
       record(label, () => patchColumn(col.id, before), () => patchColumn(col.id, after))
     }, t('board.errors.columnColor')),
 
-    setColumnWipLimit: (col: Column, wipLimit: number | null) => changeColumn(col, 'wipLimit', wipLimit, t('board.undo.setWipLimit'), t('board.errors.wipLimit')),
+    /** Saves the Edit column dialog: title, description and WIP limit (changed ones only, one undo step). */
+    editColumn: (col: Column, value: Pick<Column, 'title' | 'description' | 'wipLimit'>) => run(async () => {
+      const keys = (['title', 'description', 'wipLimit'] as const).filter(k => col[k] !== value[k])
+      if (!keys.length) return
+      const before = Object.fromEntries(keys.map(k => [k, col[k]])) as Partial<Pick<Column, 'title' | 'description' | 'wipLimit'>>
+      const after = Object.fromEntries(keys.map(k => [k, value[k]])) as Partial<Pick<Column, 'title' | 'description' | 'wipLimit'>>
+      await patchColumn(col.id, after)
+      record(t('board.undo.editedColumn'), () => patchColumn(col.id, before), () => patchColumn(col.id, after))
+    }, t('board.errors.editColumn')),
 
     deleteColumn: (col: Column) => run(async () => {
       await api(`/api/columns/${col.id}`, { method: 'DELETE' })

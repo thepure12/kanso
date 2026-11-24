@@ -128,6 +128,7 @@ function onCollapsedDrop(laneKey: string, columnId: string, e: SortableEvent) {
           <h2 class="font-medium truncate flex-1">
             {{ col.title }}
           </h2>
+          <ColumnDescription v-if="col.description" :title="col.title" :description="col.description" :coloured="!!col.color" />
           <UBadge color="neutral" variant="soft" size="sm" :label="String(props.lists[col.id]?.length ?? 0)" />
           <UTooltip :text="t('board.column.collapse')">
             <UButton

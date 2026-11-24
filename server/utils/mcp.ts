@@ -4,6 +4,7 @@ import { z } from 'zod'
 import { boardAutomationKinds, boardRuleEvents, cardLinkKinds, priorities, scheduledCardActionKinds, type BoardDetail, type CardDetail } from '#shared/types/board'
 import { boardAccents } from '#shared/boardAccents'
 import { CARD_TITLE_MAX } from '#shared/cards'
+import { COLUMN_DESCRIPTION_MAX } from '#shared/columns'
 
 /**
  * The MCP server behind POST /api/mcp. Every tool is a call to an existing REST
@@ -219,10 +220,11 @@ export function createMcpServer(caller: McpCaller): McpServer {
   }, ({ boardId, title, columnTagId }) => run(() => call(`/api/boards/${boardId}/columns`, { method: 'POST', body: { title, groupId: columnTagId } })))
 
   server.registerTool('update_column', {
-    description: 'Rename a column, set its heading colour or WIP limit (null clears), or move it: aboveId/belowId are the neighbouring column ids after the move (left/right; null = start/end).',
+    description: 'Rename a column, set its description (Markdown, null or blank clears), heading colour or WIP limit (null clears), or move it: aboveId/belowId are the neighbouring column ids after the move (left/right; null = start/end).',
     inputSchema: {
       columnId: id,
       title: z.string().min(1).max(100).optional(),
+      description: z.string().max(COLUMN_DESCRIPTION_MAX).nullable().optional(),
       color: color.nullable().optional(),
       wipLimit: z.number().int().min(1).max(999).nullable().optional(),
       aboveId: id.nullable().optional(),

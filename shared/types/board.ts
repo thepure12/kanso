@@ -55,6 +55,8 @@ export interface TeamMember extends Person {
 export interface Column {
   id: string
   title: string
+  /** What the column is for (Markdown), or null. */
+  description: string | null
   position: number
   /** Heading colour as #rrggbb, or null for the default. */
   color: string | null

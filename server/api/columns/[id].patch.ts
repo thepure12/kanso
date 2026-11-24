@@ -1,9 +1,12 @@
 import { eq } from 'drizzle-orm'
 import { z } from 'zod'
 import { columnOutlineSchema } from '#shared/columnOutline'
+import { COLUMN_DESCRIPTION_MAX } from '#shared/columns'
 
 const body = z.object({
   title: z.string().trim().min(1).max(100).optional(),
+  // Blank clears it.
+  description: z.string().trim().max(COLUMN_DESCRIPTION_MAX).nullable().optional(),
   color: hexColor.nullable().optional(),
   wipLimit: z.number().int().min(1).max(999).nullable().optional(),
   outline: columnOutlineSchema.nullable().optional(),
@@ -22,6 +25,7 @@ export default defineUserHandler(async (event, tx) => {
 
   const patch: Partial<typeof columns.$inferInsert> = {}
   if (input.title !== undefined) patch.title = input.title
+  if (input.description !== undefined) patch.description = input.description || null
   if (input.color !== undefined) patch.color = input.color
   if (input.wipLimit !== undefined) patch.wipLimit = input.wipLimit
   if (input.outline !== undefined) patch.outline = input.outline
@@ -31,7 +35,7 @@ export default defineUserHandler(async (event, tx) => {
   if (!Object.keys(patch).length) throw createError({ statusCode: 400, statusMessage: 'Nothing to update' })
 
   const [row] = await tx.update(columns).set(patch).where(eq(columns.id, id))
-    .returning({ id: columns.id, title: columns.title, position: columns.position, color: columns.color, wipLimit: columns.wipLimit, outline: columns.outline })
+    .returning({ id: columns.id, title: columns.title, description: columns.description, position: columns.position, color: columns.color, wipLimit: columns.wipLimit, outline: columns.outline })
   if (!row) throw createError({ statusCode: 403, statusMessage: 'You do not have permission to do that' })
   return row
 })

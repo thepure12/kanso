@@ -925,6 +925,20 @@
       "when": 1795471238183,
       "tag": "0131_limited_card_returning",
       "breakpoints": true
+    },
+    {
+      "idx": 132,
+      "version": "7",
+      "when": 1795542992788,
+      "tag": "0132_column_description",
+      "breakpoints": true
+    },
+    {
+      "idx": 133,
+      "version": "7",
+      "when": 1795542997431,
+      "tag": "0133_column_description_rls",
+      "breakpoints": true
     }
   ]
 }

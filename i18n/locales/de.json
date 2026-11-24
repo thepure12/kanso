@@ -613,7 +613,6 @@
       "members": "{count} Mitglied | {count} Mitglieder"
     },
     "column": {
-      "rename": "Umbenennen",
       "titlePrompt": "Spaltentitel",
       "colour": "Farbe",
       "wipLimit": "WIP-Limit",
@@ -633,7 +632,8 @@
       "resize": "Spaltenbreite ändern",
       "resizeHint": "Ziehen zum Ändern, Doppelklick zum Zurücksetzen",
       "wip": "WIP-Limit {limit}",
-      "actions": "Spaltenaktionen"
+      "actions": "Spaltenaktionen",
+      "edit": "Spalte bearbeiten"
     },
     "menu": {
       "fields": "Eigene Felder",
@@ -679,7 +679,6 @@
       "movedCard": "Karte verschoben",
       "renamedColumn": "Spalte umbenannt",
       "changedColumnColor": "Spaltenfarbe geändert",
-      "setWipLimit": "WIP-Limit geändert",
       "movedColumn": "Spalte verschoben",
       "sortedColumn": "Spalte sortiert",
       "archivedCard": "Karte archiviert",
@@ -699,7 +698,8 @@
       "changedBackground": "Hintergrund geändert",
       "changedAccent": "Akzentfarbe geändert",
       "changedColumnOutline": "Spaltenrahmen geändert",
-      "changedButtonAlign": "Position der Buttons geändert"
+      "changedButtonAlign": "Position der Buttons geändert",
+      "editedColumn": "Spalte bearbeitet"
     },
     "errors": {
       "moveCard": "Karte konnte nicht verschoben werden",
@@ -708,7 +708,6 @@
       "addColumn": "Spalte konnte nicht hinzugefügt werden",
       "renameColumn": "Spalte konnte nicht umbenannt werden",
       "columnColor": "Spaltenfarbe konnte nicht geändert werden",
-      "wipLimit": "WIP-Limit konnte nicht gesetzt werden",
       "deleteColumn": "Spalte konnte nicht gelöscht werden",
       "addRule": "Regel konnte nicht hinzugefügt werden",
       "deleteRule": "Regel konnte nicht gelöscht werden",
@@ -758,7 +757,8 @@
       "addAgentRule": "Agentenregel konnte nicht hinzugefügt werden",
       "updateAgentRule": "Agentenregel konnte nicht geändert werden",
       "deleteAgentRule": "Agentenregel konnte nicht gelöscht werden",
-      "buttonAlign": "Position der Buttons konnte nicht geändert werden"
+      "buttonAlign": "Position der Buttons konnte nicht geändert werden",
+      "editColumn": "Spalte konnte nicht gespeichert werden"
     },
     "bulk": {
       "toolbar": "Sammelaktionen",
@@ -2346,5 +2346,16 @@
       "unarchive": "Macht das Board wieder bearbeitbar.",
       "delete": "Löscht das Board mit allen Karten. Das lässt sich nicht rückgängig machen."
     }
+  },
+  "columnEdit": {
+    "title": "Spalte bearbeiten",
+    "titleRequired": "Gib einen Titel mit bis zu 100 Zeichen ein.",
+    "description": "Beschreibung",
+    "descriptionHelp": "Wofür die Spalte da ist oder wann eine Karte hierher gehört. Über die Info-Schaltfläche im Spaltenkopf sichtbar.",
+    "descriptionPlaceholder": "Beschreibe diese Spalte (Markdown)",
+    "descriptionTooLong": "Höchstens {max} Zeichen.",
+    "noLimit": "Kein Limit",
+    "showDescription": "Spaltenbeschreibung",
+    "showDescriptionOf": "Beschreibung von {title}"
   }
 }

@@ -2,6 +2,7 @@ import { z } from 'zod'
 import { fieldKinds } from './types/board'
 import { CARD_TITLE_MAX, CHECKLIST_NAME_MAX } from './cards'
 import { columnOutlineSchema } from './columnOutline'
+import { COLUMN_DESCRIPTION_MAX } from './columns'
 
 const checklistItemSchema = z.object({ text: z.string().trim().min(1).max(500), done: z.boolean().default(false) })
 
@@ -36,6 +37,7 @@ export const boardExportSchema = z.object({
   name: z.string().trim().min(1).max(100),
   columns: z.array(z.object({
     title: z.string().trim().min(1).max(100),
+    description: z.string().trim().max(COLUMN_DESCRIPTION_MAX).nullish(),
     color: color.nullish(),
     wipLimit: z.number().int().min(1).max(999).nullish(),
     outline: columnOutlineSchema.nullish(),
