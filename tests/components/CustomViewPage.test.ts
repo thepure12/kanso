@@ -49,6 +49,15 @@ registerEndpoint('/api/boards/b1/cards', async (event) => {
   return created
 })
 
+let cardPatch: unknown
+registerEndpoint('/api/cards/c2', async (event) => {
+  const { readBody } = await import('h3')
+  cardPatch = await readBody(event)
+  const target = b1Cards.find(c => c.id === 'c2')!
+  target.completedAt = (cardPatch as { completed?: boolean }).completed ? '2026-11-24T00:00:00Z' : null
+  return target
+})
+
 describe('custom view page', () => {
   // Each mount loads the view and its boards again; a page still mounted would keep the async data.
   let mounted: { unmount: () => void }[] = []
@@ -85,6 +94,25 @@ describe('custom view page', () => {
     await new Promise(r => setTimeout(r, 20))
     expect(posted).toEqual({ columnId: 'b1c2', title: 'Fresh card' })
     expect(section().text()).toContain('Fresh card')
+  })
+
+  it('marks a card complete as on the board, only where the person may edit', async () => {
+    viewerOnly = true
+    try {
+      const w = await mountPage()
+      // Viewer on Beta: no complete toggle there.
+      expect(w.find('[data-column-id="b2c1"] .card-complete').exists()).toBe(false)
+      const toggle = () => w.find('[data-column-id="b1c2"] .card-complete')
+      expect(toggle().exists()).toBe(true)
+      await toggle().trigger('click')
+      await new Promise(r => setTimeout(r, 20))
+      expect(cardPatch).toEqual({ completed: true })
+      expect(toggle().attributes('aria-pressed')).toBe('true')
+    }
+    finally {
+      viewerOnly = false
+      b1Cards.find(c => c.id === 'c2')!.completedAt = null
+    }
   })
 
   it('offers no add button on columns the person cannot edit', async () => {

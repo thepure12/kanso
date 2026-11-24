@@ -1,15 +1,18 @@
 <script setup lang="ts">
 import type { BoardDetail, Card } from '#shared/types/board'
+import type { BoardButton, ButtonRunResult } from '#shared/buttons'
 import type { CustomView } from '#shared/types/customViews'
 import { CARD_TITLE_MAX } from '#shared/cards'
 
 // A custom view: the person's chosen columns from several boards side by side.
 // Each board loads through GET /api/boards/:id (RLS decides what shows); cards
-// open in the full card dialog of their board but are not dragged here.
+// look and act as on the board (complete, rename, delete, card buttons) and open
+// in the full card dialog of their board, but are not dragged here.
 const route = useRoute()
 const { t } = useI18n()
 const confirm = useConfirm()
 const showError = useApiError()
+const toast = useToast()
 const requestFetch = useRequestFetch()
 const id = route.params.id as string
 
@@ -83,6 +86,97 @@ async function addCard(boardId: string, columnId: string, title: string, openIt:
     if (openIt) open(boardId, card)
   }
   catch (err) { showError(err, t('board.errors.addCard')) }
+}
+
+// Card actions as on the board, for cards the person may edit (same checks as
+// useBoard.canEditCard). The server decides (RLS); a failure reloads the board.
+const canEditCard = (board: BoardDetail, card: Card) =>
+  !offline.value && !board.archivedAt && (board.role === 'owner' || board.role === 'editor')
+  && cardAccess(board.myAccess, board.role, card) === 'edit'
+
+// Undo through a toast, like the board page (no keyboard shortcut here).
+let undoToastId: string | number | undefined
+const undoStack = useUndo({
+  limit: 20,
+  onPush: (entry) => {
+    if (undoToastId !== undefined) toast.remove(undoToastId)
+    undoToastId = toast.add({
+      title: entry.label,
+      duration: 6000,
+      actions: [{ label: t('board.undo.action'), icon: 'i-lucide-undo-2', color: 'neutral', variant: 'outline', onClick: () => { undoStack.undo() } }],
+    }).id
+  },
+  onError: (err) => {
+    console.warn(err)
+    toast.add({ title: t('board.undo.undoFailed'), description: t('board.undo.changed'), color: 'warning' })
+    reloadAll()
+  },
+})
+function reloadAll() {
+  return Promise.all(Object.keys(boards.value).map(loadBoard))
+}
+async function cardAction(boardId: string, fn: () => Promise<void>, message: string) {
+  try { await fn() }
+  catch (err) {
+    showError(err, message)
+    await loadBoard(boardId)
+  }
+}
+async function patchCard(boardId: string, cardId: string, body: Record<string, unknown>) {
+  await api<Card>(`/api/cards/${cardId}`, { method: 'PATCH', body })
+  await loadBoard(boardId)
+}
+function setCompleted(boardId: string, card: Card, completed: boolean) {
+  if (!!card.completedAt === completed) return
+  return cardAction(boardId, async () => {
+    card.completedAt = completed ? new Date().toISOString() : null
+    await patchCard(boardId, card.id, { completed })
+    undoStack.push({
+      label: t(completed ? 'board.undo.completedCard' : 'board.undo.reopenedCard'),
+      undo: () => patchCard(boardId, card.id, { completed: !completed }),
+      redo: () => patchCard(boardId, card.id, { completed }),
+    })
+  }, t('board.errors.saveCard'))
+}
+function rename(boardId: string, card: Card, title: string) {
+  const before = card.title
+  return cardAction(boardId, async () => {
+    card.title = title
+    await patchCard(boardId, card.id, { title })
+    undoStack.push({
+      label: t('board.undo.renamedCard'),
+      undo: () => patchCard(boardId, card.id, { title: before }),
+      redo: () => patchCard(boardId, card.id, { title }),
+    })
+  }, t('board.errors.saveCard'))
+}
+async function trash(boardId: string, cardId: string, trashed: boolean) {
+  if (trashed) await api(`/api/cards/${cardId}`, { method: 'DELETE' })
+  else await api(`/api/cards/${cardId}/restore`, { method: 'POST' })
+  await loadBoard(boardId)
+}
+function deleteCard(boardId: string, card: Card) {
+  return cardAction(boardId, async () => {
+    const board = boards.value[boardId]
+    if (board) board.cards = board.cards.filter(c => c.id !== card.id)
+    await trash(boardId, card.id, true)
+    undoStack.push({
+      label: t('board.undo.deletedCard'),
+      undo: () => trash(boardId, card.id, false),
+      redo: () => trash(boardId, card.id, true),
+    })
+  }, t('board.errors.deleteCard'))
+}
+function runButton(boardId: string, button: BoardButton, card: Card) {
+  return cardAction(boardId, async () => {
+    const res = await api<ButtonRunResult>(`/api/buttons/${button.id}/run`, { method: 'POST', body: { cardId: card.id } })
+    await loadBoard(boardId)
+    toast.add({
+      title: t('buttons.ran', { name: button.name }),
+      description: res.skipped ? t('buttons.skipped', { n: res.skipped }, res.skipped) : undefined,
+      color: res.skipped ? 'warning' : 'success',
+    })
+  }, t('buttons.errors.run', { name: button.name }))
 }
 
 // Blocked / blocking marks need the whole board's cards.
@@ -182,7 +276,7 @@ const menu = computed(() => [[
             :tags="col.board.tags"
             :fields="col.board.fields"
             :members="col.board.members"
-            :can-edit="false"
+            :can-edit="canEditCard(col.board, card)"
             :selectable="false"
             :today="today"
             :blocked="linkMarks[col.boardId]?.blocked.has(card.id)"
@@ -190,6 +284,10 @@ const menu = computed(() => [[
             :buttons="cardButtons(col.board)"
             :button-align="col.board.buttonAlign"
             @open="open(col.boardId, card)"
+            @complete="value => setCompleted(col.boardId, card, value)"
+            @rename="title => rename(col.boardId, card, title)"
+            @delete="deleteCard(col.boardId, card)"
+            @run-button="b => runButton(col.boardId, b, card)"
           />
           <p v-if="!col.cards.length" class="px-1 py-2 text-sm text-muted">
             {{ t('customViews.noCards') }}
