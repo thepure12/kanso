@@ -1,6 +1,7 @@
+import { clearNuxtData } from '#app'
 import { mockNuxtImport, mountSuspended, registerEndpoint } from '@nuxt/test-utils/runtime'
 import { defineComponent, h } from 'vue'
-import { describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import type { BoardDetail, Card } from '#shared/types/board'
 import type { CustomView, ViewColumn } from '#shared/types/customViews'
 import ViewPage from '~/pages/views/[id].vue'
@@ -34,12 +35,36 @@ registerEndpoint('/api/views/v1', async (event) => {
   }
   return view
 })
-registerEndpoint('/api/boards/b1', () => board('b1', 'Alpha', [['b1c1', 'Todo'], ['b1c2', 'Review']], [card('c1', 'b1c1', 'Hidden one'), card('c2', 'b1c2', 'Review me')]))
-registerEndpoint('/api/boards/b2', () => board('b2', 'Beta', [['b2c1', 'Doing']], [card('c3', 'b2c1', 'Beta work')]))
+const b1Cards = [card('c1', 'b1c1', 'Hidden one'), card('c2', 'b1c2', 'Review me')]
+registerEndpoint('/api/boards/b1', () => board('b1', 'Alpha', [['b1c1', 'Todo'], ['b1c2', 'Review']], b1Cards))
+let viewerOnly = false
+registerEndpoint('/api/boards/b2', () => ({ ...board('b2', 'Beta', [['b2c1', 'Doing']], [card('c3', 'b2c1', 'Beta work')]), ...(viewerOnly ? { role: 'viewer' } : {}) }))
+let posted: unknown
+registerEndpoint('/api/boards/b1/cards', async (event) => {
+  const { readBody } = await import('h3')
+  const body = await readBody<{ columnId: string, title: string }>(event)
+  posted = body
+  const created = card('c9', body.columnId, body.title)
+  b1Cards.push(created)
+  return created
+})
 
 describe('custom view page', () => {
-  it('shows the chosen columns of several boards in view order, only their cards', async () => {
+  // Each mount loads the view and its boards again; a page still mounted would keep the async data.
+  let mounted: { unmount: () => void }[] = []
+  const mountPage = async () => {
     const w = await mountSuspended(ViewPage)
+    mounted.push(w)
+    return w
+  }
+  beforeEach(() => clearNuxtData())
+  afterEach(() => {
+    for (const w of mounted) w.unmount()
+    mounted = []
+  })
+
+  it('shows the chosen columns of several boards in view order, only their cards', async () => {
+    const w = await mountPage()
     const sections = w.findAll('[data-column-id]')
     expect(sections.map(s => s.attributes('data-column-id'))).toEqual(['b2c1', 'b1c2'])
     expect(sections[0]!.text()).toContain('Beta')
@@ -49,6 +74,27 @@ describe('custom view page', () => {
     expect(w.text()).not.toContain('Hidden one')
     // Nothing to drag: no draggable lists.
     expect(w.find('[draggable="true"]').exists()).toBe(false)
+  })
+
+  it('adds a card to a column of its board and shows it after the reload', async () => {
+    const w = await mountPage()
+    const section = () => w.find('[data-column-id="b1c2"]')
+    await section().findAll('button').find(b => b.text() === 'Add card')!.trigger('click')
+    await section().find('textarea').setValue('Fresh card')
+    await section().find('form').trigger('submit')
+    await new Promise(r => setTimeout(r, 20))
+    expect(posted).toEqual({ columnId: 'b1c2', title: 'Fresh card' })
+    expect(section().text()).toContain('Fresh card')
+  })
+
+  it('offers no add button on columns the person cannot edit', async () => {
+    viewerOnly = true
+    try {
+      const w = await mountPage()
+      expect(w.find('[data-column-id="b2c1"]').text()).not.toContain('Add card')
+      expect(w.find('[data-column-id="b1c2"]').text()).toContain('Add card')
+    }
+    finally { viewerOnly = false }
   })
 })
 

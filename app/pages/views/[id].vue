@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { BoardDetail, Card } from '#shared/types/board'
 import type { CustomView } from '#shared/types/customViews'
+import { CARD_TITLE_MAX } from '#shared/cards'
 
 // A custom view: the person's chosen columns from several boards side by side.
 // Each board loads through GET /api/boards/:id (RLS decides what shows); cards
@@ -68,6 +69,22 @@ const columns = computed(() => (view.value?.columns ?? []).flatMap((vc) => {
   if (!board || !column) return []
   return [{ ...vc, title: column.title, color: column.color, board, cards: board.cards.filter(c => c.columnId === column.id) }]
 }))
+// New cards: like the board page, in columns the person may edit (owner/editor,
+// member limits, not archived, online). The server decides (RLS).
+const offline = useOffline()
+const canAddTo = (board: BoardDetail, columnId: string) =>
+  !offline.value && !board.archivedAt && (board.role === 'owner' || board.role === 'editor')
+  && columnAccess(board.myAccess, board.role, columnId) === 'edit'
+async function addCard(boardId: string, columnId: string, title: string, openIt: boolean) {
+  try {
+    // Column rules run on the server; the reload shows their result.
+    const card = await api<Card>(`/api/boards/${boardId}/cards`, { method: 'POST', body: { columnId, title } })
+    await loadBoard(boardId)
+    if (openIt) open(boardId, card)
+  }
+  catch (err) { showError(err, t('board.errors.addCard')) }
+}
+
 // Blocked / blocking marks need the whole board's cards.
 const linkMarks = computed(() => Object.fromEntries(Object.entries(boards.value).map(([b, board]) => [b, {
   blocked: blockedCardIds(board.cards, board.columns),
@@ -177,6 +194,9 @@ const menu = computed(() => [[
           <p v-if="!col.cards.length" class="px-1 py-2 text-sm text-muted">
             {{ t('customViews.noCards') }}
           </p>
+        </div>
+        <div v-if="canAddTo(col.board, col.columnId)" class="px-2 pb-2">
+          <InlineAdd :label="t('board.addCard')" :placeholder="t('board.cardTitle')" :maxlength="CARD_TITLE_MAX" openable @add="(title, openIt) => addCard(col.boardId, col.columnId, title, openIt)" />
         </div>
       </section>
     </div>
