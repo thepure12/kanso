@@ -1,11 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import type { MyWorkCard } from '#shared/types/myWork'
-import { filterMyWork, groupMyWork, myWorkDueDate } from '../../app/utils/myWork'
+import { emptyMyWorkPanelConfig, myWorkPanelConfigSchema, myWorkQuery } from '#shared/myWork'
+import { filterMyWork, filterPanelCards, groupMyWork, myWorkDueDate } from '../../app/utils/myWork'
 
 const today = '2026-10-13'
 const card = (id: string, over: Partial<MyWorkCard> = {}): MyWorkCard => ({
   id, title: id, boardId: 'b', boardName: 'Board', columnId: 'col', columnTitle: 'Todo', startDate: null, dueDate: null,
-  priority: null, estimate: null, assigned: true, watching: false, done: false, checklistItems: [], ...over,
+  priority: null, estimate: null, assigned: true, watching: false, done: false, checklistItems: [], assignees: [], ...over,
 })
 
 describe('groupMyWork', () => {
@@ -45,5 +46,32 @@ describe('filterMyWork', () => {
     expect(ids('assigned')).toEqual(['mine', 'both', 'item'])
     expect(ids('watching')).toEqual(['watched', 'both'])
     expect(ids('all', true)).toEqual(['mine', 'watched', 'both', 'done', 'item'])
+  })
+})
+
+describe('My work panels', () => {
+  it('filters due buckets and done cards in the browser', () => {
+    const cards = [card('overdue', { dueDate: '2026-10-01' }), card('none'), card('done', { done: true }), card('today', { dueDate: today })]
+    const ids = (due: ('overdue' | 'today' | 'none')[], showDone: boolean) => filterPanelCards(cards, { due, showDone }, today).map(c => c.id)
+    expect(ids([], false)).toEqual(['overdue', 'none', 'today'])
+    expect(ids([], true)).toEqual(['overdue', 'none', 'done', 'today'])
+    expect(ids(['overdue', 'today'], false)).toEqual(['overdue', 'today'])
+    expect(ids(['none'], true)).toEqual(['none', 'done'])
+  })
+
+  it('turns a panel into the my-work query, leaving out empty choices', () => {
+    expect(myWorkQuery(emptyMyWorkPanelConfig())).toEqual({ people: 'assigned' })
+    const id = '6f9619ff-8b86-4011-b42d-00c04fc964ff'
+    expect(myWorkQuery({
+      ...emptyMyWorkPanelConfig(), people: 'people', userIds: [id], columns: ['To do'], boardIds: [id], tags: ['UI'], priorities: ['high', 'none'], due: ['overdue'],
+    })).toEqual({ people: 'people', user: [id], column: ['To do'], board: [id], tag: ['UI'], priority: ['high', 'none'] })
+    // userIds only count for chosen people.
+    expect(myWorkQuery({ ...emptyMyWorkPanelConfig(), people: 'anyone', userIds: [id] })).toEqual({ people: 'anyone' })
+  })
+
+  it('validates the stored config', () => {
+    expect(myWorkPanelConfigSchema.safeParse(emptyMyWorkPanelConfig()).success).toBe(true)
+    expect(myWorkPanelConfigSchema.safeParse({ ...emptyMyWorkPanelConfig(), people: 'everyone' }).success).toBe(false)
+    expect(myWorkPanelConfigSchema.safeParse({ ...emptyMyWorkPanelConfig(), due: ['tomorrow'] }).success).toBe(false)
   })
 })

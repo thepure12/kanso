@@ -1725,7 +1725,7 @@
   },
   "myWork": {
     "title": "My work",
-    "description": "Cards assigned to you, with checklist items for you, or that you watch, on all your boards.",
+    "description": "Your cards on all your boards, plus panels of your own: saved lists of cards that match what you choose.",
     "all": "All",
     "assigned": "Assigned",
     "watching": "Watching",
@@ -1743,7 +1743,48 @@
       "none": "No due date"
     },
     "refresh": "Refresh",
-    "checklistItems": "Your checklist items"
+    "checklistItems": "Your checklist items",
+    "yourCards": "Your cards",
+    "people": {
+      "involved": "Assigned to me, watched or with my checklist items",
+      "assigned": "Assigned to me",
+      "watching": "Watched by me",
+      "anyone": "Anyone",
+      "people": "Assigned to chosen people"
+    },
+    "panels": {
+      "add": "Add panel",
+      "addTitle": "Add panel",
+      "editTitle": "Edit panel",
+      "hint": "A panel lists the cards of all your boards that match every choice below. Empty choices match everything.",
+      "name": "Name",
+      "nameRequired": "Give the panel a name",
+      "whose": "Whose cards",
+      "assignedTo": "Assigned to",
+      "pickPeople": "Choose at least one person",
+      "columns": "Columns",
+      "tags": "Card tags",
+      "byName": "By name, on every board",
+      "useName": "Use \"{name}\"",
+      "boards": "Boards",
+      "priority": "Priority",
+      "due": "Due",
+      "noPriority": "No priority",
+      "any": "Any",
+      "anyColumn": "Any column",
+      "anyTag": "Any card tag",
+      "anyBoard": "All boards",
+      "edit": "Edit",
+      "moveUp": "Move up",
+      "moveDown": "Move down",
+      "delete": "Delete panel",
+      "deleteTitle": "Delete the panel \"{name}\"?",
+      "actions": "Actions for {name}",
+      "expand": "Expand",
+      "collapse": "Collapse",
+      "empty": "No cards match this panel.",
+      "intro": "Add panels for other lists, for example the cards assigned to you in the column \"To do\" on every board, or overdue cards with high priority."
+    }
   },
   "columnGroups": {
     "title": "Column tags",

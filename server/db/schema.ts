@@ -9,6 +9,7 @@ import type { BoardBackground } from '../../shared/boardBackgrounds'
 import { type BoardAccent, boardAccents } from '../../shared/boardAccents'
 import type { ColumnOutline } from '../../shared/columnOutline'
 import type { SavedViewConfig } from '../../shared/savedViews'
+import type { MyWorkPanelConfig } from '../../shared/myWork'
 import type { ButtonAlign, ButtonColor, ButtonScope, ButtonStep } from '../../shared/buttons'
 import type { NotificationPrefs } from '../../shared/notificationSettings'
 import { reactionEmojis } from '../../shared/reactions'
@@ -246,6 +247,22 @@ export const boardStars = pgTable('board_stars', {
   boardId: uuid('board_id').notNull().references(() => boards.id, { onDelete: 'cascade' }),
   createdAt: createdAt(),
 }, t => [primaryKey({ columns: [t.userId, t.boardId] })])
+
+// My work panels: named card queries across boards on the My work page
+// (shared/myWork.ts). Personal: each user sees and changes only their own rows.
+// See 0139_my_work_panels_rls.sql.
+export const myWorkPanels = pgTable('my_work_panels', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  name: text('name').notNull(),
+  config: jsonb('config').$type<MyWorkPanelConfig>().notNull(),
+  position: integer('position').notNull().default(0),
+  createdAt: createdAt(),
+}, t => [
+  index('my_work_panels_user_idx').on(t.userId, t.position),
+  check('my_work_panels_name_length', sql`char_length(${t.name}) between 1 and 50`),
+  check('my_work_panels_config_shape', sql`jsonb_typeof(${t.config}) = 'object' and pg_column_size(${t.config}) < 16384`),
+])
 
 // Per-user notification level for a board; no row = all. Personal like stars.
 export const boardNotificationSettings = pgTable('board_notification_settings', {

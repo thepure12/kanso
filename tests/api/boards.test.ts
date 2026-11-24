@@ -10,7 +10,7 @@ import type { Inbox } from '#shared/types/notifications'
 import type { AdminUser, AuditLogPage, InstanceSettings } from '#shared/types/admin'
 import type { Account, AccountSession } from '#shared/types/account'
 import type { SearchResults } from '#shared/types/search'
-import type { MyWork } from '#shared/types/myWork'
+import type { MyWork, MyWorkOptions, MyWorkPanel } from '#shared/types/myWork'
 import { signEmailToken } from '../../server/utils/emailToken'
 import { base32Decode, totpCode, totpStep } from '../../server/utils/totp'
 import { setupApi } from './server'
@@ -2349,6 +2349,7 @@ describe('my work', () => {
     expect(cards[0]).toEqual({
       id: assigned.id, title: 'Assigned', boardId: id, boardName: 'My work', columnId: todo!.id, columnTitle: 'To do',
       startDate: null, dueDate: '2026-01-02', priority: 'high', estimate: null, assigned: true, watching: false, done: false, checklistItems: [],
+      assignees: [{ id: bobId, name: 'Bob', avatarUrl: null }],
     })
     expect(cards.find(c => c.id === finished.id)).toMatchObject({ done: true, columnTitle: 'Done' })
     expect(cards.find(c => c.id === watched.id)).toMatchObject({ assigned: false, watching: true })
@@ -2356,9 +2357,74 @@ describe('my work', () => {
     expect((await mine(alice)).map(c => c.title).sort()).toEqual(['Assigned', 'Finished', 'Item for Bob', 'Not mine', 'Watched'])
     expect(await mine(outsider)).toEqual([])
 
+    // Panel queries: whose cards, column titles and tag names (any case, any board), boards, priority.
+    const tag = (await alice.req<{ id: string }>(`/api/boards/${id}/tags`, { method: 'POST', body: { name: 'Urgent stuff', color: '#ff0000' } })).data
+    await alice.req(`/api/cards/${notMine.id}`, { method: 'PATCH', body: { tagIds: [tag.id], priority: 'low' } })
+    const panel = async (u: typeof bob, q: string) => {
+      const res = await u.req<MyWork>(`/api/my-work?${q}`)
+      expect(res.status).toBe(200)
+      return res.data.cards.filter(c => c.boardId === id).map(c => c.title).sort()
+    }
+    expect(await panel(bob, 'people=assigned')).toEqual(['Assigned', 'Finished', 'Item for Bob'])
+    expect(await panel(bob, 'people=watching')).toEqual(['Watched'])
+    expect(await panel(bob, 'people=anyone')).toEqual(['Assigned', 'Finished', 'Item for Bob', 'Not mine', 'Watched'])
+    expect(await panel(bob, 'people=assigned&column=TO%20DO')).toEqual(['Assigned', 'Item for Bob'])
+    expect(await panel(bob, 'people=anyone&column=Done&column=nope')).toEqual(['Finished'])
+    expect(await panel(bob, `people=people&user=${bobId}`)).toEqual(['Assigned', 'Finished'])
+    expect(await panel(bob, 'people=people')).toEqual([])
+    expect(await panel(bob, 'people=anyone&tag=urgent%20STUFF')).toEqual(['Not mine'])
+    expect(await panel(bob, 'people=anyone&priority=high&priority=low')).toEqual(['Assigned', 'Not mine'])
+    expect(await panel(bob, 'people=anyone&priority=none')).toEqual(['Finished', 'Item for Bob', 'Watched'])
+    expect(await panel(bob, `people=anyone&board=${randomUUID()}`)).toEqual([])
+    expect(await panel(bob, `people=anyone&board=${id}&column=Done`)).toEqual(['Finished'])
+    expect(await panel(outsider, 'people=anyone')).toEqual([])
+    expect((await bob.req('/api/my-work?people=everyone')).status).toBe(400)
+
     // Archived boards drop out.
     await alice.req(`/api/boards/${id}/archive`, { method: 'PUT' })
     expect(await mine(bob)).toEqual([])
+  })
+})
+
+describe('my work panels', () => {
+  it('saves personal panels in order and offers choices from visible boards', async () => {
+    const config = { people: 'assigned', userIds: [], columns: ['To do'], boardIds: [], tags: [], priorities: [], due: ['overdue'], showDone: false }
+    const create = (u: typeof bob, name: string) => u.req<MyWorkPanel>('/api/my-work/panels', { method: 'POST', body: { name, config } })
+    const a = await create(bob, ' To do ')
+    expect(a.status).toBe(200)
+    expect(a.data).toEqual({ id: expect.any(String), name: 'To do', config })
+    const b = (await create(bob, 'Second')).data
+    expect((await create(bob, '')).status).toBe(400)
+    expect((await bob.req('/api/my-work/panels', { method: 'POST', body: { name: 'X', config: { ...config, people: 'nobody' } } })).status).toBe(400)
+
+    const list = async (u: typeof bob) => (await u.req<MyWorkPanel[]>('/api/my-work/panels')).data.map(p => p.name)
+    expect(await list(bob)).toEqual(['To do', 'Second'])
+    expect(await list(alice)).toEqual([])
+    // Others can neither change nor delete them.
+    expect((await alice.req(`/api/my-work/panels/${a.data.id}`, { method: 'PATCH', body: { name: 'Mine' } })).status).toBe(404)
+    expect((await alice.req(`/api/my-work/panels/${a.data.id}`, { method: 'DELETE' })).status).toBe(404)
+
+    const renamed = await bob.req<MyWorkPanel>(`/api/my-work/panels/${a.data.id}`, { method: 'PATCH', body: { name: 'Renamed', config: { ...config, showDone: true } } })
+    expect(renamed.data).toMatchObject({ name: 'Renamed', config: { showDone: true } })
+    expect((await bob.req(`/api/my-work/panels/${a.data.id}`, { method: 'PATCH', body: {} })).status).toBe(400)
+
+    expect((await bob.req('/api/my-work/panels/order', { method: 'PUT', body: { ids: [b.id] } })).status).toBe(409)
+    const ordered = await bob.req<MyWorkPanel[]>('/api/my-work/panels/order', { method: 'PUT', body: { ids: [b.id, a.data.id] } })
+    expect(ordered.data.map(p => p.name)).toEqual(['Second', 'Renamed'])
+    expect(await list(bob)).toEqual(['Second', 'Renamed'])
+
+    expect((await bob.req(`/api/my-work/panels/${b.id}`, { method: 'DELETE' })).status).toBe(200)
+    expect(await list(bob)).toEqual(['Renamed'])
+
+    const { data: { id } } = await alice.req<{ id: string }>('/api/boards', { method: 'POST', body: { name: 'Panel choices', template: 'basic' } })
+    extraBoards.push(id)
+    await alice.req(`/api/boards/${id}/tags`, { method: 'POST', body: { name: 'Panel tag', color: '#00ff00' } })
+    const options = (await alice.req<MyWorkOptions>('/api/my-work/options')).data
+    expect(options.boards).toContainEqual({ id, name: 'Panel choices' })
+    expect(options.columns).toEqual(expect.arrayContaining(['To do', 'Done']))
+    expect(options.tags).toContainEqual({ name: 'Panel tag', color: '#00ff00' })
+    expect(options.people[0]).toMatchObject({ name: 'Alice', isBot: false })
+    expect((await outsider.req<MyWorkOptions>('/api/my-work/options')).data.boards.map(b => b.id)).not.toContain(id)
   })
 })
 

@@ -99,7 +99,9 @@ Errors come back as JSON with `statusCode` and `statusMessage`: `400` invalid in
 | DELETE | `/api/notifications/:id` | Removes it from your inbox |
 | POST | `/api/notifications/read-all` | Marks all read (`?boardId=` for one board) |
 | POST | `/api/notifications/clear-read` | Deletes read notifications (`?boardId=` for one board) |
-| GET | `/api/my-work` | Cards assigned to you or that you watch, on all boards (`assigned`, `watching`, `done` flags) |
+| GET | `/api/my-work` | Cards assigned to you or that you watch, on all boards (`assigned`, `watching`, `done` flags, `assignees`). Optional filters: `people=involved\|assigned\|watching\|anyone\|people` (default `involved`; `people` with repeated `user=<id>`), repeated `column=<title>` and `tag=<name>` (case-insensitive, every board), `board=<id>`, `priority=<p>\|none` |
+| GET/POST | `/api/my-work/panels` | Your saved My work panels `{name, config}` (`shared/myWork.ts`); `PATCH`/`DELETE /api/my-work/panels/:id`, `PUT /api/my-work/panels/order {ids}` |
+| GET | `/api/my-work/options` | Boards, column titles, card tag names and people for the panel editor |
 
 Dates are `YYYY-MM-DD`; timestamps are ISO 8601. The types of responses live in `shared/types/`.
 

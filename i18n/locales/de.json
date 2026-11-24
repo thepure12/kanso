@@ -1725,7 +1725,7 @@
   },
   "myWork": {
     "title": "Meine Arbeit",
-    "description": "Karten, die dir zugewiesen sind, mit Checklistenpunkten für dich oder die du beobachtest, auf allen deinen Boards.",
+    "description": "Deine Karten auf allen deinen Boards und eigene Bereiche: gespeicherte Listen der Karten, die zu deiner Auswahl passen.",
     "all": "Alle",
     "assigned": "Zugewiesen",
     "watching": "Beobachtet",
@@ -1743,7 +1743,48 @@
       "none": "Ohne Fälligkeit"
     },
     "refresh": "Aktualisieren",
-    "checklistItems": "Deine Checklistenpunkte"
+    "checklistItems": "Deine Checklistenpunkte",
+    "yourCards": "Deine Karten",
+    "people": {
+      "involved": "Mir zugewiesen, beobachtet oder mit meinen Checklistenpunkten",
+      "assigned": "Mir zugewiesen",
+      "watching": "Von mir beobachtet",
+      "anyone": "Alle",
+      "people": "Ausgewählten Personen zugewiesen"
+    },
+    "panels": {
+      "add": "Bereich hinzufügen",
+      "addTitle": "Bereich hinzufügen",
+      "editTitle": "Bereich bearbeiten",
+      "hint": "Ein Bereich zeigt die Karten aller deiner Boards, die zu jeder Auswahl unten passen. Eine leere Auswahl passt auf alles.",
+      "name": "Name",
+      "nameRequired": "Gib dem Bereich einen Namen",
+      "whose": "Wessen Karten",
+      "assignedTo": "Zugewiesen an",
+      "pickPeople": "Wähle mindestens eine Person",
+      "columns": "Spalten",
+      "tags": "Karten-Tags",
+      "byName": "Nach Name, auf jedem Board",
+      "useName": "„{name}“ verwenden",
+      "boards": "Boards",
+      "priority": "Priorität",
+      "due": "Fällig",
+      "noPriority": "Keine Priorität",
+      "any": "Beliebig",
+      "anyColumn": "Jede Spalte",
+      "anyTag": "Jedes Karten-Tag",
+      "anyBoard": "Alle Boards",
+      "edit": "Bearbeiten",
+      "moveUp": "Nach oben",
+      "moveDown": "Nach unten",
+      "delete": "Bereich löschen",
+      "deleteTitle": "Den Bereich „{name}“ löschen?",
+      "actions": "Aktionen für {name}",
+      "expand": "Aufklappen",
+      "collapse": "Zuklappen",
+      "empty": "Keine Karten passen zu diesem Bereich.",
+      "intro": "Füge Bereiche für weitere Listen hinzu, zum Beispiel die dir zugewiesenen Karten in der Spalte „To do“ auf jedem Board oder überfällige Karten mit hoher Priorität."
+    }
   },
   "columnGroups": {
     "title": "Spalten-Tags",
