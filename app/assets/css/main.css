@@ -48,3 +48,33 @@
 
 /* Slightly shorter app header than the Nuxt UI default (4rem). */
 :root { --ui-header-height: 3.5rem; }
+
+/* Group drag of selected cards (`app/utils/dragStack.ts`): the dragged card is
+   drawn as the top of a stack with the number of cards in a badge. `.drag-stack`
+   is the native drag picture, `.sortable-fallback` the touch drag clone. */
+:is(.drag-stack, .sortable-fallback)[data-drag-count] {
+  box-shadow:
+    0 0 0 1px var(--ui-border-accented),
+    5px 5px 0 -1px var(--ui-bg),
+    5px 5px 0 0 var(--ui-border-accented),
+    10px 10px 0 -1px var(--ui-bg),
+    10px 10px 0 0 var(--ui-border-accented) !important;
+  /* UCard clips its content; the badge sits over the corner. */
+  overflow: visible !important;
+}
+:is(.drag-stack, .sortable-fallback)[data-drag-count]::after {
+  content: attr(data-drag-count);
+  position: absolute;
+  top: -10px;
+  right: -10px;
+  min-width: 1.5rem;
+  height: 1.5rem;
+  padding: 0 0.375rem;
+  border-radius: 9999px;
+  background: var(--ui-primary);
+  color: var(--ui-bg);
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1.5rem;
+  text-align: center;
+}

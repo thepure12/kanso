@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { VueDraggable, type SortableEvent } from 'vue-draggable-plus'
+import { DRAG_COUNT_ATTR, setStackDragImage, type Point } from '~/utils/dragStack'
 import type { DropdownMenuItem } from '@nuxt/ui'
 import type { BulkCardAction, Card, Column, MemberAccess, SavedView } from '#shared/types/board'
 import type { BoardMatrixRoom } from '#shared/types/matrix'
@@ -552,12 +553,28 @@ function columnTime(col: Column) {
 
 // A selected card being dragged takes the other selected cards along: they fade while
 // it is dragged and gather around it on drop, in board order (`cardsMoved`).
+// The dragged card is drawn as a stack with the group's size: a native drag picture
+// (`cardDragData`, at the grab point) or, for touch drags, Sortable's clone of the
+// card, which copies the count attribute set on it here.
 const draggedCardId = ref<string | null>(null)
+let grabPoint: Point | null = null
+function rememberGrabPoint(e: PointerEvent) { grabPoint = { x: e.clientX, y: e.clientY } }
+onMounted(() => document.addEventListener('pointerdown', rememberGrabPoint, true))
+onBeforeUnmount(() => document.removeEventListener('pointerdown', rememberGrabPoint, true))
+function cardDragData(dataTransfer: DataTransfer, el: HTMLElement) {
+  dataTransfer.setData('Text', el.textContent ?? '')
+  const others = dragCompanions(el.dataset.cardId)
+  if (others.length) setStackDragImage(dataTransfer, el, others.length + 1, grabPoint)
+}
 function onCardDragStart(e: SortableEvent) {
-  draggedCardId.value = (e.item as HTMLElement).dataset.cardId ?? null
+  const el = e.item as HTMLElement
+  draggedCardId.value = el.dataset.cardId ?? null
+  const others = dragCompanions(draggedCardId.value ?? undefined)
+  if (others.length) el.setAttribute(DRAG_COUNT_ATTR, String(others.length + 1))
   dragging.value = true
 }
-function onCardDragEnd() {
+function onCardDragEnd(e: SortableEvent) {
+  (e.item as HTMLElement).removeAttribute(DRAG_COUNT_ATTR)
   draggedCardId.value = null
   dragging.value = false
 }
@@ -1131,6 +1148,7 @@ const settingsOpen = computed({
                 filter=".card-title-edit, .card-locked"
                 :prevent-on-filter="false"
                 ghost-class="opacity-40"
+                :set-data="cardDragData"
                 class="flex flex-col gap-2 px-3 py-2 min-h-8 overflow-y-auto"
                 @start="onCardDragStart"
                 @end="onCardDragEnd"
