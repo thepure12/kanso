@@ -1062,69 +1062,100 @@ const settingsOpen = computed({
                   />
                 </div>
               </UTooltip>
+              <!-- Row 1: grip, title (wraps, never hidden), count, collapse, menu. Row 2 (when there is any): description, rules, points, time. -->
               <header
-                class="flex flex-wrap items-center justify-end gap-x-2 gap-y-1.5 px-3 py-2 rounded-t-lg"
+                class="@container flex flex-col gap-1.5 px-3 py-2 rounded-t-lg"
                 :style="col.color ? { backgroundColor: col.color, color: contrastText(col.color) } : undefined"
               >
-                <UIcon v-if="canEdit && !shownGroup" name="i-lucide-grip-vertical" class="column-handle cursor-grab pointer-coarse:size-6" :class="col.color ? 'opacity-60' : 'text-dimmed'" />
-                <input
-                  v-if="renamingColumnId === col.id"
-                  :ref="focusRenameInput"
-                  v-model="columnTitleDraft"
-                  maxlength="100"
-                  :aria-label="t('board.column.titlePrompt')"
-                  class="min-w-0 flex-1 font-medium bg-default text-default rounded px-1 -mx-1 outline-none ring ring-primary"
-                  @keydown.enter.prevent="finishColumnRename(col, true)"
-                  @keydown.esc.stop.prevent="finishColumnRename(col, false)"
-                  @blur="finishColumnRename(col, true)"
+                <div class="flex items-start gap-2">
+                  <UIcon v-if="canEdit && !shownGroup" name="i-lucide-grip-vertical" class="column-handle cursor-grab shrink-0 mt-1 pointer-coarse:size-6 pointer-coarse:mt-0.5" :class="col.color ? 'opacity-60' : 'text-dimmed'" />
+                  <input
+                    v-if="renamingColumnId === col.id"
+                    :ref="focusRenameInput"
+                    v-model="columnTitleDraft"
+                    maxlength="100"
+                    :aria-label="t('board.column.titlePrompt')"
+                    class="min-w-0 flex-1 font-medium bg-default text-default rounded px-1 -mx-1 outline-none ring ring-primary"
+                    @keydown.enter.prevent="finishColumnRename(col, true)"
+                    @keydown.esc.stop.prevent="finishColumnRename(col, false)"
+                    @blur="finishColumnRename(col, true)"
+                  >
+                  <h2
+                    v-else
+                    class="min-w-0 flex-1 font-medium leading-6 wrap-break-word"
+                    :class="canEdit && 'cursor-text select-none'"
+                    @dblclick="startColumnRename(col)"
+                  >
+                    {{ col.title }}
+                  </h2>
+                  <div class="flex items-center gap-0.5 shrink-0 min-h-6">
+                    <UTooltip v-if="col.wipLimit" :text="wipState(col) === 'over' ? t('board.column.overWip', { limit: col.wipLimit }) : t('board.column.wip', { limit: col.wipLimit })">
+                      <UBadge
+                        :color="wipState(col) === 'over' ? 'error' : wipState(col) === 'full' ? 'warning' : 'neutral'"
+                        :variant="wipState(col) === 'over' ? 'solid' : 'soft'"
+                        size="sm"
+                        class="hidden @min-[15rem]:inline-flex"
+                        :label="`${lists[col.id]?.length ?? 0}/${col.wipLimit}`"
+                      />
+                    </UTooltip>
+                    <UBadge v-else color="neutral" variant="soft" size="sm" class="hidden @min-[15rem]:inline-flex" :label="String(lists[col.id]?.length ?? 0)" />
+                    <UTooltip :text="t('board.column.collapse')">
+                      <UButton
+                        icon="i-lucide-fold-horizontal"
+                        size="xs"
+                        color="neutral"
+                        variant="ghost"
+                        class="pointer-coarse:p-1.5 pointer-fine:opacity-0 pointer-fine:group-hover/col:opacity-100 focus-visible:opacity-100"
+                        :class="col.color && 'text-inherit hover:bg-black/10'"
+                        :aria-label="t('board.column.collapse')"
+                        @click="collapsedColumns.setCollapsed(col.id, true)"
+                      />
+                    </UTooltip>
+                    <UDropdownMenu v-if="canEdit" :items="columnMenu(col)">
+                      <UButton icon="i-lucide-ellipsis" size="xs" color="neutral" variant="ghost" class="pointer-coarse:p-1.5" :aria-label="t('board.column.actions')" :class="col.color && 'text-inherit hover:bg-black/10'" />
+                    </UDropdownMenu>
+                  </div>
+                </div>
+                <!-- Narrow columns (header under 15rem) show the count here instead of in row 1, leaving the title more room. -->
+                <div
+                  class="flex flex-wrap items-center gap-x-2.5 gap-y-1 -mt-1"
+                  :class="[
+                    canEdit && !shownGroup && 'pl-6 pointer-coarse:pl-8',
+                    col.color ? 'opacity-80' : 'text-muted',
+                    !(col.description || col.rules.length || columnPoints(col) !== null || columnTime(col)) && '@min-[15rem]:hidden',
+                  ]"
                 >
-                <!-- The title wraps instead of truncating, and keeps at least min-w-24: when the icons and badges leave less, they wrap below it, on the right. -->
-                <h2
-                  v-else
-                  class="min-w-24 flex-1 font-medium wrap-anywhere"
-                  :class="canEdit && 'cursor-text select-none'"
-                  @dblclick="startColumnRename(col)"
-                >
-                  {{ col.title }}
-                </h2>
-                <ColumnDescription v-if="col.description" :title="col.title" :description="col.description" :coloured="!!col.color" />
-                <UTooltip v-if="col.rules.length" :text="t('board.column.ruleCount', { count: col.rules.length }, col.rules.length)">
-                  <UIcon name="i-lucide-zap" class="size-4 shrink-0" :class="!col.color && 'text-dimmed'" />
-                </UTooltip>
-                <UTooltip v-if="columnPoints(col) !== null" :text="filtering ? t('board.column.pointsShown', { points: formatPoints(columnPoints(col)!, i18n) }) : formatPoints(columnPoints(col)!, i18n)">
-                  <UBadge color="neutral" variant="outline" size="sm" icon="i-lucide-sigma" :label="String(columnPoints(col))" :class="col.color && 'text-inherit'" />
-                </UTooltip>
-                <UTooltip v-if="columnTime(col)" :text="t(filtering ? 'board.column.timeShown' : 'board.column.timeLogged', { time: formatDuration(columnTime(col), t) })">
-                  <UBadge color="neutral" variant="outline" size="sm" icon="i-lucide-timer" :label="formatDuration(columnTime(col), t)" :class="col.color && 'text-inherit'" />
-                </UTooltip>
-                <UTooltip v-if="col.wipLimit" :text="wipState(col) === 'over' ? t('board.column.overWip', { limit: col.wipLimit }) : t('board.column.wip', { limit: col.wipLimit })">
-                  <UBadge
-                    :color="wipState(col) === 'over' ? 'error' : wipState(col) === 'full' ? 'warning' : 'neutral'"
-                    :variant="wipState(col) === 'over' ? 'solid' : 'soft'"
-                    size="sm"
-                    :label="`${lists[col.id]?.length ?? 0}/${col.wipLimit}`"
-                  />
-                </UTooltip>
-                <UBadge v-else color="neutral" variant="soft" size="sm" :label="String(lists[col.id]?.length ?? 0)" />
-                <UTooltip :text="t('board.column.collapse')">
-                  <UButton
-                    icon="i-lucide-fold-horizontal"
-                    size="xs"
-                    color="neutral"
-                    variant="ghost"
-                    class="pointer-coarse:p-1.5 pointer-fine:opacity-0 pointer-fine:group-hover/col:opacity-100 focus-visible:opacity-100"
-                    :class="col.color && 'text-inherit hover:bg-black/10'"
-                    :aria-label="t('board.column.collapse')"
-                    @click="collapsedColumns.setCollapsed(col.id, true)"
-                  />
-                </UTooltip>
-                <UDropdownMenu v-if="canEdit" :items="columnMenu(col)">
-                  <UButton icon="i-lucide-ellipsis" size="xs" color="neutral" variant="ghost" class="pointer-coarse:p-1.5" :aria-label="t('board.column.actions')" :class="col.color && 'text-inherit hover:bg-black/10'" />
-                </UDropdownMenu>
+                  <UTooltip v-if="col.wipLimit" :text="wipState(col) === 'over' ? t('board.column.overWip', { limit: col.wipLimit }) : t('board.column.wip', { limit: col.wipLimit })">
+                    <UBadge
+                      :color="wipState(col) === 'over' ? 'error' : wipState(col) === 'full' ? 'warning' : 'neutral'"
+                      :variant="wipState(col) === 'over' ? 'solid' : 'soft'"
+                      size="sm"
+                      class="@min-[15rem]:hidden"
+                      :label="`${lists[col.id]?.length ?? 0}/${col.wipLimit}`"
+                    />
+                  </UTooltip>
+                  <UBadge v-else color="neutral" variant="soft" size="sm" class="@min-[15rem]:hidden" :label="String(lists[col.id]?.length ?? 0)" />
+                  <ColumnDescription v-if="col.description" :title="col.title" :description="col.description" :coloured="!!col.color" />
+                  <UTooltip v-if="col.rules.length" :text="t('board.column.ruleCount', { count: col.rules.length }, col.rules.length)">
+                    <span class="inline-flex items-center gap-0.5 text-xs font-medium tabular-nums">
+                      <UIcon name="i-lucide-zap" class="size-3.5 shrink-0" />{{ col.rules.length }}
+                    </span>
+                  </UTooltip>
+                  <UTooltip v-if="columnPoints(col) !== null" :text="filtering ? t('board.column.pointsShown', { points: formatPoints(columnPoints(col)!, i18n) }) : formatPoints(columnPoints(col)!, i18n)">
+                    <span class="inline-flex items-center gap-0.5 text-xs font-medium tabular-nums">
+                      <UIcon name="i-lucide-sigma" class="size-3.5 shrink-0" />{{ columnPoints(col) }}
+                    </span>
+                  </UTooltip>
+                  <UTooltip v-if="columnTime(col)" :text="t(filtering ? 'board.column.timeShown' : 'board.column.timeLogged', { time: formatDuration(columnTime(col), t) })">
+                    <span class="inline-flex items-center gap-0.5 text-xs font-medium tabular-nums">
+                      <UIcon name="i-lucide-timer" class="size-3.5 shrink-0" />{{ formatDuration(columnTime(col), t) }}
+                    </span>
+                  </UTooltip>
+                </div>
                 <!-- On a coloured header the chips sit on a translucent strip so chips of the column's own colour stay visible. -->
                 <div
                   v-if="columnChips(col).length"
-                  class="basis-full flex flex-wrap items-center gap-1"
+                  class="flex flex-wrap items-center gap-1"
                   :class="col.color ? '-mx-1.5 mt-0.5 px-1.5 py-1.5 rounded-md bg-default/60' : 'border-t border-current/15 pt-1.5'"
                 >
                   <UTooltip v-for="g in columnChips(col)" :key="g.id" :disabled="labels.groupNames" :text="g.name">
