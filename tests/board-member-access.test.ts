@@ -122,6 +122,18 @@ describe('board member access', () => {
     await rejectsWith(insert(hiddenCol), '42501')
   })
 
+  // INSERT ... RETURNING also checks cards_select on the new row (the API's
+  // card POST and app.copy_card both read the id back).
+  it('reads back a card it creates (insert ... returning, copy_card)', async () => {
+    const [row] = await as(editor.id, sql => sql`insert into cards (board_id, column_id, title, position, created_by)
+      values (${boardId}, ${openCol}, 'Returned', 10, ${editor.id}) returning id`)
+    expect(row!.id).toBeTruthy()
+    const template = await as(boardOwner.id, async sql => (await sql`insert into cards (board_id, column_id, title, position, created_by, is_template)
+      values (${boardId}, ${openCol}, 'Template', 11, ${boardOwner.id}, true) returning id`)[0]!.id as string)
+    const [copy] = await as(editor.id, sql => sql`select app.copy_card(${template}, ${openCol}, false, false) as id`)
+    expect(copy!.id).toBeTruthy()
+  })
+
   it('moves cards only into editable columns', async () => {
     await rejectsWith(as(editor.id, sql => sql`update cards set column_id = ${roCol} where id = ${openCard}`), '42501')
     await rejectsWith(as(editor.id, sql => sql`update cards set column_id = ${roCol} where id = ${pickedCard}`), '42501')
