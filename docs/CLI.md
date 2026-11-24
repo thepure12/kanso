@@ -83,6 +83,10 @@ Options:
 | `--timeout <minutes>` | Stop a run after this long (SIGTERM to its process group, SIGKILL 10 s later) |
 | `--claude` | Run `claude -p` (see below) instead of `--cmd` |
 | `--prompt <text>` | With `--claude`: the instructions part of the prompt |
+| `--permission-mode <mode>` | With `--claude`: `claude --permission-mode` (e.g. `auto`, `acceptEdits`); Claude keeps its usual tools besides the board |
+| `--worktree <repo>` | With `--claude`: run each card in its own git worktree of `<repo>` (see below) |
+| `--setup "<command>"` | With `--claude`: shell command run in the worktree (or working directory) before Claude; when it fails, Claude does not run |
+| `--log-time` | With `--claude`: log each run's duration on the card as a time entry |
 | `--json` | Log lines as JSON on stdout instead of text on stderr |
 
 The runner's own requests (status comments, marking notifications read) carry `x-client-id: kanso-agent`, and the
@@ -121,15 +125,44 @@ is refused in this mode (the rules set it). Rules are not copied with the board 
 `--claude` runs, per event:
 
 ```bash
-claude -p "<prompt>" --mcp-config <file> --allowedTools mcp__kanso   # card JSON on stdin
+claude -p "<prompt>" --mcp-config <file> --strict-mcp-config --allowedTools mcp__kanso   # card JSON on stdin
 ```
 
 The MCP config points at `<site>/api/mcp` with the runner's token (written to a temporary file only you can read,
-removed when the runner stops). The prompt names the event, board, card, column and link, says that the kanso MCP
-tools read and change the board, and ends with the instructions: `--prompt`, else "do what the card asks, then
-comment with a summary; ask in a comment when unclear". `KANSO_CLAUDE_BIN` sets the binary (default `claude`). Use
-`--cmd` for anything else (other flags, a git worktree per card, ...): the git and worktree flow belongs in your own
-script.
+removed when the runner stops); `--strict-mcp-config` keeps a `kanso` server of your own Claude config from taking
+its place. The prompt names the event, board, card, column and link, says that the kanso MCP tools read and change
+the board, and ends with the instructions: the agent rule's, else `--prompt`, else "do what the card asks, then
+comment with a summary; ask in a comment when unclear". `KANSO_CLAUDE_BIN` sets the binary (default `claude`).
+
+Without `--permission-mode` Claude may only use the board's tools. With it (`--permission-mode auto`, ...) the
+`--allowedTools` limit goes and Claude also edits files, runs commands and so on, as that mode allows.
+
+The card's attachments are downloaded before each run (into the runner's temporary directory) and listed in the
+prompt with their local paths, so Claude reads them without fetching them with the token.
+
+#### A git worktree per card
+
+`--worktree <repo>` makes the runner a coding worker: each card runs in `<repo>/.claude/worktrees/card-<id8>` on
+the branch `card/<id8>-<title>` (lower case, at most 40 characters), started from the branch the main checkout of
+`<repo>` is on. Later runs on the same card reuse the worktree, or the card's `card/<id8>-*` branch in a new
+worktree when it was removed (also after the title changed), so a card that went back for changes continues where
+it stopped. The prompt names the worktree, the branch and the main checkout; the run also gets `KANSO_WORKTREE` and
+`KANSO_BRANCH`. The runner never commits, merges, pushes or removes worktrees: say what should happen to the branch
+in the instructions (commit, comment the branch, merge on approval, ...).
+
+`--setup "<command>"` runs (`sh -c`, same environment) in the worktree before Claude, e.g. to install dependencies;
+if it fails, Claude does not run and the run fails with that reason (in the status comment when `--comment` or the
+rule asks for one). `--timeout` covers setup and Claude together. `--log-time` logs each run's wall-clock minutes
+(rounded up) as a time entry on the card, `kanso agent: agent rule "<name>" (exit 0)`.
+
+```bash
+# Claude implements cards of the board's agent rules, one branch per card, five at a time.
+kanso agent install --name claude --board Kanso --claude --permission-mode auto \
+  --worktree ~/work/repo --setup "cp ~/work/repo/.env . && pnpm install --frozen-lockfile" \
+  --log-time --concurrency 5 --timeout 120
+```
+
+Use `--cmd` for anything else: your own script gets the same variables and the card JSON.
 
 ### Examples
 

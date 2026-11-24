@@ -1,7 +1,8 @@
 // The kanso CLI (cli/) against a real server: login and whoami with API tokens, then the board,
 // card, comment, my-work, notification and search commands, and agent run, run in-process through
 // `run` with a temporary config file and the global fetch.
-import { mkdtemp, readdir, readFile, rm } from 'node:fs/promises'
+import { execFileSync } from 'node:child_process'
+import { chmod, mkdir, mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { randomUUID } from 'node:crypto'
@@ -321,6 +322,88 @@ describe('kanso agent run against the API', () => {
     expect(messages.filter(m => m.startsWith('run '))).toHaveLength(1)
     expect(messages.some(m => m.includes('no active agent rules'))).toBe(true)
     expect((await alice.req(`/api/agent-rules/${rule.id}`, { method: 'DELETE' })).ok).toBe(true)
+  })
+
+  it('runs --claude in a git worktree per card, after --setup, with the attachments and a time entry', async () => {
+    const board = await (await alice.req('/api/boards', { method: 'POST', body: { name: 'Worktree board' } })).json() as { id: string }
+    const detail = await (await alice.req(`/api/boards/${board.id}`)).json() as BoardDetail
+    const todo = detail.columns.find(c => c.title === 'To do')!
+    const out = await mkdtemp(join(dir, 'claude-'))
+    const repo = join(out, 'repo')
+    const git = (...args: string[]) => execFileSync('git', ['-C', repo, ...args], { stdio: 'pipe' })
+    await mkdir(repo)
+    execFileSync('git', ['init', '-q', '-b', 'main', repo])
+    git('-c', 'user.email=t@k.test', '-c', 'user.name=T', 'commit', '-q', '--allow-empty', '-m', 'init')
+    // A fake claude: writes where it ran, its arguments and its environment.
+    const fake = join(out, 'claude')
+    await writeFile(fake, '#!/bin/sh\n{ pwd; echo "$KANSO_BRANCH"; ls; printf "%s\\n" "$@"; } > "$OUT/run-$KANSO_CARD_ID.txt"\n')
+    await chmod(fake, 0o755)
+    const { token } = await alice.token(['read', 'write'])
+    const env = { KANSO_URL: base, KANSO_TOKEN: token, OUT: out, KANSO_CLAUDE_BIN: fake }
+    const stop = new AbortController()
+    const running = cli(['agent', 'run', '--board', board.id, '--columns', 'To do', '--claude', '--permission-mode', 'auto',
+      '--worktree', repo, '--setup', 'touch setup-ran', '--log-time', '--comment', 'failure', '--json'], env, stop.signal)
+    await new Promise(r => setTimeout(r, 500))
+    // A card with an attachment, moved into "To do" (created elsewhere, so the upload is there first).
+    const doing = detail.columns.find(c => c.title === 'In progress')!
+    const cardId = (await (await alice.req(`/api/boards/${board.id}/cards`, { method: 'POST', body: { columnId: doing.id, title: 'Fix the Login page!' } })).json() as { id: string }).id
+    const form = new FormData()
+    form.append('file', new Blob(['hello'], { type: 'text/plain' }), 'notes v1.txt')
+    const upload = await globalThis.fetch(`${base}/api/cards/${cardId}/attachments`, { method: 'POST', headers: { cookie: alice.cookie, 'x-forwarded-for': randomIp() }, body: form })
+    expect(upload.ok).toBe(true)
+    const [attachment] = await upload.json() as { id: string }[]
+    expect((await alice.req(`/api/cards/${cardId}/move`, { method: 'POST', body: { columnId: todo.id, aboveId: null, belowId: null } })).ok).toBe(true)
+
+    const runFile = join(out, `run-${cardId}.txt`)
+    await until(async () => (await readdir(out)).includes(`run-${cardId}.txt`))
+    const wt = join(repo, '.claude', 'worktrees', `card-${cardId.slice(0, 8)}`)
+    const lines = (await readFile(runFile, 'utf8')).split('\n')
+    const branch = `card/${cardId.slice(0, 8)}-fix-the-login-page`
+    expect(lines[0]).toBe(wt)
+    expect(lines[1]).toBe(branch)
+    expect(lines).toContain('setup-ran')
+    // The prompt spans lines; the options follow it.
+    const args = lines.slice(lines.indexOf('--mcp-config'))
+    expect(args.slice(0, 5)).toEqual(['--mcp-config', expect.stringMatching(/mcp\.json$/), '--strict-mcp-config', '--permission-mode', 'auto'])
+    expect(args).not.toContain('--allowedTools')
+    const prompt = (await readFile(runFile, 'utf8')).split('\n-p\n')[1]!
+    expect(prompt).toContain(`on branch ${branch} (started from main)`)
+    expect(prompt).toMatch(new RegExp(`attachments/${cardId}/${attachment!.id.slice(0, 8)}-notes_v1\\.txt \\(text/plain; attachment:${attachment!.id}, "notes v1\\.txt"\\)`))
+    expect(git('branch', '--list', 'card/*').toString()).toContain(branch)
+    // The run's time is logged on the card.
+    await until(async () => ((await (await alice.req(`/api/cards/${cardId}`)).json()) as CardDetail).timeEntries.length === 1)
+    const entry = ((await (await alice.req(`/api/cards/${cardId}`)).json()) as CardDetail).timeEntries[0]!
+    expect(entry).toMatchObject({ minutes: 1, note: 'kanso agent: moved (exit 0)' })
+    stop.abort()
+    expect((await running).code).toBe(0)
+
+    // A failing --setup stops the run before Claude, and the status comment says why; the worktree is reused.
+    await rm(runFile)
+    const stop2 = new AbortController()
+    const again = cli(['agent', 'run', '--board', board.id, '--columns', 'To do', '--claude', '--worktree', repo, '--setup', 'exit 3',
+      '--comment', 'failure'], env, stop2.signal)
+    await new Promise(r => setTimeout(r, 500))
+    expect((await alice.req(`/api/cards/${cardId}/move`, { method: 'POST', body: { columnId: doing.id, aboveId: null, belowId: null } })).ok).toBe(true)
+    expect((await alice.req(`/api/cards/${cardId}/move`, { method: 'POST', body: { columnId: todo.id, aboveId: null, belowId: null } })).ok).toBe(true)
+    await until(async () => ((await (await alice.req(`/api/cards/${cardId}`)).json()) as CardDetail).comments.length === 1)
+    const comment = ((await (await alice.req(`/api/cards/${cardId}`)).json()) as CardDetail).comments[0]!
+    expect(comment.body).toContain('failed with exit code 3')
+    expect(comment.body).toContain('--setup failed (exit 3); Claude did not run.')
+    expect((await readdir(out)).includes(`run-${cardId}.txt`)).toBe(false)
+    stop2.abort()
+    const result = await again
+    expect(result.err).toContain(`reusing worktree ${wt} on ${branch}`)
+  })
+
+  it('refuses --claude options without --claude, and a --worktree that is not a repository', async () => {
+    const { token } = await alice.token(['read'])
+    const env = { KANSO_URL: base, KANSO_TOKEN: token }
+    const r = await cli(['agent', 'run', '--notifications', '--cmd', 'true', '--log-time'], env)
+    expect(r.code).toBe(2)
+    expect(r.err).toContain('--log-time goes with --claude.')
+    const notRepo = await cli(['agent', 'run', '--notifications', '--claude', '--worktree', dir], env)
+    expect(notRepo.code).toBe(2)
+    expect(notRepo.err).toContain('is not a git repository')
   })
 
   it('refuses a board the token cannot see', async () => {

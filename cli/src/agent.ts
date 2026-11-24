@@ -101,6 +101,8 @@ export interface ExecResult {
   code: number | null
   signal: string | null
   timedOut: boolean
+  /** Why the run failed before or around the command (worktree, --setup), for the log and the status comment. */
+  error?: string
 }
 
 export interface AgentDeps {
@@ -161,7 +163,7 @@ export function statusComment(job: Job, result: ExecResult, seconds: number): st
         ? `was killed (${result.signal ?? 'signal'})`
         : `failed with exit code ${result.code}`
   const rule = job.rule ? ` (agent rule "${job.rule.name}")` : ''
-  return `kanso agent: the run for **${job.event}**${rule} ${how} after ${seconds} s.`
+  return `kanso agent: the run for **${job.event}**${rule} ${how} after ${seconds} s.${result.error ? `\n\n${result.error}` : ''}`
 }
 
 /**
@@ -281,7 +283,7 @@ export async function runAgent(o: AgentOptions, deps: AgentDeps): Promise<void> 
       const result = await deps.exec(job, env, `${JSON.stringify(context)}\n`, context)
       const seconds = Math.round((Date.now() - started) / 1000)
       const ok = result.code === 0 && !result.timedOut
-      log(`done ${job.event} on card ${job.cardId}: ${ok ? 'ok' : result.timedOut ? 'timed out' : `exit ${result.code ?? result.signal}`} after ${seconds} s`, {
+      log(`done ${job.event} on card ${job.cardId}: ${ok ? 'ok' : result.timedOut ? 'timed out' : `exit ${result.code ?? result.signal}`} after ${seconds} s${result.error ? ` (${result.error})` : ''}`, {
         card: job.cardId, event: job.event, code: result.code, signal: result.signal, timedOut: result.timedOut, seconds,
       })
       if (ok && rule?.moveColumnId) await moveToEnd(job.cardId, job.boardId, rule.moveColumnId)

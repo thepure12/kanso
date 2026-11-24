@@ -1,12 +1,15 @@
-import { spawn } from 'node:child_process'
+import { execFile, spawn } from 'node:child_process'
 import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
-import { dirname, join } from 'node:path'
+import { dirname, join, resolve } from 'node:path'
 import type { BoardDetail } from '../../../shared/types/board.ts'
-import { AGENT_CLIENT_ID, type AgentOptions, type CardContext, type ExecResult, runAgent } from '../agent.ts'
+import { AGENT_CLIENT_ID, type AgentDeps, type AgentOptions, type CardContext, type ExecResult, runAgent } from '../agent.ts'
 import {
   agentUnitPaths, checkAgentName, checkWorkdir, envFile, fileExists, findProgram, maskToken, unitFile, unitPath, writeFileAtomic,
 } from '../agentInstall.ts'
+import {
+  type CardWorktree, claudeArgs, downloadAttachments, type Git, localDate, prepareWorktree, timeEntry, workSection,
+} from '../claudeWork.ts'
 import { type Client, createClient } from '../client.ts'
 import { type Credentials, loadConfig, resolveCredentials } from '../config.ts'
 import { CliError, UsageError } from '../io.ts'
@@ -41,7 +44,7 @@ const defaultInstructions = 'Do what the card asks (for a notification: what the
   + 'When you are done, comment on the card with a short summary of what you did. If something is unclear, ask in a comment instead of guessing.'
 
 /** The prompt of the --claude preset. */
-export function claudePrompt(ctx: CardContext, instructions?: string): string {
+export function claudePrompt(ctx: CardContext, instructions?: string, work = ''): string {
   const n = ctx.event.notification
   const rule = ctx.rule ? `\nAgent rule: ${ctx.rule.name} (set on the board; its instructions follow)` : ''
   const event = n
@@ -57,7 +60,7 @@ Link: ${ctx.card.url}${rule}
 The card is on stdin as JSON: {event, board, column, card, detail} (detail has checklists, comments, links and activity).
 Use the kanso MCP tools to read and change the board (get_card with boardId and cardId, add_comment, update_card,
 move_card, ...). You act as the token's user and only see and change what it may.
-
+${work ? `\n${work}\n` : ''}
 ${ctx.rule?.instructions.trim() || instructions?.trim() || defaultInstructions}
 `
 }
@@ -76,6 +79,10 @@ export const agent: Command = {
     cmd: { type: 'string', value: '<command>', description: 'Shell command (sh -c) per event: KANSO_* variables, card JSON on stdin' },
     claude: { type: 'boolean', description: 'Run "claude -p" with this site\'s MCP server and a prompt built from the card' },
     prompt: { type: 'string', value: '<text>', description: 'With --claude: instructions instead of the default ("do what the card asks, then comment"); agent rules bring their own' },
+    'permission-mode': { type: 'string', value: '<mode>', description: 'With --claude: claude\'s --permission-mode (e.g. auto, acceptEdits); Claude then keeps its usual tools besides the board' },
+    worktree: { type: 'string', value: '<repo>', description: 'With --claude: run each card in its own git worktree of <repo> (.claude/worktrees/card-<id8>, branch card/<id8>-<title>), reused by later runs' },
+    setup: { type: 'string', value: '<command>', description: 'With --claude: shell command run in the worktree (or working directory) before Claude, e.g. installing dependencies' },
+    'log-time': { type: 'boolean', description: 'With --claude: log each run\'s duration as a time entry on the card' },
     concurrency: { type: 'string', value: '<n>', description: 'Runs at once, 1-32 (default 1); never two on the same card' },
     comment: { type: 'string', value: '<when>', description: 'Comment the exit status on the card: never (default), failure, always (agent rules set their own)' },
     timeout: { type: 'string', value: '<minutes>', description: 'Stop a run after this long (SIGTERM, then SIGKILL after 10 s)' },
@@ -121,7 +128,10 @@ Examples:
     }
     const prepared = await prepareRun(ctx)
     if (sub === 'install') return installAgent(ctx, prepared)
-    const { creds, client, boards, boardIds, columnIds, activity, notifications, rulesMode, rulesFor, cmd, concurrency, comment, timeoutMs } = prepared
+    const {
+      creds, client, boards, boardIds, columnIds, activity, notifications, rulesMode, rulesFor, cmd, concurrency, comment, timeoutMs,
+      worktree, setup, permissionMode, logTime,
+    } = prepared
     const v = ctx.values
 
     const log = (message: string, fields: Record<string, unknown> = {}) => {
@@ -132,17 +142,58 @@ Examples:
     const signal = ctx.io.signal ?? new AbortController().signal
     let mcpDir: string | null = null
     try {
-      let command: (context: CardContext) => { file: string, args: string[] }
+      let exec: AgentDeps['exec']
       if (v.claude) {
         // The token goes into a file only the user can read, not onto the command line (ps).
-        mcpDir = await mkdtemp(join(tmpdir(), 'kanso-agent-'))
-        const mcpConfig = join(mcpDir, 'mcp.json')
+        const tmp = await mkdtemp(join(tmpdir(), 'kanso-agent-'))
+        mcpDir = tmp
+        const mcpConfig = join(tmp, 'mcp.json')
         await writeFile(mcpConfig, JSON.stringify({ mcpServers: { kanso: { type: 'http', url: `${creds.url}/api/mcp`, headers: { Authorization: `Bearer ${creds.token}` } } } }), { mode: 0o600 })
         const bin = ctx.io.env.KANSO_CLAUDE_BIN || 'claude'
         const prompt = typeof v.prompt === 'string' ? v.prompt : undefined
-        command = context => ({ file: bin, args: ['-p', claudePrompt(context, prompt), '--mcp-config', mcpConfig, '--allowedTools', 'mcp__kanso'] })
+        const getBytes = async (path: string) => {
+          const res = await ctx.io.fetch(creds.url + path, { headers: { 'authorization': `Bearer ${creds.token}`, 'x-client-id': AGENT_CLIENT_ID } })
+          if (!res.ok) throw new Error(`GET ${path} failed with ${res.status}`)
+          return new Uint8Array(await res.arrayBuffer())
+        }
+        // One `git worktree add` at a time: concurrent ones in the same repository can trip over git's locks.
+        let gitQueue: Promise<unknown> = Promise.resolve()
+        exec = async (job, env, stdin, context) => {
+          const started = new Date()
+          const deadline = timeoutMs > 0 ? started.getTime() + timeoutMs : 0
+          const left = () => deadline ? Math.max(1, deadline - Date.now()) : 0
+          let result: ExecResult
+          try {
+            let wt: CardWorktree | null = null
+            if (worktree) {
+              const step = gitQueue.then(() => prepareWorktree(worktree, job.cardId, context.card.title, runGit, fileExists))
+              gitQueue = step.catch(() => {})
+              wt = await step
+              log(`card ${job.cardId}: ${wt.reused ? 'reusing' : 'created'} worktree ${wt.dir} on ${wt.branch}`, { card: job.cardId, worktree: wt.dir, branch: wt.branch })
+            }
+            const runEnv = { ...ctx.io.env, ...env, ...(wt && { KANSO_WORKTREE: wt.dir, KANSO_BRANCH: wt.branch }) }
+            const cwd = wt?.dir
+            const prepared = setup ? await execCommand('/bin/sh', ['-c', setup], runEnv, '', left(), signal, cwd) : null
+            if (prepared && (prepared.code !== 0 || prepared.timedOut)) {
+              result = { ...prepared, error: `--setup failed (${prepared.timedOut ? 'timed out' : `exit ${prepared.code ?? prepared.signal}`}); Claude did not run.` }
+            } else {
+              const files = await downloadAttachments(context.detail.attachments ?? [], join(tmp, 'attachments', job.cardId), getBytes,
+                (a, err) => log(`could not download attachment "${a.name}" (${a.id}) of card ${job.cardId}: ${err.message}`, { card: job.cardId }))
+              const args = claudeArgs(claudePrompt(context, prompt, workSection(wt, files)), mcpConfig, permissionMode)
+              result = await execCommand(bin, args, runEnv, stdin, left(), signal, cwd)
+            }
+          } catch (err) {
+            result = { code: 1, signal: null, timedOut: false, error: (err as Error).message }
+          }
+          if (logTime) {
+            const outcome = result.timedOut ? 'timed out' : result.error ? 'failed' : `exit ${result.code ?? result.signal}`
+            await client.post(`/api/cards/${job.cardId}/time`, timeEntry(context, Date.now() - started.getTime(), localDate(started), outcome))
+              .catch((err: unknown) => log(`could not log time on card ${job.cardId}: ${(err as Error).message}`, { card: job.cardId }))
+          }
+          return result
+        }
       } else {
-        command = () => ({ file: '/bin/sh', args: ['-c', cmd] })
+        exec = (_job, env, stdin) => execCommand('/bin/sh', ['-c', cmd], { ...ctx.io.env, ...env }, stdin, timeoutMs, signal)
       }
 
       const options: AgentOptions = {
@@ -168,10 +219,7 @@ Examples:
           }
           s.addEventListener('abort', done, { once: true })
         }),
-        exec: (_job, env, stdin, context) => {
-          const { file, args } = command(context)
-          return execCommand(file, args, { ...ctx.io.env, ...env }, stdin, timeoutMs, signal)
-        },
+        exec,
       })
       log('stopped')
     } finally {
@@ -182,6 +230,17 @@ Examples:
 
 /** Options only `kanso agent install` / `uninstall` take. */
 const installOnly = ['name', 'workdir', 'dry-run'] as const
+
+/** Options that only go with --claude. */
+const claudeOnly = ['prompt', 'permission-mode', 'worktree', 'setup', 'log-time'] as const
+
+/** Runs git without a shell and collects its output. */
+const runGit: Git = args => new Promise((done) => {
+  execFile('git', args, { maxBuffer: 4 * 1024 * 1024 }, (err, stdout, stderr) => {
+    const code = err ? (typeof (err as { code?: unknown }).code === 'number' ? (err as unknown as { code: number }).code : null) : 0
+    done({ code, stdout: String(stdout), stderr: String(stderr) || (err && code === null ? err.message : '') })
+  })
+})
 
 type Me = { id: string, name: string, isBot: boolean }
 
@@ -202,6 +261,11 @@ export interface PreparedRun {
   concurrency: number
   comment: AgentOptions['comment']
   timeoutMs: number
+  /** --worktree: the repository's main checkout, absolute. */
+  worktree: string | null
+  setup: string
+  permissionMode: string | undefined
+  logTime: boolean
 }
 
 async function prepareRun(ctx: Context): Promise<PreparedRun> {
@@ -218,7 +282,18 @@ async function prepareRun(ctx: Context): Promise<PreparedRun> {
     if (activity.length && !boardRefs.length) throw new UsageError('--activity and --columns need --board.')
     const cmd = typeof v.cmd === 'string' ? v.cmd.trim() : ''
     if (!cmd === !v.claude) throw new UsageError('Give either --cmd "<command>" or --claude.')
-    if (v.prompt !== undefined && !v.claude) throw new UsageError('--prompt goes with --claude.')
+    for (const k of claudeOnly) if (v[k] !== undefined && !v.claude) throw new UsageError(`--${k} goes with --claude.`)
+    const permissionMode = typeof v['permission-mode'] === 'string' ? v['permission-mode'].trim() : undefined
+    if (permissionMode !== undefined && !/^[A-Za-z]{1,40}$/.test(permissionMode)) throw new UsageError('--permission-mode takes a claude permission mode, e.g. auto or acceptEdits.')
+    const setup = typeof v.setup === 'string' ? v.setup.trim() : ''
+    if (v.setup !== undefined && !setup) throw new UsageError('--setup needs a command.')
+    let worktree: string | null = null
+    if (typeof v.worktree === 'string') {
+      const dir = resolve(ctx.io.self?.cwd ?? process.cwd(), v.worktree)
+      const r = await runGit(['-C', dir, 'rev-parse', '--path-format=absolute', '--git-common-dir'])
+      if (r.code !== 0) throw new UsageError(`--worktree: ${dir} is not a git repository.`)
+      worktree = r.stdout.trim().replace(/\/\.git\/?$/, '')
+    }
     const concurrency = v.concurrency === undefined ? 1 : Number(v.concurrency)
     if (!Number.isInteger(concurrency) || concurrency < 1 || concurrency > 32) throw new UsageError('--concurrency takes a whole number from 1 to 32.')
     const comment = (v.comment ?? 'never') as string
@@ -241,7 +316,7 @@ async function prepareRun(ctx: Context): Promise<PreparedRun> {
     }
   return {
     creds, client, boards, boardIds, columnIds, columnNames, activity, notifications, rulesMode, rulesFor, me, cmd, concurrency,
-    comment: comment as AgentOptions['comment'], timeoutMs,
+    comment: comment as AgentOptions['comment'], timeoutMs, worktree, setup, permissionMode, logTime: v['log-time'] === true,
   }
 }
 
@@ -255,6 +330,10 @@ export function runArgsFor(p: PreparedRun, v: Context['values']): string[] {
   if (p.cmd) args.push('--cmd', p.cmd)
   else args.push('--claude')
   if (typeof v.prompt === 'string') args.push('--prompt', v.prompt)
+  if (p.permissionMode) args.push('--permission-mode', p.permissionMode)
+  if (p.worktree) args.push('--worktree', p.worktree)
+  if (p.setup) args.push('--setup', p.setup)
+  if (p.logTime) args.push('--log-time')
   if (p.concurrency !== 1) args.push('--concurrency', String(p.concurrency))
   if (v.comment !== undefined) args.push('--comment', p.comment)
   if (v.timeout !== undefined) args.push('--timeout', String(v.timeout))
@@ -385,9 +464,9 @@ The token still works: revoke it in Kanso if nothing else uses it.
  * files a line under the process that wrote it, and a short run has exited before journald looks
  * it up, so inherited output would land outside the unit's log (journalctl -u).
  */
-function execCommand(file: string, args: string[], env: Record<string, string | undefined>, stdin: string, timeoutMs: number, stop: AbortSignal): Promise<ExecResult> {
+function execCommand(file: string, args: string[], env: Record<string, string | undefined>, stdin: string, timeoutMs: number, stop: AbortSignal, cwd?: string): Promise<ExecResult> {
   return new Promise((resolve, reject) => {
-    const child = spawn(file, args, { env, stdio: ['pipe', 'pipe', 'pipe'], detached: true })
+    const child = spawn(file, args, { env, cwd, stdio: ['pipe', 'pipe', 'pipe'], detached: true })
     child.stdout!.on('data', (chunk: Buffer) => process.stdout.write(chunk))
     child.stderr!.on('data', (chunk: Buffer) => process.stderr.write(chunk))
     let timedOut = false

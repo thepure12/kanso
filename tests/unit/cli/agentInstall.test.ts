@@ -1,3 +1,4 @@
+import { execFileSync } from 'node:child_process'
 import { chmod, mkdir, mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -91,6 +92,14 @@ describe('kanso agent install', () => {
     expect(h.out()).toContain('journalctl --user -u kanso-agent-triage -f')
     expect(h.out()).toContain('loginctl enable-linger tj')
     expect(h.err()).toBe('')
+  })
+
+  it('keeps the --claude work options in the unit', async () => {
+    const h = harness()
+    execFileSync('git', ['init', '-q', join(dir, 'repo')])
+    expect(await h.cli('agent', 'install', '--dry-run', '--board', 'Kanso', '--claude', '--permission-mode', 'auto', '--worktree', 'repo',
+      '--setup', 'cp ../../../.env . && pnpm install', '--log-time')).toBe(0)
+    expect(h.out()).toContain(`agent run --board ${B} --claude --permission-mode auto --worktree ${join(dir, 'repo')} --setup "cp ../../../.env . && pnpm install" --log-time\n`)
   })
 
   it('previews without writing, and never prints the token', async () => {
