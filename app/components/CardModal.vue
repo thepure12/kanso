@@ -119,7 +119,9 @@ const form = reactive({
   estimate: '',
 })
 // Reset only when the dialog opens or shows another card, so a board reload keeps the draft.
-watch(() => [open.value, props.card.id] as const, ([isOpen]) => {
+// Separate sources, not a getter returning an array: that array is new on every
+// run, so any new card object (a reload after someone else's move) reset the form.
+watch([open, () => props.card.id], ([isOpen]) => {
   if (!isOpen) return
   const c = props.card
   Object.assign(form, {
@@ -157,7 +159,7 @@ const canMove = computed(() => props.canEdit && props.cards.some(c => c.id === p
 
 const cardId = computed(() => props.card.id)
 const cd = useCardDetail(cardId)
-watch(() => [open.value, props.card.id, props.remoteVersion] as const, ([isOpen]) => {
+watch([open, () => props.card.id, () => props.remoteVersion], ([isOpen]) => {
   if (isOpen) cd.load()
 }, { immediate: true })
 
