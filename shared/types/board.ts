@@ -325,6 +325,12 @@ export interface Card {
   fields: Record<string, FieldValue>
   /** Board and column automations leave the card alone (its own automations and scheduled actions still run). */
   skipAutomations?: boolean
+  /** Who created the card; null once their account is gone (or for automations without a person). */
+  createdBy: string | null
+  /** The creator's name, null when they are gone or no longer visible to the caller. */
+  createdByName: string | null
+  /** ISO time the card was created. */
+  createdAt: string
 }
 
 /**

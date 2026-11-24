@@ -6,7 +6,8 @@ import type { BoardField, Card, Column, Member } from '#shared/types/board'
 const card = (id: string, over: Partial<Card> = {}): Card => ({
   id, columnId: 'c1', title: `Card ${id}`, description: '', position: 1,
   assigneeIds: [], tagIds: [], startDate: null, dueDate: null, priority: null, estimate: null, coverAttachmentId: null,
-  checklist: { done: 0, total: 0 }, commentCount: 0, attachmentCount: 0, timeMinutes: 0, watching: false, blockerIds: [], fields: {}, ...over,
+  checklist: { done: 0, total: 0 }, commentCount: 0, attachmentCount: 0, timeMinutes: 0, watching: false, blockerIds: [], fields: {},
+  createdBy: null, createdByName: null, createdAt: '2026-10-01T12:00:00.000Z', ...over,
 })
 const columns: Column[] = [
   { id: 'c1', title: 'To do', position: 1, color: null, wipLimit: null, rules: [] },
@@ -18,7 +19,7 @@ const fields: BoardField[] = [
   { id: 'f2', name: 'Secret', kind: 'text', options: [], position: 2, showOnCard: false },
 ]
 const cards = [
-  card('b', { priority: 'low', estimate: 2, timeMinutes: 90, assigneeIds: ['u1'], fields: { f1: 'Acme', f2: 'hidden' } }),
+  card('b', { createdBy: 'u9', createdByName: 'Carol', priority: 'low', estimate: 2, timeMinutes: 90, assigneeIds: ['u1'], fields: { f1: 'Acme', f2: 'hidden' } }),
   card('a', { priority: 'urgent', columnId: 'c2', dueDate: '2026-10-01' }),
 ]
 const mount = (canEdit = true, selectedIds = new Set<string>()) =>
@@ -37,6 +38,8 @@ describe('BoardListView', () => {
     expect(text).toContain('1h 30m')
     expect(text).toContain('Alice')
     expect(text).toContain('Urgent')
+    expect(text).toContain('Created by')
+    expect(text).toContain('Carol')
   })
 
   it('sorts by a column header: ascending, descending, then board order', async () => {

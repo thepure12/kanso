@@ -278,6 +278,14 @@ describe('cards', () => {
     expect((await alice.req(`/api/cards/${card.id}`, { method: 'PATCH', body: { priority: 'meh' } })).status).toBe(400)
   })
 
+  it('names the creator of a card', async () => {
+    const card = await newCard('Made by Alice')
+    expect(card).toMatchObject({ createdBy: userId('Alice'), createdByName: 'Alice' })
+    expect(new Date(card.createdAt).toISOString()).toBe(card.createdAt)
+    const listed = (await bob.req<BoardDetail>(`/api/boards/${boardId}`)).data.cards.find(c => c.id === card.id)
+    expect(listed).toMatchObject({ createdBy: userId('Alice'), createdByName: 'Alice', createdAt: card.createdAt })
+  })
+
   it('accepts titles up to 1000 characters and names the problem past that', async () => {
     const card = await newCard('Long')
     const ok = await alice.req<Card>(`/api/cards/${card.id}`, { method: 'PATCH', body: { title: 'x'.repeat(1000) } })

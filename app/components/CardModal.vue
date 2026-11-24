@@ -86,7 +86,11 @@ const cardButtonItems = computed(() => (props.buttons ?? []).map(b => ({
   onUpdateChecked: (on: boolean) => emit('buttonOnCard', b, on),
   onSelect: (e: Event) => e.preventDefault(),
 })))
-const { t } = useI18n()
+const { t, locale } = useI18n()
+const createdText = computed(() => {
+  const date = formatDateTime(props.card.createdAt, locale.value)
+  return props.card.createdByName ? t('card.createdBy', { name: props.card.createdByName, date }) : t('card.createdOn', { date })
+})
 // Phones get a full-screen dialog with Save in a footer instead of at the end of the sidebar.
 const isMobile = useIsMobile()
 const choose = useChoice()
@@ -668,6 +672,9 @@ const tabs = computed(() => [
               <UButton color="error" variant="ghost" icon="i-lucide-trash" :label="t('common.delete')" class="justify-start" @click="emit('delete'); open = false" />
             </div>
           </template>
+          <p class="text-xs text-muted" data-testid="card-created">
+            {{ createdText }}
+          </p>
         </aside>
       </div>
     </template>

@@ -2,7 +2,7 @@ import { priorities, type BoardField, type Card, type Column, type Member, type 
 import { urlHost } from './fields'
 
 /** Sortable list view columns; `field:<id>` is a custom field. */
-export type CardSortKey = 'title' | 'column' | 'assignees' | 'tags' | 'priority' | 'start' | 'due' | 'estimate' | 'time' | `field:${string}`
+export type CardSortKey = 'title' | 'column' | 'assignees' | 'tags' | 'priority' | 'start' | 'due' | 'estimate' | 'time' | 'createdBy' | 'created' | `field:${string}`
 
 export interface CardSort {
   key: CardSortKey
@@ -33,6 +33,8 @@ function sortValue(card: Card, key: CardSortKey, ctx: CardSortContext): SortValu
     case 'due': return card.dueDate
     case 'estimate': return card.estimate
     case 'time': return card.timeMinutes || null
+    case 'createdBy': return card.createdByName
+    case 'created': return card.createdAt
     default: {
       const field = ctx.fields.find(f => f.id === key.slice(6))
       const value = field ? card.fields[field.id] : undefined

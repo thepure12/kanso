@@ -5,7 +5,8 @@ import { restoreOrder, sortByPriority, sortCards } from '../../app/utils/cardSor
 const card = (id: string, over: Partial<Card> = {}): Card => ({
   id, columnId: 'c1', title: id, description: '', position: 1,
   assigneeIds: [], tagIds: [], startDate: null, dueDate: null, priority: null, estimate: null, coverAttachmentId: null,
-  checklist: { done: 0, total: 0 }, commentCount: 0, attachmentCount: 0, timeMinutes: 0, watching: false, blockerIds: [], fields: {}, ...over,
+  checklist: { done: 0, total: 0 }, commentCount: 0, attachmentCount: 0, timeMinutes: 0, watching: false, blockerIds: [], fields: {},
+  createdBy: null, createdByName: null, createdAt: '2026-01-01T00:00:00.000Z', ...over,
 })
 const fields: BoardField[] = [
   { id: 'n', name: 'Amount', kind: 'number', options: [], position: 1, showOnCard: true },
@@ -48,6 +49,18 @@ describe('sortCards', () => {
     const cards = [card('a', { fields: { n: 10, s: 'a' } }), card('b', { fields: { n: -1, s: 'l' } }), card('c')]
     expect(ids(sortCards(cards, { key: 'field:n', desc: false }, ctx))).toEqual(['b', 'a', 'c'])
     expect(ids(sortCards(cards, { key: 'field:s', desc: false }, ctx))).toEqual(['b', 'a', 'c'])
+  })
+})
+
+describe('sortCards by creator', () => {
+  it('sorts by creator name and creation time', () => {
+    const cards = [
+      card('gone', { createdAt: '2026-03-01T00:00:00.000Z' }),
+      card('zed', { createdByName: 'Zed', createdAt: '2026-01-01T00:00:00.000Z' }),
+      card('amy', { createdByName: 'Amy', createdAt: '2026-02-01T00:00:00.000Z' }),
+    ]
+    expect(ids(sortCards(cards, { key: 'createdBy', desc: false }, ctx))).toEqual(['amy', 'zed', 'gone'])
+    expect(ids(sortCards(cards, { key: 'created', desc: true }, ctx))).toEqual(['gone', 'amy', 'zed'])
   })
 })
 

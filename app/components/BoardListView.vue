@@ -59,6 +59,8 @@ const tableColumns = computed<TableColumn<Card>[]>(() => [
   { id: 'due', header: sortHeader(t('listView.due'), 'due') },
   { id: 'estimate', header: sortHeader(t('listView.estimate'), 'estimate'), cell: ({ row }) => row.original.estimate === null ? null : row.original.estimate.toLocaleString(locale.value, { maximumFractionDigits: 2 }) },
   { id: 'time', header: sortHeader(t('listView.time'), 'time'), cell: ({ row }) => row.original.timeMinutes ? formatDuration(row.original.timeMinutes, t) : null },
+  { id: 'createdBy', header: sortHeader(t('listView.createdBy'), 'createdBy'), cell: ({ row }) => row.original.createdByName },
+  { id: 'created', header: sortHeader(t('listView.created'), 'created'), cell: ({ row }) => new Date(row.original.createdAt).toLocaleDateString(locale.value, { dateStyle: 'medium' }) },
   ...shownFields.value.map((f): TableColumn<Card> => ({
     id: `field:${f.id}`,
     header: sortHeader(f.name, `field:${f.id}`),
