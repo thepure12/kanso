@@ -2405,12 +2405,10 @@
     "title": "Spalte bearbeiten",
     "titleRequired": "Gib einen Titel mit bis zu 100 Zeichen ein.",
     "description": "Beschreibung",
-    "descriptionHelp": "Wofür die Spalte da ist oder wann eine Karte hierher gehört. Über die Info-Schaltfläche im Spaltenkopf sichtbar.",
+    "descriptionHelp": "Wofür die Spalte da ist oder wann eine Karte hierher gehört.",
     "descriptionPlaceholder": "Beschreibe diese Spalte (Markdown)",
     "descriptionTooLong": "Höchstens {max} Zeichen.",
-    "noLimit": "Kein Limit",
-    "showDescription": "Spaltenbeschreibung",
-    "showDescriptionOf": "Beschreibung von {title}"
+    "noLimit": "Kein Limit"
   },
   "customViews": {
     "title": "Eigene Ansichten",

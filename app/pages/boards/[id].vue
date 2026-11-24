@@ -1062,7 +1062,7 @@ const settingsOpen = computed({
                   />
                 </div>
               </UTooltip>
-              <!-- Row 1: grip, title (wraps, never hidden), count, collapse, menu. Row 2 (when there is any): description, rules, points, time. -->
+              <!-- Row 1: grip, title (wraps, never hidden), count, collapse, menu. Row 2 (when there is any): rules, points, time. -->
               <header
                 class="@container flex flex-col gap-1.5 px-3 py-2 rounded-t-lg"
                 :style="col.color ? { backgroundColor: col.color, color: contrastText(col.color) } : undefined"
@@ -1122,7 +1122,7 @@ const settingsOpen = computed({
                   :class="[
                     canEdit && !shownGroup && 'pl-6 pointer-coarse:pl-8',
                     col.color ? 'opacity-80' : 'text-muted',
-                    !(col.description || col.rules.length || columnPoints(col) !== null || columnTime(col)) && '@min-[15rem]:hidden',
+                    !(col.rules.length || columnPoints(col) !== null || columnTime(col)) && '@min-[15rem]:hidden',
                   ]"
                 >
                   <UTooltip v-if="col.wipLimit" :text="wipState(col) === 'over' ? t('board.column.overWip', { limit: col.wipLimit }) : t('board.column.wip', { limit: col.wipLimit })">
@@ -1135,7 +1135,6 @@ const settingsOpen = computed({
                     />
                   </UTooltip>
                   <UBadge v-else color="neutral" variant="soft" size="sm" class="@min-[15rem]:hidden" :label="String(lists[col.id]?.length ?? 0)" />
-                  <ColumnDescription v-if="col.description" :title="col.title" :description="col.description" :coloured="!!col.color" />
                   <UTooltip v-if="col.rules.length" :text="t('board.column.ruleCount', { count: col.rules.length }, col.rules.length)">
                     <span class="inline-flex items-center gap-0.5 text-xs font-medium tabular-nums">
                       <UIcon name="i-lucide-zap" class="size-3.5 shrink-0" />{{ col.rules.length }}
