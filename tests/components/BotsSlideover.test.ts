@@ -106,4 +106,28 @@ describe('BotsSlideover', () => {
     await w.findAll('button').find(b => b.text() === 'New token')!.trigger('click')
     expect(w.text()).toContain("Changes this team's boards as the bot")
   })
+
+  it('builds the agent install command for a bot, with a token created just now', async () => {
+    const w = await mountSuspended(BotsSlideover, { props: { open: true, boardId: 'b1', bots: [claude], columns: [{ id: 'c1', title: 'To do' }] }, global: { stubs } })
+    await w.find('[data-testid="run-as-agent"]').trigger('click')
+    const install = () => (w.find('textarea[data-testid="agent-install"], [data-testid="agent-install"] textarea').element as HTMLTextAreaElement).value
+    const login = () => (w.find('textarea[data-testid="agent-login"], [data-testid="agent-login"] textarea').element as HTMLTextAreaElement).value
+    expect(install()).toBe('kanso agent install --profile claude --name claude --board b1 --claude')
+    expect(login()).not.toContain('--token')
+
+    await w.findAll('button').find(b => b.text() === 'New token')!.trigger('click')
+    await w.find('#new-bot-token input').setValue('agent')
+    await w.find('#new-bot-token').trigger('submit')
+    await flushPromises()
+    const runFromToken = () => w.findAll('button').find(b => b.text() === 'Run as agent' && !b.attributes('data-testid'))
+    await vi.waitFor(() => expect(runFromToken()).toBeDefined())
+    await runFromToken()!.trigger('click')
+    await flushPromises()
+    expect(login()).toMatch(/ --token kb_secretsecretsecret$/)
+  })
+
+  it('offers no agent command for team bots', async () => {
+    const w = await mountSuspended(BotsSlideover, { props: { open: true, teamId: 't1', bots: [claude] }, global: { stubs } })
+    expect(w.find('[data-testid="run-as-agent"]').exists()).toBe(false)
+  })
 })

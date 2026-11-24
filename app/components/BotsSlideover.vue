@@ -7,7 +7,15 @@ import type { BoardBot, BotRole, BotToken } from '#shared/types/bots'
 // (team page). The list starts from BoardDetail.bots / TeamDetail.bots and
 // follows its reloads; `changed` asks the page to reload (bots are members too);
 // `limit` asks it to open MemberAccessModal for a bot, as for any other member.
-const props = defineProps<{ boardId?: string, teamId?: string, bots: BoardBot[], limitedIds?: string[], canLimit?: boolean }>()
+const props = defineProps<{
+  boardId?: string
+  teamId?: string
+  bots: BoardBot[]
+  limitedIds?: string[]
+  canLimit?: boolean
+  /** The board's columns, for "Run as agent" (board bots only). */
+  columns?: { id: string, title: string }[]
+}>()
 const emit = defineEmits<{ changed: [], limit: [botId: string] }>()
 const open = defineModel<boolean>('open', { required: true })
 
@@ -170,9 +178,20 @@ async function createToken() {
     const current = list.value.find(b => b.id === bot.id)
     if (current) replace({ ...current, tokens: [meta, ...current.tokens ?? []] })
     created.value = token
+    createdTokens.value = { ...createdTokens.value, [bot.id]: token }
   }
   catch (err) { showError(err, t('tokens.createFailed')) }
   finally { creating.value = false }
+}
+
+// "Run as agent": the kanso agent install command builder for one bot. A token
+// created in this slideover is filled into its `kanso login` (kept only in memory).
+const createdTokens = ref<Record<string, string>>({})
+const runBot = ref<BoardBot | null>(null)
+const runOpen = ref(false)
+function openRun(bot: BoardBot) {
+  runBot.value = bot
+  runOpen.value = true
 }
 
 // Show token again dialog
@@ -279,7 +298,19 @@ async function revoke(bot: BoardBot, token: BotToken) {
               <UButton color="neutral" variant="ghost" size="xs" :label="t('tokens.revoke')" @click="revoke(bot, tk)" />
             </li>
           </ul>
-          <UButton class="ms-13" color="neutral" variant="outline" size="xs" icon="i-lucide-key-round" :label="t('tokens.new')" @click="openToken(bot)" />
+          <div class="ms-13 flex flex-wrap gap-2">
+            <UButton color="neutral" variant="outline" size="xs" icon="i-lucide-key-round" :label="t('tokens.new')" @click="openToken(bot)" />
+            <UButton
+              v-if="props.boardId"
+              color="neutral"
+              variant="outline"
+              size="xs"
+              icon="i-lucide-terminal"
+              :label="t('bots.runAsAgent')"
+              data-testid="run-as-agent"
+              @click="openRun(bot)"
+            />
+          </div>
         </li>
       </ul>
 
@@ -304,12 +335,38 @@ async function revoke(bot: BoardBot, token: BotToken) {
         </template>
         <template #footer>
           <div class="flex justify-end gap-2 w-full">
-            <UButton v-if="created" :label="t('common.done')" @click="tokenOpen = false" />
+            <template v-if="created">
+              <UButton
+                v-if="props.boardId && tokenBot"
+                color="neutral"
+                variant="outline"
+                icon="i-lucide-terminal"
+                :label="t('bots.runAsAgent')"
+                @click="tokenOpen = false; openRun(tokenBot)"
+              />
+              <UButton :label="t('common.done')" @click="tokenOpen = false" />
+            </template>
             <template v-else>
               <UButton color="neutral" variant="ghost" :label="t('common.cancel')" @click="tokenOpen = false" />
               <UButton type="submit" form="new-bot-token" :label="t('tokens.create')" :loading="creating" :disabled="!tokenName.trim()" />
             </template>
           </div>
+        </template>
+      </UModal>
+      <UModal
+        v-if="runBot && props.boardId"
+        v-model:open="runOpen"
+        :title="t('bots.runTitle', { name: runBot.name })"
+        :description="t('bots.runDescription')"
+        :ui="{ content: 'sm:max-w-2xl' }"
+      >
+        <template #body>
+          <AgentCommandBuilder
+            :bots="[{ id: runBot.id, name: runBot.name }]"
+            :board-id="props.boardId"
+            :columns="props.columns ?? []"
+            :tokens="createdTokens"
+          />
         </template>
       </UModal>
       <TokenRevealModal

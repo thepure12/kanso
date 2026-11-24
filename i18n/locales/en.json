@@ -2123,7 +2123,82 @@
       "work": "{bot} works on the card with the instructions",
       "move": "{bot} works on the card with the instructions, then moves it to {column}"
     },
-    "runnerHint": "Rules do nothing until a runner is started with a token of the bot: kanso agent run --board BOARD_ID --claude"
+    "runnerHint": "Rules do nothing until a runner is started with a token of the bot: kanso agent run --board BOARD_ID --claude",
+    "runTitle": "Run these rules",
+    "runHelp": "Set up a runner for a bot on your machine: copy the commands below into a terminal."
+  },
+  "agentCommand": {
+    "copy": "Copy",
+    "copied": "Command copied",
+    "bot": "Bot",
+    "trigger": "What starts a run",
+    "triggers": {
+      "rules": "The board's agent rules",
+      "rulesHelp": "The bot works on cards as the agent rules of this board say.",
+      "activity": "Card activity",
+      "activityHelp": "Cards landing in columns, or any activity you pick.",
+      "notifications": "Notifications",
+      "notificationsHelp": "Mentions of the bot and cards assigned to it."
+    },
+    "columns": "Columns",
+    "columnsHelp": "Only cards in these columns.",
+    "anyColumn": "Any column",
+    "activity": "Activity",
+    "activityHelp": "Empty: cards created in or moved into the columns.",
+    "defaultActivity": "Created, moved",
+    "kinds": {
+      "created": "Card created",
+      "moved": "Card moved",
+      "commented": "Comment added",
+      "mentioned": "Mentioned",
+      "assigned": "Assigned",
+      "tagged": "Card tag added"
+    },
+    "runner": "Run",
+    "runners": {
+      "claude": "Claude Code",
+      "cmd": "Own command"
+    },
+    "permissionMode": "Claude may use",
+    "permissionModeHelp": "Besides the board, Claude's own tools need a permission mode.",
+    "permissionModes": {
+      "board": "Only the board",
+      "acceptEdits": "Board and file edits (acceptEdits)",
+      "auto": "Board and its usual tools (auto)"
+    },
+    "cmd": "Command",
+    "cmdHelp": "Run with sh -c per card; the card is on stdin as JSON.",
+    "worktree": "Git worktree per card",
+    "worktreeHelp": "Repository path on the machine; empty: no worktree.",
+    "setup": "Setup command",
+    "setupHelp": "Runs before Claude, e.g. installing dependencies.",
+    "prompt": "Instructions",
+    "promptHelp": "Empty: do what the card asks, then comment.",
+    "logTime": "Log each run's time on the card",
+    "concurrency": "Runs at once",
+    "timeout": "Timeout (minutes)",
+    "noTimeout": "None",
+    "comment": "Comment the result",
+    "profile": "Login profile",
+    "profileHelp": "Where the CLI keeps the bot's token.",
+    "name": "Service name",
+    "nameHelp": "Becomes the unit kanso-agent-NAME.service.",
+    "workdir": "Working directory",
+    "workdirHelp": "Empty: where you run the command.",
+    "loginTitle": "2. Log in as the bot",
+    "loginHelp": "Paste a token of {bot} when asked (create one under Bots, board menu).",
+    "loginWithToken": "This holds the new token: run it once and do not share it.",
+    "installTitle": "3. Install the agent",
+    "installHelp": "Writes a systemd user service and starts it. Run it again to change the agent; kanso agent uninstall removes it.",
+    "problems": {
+      "profile": "Login profile: letters, digits, “_”, “-” and “.” only.",
+      "name": "Service name: up to 40 letters, digits, “_” and “-”, starting with a letter or digit.",
+      "board": "Pick a board.",
+      "activity": "Pick columns or activity.",
+      "cmd": "Enter a command.",
+      "concurrency": "Runs at once: 1 to 32.",
+      "timeout": "Timeout: more than 0 minutes."
+    }
   },
   "reminders": {
     "button": "Remind me",
@@ -2193,7 +2268,10 @@
       "addToBoard": "Add to board",
       "boardFailed": "Could not change the bot on that board",
       "removeConfirm": "Remove {name} from “{board}”?"
-    }
+    },
+    "runAsAgent": "Run as agent",
+    "runTitle": "Run {name} as an agent",
+    "runDescription": "Builds the commands that set up a runner on your machine."
   },
   "inbox": {
     "title": "Inbox",

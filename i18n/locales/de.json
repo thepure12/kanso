@@ -2123,7 +2123,82 @@
       "work": "{bot} bearbeitet die Karte nach den Anweisungen",
       "move": "{bot} bearbeitet die Karte nach den Anweisungen und verschiebt sie dann nach {column}"
     },
-    "runnerHint": "Regeln tun nichts, bis ein Runner mit einem Token des Bots läuft: kanso agent run --board BOARD_ID --claude"
+    "runnerHint": "Regeln tun nichts, bis ein Runner mit einem Token des Bots läuft: kanso agent run --board BOARD_ID --claude",
+    "runTitle": "Diese Regeln ausführen",
+    "runHelp": "Richte einen Runner für einen Bot auf deinem Rechner ein: kopiere die Befehle unten in ein Terminal."
+  },
+  "agentCommand": {
+    "copy": "Kopieren",
+    "copied": "Befehl kopiert",
+    "bot": "Bot",
+    "trigger": "Was einen Lauf startet",
+    "triggers": {
+      "rules": "Die Agentenregeln des Boards",
+      "rulesHelp": "Der Bot bearbeitet Karten so, wie es die Agentenregeln dieses Boards sagen.",
+      "activity": "Kartenaktivität",
+      "activityHelp": "Karten, die in Spalten landen, oder jede gewählte Aktivität.",
+      "notifications": "Benachrichtigungen",
+      "notificationsHelp": "Erwähnungen des Bots und ihm zugewiesene Karten."
+    },
+    "columns": "Spalten",
+    "columnsHelp": "Nur Karten in diesen Spalten.",
+    "anyColumn": "Jede Spalte",
+    "activity": "Aktivität",
+    "activityHelp": "Leer: in den Spalten erstellte oder dorthin verschobene Karten.",
+    "defaultActivity": "Erstellt, verschoben",
+    "kinds": {
+      "created": "Karte erstellt",
+      "moved": "Karte verschoben",
+      "commented": "Kommentar hinzugefügt",
+      "mentioned": "Erwähnt",
+      "assigned": "Zugewiesen",
+      "tagged": "Karten-Tag hinzugefügt"
+    },
+    "runner": "Ausführen",
+    "runners": {
+      "claude": "Claude Code",
+      "cmd": "Eigener Befehl"
+    },
+    "permissionMode": "Claude darf nutzen",
+    "permissionModeHelp": "Neben dem Board brauchen Claudes eigene Werkzeuge einen Berechtigungsmodus.",
+    "permissionModes": {
+      "board": "Nur das Board",
+      "acceptEdits": "Board und Dateiänderungen (acceptEdits)",
+      "auto": "Board und seine üblichen Werkzeuge (auto)"
+    },
+    "cmd": "Befehl",
+    "cmdHelp": "Läuft mit sh -c pro Karte; die Karte kommt als JSON über stdin.",
+    "worktree": "Git-Worktree pro Karte",
+    "worktreeHelp": "Pfad des Repositorys auf dem Rechner; leer: kein Worktree.",
+    "setup": "Vorbereitungsbefehl",
+    "setupHelp": "Läuft vor Claude, z. B. um Abhängigkeiten zu installieren.",
+    "prompt": "Anweisungen",
+    "promptHelp": "Leer: tun, was die Karte verlangt, dann kommentieren.",
+    "logTime": "Zeit jedes Laufs auf der Karte erfassen",
+    "concurrency": "Läufe gleichzeitig",
+    "timeout": "Zeitlimit (Minuten)",
+    "noTimeout": "Keins",
+    "comment": "Ergebnis kommentieren",
+    "profile": "Login-Profil",
+    "profileHelp": "Wo die CLI den Token des Bots speichert.",
+    "name": "Dienstname",
+    "nameHelp": "Wird zur Unit kanso-agent-NAME.service.",
+    "workdir": "Arbeitsverzeichnis",
+    "workdirHelp": "Leer: wo du den Befehl ausführst.",
+    "loginTitle": "2. Als Bot anmelden",
+    "loginHelp": "Füge auf Nachfrage einen Token von {bot} ein (unter Bots im Boardmenü erstellen).",
+    "loginWithToken": "Das enthält den neuen Token: einmal ausführen und nicht weitergeben.",
+    "installTitle": "3. Agent installieren",
+    "installHelp": "Schreibt einen systemd-Benutzerdienst und startet ihn. Erneut ausführen, um den Agenten zu ändern; kanso agent uninstall entfernt ihn.",
+    "problems": {
+      "profile": "Login-Profil: nur Buchstaben, Ziffern, „_“, „-“ und „.“.",
+      "name": "Dienstname: bis zu 40 Buchstaben, Ziffern, „_“ und „-“, beginnend mit Buchstabe oder Ziffer.",
+      "board": "Wähle ein Board.",
+      "activity": "Wähle Spalten oder Aktivität.",
+      "cmd": "Gib einen Befehl ein.",
+      "concurrency": "Läufe gleichzeitig: 1 bis 32.",
+      "timeout": "Zeitlimit: mehr als 0 Minuten."
+    }
   },
   "reminders": {
     "button": "Erinnern",
@@ -2193,7 +2268,10 @@
       "addToBoard": "Zum Board hinzufügen",
       "boardFailed": "Der Bot konnte auf diesem Board nicht geändert werden",
       "removeConfirm": "{name} aus „{board}“ entfernen?"
-    }
+    },
+    "runAsAgent": "Als Agent ausführen",
+    "runTitle": "{name} als Agent ausführen",
+    "runDescription": "Baut die Befehle, die einen Runner auf deinem Rechner einrichten."
   },
   "inbox": {
     "title": "Posteingang",

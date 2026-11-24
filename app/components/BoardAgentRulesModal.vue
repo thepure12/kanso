@@ -5,6 +5,7 @@ import {
 } from '#shared/types/board'
 
 const props = defineProps<{
+  boardId: string
   rules: AgentRule[]
   tags: Tag[]
   columns: Column[]
@@ -109,6 +110,10 @@ const botItems = computed(() => bots.value.map(m => ({ label: m.name, value: m.u
 const commentItems = computed(() => agentRuleComments.map(c => ({ label: t(`agentRules.comments.${c}`), value: c })))
 const columnLabel = computed(() => draft.value.event === 'card_moved' ? t('agentRules.movedInto') : t('agentRules.inColumn'))
 const tagLabel = computed(() => draft.value.event === 'tag_added' ? t('agentRules.addedTag') : t('agentRules.withTag'))
+
+/** "Run these rules": the kanso agent install command builder, opened on demand. */
+const runOpen = ref(false)
+const botOptions = computed(() => bots.value.map(b => ({ id: b.userId, name: b.name })))
 
 function submit() {
   if (!valid.value) return
@@ -230,6 +235,25 @@ function submit() {
         <p v-else class="text-xs text-muted">
           {{ t('agentRules.readOnly') }}
         </p>
+
+        <template v-if="bots.length">
+          <USeparator class="my-4" />
+          <UButton
+            color="neutral"
+            variant="ghost"
+            :icon="runOpen ? 'i-lucide-chevron-down' : 'i-lucide-chevron-right'"
+            :label="t('agentRules.runTitle')"
+            class="-ms-2"
+            data-testid="run-rules"
+            @click="runOpen = !runOpen"
+          />
+          <div v-if="runOpen" class="space-y-3">
+            <p class="text-sm text-muted">
+              {{ t('agentRules.runHelp') }}
+            </p>
+            <AgentCommandBuilder :bots="botOptions" :board-id="props.boardId" :columns="props.columns" />
+          </div>
+        </template>
       </div>
     </template>
   </UModal>

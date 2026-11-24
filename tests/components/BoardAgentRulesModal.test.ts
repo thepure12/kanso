@@ -18,7 +18,7 @@ const rule: AgentRule = {
 async function mount(members: Member[], rules: AgentRule[] = []) {
   const w = await mountSuspended(BoardAgentRulesModal, {
     attachTo: document.body,
-    props: { open: true, rules, tags: [], columns, members, canEdit: true },
+    props: { open: true, boardId: 'b1', rules, tags: [], columns, members, canEdit: true },
   })
   await flushPromises()
   return w

@@ -195,6 +195,10 @@ kanso agent install --profile triage --name triage --board Kanso --claude
 loginctl enable-linger "$USER"                                # keep it running while you are logged out
 ```
 
+The web app builds these commands for you: "Run these rules" in the board's "Agent rules" dialog, or "Run as agent"
+next to a bot in the board's "Bots" panel (also offered right after creating a bot token, which it then fills into
+`kanso login`). Pick the trigger, Claude or your own command and the options; it only builds text to copy.
+
 Not sure which options you need? `kanso agent setup` (or `kanso agent install` with no options) asks for them on
 the terminal, each with a default you take with Enter:
 

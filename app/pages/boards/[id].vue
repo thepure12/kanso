@@ -1344,6 +1344,7 @@ const settingsOpen = computed({
     <BoardAgentRulesModal
       v-if="agentRulesOpen"
       v-model:open="agentRulesOpen"
+      :board-id="board.id"
       :rules="agentRules"
       :tags="tags"
       :columns="columns"
@@ -1390,6 +1391,7 @@ const settingsOpen = computed({
       v-model:open="botsOpen"
       :board-id="board.id"
       :bots="board.bots ?? []"
+      :columns="columns"
       :limited-ids="limitedIds"
       :can-limit="!archived"
       @limit="botId => limitingUserId = botId"
