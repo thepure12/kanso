@@ -2218,5 +2218,49 @@
     "markUnread": "Als ungelesen markieren",
     "remove": "Aus dem Posteingang entfernen",
     "loadMore": "Mehr laden"
+  },
+  "boardSettings": {
+    "title": "Board-Einstellungen",
+    "back": "Zurück zum Board",
+    "general": "Allgemein",
+    "team": "Team",
+    "teamDescription": "Das Team, zu dem dieses Board gehört. Es wird beim Anlegen festgelegt.",
+    "open": "Öffnen",
+    "download": "Herunterladen",
+    "archive": "Archivieren",
+    "matrixConnected": "Verbunden mit {room}",
+    "sections": {
+      "automation": "Automatisierung",
+      "people": "Personen",
+      "integrations": "Integrationen"
+    },
+    "items": {
+      "tags": "Markierungen auf Karten zum Sortieren und Filtern.",
+      "fields": "Zusätzliche Werte auf jeder Karte: Text, Zahlen, Daten, Auswahl, Kontrollkästchen oder Links.",
+      "columnGroups": "Benannte Spaltengruppen, die die Board-Ansicht eingrenzen.",
+      "assigneeGroups": "Abkürzungen, die mehrere Personen auf einmal zuweisen.",
+      "templates": "Fertige Karten als Vorlage, und wiederkehrende Karten.",
+      "buttons": "Aktionen mit einem Klick auf Karten oder dem ganzen Board.",
+      "background": "Hintergrundbild oder -farbe und die Akzentfarbe des Boards.",
+      "automations": "Zeitgesteuerte Aktionen, etwa erledigte Karten nach einigen Tagen archivieren.",
+      "rules": "Wenn mit einer Karte etwas passiert, automatisch etwas anderes tun.",
+      "agentRules": "Anweisungen, denen ein KI-Agent folgt, wenn sich Karten ändern.",
+      "members": "Wer dieses Board sehen und ändern kann, und mit welcher Rolle.",
+      "bots": "Board-Benutzer für Skripte und KI-Agenten, mit eigenen API-Tokens.",
+      "webhooks": "Board-Aktivität an andere Dienste senden.",
+      "matrix": "Karten in einem Matrix-Raum besprechen.",
+      "activity": "Alles, was auf diesem Board passiert ist.",
+      "snoozed": "Karten, die bis zu einem späteren Datum ausgeblendet sind.",
+      "archived": "Vom Board genommene Karten, weiterhin durchsuchbar.",
+      "trash": "Gelöschte Karten, 30 Tage aufbewahrt.",
+      "copy": "Ein neues Board mit denselben Spalten, Tags und Einstellungen, mit oder ohne Karten.",
+      "exportJson": "Alles auf dem Board, für Sicherungen oder den Import anderswo.",
+      "exportCsv": "Die Karten als Tabelle.",
+      "tagNames": "Aus: Karten zeigen farbige Balken statt der Tag-Namen. Gilt für alle Boards auf diesem Gerät.",
+      "groupNames": "Aus: Spaltenköpfe zeigen farbige Balken statt der Spalten-Tag-Namen. Gilt für alle Boards auf diesem Gerät.",
+      "archive": "Macht das Board für alle schreibgeschützt, bis ein Eigentümer es aus dem Archiv holt.",
+      "unarchive": "Macht das Board wieder bearbeitbar.",
+      "delete": "Löscht das Board mit allen Karten. Das lässt sich nicht rückgängig machen."
+    }
   }
 }

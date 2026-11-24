@@ -2218,5 +2218,49 @@
     "markUnread": "Mark unread",
     "remove": "Remove from inbox",
     "loadMore": "Load more"
+  },
+  "boardSettings": {
+    "title": "Board settings",
+    "back": "Back to board",
+    "general": "General",
+    "team": "Team",
+    "teamDescription": "The team this board belongs to. It is fixed when the board is created.",
+    "open": "Open",
+    "download": "Download",
+    "archive": "Archive",
+    "matrixConnected": "Connected to {room}",
+    "sections": {
+      "automation": "Automation",
+      "people": "People",
+      "integrations": "Integrations"
+    },
+    "items": {
+      "tags": "Labels people put on cards to sort and filter them.",
+      "fields": "Extra values on every card: text, numbers, dates, choices, checkboxes or links.",
+      "columnGroups": "Named sets of columns that narrow the board view.",
+      "assigneeGroups": "Shortcuts that assign several people at once.",
+      "templates": "Ready-made cards to start from, and recurring cards.",
+      "buttons": "One-click actions on cards or on the whole board.",
+      "background": "Background picture or colour and the board's accent colour.",
+      "automations": "Time-based actions, such as archiving finished cards after some days.",
+      "rules": "When something happens to a card, do something else automatically.",
+      "agentRules": "Instructions an AI agent follows when cards change.",
+      "members": "Who can see and change this board, and their roles.",
+      "bots": "Board users for scripts and AI agents, with their own API tokens.",
+      "webhooks": "Send board activity to other services.",
+      "matrix": "Discuss cards in a Matrix room.",
+      "activity": "Everything that happened on this board.",
+      "snoozed": "Cards hidden until a later date.",
+      "archived": "Cards taken off the board, still searchable.",
+      "trash": "Deleted cards, kept for 30 days.",
+      "copy": "A new board with the same columns, tags and settings, with or without cards.",
+      "exportJson": "Everything on the board, for backups or importing elsewhere.",
+      "exportCsv": "The cards as a spreadsheet.",
+      "tagNames": "Off: cards show coloured bars instead of tag names. Applies to every board on this device.",
+      "groupNames": "Off: column headers show coloured bars instead of column tag names. Applies to every board on this device.",
+      "archive": "Makes the board read-only for everyone until an owner unarchives it.",
+      "unarchive": "Makes the board editable again.",
+      "delete": "Deletes the board with all its cards. This cannot be undone."
+    }
   }
 }

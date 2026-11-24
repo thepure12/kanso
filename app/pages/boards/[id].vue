@@ -8,6 +8,7 @@ import { backgroundStyle } from '#shared/boardBackgrounds'
 import { columnOutlineStyle, effectiveColumnOutline } from '#shared/columnOutline'
 import { CARD_TITLE_MAX } from '#shared/cards'
 import type { CardBox } from '~/utils/cardFocus'
+import type { BoardSettingsSection } from '~/utils/boardSettings'
 import type { QuickEditMode } from '~/utils/shortcuts'
 
 const route = useRoute()
@@ -406,10 +407,10 @@ const filters = useTemplateRef<{ focus: () => void }>('filters')
 useToolbarFit(useTemplateRef<HTMLElement>('toolbar'), 5)
 const cardAdds: Record<string, { open: () => void } | null> = {}
 defineShortcuts({
-  '/': () => { if (!dialogOpen()) filters.value?.focus() },
+  '/': () => { if (!dialogOpen() && !settingsOpen.value) filters.value?.focus() },
   'n': () => {
     const first = shownColumns.value.find(c => !collapsedColumns.isCollapsed(c.id))
-    if (canEdit.value && first && !dialogOpen()) cardAdds[first.id]?.open()
+    if (canEdit.value && first && !dialogOpen() && !settingsOpen.value) cardAdds[first.id]?.open()
   },
   // Not while typing, so text fields keep their own undo; works in dialogs too.
   'meta_z': () => { undo() },
@@ -628,79 +629,104 @@ function columnMenu(col: Column) {
   ]]
 }
 
-// Board menu in labelled sections; owner-only items and empty sections drop out.
-const boardMenu = computed(() => {
+// Board settings and actions in labelled sections, shared by the board menu and the settings
+// page (?settings, see BoardSettings); owner-only items and empty sections drop out.
+const d = (key: string) => t(`boardSettings.items.${key}`)
+const boardSections = computed<BoardSettingsSection[]>(() => {
   const owner = isOwner.value
   const editable = owner && !archived.value
-  const section = (label: string, items: DropdownMenuItem[]) =>
-    items.length ? [{ label, type: 'label' as const }, ...items] : []
+  const b = board.value
   return [
-    section(t('board.menu.sections.setup'), [
+    { key: 'setup', label: t('board.menu.sections.setup'), items: [
       ...(canEdit.value
         ? [
-            { label: t('board.menu.fields'), icon: 'i-lucide-list-plus', onSelect: () => { fieldsOpen.value = true } },
-            { label: t('board.menu.columnGroups'), icon: 'i-lucide-columns-3', onSelect: () => { columnGroupsOpen.value = true } },
-            { label: t('board.menu.assigneeGroups'), icon: 'i-lucide-users', onSelect: () => { assigneeGroupsOpen.value = true } },
+            { key: 'tags', label: t('board.tags'), icon: 'i-lucide-tags', description: d('tags'), count: tags.value.length, settingsOnly: true, onSelect: () => { tagsOpen.value = true } },
+            { key: 'fields', label: t('board.menu.fields'), icon: 'i-lucide-list-plus', description: d('fields'), count: fields.value.length, onSelect: () => { fieldsOpen.value = true } },
+            { key: 'columnGroups', label: t('board.menu.columnGroups'), icon: 'i-lucide-columns-3', description: d('columnGroups'), count: columnGroups.value.length, onSelect: () => { columnGroupsOpen.value = true } },
+            { key: 'assigneeGroups', label: t('board.menu.assigneeGroups'), icon: 'i-lucide-users', description: d('assigneeGroups'), count: assigneeGroups.value.length, onSelect: () => { assigneeGroupsOpen.value = true } },
           ]
         : []),
-      { label: t('board.menu.templates'), icon: 'i-lucide-file-stack', onSelect: () => { templatesOpen.value = true } },
-      { label: t('board.menu.automations'), icon: 'i-lucide-timer', onSelect: () => openAutomations() },
-      ...(limited.value ? [] : [{ label: t('board.menu.rules'), icon: 'i-lucide-workflow', onSelect: () => { boardRulesOpen.value = true } }]),
-      ...(limited.value ? [] : [{ label: t('board.menu.agentRules'), icon: 'i-lucide-bot-message-square', onSelect: () => { agentRulesOpen.value = true } }]),
-      ...(!offline.value ? [{ label: t('board.menu.buttons'), icon: 'i-lucide-zap', onSelect: () => { buttonsOpen.value = true } }] : []),
-      ...(editable ? [{ label: t('board.menu.background'), icon: 'i-lucide-image', onSelect: () => { backgroundOpen.value = true } }] : []),
-      ...(owner ? [{ label: t('board.menu.bots'), icon: 'i-lucide-bot', onSelect: () => { botsOpen.value = true } }] : []),
-      ...(owner ? [{ label: t('board.menu.webhooks'), icon: 'i-lucide-webhook', onSelect: () => { webhooksOpen.value = true } }] : []),
-      ...(owner ? [{ label: t('board.menu.matrix'), icon: 'i-lucide-message-square-share', onSelect: () => { matrixOpen.value = true } }] : []),
-    ]),
-    section(t('board.menu.sections.history'), [
-      { label: t('board.menu.activity'), icon: 'i-lucide-history', onSelect: () => { activityOpen.value = true } },
-      { label: t('board.menu.snoozed'), icon: 'i-lucide-alarm-clock', onSelect: () => { snoozedOpen.value = true } },
-      { label: t('board.menu.archived'), icon: 'i-lucide-archive', onSelect: () => { archiveOpen.value = true } },
-      ...(canEdit.value ? [{ label: t('board.menu.trash'), icon: 'i-lucide-trash-2', onSelect: () => { trashOpen.value = true } }] : []),
-    ]),
-    section(t('board.menu.sections.share'), [
-      { label: t('board.menu.copy'), icon: 'i-lucide-copy', onSelect: () => { copyOpen.value = true } },
-      { label: t('board.menu.exportJson'), icon: 'i-lucide-file-json', to: `${base}/api/boards/${id}/export?format=json`, external: true, download: true },
-      { label: t('board.menu.exportCsv'), icon: 'i-lucide-file-spreadsheet', to: `${base}/api/boards/${id}/export?format=csv`, external: true, download: true },
-    ]),
-    section(t('board.menu.sections.display'), [
+      { key: 'templates', label: t('board.menu.templates'), icon: 'i-lucide-file-stack', description: d('templates'), count: templates.value.length, onSelect: () => { templatesOpen.value = true } },
+      ...(!offline.value ? [{ key: 'buttons', label: t('board.menu.buttons'), icon: 'i-lucide-zap', description: d('buttons'), count: buttons.value.length, onSelect: () => { buttonsOpen.value = true } }] : []),
+      ...(editable ? [{ key: 'background', label: t('board.menu.background'), icon: 'i-lucide-image', description: d('background'), onSelect: () => { backgroundOpen.value = true } }] : []),
+    ] },
+    { key: 'automation', label: t('boardSettings.sections.automation'), items: [
+      { key: 'automations', label: t('board.menu.automations'), icon: 'i-lucide-timer', description: d('automations'), count: automations.value.filter(a => !a.cardId).length, onSelect: () => openAutomations() },
+      ...(limited.value ? [] : [{ key: 'rules', label: t('board.menu.rules'), icon: 'i-lucide-workflow', description: d('rules'), count: rules.value.length, onSelect: () => { boardRulesOpen.value = true } }]),
+      ...(limited.value ? [] : [{ key: 'agentRules', label: t('board.menu.agentRules'), icon: 'i-lucide-bot-message-square', description: d('agentRules'), count: agentRules.value.length, onSelect: () => { agentRulesOpen.value = true } }]),
+    ] },
+    { key: 'people', label: t('boardSettings.sections.people'), items: [
+      { key: 'members', label: t('board.members'), icon: 'i-lucide-users', description: d('members'), count: b?.members.filter(m => !m.isBot).length, settingsOnly: true, onSelect: () => { membersOpen.value = true } },
+      ...(owner ? [{ key: 'bots', label: t('board.menu.bots'), icon: 'i-lucide-bot', description: d('bots'), count: b?.bots.length, onSelect: () => { botsOpen.value = true } }] : []),
+    ] },
+    { key: 'integrations', label: t('boardSettings.sections.integrations'), items: owner
+      ? [
+          { key: 'webhooks', label: t('board.menu.webhooks'), icon: 'i-lucide-webhook', description: d('webhooks'), onSelect: () => { webhooksOpen.value = true } },
+          { key: 'matrix', label: t('board.menu.matrix'), icon: 'i-lucide-message-square-share', description: b?.matrix ? t('boardSettings.matrixConnected', { room: b.matrix.roomName || b.matrix.roomId }) : d('matrix'), onSelect: () => { matrixOpen.value = true } },
+        ]
+      : [] },
+    { key: 'history', label: t('board.menu.sections.history'), items: [
+      { key: 'activity', label: t('board.menu.activity'), icon: 'i-lucide-history', description: d('activity'), onSelect: () => { activityOpen.value = true } },
+      { key: 'snoozed', label: t('board.menu.snoozed'), icon: 'i-lucide-alarm-clock', description: d('snoozed'), onSelect: () => { snoozedOpen.value = true } },
+      { key: 'archived', label: t('board.menu.archived'), icon: 'i-lucide-archive', description: d('archived'), onSelect: () => { archiveOpen.value = true } },
+      ...(canEdit.value ? [{ key: 'trash', label: t('board.menu.trash'), icon: 'i-lucide-trash-2', description: d('trash'), onSelect: () => { trashOpen.value = true } }] : []),
+    ] },
+    { key: 'share', label: t('board.menu.sections.share'), items: [
+      { key: 'copy', label: t('board.menu.copy'), icon: 'i-lucide-copy', description: d('copy'), onSelect: () => { copyOpen.value = true } },
+      { key: 'exportJson', label: t('board.menu.exportJson'), icon: 'i-lucide-file-json', description: d('exportJson'), to: `${base}/api/boards/${id}/export?format=json`, external: true, download: true },
+      { key: 'exportCsv', label: t('board.menu.exportCsv'), icon: 'i-lucide-file-spreadsheet', description: d('exportCsv'), to: `${base}/api/boards/${id}/export?format=csv`, external: true, download: true },
+    ] },
+    { key: 'display', label: t('board.menu.sections.display'), items: [
       {
+        key: 'tagNames',
         label: t('board.menu.tagNames'),
         icon: 'i-lucide-tag',
+        description: d('tagNames'),
         type: 'checkbox' as const,
         checked: labels.value.tagNames,
         onUpdateChecked: (tagNames: boolean) => setLabelDisplay({ tagNames }),
-        onSelect: (e: Event) => e.preventDefault(),
       },
       ...(columnGroups.value.length
         ? [{
+            key: 'groupNames',
             label: t('board.menu.groupNames'),
             icon: 'i-lucide-columns-3',
+            description: d('groupNames'),
             type: 'checkbox' as const,
             checked: labels.value.groupNames,
             onUpdateChecked: (groupNames: boolean) => setLabelDisplay({ groupNames }),
-            onSelect: (e: Event) => e.preventDefault(),
           }]
         : []),
-    ]),
-    section(t('board.menu.sections.manage'), owner
+    ] },
+    { key: 'manage', label: t('board.menu.sections.manage'), danger: true, items: owner
       ? [
           ...(archived.value
-            ? [{ label: t('board.menu.unarchive'), icon: 'i-lucide-archive-restore', onSelect: () => setArchived(false) }]
+            ? [{ key: 'unarchive', label: t('board.menu.unarchive'), icon: 'i-lucide-archive-restore', description: d('unarchive'), action: t('board.unarchive'), onSelect: () => setArchived(false) }]
             : [
-                { label: t('board.menu.rename'), icon: 'i-lucide-pencil', onSelect: async () => {
+                { key: 'rename', label: t('board.menu.rename'), icon: 'i-lucide-pencil', menuOnly: true, onSelect: async () => {
                   const name = (await ask({ title: t('board.menu.rename'), label: t('board.menu.namePrompt'), initial: board.value?.name }))?.trim()
                   if (name) renameBoard(name)
                 } },
-                { label: t('board.menu.archive'), icon: 'i-lucide-archive', onSelect: async () => {
+                { key: 'archive', label: t('board.menu.archive'), icon: 'i-lucide-archive', description: d('archive'), action: t('boardSettings.archive'), onSelect: async () => {
                   if (await confirm({ title: t('board.menu.archiveConfirm'), confirmLabel: t('board.menu.archive'), color: 'primary' })) setArchived(true)
                 } },
               ]),
-          { label: t('board.menu.delete'), icon: 'i-lucide-trash', color: 'error' as const, onSelect: () => { confirmDelete.value = true } },
+          { key: 'delete', label: t('board.menu.delete'), icon: 'i-lucide-trash', color: 'error' as const, description: d('delete'), action: t('common.delete'), onSelect: () => { confirmDelete.value = true } },
         ]
-      : []),
-  ].filter(items => items.length)
+      : [] },
+  ]
+})
+const boardMenu = computed(() => [
+  [{ label: t('boardSettings.title'), icon: 'i-lucide-settings', onSelect: () => { settingsOpen.value = true } }],
+  ...boardMenuGroups(boardSections.value),
+])
+const shownSettings = computed(() => settingsSections(boardSections.value))
+
+// The settings page replaces the board view while ?settings is in the URL (a direct link;
+// the board stays loaded, so its dialogs and live updates keep working).
+const settingsOpen = computed({
+  get: () => route.query.settings !== undefined,
+  set: (open) => { navigateTo({ query: { ...route.query, settings: open ? null : undefined } }) },
 })
 </script>
 
@@ -710,7 +736,7 @@ const boardMenu = computed(() => {
   <div
     v-if="board"
     class="flex flex-col min-h-0"
-    :class="view !== 'board' || groupBy !== 'none' ? 'flex-none h-[calc(100dvh-var(--ui-header-height)-env(safe-area-inset-bottom))]' : 'flex-1'"
+    :class="!settingsOpen && (view !== 'board' || groupBy !== 'none') ? 'flex-none h-[calc(100dvh-var(--ui-header-height)-env(safe-area-inset-bottom))]' : 'flex-1'"
     :style="bgStyle"
   >
     <div class="sm:sticky sm:top-(--ui-header-height) z-20" :class="backed ? 'bg-default/85 backdrop-blur-sm' : 'bg-default/75 backdrop-blur'">
@@ -756,7 +782,7 @@ const boardMenu = computed(() => {
         <!-- Compacts step by step (useToolbarFit) before it wraps: data-c1 short filter count, c2 Views/Filters
              icon only, c3 view tabs icon only, c4 swimlane select icon only, c5 column tag select icon only.
              The search box takes up the space left over. -->
-        <div ref="toolbar" class="group/tb relative order-last basis-full 2xl:order-none 2xl:basis-0 2xl:flex-1 min-w-0 flex flex-wrap items-center gap-2">
+        <div v-show="!settingsOpen" ref="toolbar" class="group/tb relative order-last basis-full 2xl:order-none 2xl:basis-0 2xl:flex-1 min-w-0 flex flex-wrap items-center gap-2">
           <USeparator orientation="vertical" class="h-6 mx-1 hidden 2xl:block" />
           <SavedViewsMenu
             :views="savedViews"
@@ -830,6 +856,16 @@ const boardMenu = computed(() => {
           <UButton icon="i-lucide-users" color="neutral" variant="outline" :aria-label="t('board.members')" @click="membersOpen = true">
             <span class="hidden sm:inline">{{ t('board.members') }}</span>
           </UButton>
+          <UTooltip :text="t('boardSettings.title')">
+            <UButton
+              icon="i-lucide-settings"
+              color="neutral"
+              :variant="settingsOpen ? 'soft' : 'ghost'"
+              :aria-label="t('boardSettings.title')"
+              :aria-pressed="settingsOpen"
+              @click="settingsOpen = !settingsOpen"
+            />
+          </UTooltip>
           <UDropdownMenu :items="boardMenu">
             <UButton icon="i-lucide-ellipsis" color="neutral" variant="ghost" :aria-label="t('board.actions')" />
           </UDropdownMenu>
@@ -849,7 +885,15 @@ const boardMenu = computed(() => {
       />
     </div>
 
-    <div v-if="view === 'list'" class="flex-1 min-h-0 overflow-auto p-4 sm:p-6">
+    <BoardSettings
+      v-if="settingsOpen"
+      :board="board"
+      :sections="shownSettings"
+      :can-rename="isOwner && !archived"
+      :rename="renameBoard"
+      @close="settingsOpen = false"
+    />
+    <div v-else-if="view === 'list'" class="flex-1 min-h-0 overflow-auto p-4 sm:p-6">
       <BoardListView
         :class="panel"
         :cards="visibleCards"
