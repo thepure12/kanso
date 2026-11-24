@@ -45,10 +45,10 @@ Every command takes `--json`.
 A long-running process that runs a command for board events, meant to run as a systemd user unit. It opens the
 event stream (`GET /api/events`, see [API.md](API.md#event-stream)) with the token and starts a run for:
 
-- **card activity** (`--board <ids>` with `--activity <kinds>` and/or `--columns <ids or titles>`): for example
+- **card activity** (`--board <ids or names>` with `--activity <kinds>` and/or `--columns <ids or titles>`): for example
   cards created in or moved to "To do". `--columns` alone means `--activity created,moved`. For a move, the column
   is the one the card landed in.
-- **agent rules** (only `--board <ids>`, with a bot's token): the rules set on the board for that bot, see
+- **agent rules** (only `--board <ids or names>`, with a bot's token): the rules set on the board for that bot, see
   [Agent rules](#agent-rules).
 - **notifications** (`--notifications`): unread notifications of the token's user, e.g. a bot that is mentioned in
   a comment or assigned to a card. Each one is marked read after its run (also when the run failed), so it runs

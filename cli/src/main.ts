@@ -80,6 +80,7 @@ ${describeOptions({ ...c.options, ...globalOptions })}
 /** Runs one CLI invocation; returns the exit code (0 ok, 1 failed, 2 usage). */
 export async function run(argv: string[], io: Io): Promise<number> {
   const wantsJson = argv.includes('--json')
+  let commandName: string | null = null
   try {
     if (argv.length === 1 && (argv[0] === '--version' || argv[0] === '-v' || argv[0] === 'version')) {
       io.stdout(wantsJson ? json({ version: VERSION }) : `${VERSION}\n`)
@@ -104,6 +105,7 @@ export async function run(argv: string[], io: Io): Promise<number> {
         ? `"${first}" needs a subcommand: ${commands.filter(c => group.includes(c.name.split(' ')[0]!)).map(c => c.name.split(' ')[1]).join(', ')}.`
         : `Unknown command "${first} ${second}". Run "kanso ${first} --help" for the list.`)
     }
+    commandName = command.name
     const { values, positionals } = parseCommandArgs(argv, command.options, command.name.split(' ').length)
     if (values.help) {
       io.stdout(commandHelp(command))
@@ -127,7 +129,7 @@ export async function run(argv: string[], io: Io): Promise<number> {
         ...(err instanceof AmbiguousError && { matches: err.matches }),
       } }))
     } else {
-      io.stderr(`kanso: ${err.message}\n${err instanceof UsageError ? 'Run "kanso --help" for usage.\n' : ''}`)
+      io.stderr(`kanso: ${err.message}\n${err instanceof UsageError ? `Run "kanso ${commandName ? `${commandName} ` : ''}--help" for usage.\n` : ''}`)
     }
     return err.exitCode
   }

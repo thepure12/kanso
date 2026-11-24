@@ -22,6 +22,14 @@ async function readSecret(prompt: string): Promise<string> {
   }
 }
 
+// A reader that stops early (kanso cards ls | head) closes the pipe: stop quietly.
+for (const stream of [process.stdout, process.stderr]) {
+  stream.on('error', (err: NodeJS.ErrnoException) => {
+    if (err.code === 'EPIPE') process.exit(process.exitCode ?? 0)
+    throw err
+  })
+}
+
 // SIGINT/SIGTERM stop long-running commands gracefully; a second one exits at once.
 const stop = new AbortController()
 for (const sig of ['SIGINT', 'SIGTERM'] as const) {

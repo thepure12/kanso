@@ -18,6 +18,7 @@ const ME = 'cccccccc-0000-4000-8000-000000000001'
 const BOB = 'cccccccc-0000-4000-8000-000000000002'
 const C1 = 'dddddddd-1000-4000-8000-000000000001'
 const C2 = 'dddddddd-2000-4000-8000-000000000002'
+const C3 = 'dddddddd-3000-4000-8000-000000000003'
 
 function card(id: string, title: string, columnId: string, position: number, extra: Partial<Card> = {}): Card {
   return {
@@ -64,6 +65,8 @@ function harness() {
     if (path === '/api/me') return Response.json({ id: ME, name: 'Alice', email: 'alice@k.test', isBot: false, isAdmin: false, locale: null })
     if (path === '/api/boards') return Response.json(summaries)
     if (path === `/api/boards/${B1}`) return Response.json(board)
+    if (path === `/api/boards/${B1}/archived`) return Response.json([{ id: C3, columnId: COL_TODO, title: 'Old idea', archivedAt: '2026-11-01T00:00:00.000Z' }])
+    if (method === 'PATCH' && path === `/api/cards/${C3}`) return Response.json(card(C3, 'Old idea', COL_TODO, 3, body))
     if (method === 'PATCH' && path.startsWith('/api/cards/')) {
       const c = board.cards.find(x => path.endsWith(x.id))!
       return Response.json({ ...c, ...body })
@@ -100,6 +103,12 @@ describe('cli name resolution', () => {
     expect(() => find('prod')).toThrow(AmbiguousError)
     expect(() => find('prod')).toThrow('"prod" matches 2 boards: Product (abcd1234-x), Product ideas (abce5678-y). Use the id or the full name.')
     expect(() => find('abc')).toThrow('No board matches "abc".')
+  })
+
+  it('asks only for the id when the matches share a name', () => {
+    const twins = [{ id: 'a1', name: 'Claude' }, { id: 'b2', name: 'Claude' }]
+    expect(() => pick('member', 'claude', twins, i => i.id, i => [i.name]))
+      .toThrow('"claude" matches 2 members: Claude (a1), Claude (b2). Use the id.')
   })
 })
 
@@ -151,6 +160,10 @@ describe('cli board and card commands', () => {
     const archive = harness()
     expect(await archive.cli('card', 'archive', 'Product', 'First bug')).toBe(0)
     expect(archive.writes()).toEqual([{ method: 'PATCH', path: `/api/cards/${C1}`, body: { archived: true } }])
+
+    const restore = harness()
+    expect(await restore.cli('card', 'archive', 'Product', 'old', '--restore')).toBe(0)
+    expect(restore.writes()).toEqual([{ method: 'PATCH', path: `/api/cards/${C3}`, body: { archived: false } }])
   })
 
   it('refuses bad input before calling the site', async () => {
@@ -160,6 +173,7 @@ describe('cli board and card commands', () => {
     expect(await h.cli('card', 'edit', 'Product', 'First bug')).toBe(2)
     expect(await h.cli('card', 'add', 'Product', 'Done')).toBe(2)
     expect(h.err()).toContain('Missing <title>.')
+    expect(h.err()).toContain('Run "kanso card add --help" for usage.')
     expect(h.writes()).toEqual([])
   })
 

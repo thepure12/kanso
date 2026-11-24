@@ -11,7 +11,8 @@ export interface Match {
 /** A name that fits several things; `matches` lists them so the user can pick by id. */
 export class AmbiguousError extends CliError {
   constructor(kind: string, ref: string, readonly matches: Match[]) {
-    super(`"${ref}" matches ${matches.length} ${kind}s: ${matches.map(m => `${m.name} (${m.id})`).join(', ')}. Use the id or the full name.`)
+    const sameName = new Set(matches.map(m => m.name.toLowerCase())).size === 1
+    super(`"${ref}" matches ${matches.length} ${kind}s: ${matches.map(m => `${m.name} (${m.id})`).join(', ')}. Use the id${sameName ? '' : ' or the full name'}.`)
   }
 }
 

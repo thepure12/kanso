@@ -56,7 +56,7 @@ export const boardShow: Command = {
       ['Board', board.name],
       ['Id', board.id],
       ['Your role', board.role],
-      ['Team', board.team?.name],
+      ['Team', board.team && (board.team.name ?? board.team.id)],
       ['Archived', view.archived],
     ]))
     ctx.io.stdout(`\nColumns:\n${table(['ID', 'TITLE', 'CARDS', 'WIP'], view.columns.map(c => [c.id, c.title, c.cards, c.wipLimit]))}`)

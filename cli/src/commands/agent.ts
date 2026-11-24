@@ -7,9 +7,9 @@ import { AGENT_CLIENT_ID, type AgentOptions, type CardContext, type ExecResult, 
 import { createClient } from '../client.ts'
 import { loadConfig, resolveCredentials } from '../config.ts'
 import { UsageError } from '../io.ts'
+import { loadBoard } from '../resolve.ts'
 import type { Command } from './types.ts'
 
-const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 /** "a, b,,c" → ["a", "b", "c"] */
 export function splitList(value: string | boolean | string[] | undefined): string[] {
@@ -61,9 +61,9 @@ ${ctx.rule?.instructions.trim() || instructions?.trim() || defaultInstructions}
 export const agent: Command = {
   name: 'agent',
   summary: 'Run a command for board events (agent run), e.g. Claude for cards landing in a column',
-  usage: 'agent run (--board <ids> [--columns <ids|titles>] [--activity <kinds>] | --notifications) (--cmd "<command>" | --claude) [options]',
+  usage: 'agent run (--board <ids|names> [--columns <ids|titles>] [--activity <kinds>] | --notifications) (--cmd "<command>" | --claude) [options]',
   options: {
-    board: { type: 'string', value: '<ids>', description: 'Boards to follow, comma-separated. Alone: follow the board\'s agent rules for this bot token' },
+    board: { type: 'string', value: '<ids|names>', description: 'Boards to follow (ids or names), comma-separated. Alone: follow the board\'s agent rules for this bot token' },
     columns: { type: 'string', value: '<ids|titles>', description: 'Only cards (now) in these columns; ids or titles, comma-separated. Default kinds then: created,moved' },
     activity: { type: 'string', value: '<kinds>', description: 'Activity kinds that start a run (created, moved, commented, assigned, tagged, ...)' },
     notifications: { type: 'boolean', description: 'Run for unread notifications (mentions, assignments, ...) and mark them read afterwards' },
@@ -97,17 +97,16 @@ Examples:
   async run(ctx) {
     if (ctx.positionals[0] !== 'run' || ctx.positionals.length > 1) throw new UsageError('Usage: kanso agent run [options]. See kanso agent --help.')
     const v = ctx.values
-    const boardIds = splitList(v.board)
-    for (const b of boardIds) if (!uuid.test(b)) throw new UsageError(`--board takes board ids, not "${b}".`)
+    const boardRefs = splitList(v.board)
     let activity = splitList(v.activity)
     for (const k of activity) if (!/^[a-z_]{1,40}$/.test(k)) throw new UsageError(`Unknown activity kind "${k}".`)
     const columnNames = splitList(v.columns)
     if (columnNames.length && !activity.length) activity = ['created', 'moved']
     const notifications = v.notifications === true
-    const rulesMode = !notifications && !activity.length && boardIds.length > 0
+    const rulesMode = !notifications && !activity.length && boardRefs.length > 0
     if (!notifications && !activity.length && !rulesMode) throw new UsageError('Nothing to listen for: give --board (agent rules), --notifications, --activity or --columns.')
     if (rulesMode && v.comment !== undefined) throw new UsageError('Agent rules set their own --comment; give --activity or --columns to use it.')
-    if (activity.length && !boardIds.length) throw new UsageError('--activity and --columns need --board.')
+    if (activity.length && !boardRefs.length) throw new UsageError('--activity and --columns need --board.')
     const cmd = typeof v.cmd === 'string' ? v.cmd.trim() : ''
     if (!cmd === !v.claude) throw new UsageError('Give either --cmd "<command>" or --claude.')
     if (v.prompt !== undefined && !v.claude) throw new UsageError('--prompt goes with --claude.')
@@ -121,7 +120,8 @@ Examples:
     const creds = resolveCredentials(await loadConfig(ctx.configPath), ctx.profile, ctx.io.env)
     const client = createClient(creds, ctx.io.fetch, AGENT_CLIENT_ID)
     // Fails early on a wrong id or a token limited to other boards, and gives the column titles.
-    const boards = await Promise.all(boardIds.map(b => client.get<BoardDetail>(`/api/boards/${b}`)))
+    const boards = await Promise.all(boardRefs.map(b => loadBoard(client, b)))
+    const boardIds = boards.map(b => b.id)
     const columnIds = resolveColumns(columnNames, boards)
     let rulesFor: string | null = null
     if (rulesMode) {

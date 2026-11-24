@@ -1,7 +1,7 @@
-import type { BoardDetail, Card, CardDetail, CardPatch, Comment } from '../../../shared/types/board.ts'
+import type { ArchivedCard, BoardDetail, Card, CardDetail, CardPatch, Comment } from '../../../shared/types/board.ts'
 import { UsageError } from '../io.ts'
 import { fields, json, table } from '../output.ts'
-import { cardId, findCard, findColumn, findMember, findTag, loadBoard } from '../resolve.ts'
+import { cardId, findCard, findColumn, findMember, findTag, isUuid, loadBoard, pick } from '../resolve.ts'
 import { boardOrder, cardView, connect, formatTime, listOption, meId, parseDate, parsePriority, positionals, shortId, stringOption } from './common.ts'
 import type { Command } from './types.ts'
 
@@ -200,15 +200,18 @@ export const cardArchive: Command = {
   summary: 'Archive a card (or bring it back with --restore)',
   usage: 'card archive <board> <card> [--restore]',
   options: {
-    restore: { type: 'boolean', description: 'Unarchive it; archived cards are not on the board, so give the full card id' },
+    restore: { type: 'boolean', description: 'Unarchive it (the card is looked up among the archived cards)' },
   },
   details: refsHelp,
   async run(ctx) {
     const [boardRef, ref] = positionals(ctx, '<board>', '<card>')
     const client = await connect(ctx)
     const board = await loadBoard(client, boardRef!)
-    const id = cardId(board, ref!)
     const restore = ctx.values.restore === true
+    // Archived cards are not on the board: look them up in its archived list.
+    const id = restore
+      ? isUuid(ref!) ? ref! : pick('archived card', ref!, await client.get<ArchivedCard[]>(`/api/boards/${board.id}/archived`), c => c.id, c => [c.title]).id
+      : cardId(board, ref!)
     const card = await client.patch<Card>(`/api/cards/${id}`, { archived: !restore })
     printCard(ctx, board, card, restore ? 'Restored' : 'Archived')
   },

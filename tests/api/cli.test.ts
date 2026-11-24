@@ -171,7 +171,7 @@ describe('kanso cli board and card commands', () => {
 
     await json(['card', 'archive', boardId, added.id])
     expect(await json(['cards', 'ls', boardId])).toEqual([])
-    await json(['card', 'archive', boardId, added.id, '--restore'])
+    await json(['card', 'archive', boardId, added.id.slice(0, 8), '--restore'])
     expect((await json(['cards', 'ls', boardId])).map((c: { id: string }) => c.id)).toEqual([added.id])
   })
 
@@ -225,7 +225,7 @@ describe('kanso agent run against the API', () => {
     const { token } = await alice.token(['read', 'write'])
     const stop = new AbortController()
     const env = { KANSO_URL: base, KANSO_TOKEN: token, OUT: out }
-    const running = cli(['agent', 'run', '--board', board.id, '--columns', 'to do', '--comment', 'always',
+    const running = cli(['agent', 'run', '--board', 'Agent board', '--columns', 'to do', '--comment', 'always',
       '--cmd', 'cat > "$OUT/$KANSO_EVENT-$KANSO_CARD_ID.json"'], env, stop.signal)
     await new Promise(r => setTimeout(r, 500))
     const create = async (columnId: string, title: string) => (await (await alice.req(`/api/boards/${board.id}/cards`, { method: 'POST', body: { columnId, title } })).json() as { id: string }).id
