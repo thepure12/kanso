@@ -42,9 +42,12 @@ registerEndpoint('/api/boards/b1', () => board('b1', 'Alpha', [['b1c1', 'Todo'],
 let viewerOnly = false
 // Appearance of Beta's column, set by the appearance test.
 let b2Column: Record<string, unknown> = {}
+// Column tags (column groups) of Beta, set by the column tag test.
+let b2Groups: unknown[] = []
 registerEndpoint('/api/boards/b2', () => {
   const b = board('b2', 'Beta', [['b2c1', 'Doing']], [card('c3', 'b2c1', 'Beta work')])
   Object.assign(b.columns[0]!, b2Column)
+  b.columnGroups = b2Groups as BoardDetail['columnGroups']
   return { ...b, ...(viewerOnly ? { role: 'viewer' } : {}) }
 })
 let posted: unknown
@@ -150,6 +153,26 @@ describe('custom view page', () => {
     }
     finally {
       b2Column = {}
+    }
+  })
+
+  it('shows column tag chips as on the board, names following the label setting', async () => {
+    b2Groups = [{ id: 'g1', name: 'Sprint', color: '#00ff00', position: 0, columnIds: ['b2c1'] }]
+    try {
+      let w = await mountPage()
+      expect(w.find('[data-column-id="b2c1"] header').text()).toContain('Sprint')
+      expect(w.find('[data-column-id="b1c2"] header').text()).not.toContain('Sprint')
+      w.unmount()
+      mounted = []
+      localStorage.setItem('kanban:labels', JSON.stringify({ tagNames: true, groupNames: false }))
+      w = await mountPage()
+      const header = w.find('[data-column-id="b2c1"] header')
+      expect(header.text()).not.toContain('Sprint')
+      expect(header.find('[aria-label="Sprint"]').exists()).toBe(true)
+    }
+    finally {
+      b2Groups = []
+      localStorage.removeItem('kanban:labels')
     }
   })
 

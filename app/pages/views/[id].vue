@@ -93,6 +93,9 @@ const columns = computed(() => (view.value?.columns ?? []).flatMap((vc) => {
 }))
 type ViewCol = (typeof columns.value)[number]
 
+/** Column tags (column groups) of the column on its board, shown as chips in its header. */
+const columnChips = (col: ViewCol) => groupsForColumn(col.board.columnGroups, col.columnId)
+
 // Columns look as on their board: header colour, outline (column, else board
 // default), WIP limit, rules, points and time. Widths and collapsed columns are
 // the view's own (personal, localStorage `kanban:custom-view:column-widths:<view>`
@@ -405,11 +408,38 @@ async function remove() {
   }
   catch (err) { showError(err, t('customViews.errors.delete')) }
 }
-const menu = computed(() => [[
-  { label: t('customViews.edit'), icon: 'i-lucide-pencil', onSelect: () => { editOpen.value = true } },
-  { label: t('customViews.appearance.menu'), icon: 'i-lucide-image', onSelect: () => { appearanceOpen.value = true } },
-  { label: t('common.delete'), icon: 'i-lucide-trash', color: 'error' as const, onSelect: remove },
-]])
+// Tag and column tag names: the same personal choice as in the board menu
+// (localStorage `kanban:labels`, all boards and views).
+const labels = useLabelDisplay()
+onMounted(loadLabelDisplay)
+const hasColumnGroups = computed(() => columns.value.some(c => columnChips(c).length))
+const menu = computed(() => [
+  [
+    { label: t('customViews.edit'), icon: 'i-lucide-pencil', onSelect: () => { editOpen.value = true } },
+    { label: t('customViews.appearance.menu'), icon: 'i-lucide-image', onSelect: () => { appearanceOpen.value = true } },
+  ],
+  [
+    {
+      label: t('board.menu.tagNames'),
+      icon: 'i-lucide-tag',
+      type: 'checkbox' as const,
+      checked: labels.value.tagNames,
+      onUpdateChecked: (tagNames: boolean) => setLabelDisplay({ tagNames }),
+    },
+    ...(hasColumnGroups.value
+      ? [{
+          label: t('board.menu.groupNames'),
+          icon: 'i-lucide-columns-3',
+          type: 'checkbox' as const,
+          checked: labels.value.groupNames,
+          onUpdateChecked: (groupNames: boolean) => setLabelDisplay({ groupNames }),
+        }]
+      : []),
+  ],
+  [
+    { label: t('common.delete'), icon: 'i-lucide-trash', color: 'error' as const, onSelect: remove },
+  ],
+])
 </script>
 
 <template>
@@ -589,6 +619,25 @@ const menu = computed(() => [[
               <UTooltip v-if="columnTime(col)" :text="t('board.column.timeLogged', { time: formatDuration(columnTime(col), t) })">
                 <span class="inline-flex items-center gap-0.5 text-xs font-medium tabular-nums">
                   <UIcon name="i-lucide-timer" class="size-3.5 shrink-0" />{{ formatDuration(columnTime(col), t) }}
+                </span>
+              </UTooltip>
+            </div>
+            <!-- Column tag chips as on the board (no group picker here, so they only show). -->
+            <div
+              v-if="columnChips(col).length"
+              class="flex flex-wrap items-center gap-1"
+              :class="col.color ? '-mx-1.5 px-1.5 py-1.5 rounded-md bg-default/60' : 'border-t border-current/15 pt-1.5'"
+            >
+              <UTooltip v-for="g in columnChips(col)" :key="g.id" :disabled="labels.groupNames" :text="g.name">
+                <span
+                  class="rounded ring ring-inset ring-black/10"
+                  :style="g.color ? { backgroundColor: g.color, color: contrastText(g.color) } : undefined"
+                  :class="[!g.color && 'bg-accented text-default', labels.groupNames ? 'inline-flex items-center gap-1 px-1.5 text-xs leading-5' : 'inline-block h-2 w-8 rounded-full']"
+                  :aria-label="labels.groupNames ? undefined : g.name"
+                >
+                  <template v-if="labels.groupNames">
+                    <UIcon name="i-lucide-columns-3" class="size-3 shrink-0" />{{ g.name }}
+                  </template>
                 </span>
               </UTooltip>
             </div>
