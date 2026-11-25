@@ -1082,6 +1082,54 @@ export const boardWebhooks = pgTable('board_webhooks', {
   failureCount: integer('failure_count').notNull().default(0),
 }, t => [index('board_webhooks_board_idx').on(t.boardId)])
 
+// GitHub repositories linked to a board (see 0150_git_links_rls.sql): the
+// task git:sync (every 15 min) and "Sync now" add the repo's new open issues
+// (optionally only those with `label`) as cards at the end of `column_id`.
+// Board owners manage them; `token` (a personal access token sealed by the
+// server, optional for public repos) has no SELECT grant, `has_token` says
+// whether one is set.
+export const boardGitLinks = pgTable('board_git_links', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  boardId: uuid('board_id').notNull().references(() => boards.id, { onDelete: 'cascade' }),
+  provider: text('provider').notNull().default('github'),
+  // owner/name
+  repo: text('repo').notNull(),
+  columnId: uuid('column_id').notNull(),
+  label: text('label'),
+  // none | complete: what happens to the card when its issue closes.
+  closeAction: text('close_action').notNull().default('none'),
+  token: text('token'),
+  hasToken: boolean('has_token').notNull().generatedAlwaysAs(sql`token is not null`),
+  active: boolean('active').notNull().default(true),
+  // Start of the last successful sync (issues updated since then are fetched next time).
+  lastSyncedAt: timestamp('last_synced_at', { withTimezone: true }),
+  lastAttemptAt: timestamp('last_attempt_at', { withTimezone: true }),
+  lastError: text('last_error'),
+  createdBy: uuid('created_by').references(() => users.id, { onDelete: 'set null' }),
+  createdAt: createdAt(),
+}, t => [
+  index('board_git_links_board_idx').on(t.boardId),
+  foreignKey({ columns: [t.columnId, t.boardId], foreignColumns: [columns.id, columns.boardId] }).onDelete('cascade'),
+])
+
+// Issues imported as cards, so none is imported twice. Kept when the card is
+// deleted (card_id null), so a deleted card's issue does not come back. No
+// grants: written by app.import_git_issues.
+export const cardGitIssues = pgTable('card_git_issues', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  boardId: uuid('board_id').notNull().references(() => boards.id, { onDelete: 'cascade' }),
+  cardId: uuid('card_id').references(() => cards.id, { onDelete: 'set null' }),
+  linkId: uuid('link_id').references(() => boardGitLinks.id, { onDelete: 'set null' }),
+  provider: text('provider').notNull().default('github'),
+  repo: text('repo').notNull(),
+  number: integer('number').notNull(),
+  url: text('url').notNull(),
+  createdAt: createdAt(),
+}, t => [
+  uniqueIndex('card_git_issues_issue_idx').on(t.boardId, t.provider, t.repo, t.number),
+  index('card_git_issues_card_idx').on(t.cardId),
+])
+
 // Outbox: one row per webhook per activity, queued by a card_activity trigger
 // and sent by server/utils/webhooks.ts (on NOTIFY and every minute). Up to 5
 // attempts with backoff. No grants: only app.* functions touch it.

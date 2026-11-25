@@ -673,7 +673,8 @@
       },
       "rules": "Regeln",
       "agentRules": "Agentenregeln",
-      "bots": "Bots"
+      "bots": "Bots",
+      "gitIssues": "GitHub-Issues"
     },
     "undo": {
       "action": "Rückgängig",
@@ -2440,7 +2441,8 @@
       "groupNames": "Aus: Spaltenköpfe zeigen farbige Balken statt der Spalten-Tag-Namen. Gilt für alle Boards auf diesem Gerät.",
       "archive": "Macht das Board für alle schreibgeschützt, bis ein Eigentümer es aus dem Archiv holt.",
       "unarchive": "Macht das Board wieder bearbeitbar.",
-      "delete": "Löscht das Board mit allen Karten. Das lässt sich nicht rückgängig machen."
+      "delete": "Löscht das Board mit allen Karten. Das lässt sich nicht rückgängig machen.",
+      "gitIssues": "Neue Issues aus GitHub-Repositories in eine Spalte holen."
     }
   },
   "columnEdit": {
@@ -2508,5 +2510,43 @@
     "hint": "Wähle Sticker für die Vorderseite der Karte. Nochmal wählen entfernt ihn.",
     "full": "Eine Karte trägt höchstens {max} Sticker.",
     "onCard": "Sticker: {stickers}"
+  },
+  "gitIssues": {
+    "title": "GitHub-Issues",
+    "description": "Neue Issues eines verknüpften Repositories werden zu Karten am Ende einer Spalte, alle 15 Minuten geprüft. Nur Board-Besitzer sehen das.",
+    "loadFailed": "Die verknüpften Repositories konnten nicht geladen werden",
+    "saveFailed": "Die Verknüpfung konnte nicht gespeichert werden",
+    "updateFailed": "Die Verknüpfung konnte nicht geändert werden",
+    "deleteConfirm": "Verknüpfung mit {repo} lösen? Schon importierte Karten bleiben.",
+    "deleteFailed": "Die Verknüpfung konnte nicht gelöst werden",
+    "syncFailed": "Synchronisieren fehlgeschlagen",
+    "add": "Repository verknüpfen",
+    "empty": "Noch keine Repositories verknüpft.",
+    "repo": "Repository",
+    "repoHint": "owner/name oder die URL des Repositories",
+    "column": "Spalte",
+    "columnHint": "Neue Issues werden zu Karten am Ende dieser Spalte.",
+    "label": "Nur Issues mit diesem Label",
+    "labelHint": "Leer lassen für alle offenen Issues.",
+    "closeAction": "Wenn das Issue geschlossen wird",
+    "closeNone": "Nichts tun",
+    "closeComplete": "Karte als erledigt markieren",
+    "token": "Zugriffstoken",
+    "tokenHint": "Ein persönliches GitHub-Zugriffstoken, das die Issues des Repositories lesen darf. Für öffentliche Repositories optional, ohne Token erlaubt GitHub aber nur wenige Anfragen pro Stunde. Wird verschlüsselt gespeichert und nie wieder angezeigt.",
+    "tokenKeep": "Leer lassen, um das gespeicherte Token zu behalten",
+    "removeToken": "Gespeichertes Token entfernen",
+    "hasToken": "Token gespeichert",
+    "noToken": "Kein Token",
+    "turnOff": "Ausschalten",
+    "turnOn": "Einschalten",
+    "syncNow": "Jetzt synchronisieren",
+    "synced": "Keine neuen Issues | {count} neue Karte | {count} neue Karten",
+    "completed": "{count} Karte als erledigt markiert | {count} Karten als erledigt markiert",
+    "lastSync": "Zuletzt synchronisiert {date}",
+    "neverSynced": "Noch nicht synchronisiert",
+    "labelSummary": "Label: {label}",
+    "closeSummary": "Geschlossene Issues markieren die Karte als erledigt",
+    "columnGone": "Unbekannte Spalte",
+    "labelsNote": "Issue-Labels werden zu Karten-Tags, wenn das Board ein Tag mit demselben Namen hat. Pull-Requests werden ausgelassen."
   }
 }

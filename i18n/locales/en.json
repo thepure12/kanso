@@ -673,7 +673,8 @@
       },
       "rules": "Rules",
       "agentRules": "Agent rules",
-      "bots": "Bots"
+      "bots": "Bots",
+      "gitIssues": "GitHub issues"
     },
     "undo": {
       "action": "Undo",
@@ -2440,7 +2441,8 @@
       "groupNames": "Off: column headers show coloured bars instead of column tag names. Applies to every board on this device.",
       "archive": "Makes the board read-only for everyone until an owner unarchives it.",
       "unarchive": "Makes the board editable again.",
-      "delete": "Deletes the board with all its cards. This cannot be undone."
+      "delete": "Deletes the board with all its cards. This cannot be undone.",
+      "gitIssues": "Bring new issues of GitHub repositories into a column."
     }
   },
   "columnEdit": {
@@ -2508,5 +2510,43 @@
     "hint": "Pick stickers for the front of the card. Pick one again to take it off.",
     "full": "A card holds at most {max} stickers.",
     "onCard": "Stickers: {stickers}"
+  },
+  "gitIssues": {
+    "title": "GitHub issues",
+    "description": "New issues of a linked repository become cards at the end of a column, checked every 15 minutes. Only board owners see these.",
+    "loadFailed": "Could not load the linked repositories",
+    "saveFailed": "Could not save the repository link",
+    "updateFailed": "Could not update the repository link",
+    "deleteConfirm": "Unlink {repo}? Cards already imported stay.",
+    "deleteFailed": "Could not unlink the repository",
+    "syncFailed": "Could not sync",
+    "add": "Link repository",
+    "empty": "No repositories linked yet.",
+    "repo": "Repository",
+    "repoHint": "owner/name or the repository URL",
+    "column": "Column",
+    "columnHint": "New issues become cards at the end of this column.",
+    "label": "Only issues with this label",
+    "labelHint": "Leave empty for every open issue.",
+    "closeAction": "When the issue closes",
+    "closeNone": "Do nothing",
+    "closeComplete": "Mark the card complete",
+    "token": "Access token",
+    "tokenHint": "A GitHub personal access token that can read the repository’s issues. Optional for public repositories, but without one GitHub allows only a few requests per hour. Stored encrypted, never shown again.",
+    "tokenKeep": "Leave empty to keep the stored token",
+    "removeToken": "Remove the stored token",
+    "hasToken": "Token stored",
+    "noToken": "No token",
+    "turnOff": "Turn off",
+    "turnOn": "Turn on",
+    "syncNow": "Sync now",
+    "synced": "No new issues | {count} new card | {count} new cards",
+    "completed": "{count} card marked complete | {count} cards marked complete",
+    "lastSync": "Last sync {date}",
+    "neverSynced": "Not synced yet",
+    "labelSummary": "Label: {label}",
+    "closeSummary": "Closed issues mark the card complete",
+    "columnGone": "Unknown column",
+    "labelsNote": "Issue labels become card tags when the board has a tag of the same name. Pull requests are left out."
   }
 }

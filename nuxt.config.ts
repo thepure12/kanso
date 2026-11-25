@@ -42,8 +42,8 @@ export default defineNuxtConfig({
     // server and served at /cli/kanso.mjs (server/routes/cli/), next to /cli/install.sh.
     serverAssets: [{ baseName: 'cli', dir: fileURLToPath(new URL('./cli/dist', import.meta.url)) }],
     // Daily email digest (server/tasks/notifications/digest.ts), server time;
-    // recurring cards (server/tasks/cards/recurring.ts); board automations (server/tasks/cards/automations.ts); trash purge (server/tasks/cards/trash.ts); card reminders (server/tasks/cards/reminders.ts); webhook retries (server/tasks/webhooks/deliver.ts); push retries (server/tasks/push/deliver.ts).
-    scheduledTasks: { '0 7 * * *': ['notifications:digest'], '*/15 * * * *': ['cards:recurring'], '0 * * * *': ['cards:automations'], '30 3 * * *': ['cards:trash'], '* * * * *': ['webhooks:deliver', 'push:deliver', 'matrix:deliver', 'cards:reminders'] },
+    // recurring cards (server/tasks/cards/recurring.ts); board automations (server/tasks/cards/automations.ts); trash purge (server/tasks/cards/trash.ts); GitHub issue import (server/tasks/git/sync.ts); card reminders (server/tasks/cards/reminders.ts); webhook retries (server/tasks/webhooks/deliver.ts); push retries (server/tasks/push/deliver.ts).
+    scheduledTasks: { '0 7 * * *': ['notifications:digest'], '*/15 * * * *': ['cards:recurring', 'git:sync'], '0 * * * *': ['cards:automations'], '30 3 * * *': ['cards:trash'], '* * * * *': ['webhooks:deliver', 'push:deliver', 'matrix:deliver', 'cards:reminders'] },
   },
   // UI text lives in i18n/locales/<code>.json (lazy-loaded). No URL prefixes: the
   // locale comes from the user's saved preference (users.locale, applied by the
@@ -138,6 +138,8 @@ export default defineNuxtConfig({
     // NUXT_WEBHOOK_ALLOW_PRIVATE=true lets webhooks reach loopback and private
     // addresses. For development and tests only: it opens the server to SSRF.
     webhook: { allowPrivate: false },
+    // GitHub's REST API for linked repositories (server/utils/gitLinks.ts); NUXT_GITHUB_API_URL, for tests.
+    github: { apiUrl: 'https://api.github.com' },
     // Web Push (server/utils/push.ts). VAPID keys as base64url (`npx web-push
     // generate-vapid-keys`); empty: derived from the session password. subject:
     // contact for push services (https: or mailto:), empty: site URL or admin email.
