@@ -523,7 +523,7 @@ const menu = computed(() => [[
                 </UDropdownMenu>
               </div>
             </div>
-            <ULink :to="`/boards/${col.boardId}`" class="-mt-1 text-xs hover:underline truncate block" :class="col.color ? 'opacity-80' : 'text-muted'">
+            <ULink :to="`/boards/${col.boardId}`" raw class="-mt-1 text-xs hover:underline truncate block" :class="!col.color && 'text-muted'">
               {{ col.board.name }}
             </ULink>
             <div
