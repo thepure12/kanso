@@ -1065,6 +1065,7 @@
     "duplicates": "Duplicates",
     "duplicatedBy": "Duplicated by",
     "archived": "Archived",
+    "completed": "Completed",
     "remove": "Remove link to {title}",
     "kind": "Link kind",
     "chooseCard": "Choose a card",

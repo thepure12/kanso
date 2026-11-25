@@ -542,7 +542,8 @@ export interface CardLink {
   id: string
   kind: CardLinkKind
   direction: 'out' | 'in'
-  card: { id: string, title: string, columnId: string, columnTitle: string, archived: boolean }
+  /** `completed`: the linked card is marked complete (a completed blocker no longer blocks). */
+  card: { id: string, title: string, columnId: string, columnTitle: string, archived: boolean, completed: boolean }
 }
 
 /** Someone watching a card (people the caller can no longer see are left out). */

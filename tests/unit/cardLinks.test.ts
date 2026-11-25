@@ -53,7 +53,7 @@ describe('blockingCardIds', () => {
 
 describe('groupLinks', () => {
   const link = (id: string, kind: CardLink['kind'], direction: CardLink['direction']) =>
-    ({ id, kind, direction, card: { id, title: id, columnId: 'c', columnTitle: 'C', archived: false } }) as CardLink
+    ({ id, kind, direction, card: { id, title: id, columnId: 'c', columnTitle: 'C', archived: false, completed: false } }) as CardLink
 
   it('groups by kind and direction in a fixed order', () => {
     const groups = groupLinks([link('1', 'relates', 'in'), link('2', 'blocks', 'in'), link('3', 'blocks', 'out'), link('4', 'relates', 'out'), link('5', 'duplicates', 'in')], serverI18n('en').t)

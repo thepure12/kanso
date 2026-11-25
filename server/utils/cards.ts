@@ -71,9 +71,9 @@ export async function loadTimeEntries(tx: Tx, where: SQL): Promise<TimeEntry[]> 
 
 /** Links of a card in both directions, oldest first, with the other card's title, column and archived state. */
 export async function loadCardLinks(tx: Tx, where: SQL): Promise<CardLink[]> {
-  const rows = await tx.execute<Omit<CardLink, 'card'> & { cardId: string, title: string, columnId: string, columnTitle: string, archived: boolean } & Record<string, unknown>>(sql`
+  const rows = await tx.execute<Omit<CardLink, 'card'> & { cardId: string, title: string, columnId: string, columnTitle: string, archived: boolean, completed: boolean } & Record<string, unknown>>(sql`
     select l.id, l.kind, l.direction, o.id as "cardId", o.title, o.column_id as "columnId", col.title as "columnTitle",
-           o.archived_at is not null as archived
+           o.archived_at is not null as archived, o.completed_at is not null as completed
     from (
       select id, kind, from_card_id as card_id, to_card_id as other_id, 'out' as direction, created_at from card_links
       union all
@@ -84,7 +84,7 @@ export async function loadCardLinks(tx: Tx, where: SQL): Promise<CardLink[]> {
     where ${where}
     order by l.created_at, l.id
   `)
-  return rows.map(({ cardId, title, columnId, columnTitle, archived, ...l }) => ({ ...l, card: { id: cardId, title, columnId, columnTitle, archived } }))
+  return rows.map(({ cardId, title, columnId, columnTitle, archived, completed, ...l }) => ({ ...l, card: { id: cardId, title, columnId, columnTitle, archived, completed } }))
 }
 
 /** The board of a card the user can see, or 404. */

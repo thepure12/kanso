@@ -917,7 +917,7 @@ describe('watchers and links', () => {
 
     const created = await addLink(bob, a.id, b.id)
     expect(created.status).toBe(200)
-    expect(created.data).toMatchObject({ kind: 'blocks', direction: 'out', card: { id: b.id, title: 'Blocked', columnTitle: 'Backlog', archived: false } })
+    expect(created.data).toMatchObject({ kind: 'blocks', direction: 'out', card: { id: b.id, title: 'Blocked', columnTitle: 'Backlog', archived: false, completed: false } })
     expect((await addLink(bob, a.id, b.id)).status).toBe(409)
     expect((await addLink(bob, b.id, a.id)).status).toBe(409)
     expect((await addLink(bob, a.id, a.id)).status).toBe(400)
@@ -945,6 +945,13 @@ describe('watchers and links', () => {
     expect((await addLink(vic, c.id, b.id, 'relates')).status).toBe(403)
     const detail = (await vic.req<CardDetail>(`/api/cards/${a.id}`)).data
     expect(detail.links.map(l => [l.kind, l.direction, l.card.title])).toEqual([['blocks', 'out', 'Blocked'], ['relates', 'in', 'Related']])
+    // A completed linked card says so (it no longer blocks), and again not once reopened.
+    const completedLink = async (completed: boolean) => {
+      expect((await bob.req(`/api/cards/${a.id}`, { method: 'PATCH', body: { completed } })).status).toBe(200)
+      return (await vic.req<CardDetail>(`/api/cards/${b.id}`)).data.links.find(l => l.card.id === a.id)!.card.completed
+    }
+    expect(await completedLink(true)).toBe(true)
+    expect(await completedLink(false)).toBe(false)
     const onBoard = (await vic.req<BoardDetail>(`/api/boards/${boardId}`)).data.cards.find(x => x.id === b.id)!
     expect(onBoard.blockerIds).toEqual([a.id])
     expect((await vic.req(`/api/card-links/${created.data.id}`, { method: 'DELETE' })).status).toBe(404)

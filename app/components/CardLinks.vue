@@ -64,7 +64,8 @@ function remove(link: CardLink) {
           class="flex-1 min-w-0 flex items-center gap-2 text-start text-sm rounded px-1 py-0.5 hover:bg-elevated cursor-pointer"
           @click="emit('open', l.card.id)"
         >
-          <span class="truncate" :class="l.card.archived && 'line-through text-muted'">{{ l.card.title }}</span>
+          <UIcon v-if="l.card.completed" name="i-lucide-circle-check" class="size-4 shrink-0 text-success" :aria-label="t('cardLinks.completed')" />
+          <span class="truncate" :class="(l.card.archived || l.card.completed) && 'line-through text-muted'">{{ l.card.title }}</span>
           <UBadge v-if="l.card.archived" color="neutral" variant="subtle" size="sm" :label="t('cardLinks.archived')" />
           <span v-else class="text-xs text-dimmed shrink-0">{{ l.card.columnTitle }}</span>
         </button>

@@ -114,7 +114,7 @@ export function cardForAgent(board: BoardDetail, card: Card, detail: CardDetail)
       })),
     })),
     comments: detail.comments.map(c => ({ id: c.id, author: c.authorName ?? c.importedAuthor, body: c.body, createdAt: c.createdAt })),
-    links: detail.links.map(l => ({ id: l.id, kind: l.kind, direction: l.direction, card: { id: l.card.id, title: l.card.title, column: l.card.columnTitle } })),
+    links: detail.links.map(l => ({ id: l.id, kind: l.kind, direction: l.direction, card: { id: l.card.id, title: l.card.title, column: l.card.columnTitle, completed: l.card.completed || undefined } })),
     attachments: detail.attachments.map(a => ({ id: a.id, name: a.name, size: a.size })),
     timeMinutes: detail.timeTotal,
     watchers: detail.watchers.map(w => w.name),

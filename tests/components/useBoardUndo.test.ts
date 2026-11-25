@@ -1,7 +1,8 @@
 import { mockNuxtImport, mountSuspended } from '@nuxt/test-utils/runtime'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { defineComponent, h, nextTick, ref } from 'vue'
+import { computed, defineComponent, h, nextTick, ref } from 'vue'
 import type { BoardDetail, Card } from '#shared/types/board'
+import { blockedCardIds, blockingCardIds } from '../../app/utils/cardLinks'
 
 // useBoard with the network mocked: checks which requests undo sends.
 const m = vi.hoisted(() => ({
@@ -138,6 +139,26 @@ describe('useBoard undo', () => {
     await b.undo()
     expect(calls()).toEqual([['/api/cards/a', 'PATCH', { completed: false }]])
     expect(a.completedAt).toBeNull()
+  })
+
+  it('lifts a block when the blocker is marked complete and puts it back on undo', async () => {
+    const detail = (m.board as { value: BoardDetail }).value
+    detail.cards[1]!.blockerIds = ['a'] // a blocks b
+    detail.columns.push(column('c3') as BoardDetail['columns'][number]) // c2 is no longer the done column
+    const b = await mountBoard()
+    const blocked = computed(() => [...blockedCardIds(Object.values(b.lists.value).flat(), b.columns.value)])
+    const blocking = computed(() => [...blockingCardIds(Object.values(b.lists.value).flat(), b.columns.value)])
+    expect(blocked.value).toEqual(['b'])
+    expect(blocking.value).toEqual(['a'])
+    const a = b.lists.value.c1![0]!
+    m.api.mockResolvedValueOnce({ ...a, completedAt: '2026-11-25T00:00:00.000Z' })
+    await b.setCardCompleted(a, true)
+    expect(blocked.value).toEqual([])
+    expect(blocking.value).toEqual([])
+    m.api.mockResolvedValueOnce({ ...a, completedAt: null })
+    await b.undo()
+    expect(blocked.value).toEqual(['b'])
+    expect(blocking.value).toEqual(['a'])
   })
 
   it('patches the previous values of an edit', async () => {
