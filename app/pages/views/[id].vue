@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { VueDraggable } from 'vue-draggable-plus'
 import type { BoardDetail, Card, Column, Member } from '#shared/types/board'
 import type { BoardButton, ButtonRunResult } from '#shared/buttons'
 import type { CustomView } from '#shared/types/customViews'
@@ -12,7 +13,8 @@ import type { ViewColumnRequest } from '~/components/ViewColumnTools.vue'
 // Each board loads through GET /api/boards/:id (RLS decides what shows); cards
 // look and act as on the board (complete, rename, delete, card buttons) and open
 // in the full card dialog of their board, but are not dragged here. Columns have
-// the board's controls (menu, inline rename) plus their own collapse and width.
+// the board's controls (menu, inline rename) plus their own collapse and width,
+// and are dragged to reorder the view (not the boards).
 const route = useRoute()
 const { t } = useI18n()
 const i18n = useI18nContext()
@@ -383,6 +385,30 @@ function closeCard() {
   if (boardId) loadBoard(boardId)
 }
 
+// Dragging a column (grip in its header, or its collapsed strip) reorders the
+// view: personal, so for everyone who sees the view, saved at once and undoable.
+// The boards' own column order stays as it is.
+const canReorder = computed(() => !offline.value && columns.value.length > 1)
+async function putColumnOrder(columnIds: string[]) {
+  view.value = await $fetch<CustomView>(`/api/views/${id}`, { method: 'PATCH', body: { columnIds } })
+}
+async function onColumnsReordered(next: ViewCol[]) {
+  if (!view.value) return
+  const before = view.value.columns.map(c => c.columnId)
+  const after = reorderViewColumnIds(before, next.map(c => c.columnId))
+  if (after.every((c, i) => c === before[i])) return
+  const byId = new Map(view.value.columns.map(c => [c.columnId, c]))
+  view.value = { ...view.value, columns: after.map(c => byId.get(c)!) }
+  try {
+    await putColumnOrder(after)
+    undoStack.push({ label: t('board.undo.movedColumn'), undo: () => putColumnOrder(before), redo: () => putColumnOrder(after) })
+  }
+  catch (err) {
+    showError(err, t('customViews.errors.save'))
+    refreshView()
+  }
+}
+
 const editOpen = ref(false)
 
 // Background, accent and outline: saved at once, undoable like on the board (not uploads).
@@ -514,7 +540,17 @@ const menu = computed(() => [
     <div v-else-if="viewKind === 'timeline'" class="flex-1 min-h-0 overflow-auto px-4 pb-4" data-testid="view-timeline">
       <BoardTimelineView :class="panel" :cards="mergedCards" :columns="mergedColumns" :today="today" @open="openById" />
     </div>
-    <div v-else class="flex flex-1 min-h-0 items-start gap-3 overflow-x-auto px-4 pb-4 snap-x sm:snap-none" :class="backed && 'pt-4'" data-testid="view-columns">
+    <VueDraggable
+      v-else
+      :model-value="columns"
+      :disabled="!canReorder"
+      handle=".column-handle"
+      :animation="150"
+      class="flex flex-1 min-h-0 items-start gap-3 overflow-x-auto px-4 pb-4 snap-x sm:snap-none"
+      :class="backed && 'pt-4'"
+      data-testid="view-columns"
+      @update:model-value="onColumnsReordered"
+    >
       <section
         v-for="col in columns"
         :key="col.columnId"
@@ -528,6 +564,7 @@ const menu = computed(() => [
           v-if="collapsedColumns.isCollapsed(col.columnId)"
           type="button"
           class="flex flex-col items-center gap-2 py-2 min-h-40 rounded-lg cursor-pointer hover:bg-accented/40 focus-visible:outline-2 focus-visible:outline-primary"
+          :class="canReorder && 'column-handle'"
           :style="col.color ? { backgroundColor: col.color, color: contrastText(col.color) } : undefined"
           :aria-label="t('board.column.expand', { title: col.title, count: col.cards.length })"
           :title="t('board.column.expand', { title: col.title, count: col.cards.length })"
@@ -569,6 +606,7 @@ const menu = computed(() => [
             :style="col.color ? { backgroundColor: col.color, color: contrastText(col.color) } : undefined"
           >
             <div class="flex items-start gap-2">
+              <UIcon v-if="canReorder" name="i-lucide-grip-vertical" class="column-handle cursor-grab shrink-0 mt-1 pointer-coarse:size-6 pointer-coarse:mt-0.5" :class="col.color ? 'opacity-60' : 'text-dimmed'" data-testid="view-column-handle" />
               <input
                 v-if="renamingColumnId === col.columnId"
                 :ref="focusRenameInput"
@@ -689,7 +727,7 @@ const menu = computed(() => [
           </div>
         </template>
       </section>
-    </div>
+    </VueDraggable>
 
     <CustomViewModal v-model:open="editOpen" :view="view" @saved="onSaved" />
     <BoardBackgroundModal

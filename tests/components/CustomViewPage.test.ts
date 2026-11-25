@@ -34,6 +34,9 @@ registerEndpoint('/api/views/v1', async (event) => {
   if (event.method === 'PATCH') {
     const { readBody } = await import('h3')
     patched = await readBody(event)
+    // A column drag sends only the new order; the view comes back in it.
+    const ids = (patched as { name?: string, columnIds?: string[] }).columnIds
+    if (ids && !(patched as { name?: string }).name) return { ...view, columns: ids.map(c => view.columns.find(vc => vc.columnId === c)!) }
   }
   return view
 })
@@ -99,8 +102,8 @@ describe('custom view page', () => {
     expect(sections[1]!.text()).toContain('Alpha')
     expect(sections[1]!.text()).toContain('Review me')
     expect(w.text()).not.toContain('Hidden one')
-    // Nothing to drag: no draggable lists.
-    expect(w.find('[draggable="true"]').exists()).toBe(false)
+    // Cards are not dragged here: no draggable cards.
+    expect(w.find('[data-card-id][draggable="true"]').exists()).toBe(false)
   })
 
   it('keeps the boards loaded during SSR when hydrating (no refetch)', async () => {
@@ -208,6 +211,18 @@ describe('custom view page', () => {
       expect(section().text()).toContain('Review me')
     }
     finally { localStorage.removeItem('kanban:custom-view:collapsed-columns:v1') }
+  })
+
+  it('reorders the view by dragging a column, saved as the view order', async () => {
+    const w = await mountPage()
+    expect(w.findAll('[data-testid="view-column-handle"]')).toHaveLength(2)
+    const list = w.findComponent({ name: 'VueDraggable' })
+    const cols = list.props('modelValue') as { columnId: string }[]
+    patched = undefined
+    list.vm.$emit('update:modelValue', [cols[1], cols[0]])
+    await new Promise(r => setTimeout(r, 10))
+    expect(w.findAll('[data-column-id]').map(s => s.attributes('data-column-id'))).toEqual(['b1c2', 'b2c1'])
+    expect(patched).toEqual({ columnIds: ['b1c2', 'b2c1'] })
   })
 
   it('offers the column menu only to editors and renames a column inline through its board', async () => {
