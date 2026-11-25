@@ -422,7 +422,7 @@ const menu = computed(() => [[
     <div v-else-if="viewKind === 'timeline'" class="flex-1 min-h-0 overflow-auto px-4 pb-4" data-testid="view-timeline">
       <BoardTimelineView :cards="mergedCards" :columns="mergedColumns" :today="today" @open="openById" />
     </div>
-    <div v-else class="flex flex-1 min-h-0 gap-3 overflow-x-auto px-4 pb-4 snap-x sm:snap-none" data-testid="view-columns">
+    <div v-else class="flex flex-1 min-h-0 items-start gap-3 overflow-x-auto px-4 pb-4 snap-x sm:snap-none" data-testid="view-columns">
       <section
         v-for="col in columns"
         :key="col.columnId"
@@ -548,7 +548,7 @@ const menu = computed(() => [[
               {{ col.board.name }}
             </ULink>
           </header>
-          <div class="flex flex-col gap-2 flex-1 min-h-0 overflow-y-auto px-3 py-2">
+          <div class="flex flex-col gap-2 min-h-8 overflow-y-auto px-3 py-2">
             <BoardCard
               v-for="card in col.cards"
               :key="card.id"
