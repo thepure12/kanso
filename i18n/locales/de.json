@@ -2477,6 +2477,10 @@
     "unavailable": "Die Spalten dieser Ansicht sind für dich nicht (mehr) verfügbar.",
     "noCards": "Keine Karten",
     "deleteConfirm": "Ansicht „{name}“ löschen?",
+    "star": "Ansicht markieren",
+    "unstar": "Markierung entfernen",
+    "starFailed": "Die Ansicht konnte nicht zu den Favoriten hinzugefügt werden",
+    "unstarFailed": "Die Ansicht konnte nicht aus den Favoriten entfernt werden",
     "appearance": {
       "menu": "Hintergrund und Akzent",
       "boardBackground": {

@@ -26,6 +26,7 @@ const id = route.params.id as string
 
 const boardTabs = useBoardTabs()
 const { data: view, error, refresh: refreshView } = await useFetch<CustomView>(`/api/views/${id}`)
+const toggleViewStar = useViewStar()
 if (error.value) {
   boardTabs.forget(id)
   throw createError({ statusCode: error.value.statusCode ?? 404, statusMessage: t('customViews.notFound'), fatal: true })
@@ -492,6 +493,21 @@ const menu = computed(() => [
       <h1 class="text-xl font-semibold truncate">
         {{ view.name }}
       </h1>
+      <UTooltip :text="view.starred ? t('customViews.unstar') : t('customViews.star')">
+        <UButton
+          color="neutral"
+          variant="ghost"
+          :class="view.starred ? 'text-warning' : 'text-dimmed'"
+          :aria-label="view.starred ? t('customViews.unstar') : t('customViews.star')"
+          :aria-pressed="view.starred"
+          data-testid="view-star"
+          @click="toggleViewStar(view)"
+        >
+          <template #leading>
+            <UIcon name="i-lucide-star" mode="svg" class="size-5" :class="view.starred && '[&_*]:fill-current'" />
+          </template>
+        </UButton>
+      </UTooltip>
       <div class="ms-auto flex items-center gap-2">
         <UTabs v-model="viewKind" :items="viewItems" :content="false" size="sm" class="hidden sm:flex" :aria-label="t('board.viewLabel')" />
         <USelect

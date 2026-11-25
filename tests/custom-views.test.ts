@@ -1,7 +1,8 @@
 // RLS for custom views (0137_custom_views_rls.sql): personal views of columns
 // from any boards; only visible columns go in, and reads skip lost ones.
 // Their look (0144_custom_view_appearance_rls.sql): background, accent, outline
-// and the uploaded image, all personal.
+// and the uploaded image, all personal. Stars (0148_custom_view_stars_rls.sql):
+// only their user stars a view.
 import { randomUUID } from 'node:crypto'
 import postgres from 'postgres'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
@@ -149,5 +150,15 @@ describe('custom views', () => {
     // Another background drops the image.
     await as(alice.id, sql => sql`update custom_views set background = null where id = ${id}`)
     expect(await owner_`select 1 from custom_view_backgrounds where view_id = ${id}`).toHaveLength(0)
+  })
+
+  it('stars: only their user stars or unstars a view', async () => {
+    const id = await newView(alice)
+    expect((await as(bob.id, sql => sql`update custom_views set starred_at = now() where id = ${id}`)).count).toBe(0)
+    expect((await as(alice.id, sql => sql`update custom_views set starred_at = now() where id = ${id}`)).count).toBe(1)
+    expect((await owner_`select starred_at from custom_views where id = ${id}`)[0]!.starred_at).not.toBeNull()
+    expect((await as(alice.id, sql => sql`update custom_views set starred_at = null where id = ${id}`)).count).toBe(1)
+    // Still only the granted columns.
+    await rejectsWith(as(alice.id, sql => sql`update custom_views set user_id = ${bob.id} where id = ${id}`), '42501')
   })
 })

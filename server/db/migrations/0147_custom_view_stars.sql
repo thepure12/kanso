@@ -1,0 +1,1 @@
+ALTER TABLE "custom_views" ADD COLUMN "starred_at" timestamp with time zone;

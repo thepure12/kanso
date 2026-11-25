@@ -2477,6 +2477,10 @@
     "unavailable": "The columns of this view are not available to you (any more).",
     "noCards": "No cards",
     "deleteConfirm": "Delete the view “{name}”?",
+    "star": "Star view",
+    "unstar": "Unstar view",
+    "starFailed": "Could not star view",
+    "unstarFailed": "Could not unstar view",
     "appearance": {
       "menu": "Background and accent",
       "boardBackground": {

@@ -176,4 +176,21 @@ describe('custom views', () => {
     expect((await alice.req<CustomView>(path, { method: 'PATCH', body: { background: null } })).data.background).toBeNull()
     expect((await alice.req(`${path}/background`)).status).toBe(404)
   })
+
+  it('stars and unstars a view of the caller\'s only', async () => {
+    const view = (await alice.req<CustomView>('/api/views', { method: 'POST', body: { name: `Star ${randomUUID().slice(0, 6)}` } })).data
+    expect(view.starred).toBe(false)
+    const path = `/api/views/${view.id}`
+    expect((await bob.req(`${path}/star`, { method: 'PUT' })).status).toBe(404)
+    expect((await bob.req(`${path}/star`, { method: 'DELETE' })).status).toBe(404)
+
+    expect((await alice.req(`${path}/star`, { method: 'PUT' })).data).toEqual({ starred: true })
+    // Idempotent.
+    expect((await alice.req(`${path}/star`, { method: 'PUT' })).status).toBe(200)
+    expect((await alice.req<CustomView>(path)).data.starred).toBe(true)
+    expect((await alice.req<CustomViewSummary[]>('/api/views')).data.find(v => v.id === view.id)?.starred).toBe(true)
+
+    expect((await alice.req(`${path}/star`, { method: 'DELETE' })).data).toEqual({ starred: false })
+    expect((await alice.req<CustomView>(path)).data.starred).toBe(false)
+  })
 })

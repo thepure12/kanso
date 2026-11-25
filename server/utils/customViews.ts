@@ -18,7 +18,7 @@ export function loadViewableColumns(tx: Tx): Promise<ViewColumn[]> {
 
 /** The user's views by name, with the number of columns they can still see. */
 export function loadCustomViews(tx: Tx): Promise<CustomViewSummary[]> {
-  return tx.select({ id: v.id, name: v.name, columnCount: count(c.id), background: v.background, accent: v.accent })
+  return tx.select({ id: v.id, name: v.name, starred: sql<boolean>`${v.starredAt} is not null`, columnCount: count(c.id), background: v.background, accent: v.accent })
     .from(v)
     .leftJoin(vc, eq(vc.viewId, v.id))
     .leftJoin(c, eq(c.id, vc.columnId))
@@ -28,7 +28,7 @@ export function loadCustomViews(tx: Tx): Promise<CustomViewSummary[]> {
 
 /** One view of the user's (null when not theirs or gone); columns the user cannot see are left out by RLS. */
 export async function loadCustomView(tx: Tx, id: string): Promise<CustomView | null> {
-  const [row] = await tx.select({ id: v.id, name: v.name, background: v.background, accent: v.accent, columnOutline: v.columnOutline }).from(v).where(eq(v.id, id))
+  const [row] = await tx.select({ id: v.id, name: v.name, starred: sql<boolean>`${v.starredAt} is not null`, background: v.background, accent: v.accent, columnOutline: v.columnOutline }).from(v).where(eq(v.id, id))
   if (!row) return null
   const columns = await tx.select(columnFields).from(vc)
     .innerJoin(c, and(eq(c.id, vc.columnId), eq(c.boardId, vc.boardId)))
@@ -49,4 +49,14 @@ export async function setCustomViewColumns(tx: Tx, viewId: string, columnIds: st
   const boardOf = new Map(found.map(r => [r.id, r.boardId]))
   if (boardOf.size !== columnIds.length) throw createError({ statusCode: 400, statusMessage: 'Unknown column' })
   await tx.insert(vc).values(columnIds.map((columnId, position) => ({ viewId, columnId, boardId: boardOf.get(columnId)!, position })))
+}
+
+/** Stars or unstars one of the user's views (404 when not theirs); starring again keeps the first time. */
+export async function setCustomViewStar(tx: Tx, id: string, starred: boolean) {
+  // RLS: only the view's user sees the row.
+  const rows = await tx.update(v)
+    .set({ starredAt: starred ? sql`coalesce(${v.starredAt}, now())` : null })
+    .where(eq(v.id, id))
+    .returning({ id: v.id })
+  if (!rows.length) notFound('View not found')
 }

@@ -1240,6 +1240,8 @@ export const customViews = pgTable('custom_views', {
   background: jsonb('background').$type<BoardBackground>(),
   accent: text('accent').$type<BoardAccent>(),
   columnOutline: jsonb('column_outline').$type<ColumnOutline>(),
+  // Starred views sit with the starred boards on the home page (0147); null = not starred.
+  starredAt: timestamp('starred_at', { withTimezone: true }),
   createdAt: createdAt(),
 }, t => [
   uniqueIndex('custom_views_name_unique').on(t.userId, sql`lower(${t.name})`),

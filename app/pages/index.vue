@@ -2,7 +2,6 @@
 import type { BoardSummary, TeamSummary } from '#shared/types/board'
 import type { CustomView, CustomViewSummary } from '#shared/types/customViews'
 import { boardTemplates } from '#shared/boardTemplates'
-import { backgroundStyle } from '#shared/boardBackgrounds'
 import { csvHasIssueKeys, detectImportFormat, slimTrelloExport, type ImportFormat } from '#shared/import'
 
 const [{ data: boards, refresh: refreshBoards }, { data: teams, refresh: refreshTeams }, { data: views }] = await Promise.all([
@@ -27,6 +26,8 @@ const showArchived = ref(false)
 const personalBoards = computed(() => boardsOutsideTeams(activeBoards.value, teams.value.map(team => team.id)))
 const teamBoards = (teamId: string) => activeBoards.value.filter(b => b.teamId === teamId)
 const toggleStar = useBoardStar()
+const toggleViewStar = useViewStar()
+const starredViews = computed(() => views.value.filter(v => v.starred))
 const canCreateIn = (team: TeamSummary) => team.role === 'owner' || team.role === 'editor'
 
 // New board
@@ -262,12 +263,15 @@ async function onLeftTeam() {
       </div>
     </div>
 
-    <section v-if="starredBoards.length">
+    <section v-if="starredBoards.length || starredViews.length" data-testid="starred">
       <h2 class="text-lg font-semibold mb-4 flex items-center gap-2">
         <UIcon name="i-lucide-star" mode="svg" class="size-5 text-warning [&_*]:fill-current" />
         {{ t('home.starred') }}
       </h2>
-      <BoardGrid :boards="starredBoards" @star="toggleStar" />
+      <div class="space-y-4">
+        <BoardGrid v-if="starredBoards.length" :boards="starredBoards" @star="toggleStar" />
+        <CustomViewGrid v-if="starredViews.length" :views="starredViews" @star="toggleViewStar" />
+      </div>
     </section>
 
     <section v-if="views.length" data-testid="custom-views">
@@ -275,21 +279,7 @@ async function onLeftTeam() {
         <UIcon name="i-lucide-columns-3" class="size-5 text-muted" />
         {{ t('customViews.title') }}
       </h2>
-      <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <NuxtLink v-for="v in views" :key="v.id" :to="`/views/${v.id}`" data-testid="custom-view-tile">
-          <UCard class="hover:ring-primary transition overflow-hidden" :ui="{ header: 'p-0 sm:px-0 h-14' }">
-            <template v-if="v.background" #header>
-              <div class="size-full" :style="backgroundStyle(v.background, { viewId: v.id }, true, basePath(), v.accent)" />
-            </template>
-            <h3 class="font-medium truncate">
-              {{ v.name }}
-            </h3>
-            <p class="text-sm text-muted mt-2 flex items-center gap-1">
-              <UIcon name="i-lucide-columns-3" /> {{ t('customViews.columnCount', {}, v.columnCount) }}
-            </p>
-          </UCard>
-        </NuxtLink>
-      </div>
+      <CustomViewGrid :views="views" @star="toggleViewStar" />
     </section>
 
     <section v-for="team in teams" :key="team.id">

@@ -1030,6 +1030,20 @@
       "when": 1795632900222,
       "tag": "0146_agent_rule_settle_rls",
       "breakpoints": true
+    },
+    {
+      "idx": 147,
+      "version": "7",
+      "when": 1795633340516,
+      "tag": "0147_custom_view_stars",
+      "breakpoints": true
+    },
+    {
+      "idx": 148,
+      "version": "7",
+      "when": 1795633342103,
+      "tag": "0148_custom_view_stars_rls",
+      "breakpoints": true
     }
   ]
 }
