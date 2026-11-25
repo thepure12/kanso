@@ -319,6 +319,8 @@ export const columns = pgTable('columns', {
   createdAt: createdAt(),
 }, t => [
   unique('columns_id_board_id_unique').on(t.id, t.boardId),
+  // Columns of a board in order (board load, rules, copies).
+  index('columns_board_idx').on(t.boardId, t.position),
   check('columns_color_hex', sql`${t.color} ~ '^#[0-9a-f]{6}$'`),
   check('columns_wip_limit_range', sql`${t.wipLimit} between 1 and 999`),
   check('columns_description_length', sql`char_length(${t.description}) between 1 and 2000`),
@@ -477,6 +479,8 @@ export const cards = pgTable('cards', {
   search: tsvector('search').notNull().generatedAlwaysAs(sql`setweight(to_tsvector('simple'::regconfig, title), 'A') || setweight(to_tsvector('simple'::regconfig, description), 'B')`),
 }, t => [
   unique('cards_id_board_id_unique').on(t.id, t.boardId),
+  // Cards of a board in order (board load, limited members, automations).
+  index('cards_board_idx').on(t.boardId, t.position),
   index('cards_search_idx').using('gin', t.search),
   index('cards_trash_idx').on(t.boardId, t.deletedAt).where(sql`${t.deletedAt} is not null`),
   // Composite FK: a card can only live in a column of its own board.
@@ -775,6 +779,8 @@ export const cardAssignees = pgTable('card_assignees', {
   boardId: uuid('board_id').notNull(),
 }, t => [
   primaryKey({ columns: [t.cardId, t.userId] }),
+  // A person's assigned cards (my work, notification fan-out).
+  index('card_assignees_user_idx').on(t.userId),
   cardFk('card_assignees_card_board_fk', t),
 ])
 
