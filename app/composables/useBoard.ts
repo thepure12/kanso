@@ -46,6 +46,12 @@ export interface UseBoardOptions {
    * longer visible (a board loaded only for a card dialog, as on /views/:id).
    */
   onGone?: () => void
+  /**
+   * Called once this tab's mutations (and undo/redo steps) have settled. This tab
+   * gets no live event for its own changes, so a page that shows the board's data
+   * from elsewhere (as /views/:id) reloads it here.
+   */
+  onChange?: () => void
 }
 
 /** Thrown by an undo whose card or column is gone (logged only; the toast says the board changed). */
@@ -101,7 +107,7 @@ export async function useBoard(id: string, opts: UseBoardOptions = {}) {
     try { return await undoStack[action]() }
     finally {
       busy--
-      catchUp()
+      settled()
     }
   }
   const undo = () => step('undo')
@@ -268,8 +274,12 @@ export async function useBoard(id: string, opts: UseBoardOptions = {}) {
     }
     finally {
       busy--
-      catchUp()
+      settled()
     }
+  }
+  function settled() {
+    if (!busy) opts.onChange?.()
+    catchUp()
   }
 
   /** Drops values of `fieldId` that `drop` matches from every card (all when omitted). */

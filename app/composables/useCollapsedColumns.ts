@@ -5,8 +5,8 @@ import type { Ref } from 'vue'
  * Personal, per board, kept in localStorage `kanban:collapsed-columns:<boardId>`.
  * Everything renders expanded on the server and during hydration; stored state loads after mount.
  */
-export function useCollapsedColumns(boardId: string, columnIds: Ref<string[]>) {
-  const key = collapsedColumnsKey(boardId)
+export function useCollapsedColumns(boardId: string, columnIds: Ref<string[]>, opts: { key?: string } = {}) {
+  const key = opts.key ?? collapsedColumnsKey(boardId)
   const collapsed = ref(new Set<string>())
 
   onMounted(() => {

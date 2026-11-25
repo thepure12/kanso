@@ -21,7 +21,8 @@ const card = (id: string, columnId: string, title: string) => ({
 
 const board = (id: string, name: string, columns: [string, string][], cards: Card[]) => ({
   id, name, role: 'editor', columns: columns.map(([cid, title], i) => ({ id: cid, title, position: i, color: null, wipLimit: null, outline: null, rules: [] })),
-  cards, tags: [], fields: [], members: [], buttons: [], buttonAlign: null,
+  cards, tags: [], fields: [], members: [], buttons: [], buttonAlign: null, columnGroups: [], myAccess: null, archivedAt: null,
+  templates: [], recurrences: [], automations: [], rules: [], agentRules: [], scheduledActions: [], savedViews: [], assigneeGroups: [],
 }) as unknown as BoardDetail
 
 const col = (columnId: string, boardId: string, boardName: string, title: string): ViewColumn => ({ columnId, boardId, boardName, title, color: null })
@@ -54,6 +55,13 @@ registerEndpoint('/api/boards/b1/cards', async (event) => {
   const created = card('c9', body.columnId, body.title)
   b1Cards.push(created)
   return created
+})
+
+let columnPatch: unknown
+registerEndpoint('/api/columns/b1c2', async (event) => {
+  const { readBody } = await import('h3')
+  columnPatch = await readBody(event)
+  return { id: 'b1c2', ...(columnPatch as object) }
 })
 
 let cardPatch: unknown
@@ -113,6 +121,59 @@ describe('custom view page', () => {
       b2Column = {}
       localStorage.removeItem('kanban:column-widths:b2')
     }
+  })
+
+  it('keeps its own column widths, falling back to the width set on the board', async () => {
+    localStorage.setItem('kanban:column-widths:b2', JSON.stringify({ b2c1: 400 }))
+    localStorage.setItem('kanban:custom-view:column-widths:v1', JSON.stringify({ b1c2: 320 }))
+    try {
+      const w = await mountPage()
+      expect(w.find('[data-column-id="b2c1"]').attributes('style')).toContain('width: 400px')
+      expect(w.find('[data-column-id="b1c2"]').attributes('style')).toContain('width: 320px')
+      // Arrow keys on the edge resize the column in this view only.
+      await w.find('[data-column-id="b2c1"] [role="separator"]').trigger('keydown', { key: 'ArrowRight' })
+      expect(w.find('[data-column-id="b2c1"]').attributes('style')).toContain('width: 416px')
+      expect(JSON.parse(localStorage.getItem('kanban:custom-view:column-widths:v1')!)).toEqual({ b1c2: 320, b2c1: 416 })
+      expect(JSON.parse(localStorage.getItem('kanban:column-widths:b2')!)).toEqual({ b2c1: 400 })
+    }
+    finally {
+      localStorage.removeItem('kanban:column-widths:b2')
+      localStorage.removeItem('kanban:custom-view:column-widths:v1')
+    }
+  })
+
+  it('collapses a column to a strip and expands it again, kept per view', async () => {
+    try {
+      const w = await mountPage()
+      const section = () => w.find('[data-column-id="b1c2"]')
+      await section().find('button[aria-label="Collapse column"]').trigger('click')
+      expect(section().find('[data-testid="collapsed-column"]').exists()).toBe(true)
+      expect(section().text()).not.toContain('Review me')
+      expect(JSON.parse(localStorage.getItem('kanban:custom-view:collapsed-columns:v1')!)).toEqual(['b1c2'])
+      expect(localStorage.getItem('kanban:collapsed-columns:b1')).toBeNull()
+      await section().find('[data-testid="collapsed-column"]').trigger('click')
+      expect(section().text()).toContain('Review me')
+    }
+    finally { localStorage.removeItem('kanban:custom-view:collapsed-columns:v1') }
+  })
+
+  it('offers the column menu only to editors and renames a column inline through its board', async () => {
+    viewerOnly = true
+    try {
+      const w = await mountPage()
+      expect(w.find('[data-column-id="b2c1"] button[aria-label="Column actions"]').exists()).toBe(false)
+      expect(w.find('[data-column-id="b1c2"] button[aria-label="Column actions"]').exists()).toBe(true)
+      // Viewers cannot rename.
+      await w.find('[data-column-id="b2c1"] h2').trigger('dblclick')
+      expect(w.find('[data-column-id="b2c1"] input').exists()).toBe(false)
+      await w.find('[data-column-id="b1c2"] h2').trigger('dblclick')
+      const input = w.find('[data-column-id="b1c2"] header input')
+      await input.setValue('Checked')
+      await input.trigger('keydown', { key: 'Enter' })
+      expect(w.find('[data-column-id="b1c2"] h2').text()).toBe('Checked')
+      await vi.waitFor(() => expect(columnPatch).toEqual({ title: 'Checked' }))
+    }
+    finally { viewerOnly = false }
   })
 
   it('adds a card to a column of its board and shows it after the reload', async () => {

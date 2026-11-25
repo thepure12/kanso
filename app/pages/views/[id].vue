@@ -4,11 +4,13 @@ import type { BoardButton, ButtonRunResult } from '#shared/buttons'
 import type { CustomView } from '#shared/types/customViews'
 import { CARD_TITLE_MAX } from '#shared/cards'
 import { columnOutlineStyle, effectiveColumnOutline } from '#shared/columnOutline'
+import type { ViewColumnRequest } from '~/components/ViewColumnTools.vue'
 
 // A custom view: the person's chosen columns from several boards side by side.
 // Each board loads through GET /api/boards/:id (RLS decides what shows); cards
 // look and act as on the board (complete, rename, delete, card buttons) and open
-// in the full card dialog of their board, but are not dragged here.
+// in the full card dialog of their board, but are not dragged here. Columns have
+// the board's controls (menu, inline rename) plus their own collapse and width.
 const route = useRoute()
 const { t } = useI18n()
 const i18n = useI18nContext()
@@ -77,21 +79,99 @@ const columns = computed(() => (view.value?.columns ?? []).flatMap((vc) => {
 type ViewCol = (typeof columns.value)[number]
 
 // Columns look as on their board: header colour, outline (column, else board
-// default), WIP limit, rules, points, time and the width set on the board
-// (localStorage `kanban:column-widths:<board>`, read after mount; resized there).
+// default), WIP limit, rules, points and time. Widths and collapsed columns are
+// the view's own (personal, localStorage `kanban:custom-view:column-widths:<view>`
+// and `kanban:custom-view:collapsed-columns:<view>`); a column without a width of
+// its own here takes the one set on its board (`kanban:column-widths:<board>`).
 const storedWidths = ref<Record<string, ColumnWidths>>({})
 onMounted(() => watch(boardIds, (ids) => {
   try { storedWidths.value = Object.fromEntries(ids.map(b => [b, parseColumnWidths(localStorage.getItem(columnWidthsKey(b)))])) }
   catch { /* storage unavailable */ }
 }, { immediate: true }))
+const viewColumnIds = computed(() => view.value?.columns.map(c => c.columnId) ?? [])
+const columnBoard = computed(() => new Map(view.value?.columns.map(c => [c.columnId, c.boardId]) ?? []))
+const columnWidths = useColumnWidths(id, viewColumnIds, {
+  key: `kanban:custom-view:column-widths:${id}`,
+  fallback: columnId => storedWidths.value[columnBoard.value.get(columnId) ?? '']?.[columnId],
+})
+const collapsedColumns = useCollapsedColumns(id, viewColumnIds, { key: `kanban:custom-view:collapsed-columns:${id}` })
+
+// Column controls as on the board, for editors (owner/editor, not limited,
+// archived or offline; the server decides). Menu choices go to that board's
+// ViewColumnTools, mounted on first use and kept, which loads the board with
+// useBoard and opens the board's own dialogs.
+const canEditBoard = (board: BoardDetail) =>
+  !offline.value && !board.archivedAt && (board.role === 'owner' || board.role === 'editor') && !board.myAccess
+const toolRequests = ref<Record<string, ViewColumnRequest & { n: number }>>({})
+let requestCount = 0
+function requestTool(boardId: string, req: ViewColumnRequest) {
+  toolRequests.value = { ...toolRequests.value, [boardId]: { ...req, n: ++requestCount } }
+}
+function toolsGone(boardId: string) {
+  const { [boardId]: _, ...rest } = toolRequests.value
+  toolRequests.value = rest
+  loadBoard(boardId)
+}
+function columnMenu(col: ViewCol) {
+  const b = col.boardId
+  const columnId = col.columnId
+  return [[
+    { label: t('board.column.edit'), icon: 'i-lucide-pencil', onSelect: () => requestTool(b, { kind: 'edit', columnId }) },
+    { label: t('board.column.colour'), icon: 'i-lucide-palette', onSelect: () => requestTool(b, { kind: 'colour', columnId }) },
+    { label: t('board.column.rules'), icon: 'i-lucide-zap', onSelect: () => requestTool(b, { kind: 'rules', columnId }) },
+    { label: t('board.column.automations'), icon: 'i-lucide-timer', onSelect: () => requestTool(b, { kind: 'automations', columnId }) },
+    { label: t('board.column.sortPriority'), icon: 'i-lucide-arrow-down-wide-narrow', disabled: col.cards.length < 2, onSelect: () => requestTool(b, { kind: 'sort', columnId }) },
+    {
+      label: t('columnGroups.menu'),
+      icon: 'i-lucide-columns-3',
+      children: [
+        col.board.columnGroups.map(g => ({
+          label: g.name,
+          type: 'checkbox' as const,
+          checked: g.columnIds.includes(columnId),
+          onUpdateChecked: (member: boolean) => requestTool(b, { kind: 'group', columnId, groupId: g.id, member }),
+          onSelect: (e: Event) => e.preventDefault(),
+        })),
+        [{ label: t('columnGroups.manage'), icon: 'i-lucide-settings-2', onSelect: () => requestTool(b, { kind: 'groups' }) }],
+      ].filter(items => items.length),
+    },
+    { label: t('common.delete'), icon: 'i-lucide-trash', color: 'error' as const, onSelect: async () => {
+      if (await confirm({ title: t('board.column.deleteConfirm', { title: col.title }), confirmLabel: t('common.delete') })) requestTool(b, { kind: 'delete', columnId })
+    } },
+  ]]
+}
+
+// Inline column rename: double-click the title, Enter or blur saves, Escape cancels.
+const renamingColumnId = ref<string | null>(null)
+const columnTitleDraft = ref('')
+function startColumnRename(col: ViewCol) {
+  if (!canEditBoard(col.board)) return
+  columnTitleDraft.value = col.title
+  renamingColumnId.value = col.columnId
+}
+function finishColumnRename(col: ViewCol, save: boolean) {
+  if (renamingColumnId.value !== col.columnId) return
+  renamingColumnId.value = null
+  const title = columnTitleDraft.value.trim()
+  if (save && title && title !== col.title) {
+    col.column.title = title
+    requestTool(col.boardId, { kind: 'rename', columnId: col.columnId, title })
+  }
+}
+function focusRenameInput(el: unknown) {
+  if (el instanceof HTMLInputElement && document.activeElement !== el) {
+    el.focus()
+    el.select()
+  }
+}
 function wipState(col: ViewCol) {
   const limit = col.column.wipLimit
   if (!limit) return null
   return col.cards.length > limit ? 'over' : col.cards.length === limit ? 'full' : 'ok'
 }
 function columnStyle(col: ViewCol) {
-  const width = storedWidths.value[col.boardId]?.[col.columnId] ?? COLUMN_WIDTH_DEFAULT
-  return [{ width: `${width}px`, maxWidth: 'calc(100vw - 3rem)' }, columnOutlineStyle(effectiveColumnOutline(col.column, col.board.columnOutline), wipState(col) === 'over', col.color) ?? {}]
+  const size = collapsedColumns.isCollapsed(col.columnId) ? { width: `${COLLAPSED_COLUMN_WIDTH}px` } : columnWidths.styleOf(col.columnId)
+  return [size, columnOutlineStyle(effectiveColumnOutline(col.column, col.board.columnOutline), wipState(col) === 'over', col.color) ?? {}]
 }
 function columnPoints(col: ViewCol) {
   const estimates = col.cards.filter(c => c.estimate !== null).map(c => c.estimate!)
@@ -346,89 +426,165 @@ const menu = computed(() => [[
       <section
         v-for="col in columns"
         :key="col.columnId"
-        class="flex shrink-0 snap-start flex-col rounded-lg bg-elevated/60 max-h-full"
+        class="group/col relative flex shrink-0 snap-start flex-col rounded-lg bg-elevated/60 max-h-full"
         :class="!effectiveColumnOutline(col.column, col.board.columnOutline) && ['ring', wipState(col) === 'over' ? 'ring-error' : 'ring-default']"
         :style="columnStyle(col)"
         :data-column-id="col.columnId"
       >
-        <header
-          class="@container flex flex-col gap-1.5 px-3 py-2 rounded-t-lg"
+        <!-- Collapsed: a narrow strip with the title and card count; click expands. -->
+        <button
+          v-if="collapsedColumns.isCollapsed(col.columnId)"
+          type="button"
+          class="flex flex-col items-center gap-2 py-2 min-h-40 rounded-lg cursor-pointer hover:bg-accented/40 focus-visible:outline-2 focus-visible:outline-primary"
           :style="col.color ? { backgroundColor: col.color, color: contrastText(col.color) } : undefined"
+          :aria-label="t('board.column.expand', { title: col.title, count: col.cards.length })"
+          :title="t('board.column.expand', { title: col.title, count: col.cards.length })"
+          data-testid="collapsed-column"
+          @click="collapsedColumns.setCollapsed(col.columnId, false)"
         >
-          <div class="flex items-start gap-2">
-            <h2 class="min-w-0 flex-1 font-medium leading-6 wrap-break-word">
-              {{ col.title }}
-            </h2>
-            <div class="flex items-center gap-0.5 shrink-0 min-h-6">
-              <UTooltip v-if="col.column.wipLimit" :text="wipState(col) === 'over' ? t('board.column.overWip', { limit: col.column.wipLimit }) : t('board.column.wip', { limit: col.column.wipLimit })">
-                <UBadge
-                  :color="wipState(col) === 'over' ? 'error' : wipState(col) === 'full' ? 'warning' : 'neutral'"
-                  :variant="wipState(col) === 'over' ? 'solid' : 'soft'"
-                  size="sm"
-                  :label="`${col.cards.length}/${col.column.wipLimit}`"
-                />
-              </UTooltip>
-              <UBadge v-else color="neutral" variant="soft" size="sm" :label="String(col.cards.length)" />
-            </div>
-          </div>
-          <div
-            v-if="col.column.rules.length || columnPoints(col) !== null || columnTime(col)"
-            class="flex flex-wrap items-center gap-x-2.5 gap-y-1 -mt-1"
-            :class="col.color ? 'opacity-80' : 'text-muted'"
-          >
-            <UTooltip v-if="col.column.rules.length" :text="t('board.column.ruleCount', { count: col.column.rules.length }, col.column.rules.length)">
-              <span class="inline-flex items-center gap-0.5 text-xs font-medium tabular-nums">
-                <UIcon name="i-lucide-zap" class="size-3.5 shrink-0" />{{ col.column.rules.length }}
-              </span>
-            </UTooltip>
-            <UTooltip v-if="columnPoints(col) !== null" :text="formatPoints(columnPoints(col)!, i18n)">
-              <span class="inline-flex items-center gap-0.5 text-xs font-medium tabular-nums">
-                <UIcon name="i-lucide-sigma" class="size-3.5 shrink-0" />{{ columnPoints(col) }}
-              </span>
-            </UTooltip>
-            <UTooltip v-if="columnTime(col)" :text="t('board.column.timeLogged', { time: formatDuration(columnTime(col), t) })">
-              <span class="inline-flex items-center gap-0.5 text-xs font-medium tabular-nums">
-                <UIcon name="i-lucide-timer" class="size-3.5 shrink-0" />{{ formatDuration(columnTime(col), t) }}
-              </span>
-            </UTooltip>
-          </div>
-          <ULink :to="`/boards/${col.boardId}`" class="text-xs hover:underline truncate block" :class="col.color ? 'opacity-80' : 'text-muted'">
-            {{ col.board.name }}
-          </ULink>
-        </header>
-        <div class="flex flex-col gap-2 flex-1 min-h-0 overflow-y-auto px-3 py-2">
-          <BoardCard
-            v-for="card in col.cards"
-            :key="card.id"
-            :data-card-id="card.id"
-            :card="card"
-            :tags="col.board.tags"
-            :fields="col.board.fields"
-            :members="col.board.members"
-            :can-edit="canEditCard(col.board, card)"
-            :selectable="false"
-            :today="today"
-            :blocked="linkMarks[col.boardId]?.blocked.has(card.id)"
-            :blocking="linkMarks[col.boardId]?.blocking.has(card.id)"
-            :buttons="cardButtons(col.board)"
-            :button-align="col.board.buttonAlign"
-            @open="open(col.boardId, card)"
-            @complete="value => setCompleted(col.boardId, card, value)"
-            @rename="title => rename(col.boardId, card, title)"
-            @delete="deleteCard(col.boardId, card)"
-            @run-button="b => runButton(col.boardId, b, card)"
+          <UIcon name="i-lucide-unfold-horizontal" class="size-4 shrink-0" :class="!col.color && 'text-dimmed'" />
+          <UBadge
+            :color="wipState(col) === 'over' ? 'error' : wipState(col) === 'full' ? 'warning' : 'neutral'"
+            :variant="wipState(col) === 'over' ? 'solid' : 'soft'"
+            size="sm"
+            :label="col.column.wipLimit ? `${col.cards.length}/${col.column.wipLimit}` : String(col.cards.length)"
           />
-          <p v-if="!col.cards.length" class="px-1 text-sm text-muted">
-            {{ t('customViews.noCards') }}
-          </p>
-        </div>
-        <div v-if="canAddTo(col.board, col.columnId)" class="px-3 pb-2">
-          <InlineAdd :label="t('board.addCard')" :placeholder="t('board.cardTitle')" :maxlength="CARD_TITLE_MAX" openable @add="(title, openIt) => addCard(col.boardId, col.columnId, title, openIt)" />
-        </div>
+          <span class="font-medium [writing-mode:vertical-rl] whitespace-nowrap overflow-hidden text-ellipsis max-h-[calc(100dvh-20rem)]">{{ col.title }}</span>
+        </button>
+        <template v-else>
+          <UTooltip :content="{ side: 'right' }" :text="t('board.column.resizeHint')">
+            <div
+              role="separator"
+              aria-orientation="vertical"
+              tabindex="0"
+              :aria-label="t('board.column.resize')"
+              :aria-valuenow="columnWidths.widthOf(col.columnId)"
+              :aria-valuemin="COLUMN_WIDTH_MIN"
+              :aria-valuemax="COLUMN_WIDTH_MAX"
+              class="absolute inset-y-0 -right-2.5 z-10 w-3 cursor-col-resize touch-none group/resize flex justify-center focus:outline-none"
+              @pointerdown="columnWidths.startResize(col.columnId, $event)"
+              @dblclick="columnWidths.resetWidth(col.columnId)"
+              @keydown="columnWidths.onResizeKey(col.columnId, $event)"
+            >
+              <span
+                class="w-0.5 h-full rounded-full transition-colors group-hover/resize:bg-primary group-focus-visible/resize:bg-primary"
+                :class="columnWidths.resizing.value === col.columnId ? 'bg-primary' : 'bg-transparent'"
+              />
+            </div>
+          </UTooltip>
+          <header
+            class="@container flex flex-col gap-1.5 px-3 py-2 rounded-t-lg"
+            :style="col.color ? { backgroundColor: col.color, color: contrastText(col.color) } : undefined"
+          >
+            <div class="flex items-start gap-2">
+              <input
+                v-if="renamingColumnId === col.columnId"
+                :ref="focusRenameInput"
+                v-model="columnTitleDraft"
+                maxlength="100"
+                :aria-label="t('board.column.titlePrompt')"
+                class="min-w-0 flex-1 font-medium bg-default text-default rounded px-1 -mx-1 outline-none ring ring-primary"
+                @keydown.enter.prevent="finishColumnRename(col, true)"
+                @keydown.esc.stop.prevent="finishColumnRename(col, false)"
+                @blur="finishColumnRename(col, true)"
+              >
+              <h2
+                v-else
+                class="min-w-0 flex-1 font-medium leading-6 wrap-break-word"
+                :class="canEditBoard(col.board) && 'cursor-text select-none'"
+                @dblclick="startColumnRename(col)"
+              >
+                {{ col.title }}
+              </h2>
+              <div class="flex items-center gap-0.5 shrink-0 min-h-6">
+                <UTooltip v-if="col.column.wipLimit" :text="wipState(col) === 'over' ? t('board.column.overWip', { limit: col.column.wipLimit }) : t('board.column.wip', { limit: col.column.wipLimit })">
+                  <UBadge
+                    :color="wipState(col) === 'over' ? 'error' : wipState(col) === 'full' ? 'warning' : 'neutral'"
+                    :variant="wipState(col) === 'over' ? 'solid' : 'soft'"
+                    size="sm"
+                    :label="`${col.cards.length}/${col.column.wipLimit}`"
+                  />
+                </UTooltip>
+                <UBadge v-else color="neutral" variant="soft" size="sm" :label="String(col.cards.length)" />
+                <UTooltip :text="t('board.column.collapse')">
+                  <UButton
+                    icon="i-lucide-fold-horizontal"
+                    size="xs"
+                    color="neutral"
+                    variant="ghost"
+                    class="pointer-coarse:p-1.5 pointer-fine:opacity-0 pointer-fine:group-hover/col:opacity-100 focus-visible:opacity-100"
+                    :class="col.color && 'text-inherit hover:bg-black/10'"
+                    :aria-label="t('board.column.collapse')"
+                    @click="collapsedColumns.setCollapsed(col.columnId, true)"
+                  />
+                </UTooltip>
+                <UDropdownMenu v-if="canEditBoard(col.board)" :items="columnMenu(col)">
+                  <UButton icon="i-lucide-ellipsis" size="xs" color="neutral" variant="ghost" class="pointer-coarse:p-1.5" :aria-label="t('board.column.actions')" :class="col.color && 'text-inherit hover:bg-black/10'" />
+                </UDropdownMenu>
+              </div>
+            </div>
+            <div
+              v-if="col.column.rules.length || columnPoints(col) !== null || columnTime(col)"
+              class="flex flex-wrap items-center gap-x-2.5 gap-y-1 -mt-1"
+              :class="col.color ? 'opacity-80' : 'text-muted'"
+            >
+              <UTooltip v-if="col.column.rules.length" :text="t('board.column.ruleCount', { count: col.column.rules.length }, col.column.rules.length)">
+                <span class="inline-flex items-center gap-0.5 text-xs font-medium tabular-nums">
+                  <UIcon name="i-lucide-zap" class="size-3.5 shrink-0" />{{ col.column.rules.length }}
+                </span>
+              </UTooltip>
+              <UTooltip v-if="columnPoints(col) !== null" :text="formatPoints(columnPoints(col)!, i18n)">
+                <span class="inline-flex items-center gap-0.5 text-xs font-medium tabular-nums">
+                  <UIcon name="i-lucide-sigma" class="size-3.5 shrink-0" />{{ columnPoints(col) }}
+                </span>
+              </UTooltip>
+              <UTooltip v-if="columnTime(col)" :text="t('board.column.timeLogged', { time: formatDuration(columnTime(col), t) })">
+                <span class="inline-flex items-center gap-0.5 text-xs font-medium tabular-nums">
+                  <UIcon name="i-lucide-timer" class="size-3.5 shrink-0" />{{ formatDuration(columnTime(col), t) }}
+                </span>
+              </UTooltip>
+            </div>
+            <ULink :to="`/boards/${col.boardId}`" class="text-xs hover:underline truncate block" :class="col.color ? 'opacity-80' : 'text-muted'">
+              {{ col.board.name }}
+            </ULink>
+          </header>
+          <div class="flex flex-col gap-2 flex-1 min-h-0 overflow-y-auto px-3 py-2">
+            <BoardCard
+              v-for="card in col.cards"
+              :key="card.id"
+              :data-card-id="card.id"
+              :card="card"
+              :tags="col.board.tags"
+              :fields="col.board.fields"
+              :members="col.board.members"
+              :can-edit="canEditCard(col.board, card)"
+              :selectable="false"
+              :today="today"
+              :blocked="linkMarks[col.boardId]?.blocked.has(card.id)"
+              :blocking="linkMarks[col.boardId]?.blocking.has(card.id)"
+              :buttons="cardButtons(col.board)"
+              :button-align="col.board.buttonAlign"
+              @open="open(col.boardId, card)"
+              @complete="value => setCompleted(col.boardId, card, value)"
+              @rename="title => rename(col.boardId, card, title)"
+              @delete="deleteCard(col.boardId, card)"
+              @run-button="b => runButton(col.boardId, b, card)"
+            />
+            <p v-if="!col.cards.length" class="px-1 text-sm text-muted">
+              {{ t('customViews.noCards') }}
+            </p>
+          </div>
+          <div v-if="canAddTo(col.board, col.columnId)" class="px-3 pb-2">
+            <InlineAdd :label="t('board.addCard')" :placeholder="t('board.cardTitle')" :maxlength="CARD_TITLE_MAX" openable @add="(title, openIt) => addCard(col.boardId, col.columnId, title, openIt)" />
+          </div>
+        </template>
       </section>
     </div>
 
     <CustomViewModal v-model:open="editOpen" :view="view" @saved="onSaved" />
+    <Suspense v-for="(req, b) in toolRequests" :key="b">
+      <ViewColumnTools :board-id="String(b)" :request="req" @changed="loadBoard(String(b))" @gone="toolsGone(String(b))" />
+    </Suspense>
     <Suspense v-if="openCard">
       <ViewCardDialog :key="`${openCard.boardId}:${openCard.cardId}`" :board-id="openCard.boardId" :card-id="openCard.cardId" @close="closeCard" />
     </Suspense>

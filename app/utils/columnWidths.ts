@@ -31,8 +31,11 @@ export function parseColumnWidths(raw: string | null): ColumnWidths {
   }
 }
 
-/** Drops widths of columns that no longer exist and widths equal to the default. */
-export function pruneColumnWidths(widths: ColumnWidths, columnIds: Iterable<string>): ColumnWidths {
+/**
+ * Drops widths of columns that no longer exist and widths equal to the default
+ * (kept with `keepDefault`, when a missing width means something else).
+ */
+export function pruneColumnWidths(widths: ColumnWidths, columnIds: Iterable<string>, keepDefault = false): ColumnWidths {
   const keep = new Set(columnIds)
-  return Object.fromEntries(Object.entries(widths).filter(([id, px]) => keep.has(id) && px !== COLUMN_WIDTH_DEFAULT))
+  return Object.fromEntries(Object.entries(widths).filter(([id, px]) => keep.has(id) && (keepDefault || px !== COLUMN_WIDTH_DEFAULT)))
 }
