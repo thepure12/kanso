@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { BoardDetail, Card } from '#shared/types/board'
+import type { BoardDetail, Card, Column, Member } from '#shared/types/board'
 import type { BoardButton, ButtonRunResult } from '#shared/buttons'
 import type { CustomView } from '#shared/types/customViews'
 import { CARD_TITLE_MAX } from '#shared/cards'
@@ -72,6 +72,47 @@ const columns = computed(() => (view.value?.columns ?? []).flatMap((vc) => {
   if (!board || !column) return []
   return [{ ...vc, title: column.title, color: column.color, board, cards: board.cards.filter(c => c.columnId === column.id) }]
 }))
+// Views like the board page (?view=, board when absent; the last one per custom
+// view kept in localStorage). List, calendar and timeline take the view's columns
+// of every board as one set; ids are unique across boards, so tags, fields and
+// people merge into one list. Read-only like the board view here: cards open in
+// their board's dialog.
+type ViewKind = 'board' | 'list' | 'calendar' | 'timeline'
+const viewKinds: ViewKind[] = ['board', 'list', 'calendar', 'timeline']
+const viewIcons: Record<ViewKind, string> = { board: 'i-lucide-square-kanban', list: 'i-lucide-list', calendar: 'i-lucide-calendar-days', timeline: 'i-lucide-gantt-chart' }
+const viewItems = computed(() => viewKinds.map(v => ({ label: t(`board.views.${v}`), value: v, icon: viewIcons[v] })))
+const isViewKind = (v: unknown): v is ViewKind => viewKinds.includes(v as ViewKind)
+const viewKindKey = `kanban:custom-view:view:${id}`
+const viewKind = computed<ViewKind>({
+  get: () => isViewKind(route.query.view) ? route.query.view : 'board',
+  set: (v) => {
+    localStorage.setItem(viewKindKey, v)
+    navigateTo({ query: { ...route.query, view: v === 'board' ? undefined : v } }, { replace: true })
+  },
+})
+onMounted(() => {
+  const stored = localStorage.getItem(viewKindKey)
+  if (route.query.view === undefined && isViewKind(stored) && stored !== 'board') viewKind.value = stored
+})
+// With columns of several boards, column names carry their board's name.
+const severalBoards = computed(() => new Set(columns.value.map(c => c.boardId)).size > 1)
+const mergedColumns = computed<Column[]>(() => columns.value.flatMap((c) => {
+  const column = c.board.columns.find(bc => bc.id === c.columnId)
+  if (!column) return []
+  return [severalBoards.value ? { ...column, title: `${c.board.name} › ${column.title}` } : column]
+}))
+const mergedCards = computed(() => columns.value.flatMap(c => c.cards))
+const viewBoards = computed(() => [...new Map(columns.value.map(c => [c.boardId, c.board])).values()])
+const mergedTags = computed(() => viewBoards.value.flatMap(b => b.tags))
+const mergedFields = computed(() => viewBoards.value.flatMap(b => b.fields))
+const mergedMembers = computed(() => [...new Map(viewBoards.value.flatMap(b => b.members).map((m): [string, Member] => [m.userId, m])).values()])
+const cardBoard = computed(() => new Map(columns.value.flatMap(c => c.cards.map(card => [card.id, c.boardId] as const))))
+function openById(cardId: string) {
+  const boardId = cardBoard.value.get(cardId)
+  if (boardId) openCard.value = { boardId, cardId }
+}
+const noSelection = new Set<string>()
+
 // New cards: like the board page, in columns the person may edit (owner/editor,
 // member limits, not archived, online). The server decides (RLS).
 const offline = useOffline()
@@ -229,8 +270,17 @@ const menu = computed(() => [[
       <h1 class="text-xl font-semibold truncate">
         {{ view.name }}
       </h1>
-      <span class="text-sm text-muted">{{ t('customViews.readOnlyHint') }}</span>
+      <span v-if="viewKind === 'board'" class="text-sm text-muted">{{ t('customViews.readOnlyHint') }}</span>
       <div class="ms-auto flex items-center gap-2">
+        <UTabs v-model="viewKind" :items="viewItems" :content="false" size="sm" class="hidden sm:flex" :aria-label="t('board.viewLabel')" />
+        <USelect
+          v-model="viewKind"
+          :items="viewItems"
+          :icon="viewIcons[viewKind]"
+          class="sm:hidden shrink-0"
+          :ui="{ base: 'h-8 w-8 p-0', leading: 'inset-0 p-0 justify-center', value: 'sr-only', placeholder: 'sr-only', trailing: 'hidden', content: 'min-w-48' }"
+          :aria-label="t('board.viewLabel')"
+        />
         <UButton color="neutral" variant="outline" icon="i-lucide-columns-3-cog" :aria-label="t('customViews.edit')" @click="editOpen = true">
           <span class="hidden sm:inline">{{ t('customViews.editColumns') }}</span>
         </UButton>
@@ -248,6 +298,25 @@ const menu = computed(() => [[
       :actions="[{ label: t('customViews.editColumns'), icon: 'i-lucide-columns-3-cog', onClick: () => { editOpen = true } }]"
       class="m-4"
     />
+    <div v-else-if="viewKind === 'list'" class="flex-1 min-h-0 overflow-auto px-4 pb-4" data-testid="view-list">
+      <BoardListView
+        :cards="mergedCards"
+        :columns="mergedColumns"
+        :members="mergedMembers"
+        :tags="mergedTags"
+        :fields="mergedFields"
+        :can-edit="false"
+        :today="today"
+        :selected-ids="noSelection"
+        @open="openById"
+      />
+    </div>
+    <div v-else-if="viewKind === 'calendar'" class="flex-1 min-h-0 overflow-auto px-4 pb-4" data-testid="view-calendar">
+      <BoardCalendarView :cards="mergedCards" :tags="mergedTags" :can-edit="false" :today="today" @open="openById" />
+    </div>
+    <div v-else-if="viewKind === 'timeline'" class="flex-1 min-h-0 overflow-auto px-4 pb-4" data-testid="view-timeline">
+      <BoardTimelineView :cards="mergedCards" :columns="mergedColumns" :today="today" @open="openById" />
+    </div>
     <div v-else class="flex flex-1 min-h-0 gap-3 overflow-x-auto px-4 pb-4 snap-x sm:snap-none" data-testid="view-columns">
       <section
         v-for="col in columns"

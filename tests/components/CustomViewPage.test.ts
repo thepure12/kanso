@@ -1,14 +1,15 @@
 import { clearNuxtData } from '#app'
 import { mockNuxtImport, mountSuspended, registerEndpoint } from '@nuxt/test-utils/runtime'
 import { defineComponent, h } from 'vue'
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { BoardDetail, Card } from '#shared/types/board'
 import type { CustomView, ViewColumn } from '#shared/types/customViews'
 import ViewPage from '~/pages/views/[id].vue'
 import CustomViewModal from '~/components/CustomViewModal.vue'
 
 // Mounted directly, the page gets no route params.
-mockNuxtImport('useRoute', () => () => ({ params: { id: 'v1' }, query: {}, path: '/views/v1' }))
+const route = vi.hoisted(() => ({ query: {} as Record<string, string> }))
+mockNuxtImport('useRoute', () => () => ({ params: { id: 'v1' }, query: route.query, path: '/views/v1' }))
 // No event stream in tests.
 mockNuxtImport('useLiveEvents', () => () => ({ subscribeBoard: () => () => {} }))
 
@@ -123,6 +124,34 @@ describe('custom view page', () => {
       expect(w.find('[data-column-id="b1c2"]').text()).toContain('Add card')
     }
     finally { viewerOnly = false }
+  })
+
+  it('shows the view columns of every board in the list view, names prefixed by their board', async () => {
+    route.query = { view: 'list' }
+    try {
+      const w = await mountPage()
+      const list = w.find('[data-testid="view-list"]')
+      expect(list.exists()).toBe(true)
+      expect(w.find('[data-testid="view-columns"]').exists()).toBe(false)
+      expect(list.text()).toContain('Beta work')
+      expect(list.text()).toContain('Review me')
+      expect(list.text()).toContain('Alpha › Review')
+      expect(list.text()).not.toContain('Hidden one')
+    }
+    finally { route.query = {} }
+  })
+
+  it('offers the calendar and timeline views', async () => {
+    for (const v of ['calendar', 'timeline']) {
+      route.query = { view: v }
+      try {
+        const w = await mountPage()
+        expect(w.find(`[data-testid="view-${v}"]`).exists()).toBe(true)
+        w.unmount()
+        mounted = mounted.filter(m => m !== w)
+      }
+      finally { route.query = {} }
+    }
   })
 })
 
