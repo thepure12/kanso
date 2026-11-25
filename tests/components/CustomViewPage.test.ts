@@ -123,6 +123,19 @@ describe('custom view page', () => {
     }
   })
 
+  it('shows the board name under the column title, above the rule count', async () => {
+    b2Column = { rules: [{ id: 'r1', kind: 'apply_tag', tagId: null, userId: null, dueDays: null, buttonId: null }] }
+    try {
+      const w = await mountPage()
+      const header = w.find('[data-column-id="b2c1"] header').text()
+      expect(header.indexOf('Doing')).toBeLessThan(header.indexOf('Beta'))
+      expect(header.indexOf('Beta')).toBeLessThan(header.lastIndexOf('1'))
+    }
+    finally {
+      b2Column = {}
+    }
+  })
+
   it('keeps its own column widths, falling back to the width set on the board', async () => {
     localStorage.setItem('kanban:column-widths:b2', JSON.stringify({ b2c1: 400 }))
     localStorage.setItem('kanban:custom-view:column-widths:v1', JSON.stringify({ b1c2: 320 }))

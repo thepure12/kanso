@@ -523,6 +523,9 @@ const menu = computed(() => [[
                 </UDropdownMenu>
               </div>
             </div>
+            <ULink :to="`/boards/${col.boardId}`" class="-mt-1 text-xs hover:underline truncate block" :class="col.color ? 'opacity-80' : 'text-muted'">
+              {{ col.board.name }}
+            </ULink>
             <div
               v-if="col.column.rules.length || columnPoints(col) !== null || columnTime(col)"
               class="flex flex-wrap items-center gap-x-2.5 gap-y-1 -mt-1"
@@ -544,9 +547,6 @@ const menu = computed(() => [[
                 </span>
               </UTooltip>
             </div>
-            <ULink :to="`/boards/${col.boardId}`" class="text-xs hover:underline truncate block" :class="col.color ? 'opacity-80' : 'text-muted'">
-              {{ col.board.name }}
-            </ULink>
           </header>
           <div class="flex flex-col gap-2 min-h-8 overflow-y-auto px-3 py-2">
             <BoardCard
