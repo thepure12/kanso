@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { BOARD_TABS_MAX, closeBoardTab, moveBoardTab, openBoardTab, parseBoardTabs, reorderBoardTabs, serializeBoardTabs, stepBoardTab } from '../../app/utils/boardTabs'
+import { BOARD_TABS_MAX, boardTabPath, closeBoardTab, moveBoardTab, openBoardTab, parseBoardTabs, reorderBoardTabs, serializeBoardTabs, stepBoardTab } from '../../app/utils/boardTabs'
 
 const a = { id: 'a', name: 'A' }
 const b = { id: 'b', name: 'B' }
@@ -13,6 +13,17 @@ describe('board tabs', () => {
     expect(parseBoardTabs(null, 'u1')).toEqual([])
     expect(parseBoardTabs('nope', 'u1')).toEqual([])
     expect(parseBoardTabs(JSON.stringify({ userId: 'u1', tabs: [a, { id: 1 }, null, a, b] }), 'u1')).toEqual([a, b])
+  })
+
+  it('keeps custom view tabs apart from board tabs', () => {
+    const v = { id: 'v', name: 'V', kind: 'view' as const }
+    const raw = serializeBoardTabs([a, v], 'u1')
+    expect(parseBoardTabs(raw, 'u1')).toEqual([a, v])
+    expect(parseBoardTabs(JSON.stringify({ userId: 'u1', tabs: [{ id: 'x', name: 'X', kind: 'other' }] }), 'u1')).toEqual([{ id: 'x', name: 'X' }])
+    expect(boardTabPath(a)).toBe('/boards/a')
+    expect(boardTabPath(v)).toBe('/views/v')
+    expect(openBoardTab([a, v], v)).toEqual([a, v])
+    expect(stepBoardTab([a, v], 'a', 1)).toBe(v)
   })
 
   it('opens new tabs at the end and renames known ones in place', () => {
@@ -31,15 +42,15 @@ describe('board tabs', () => {
   })
 
   it('closes a tab and picks its right neighbour, else the left one', () => {
-    expect(closeBoardTab([a, b, c], 'b')).toEqual({ tabs: [a, c], next: 'c' })
-    expect(closeBoardTab([a, b, c], 'c')).toEqual({ tabs: [a, b], next: 'b' })
+    expect(closeBoardTab([a, b, c], 'b')).toEqual({ tabs: [a, c], next: c })
+    expect(closeBoardTab([a, b, c], 'c')).toEqual({ tabs: [a, b], next: b })
     expect(closeBoardTab([a], 'a')).toEqual({ tabs: [], next: null })
     expect(closeBoardTab([a], 'x')).toEqual({ tabs: [a], next: null })
   })
 
   it('steps through tabs, wrapping around', () => {
-    expect(stepBoardTab([a, b, c], 'c', 1)).toBe('a')
-    expect(stepBoardTab([a, b, c], 'a', -1)).toBe('c')
+    expect(stepBoardTab([a, b, c], 'c', 1)).toBe(a)
+    expect(stepBoardTab([a, b, c], 'a', -1)).toBe(c)
     expect(stepBoardTab([a], 'a', 1)).toBeNull()
     expect(stepBoardTab([a, b], 'x', 1)).toBeNull()
   })

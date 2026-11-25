@@ -140,7 +140,7 @@
     "assignMe": "Mich zuweisen oder entfernen",
     "toggleSelect": "Für Sammeländerungen aus- oder abwählen",
     "moveCardColumn": "Karte in die vorige oder nächste Spalte verschieben",
-    "nextBoardTab": "Nächster Board-Tab",
+    "nextBoardTab": "Nächster Board- oder Ansichts-Tab",
     "pickAssignees": "Zuständige wählen",
     "pickTags": "Karten-Tags wählen",
     "pickDueDate": "Fälligkeitsdatum setzen",
@@ -2322,7 +2322,8 @@
     }
   },
   "boardTabs": {
-    "label": "Geöffnete Boards",
+    "label": "Geöffnete Boards und Ansichten",
+    "view": "Eigene Ansicht:",
     "close": "{name} schließen",
     "moveHint": "Ziehen oder Alt+Umschalt+Links/Rechts zum Umsortieren"
   },

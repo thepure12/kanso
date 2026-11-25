@@ -4,7 +4,7 @@ import { boardTabsKey, closeBoardTab, moveBoardTab, openBoardTab, parseBoardTabs
 let listening = false
 
 /**
- * Open board tabs of the signed-in user on this device (see `app/utils/boardTabs.ts`).
+ * Open board and custom view tabs of the signed-in user on this device (see `app/utils/boardTabs.ts`).
  * Call during setup; the returned functions work in later callbacks too. Empty
  * during SSR; storage is read after mount. Other browser tabs follow changes
  * through the `storage` event.
@@ -41,15 +41,15 @@ export function useBoardTabs() {
 
   return {
     tabs,
-    /** Adds the board as a tab (or updates its name). */
+    /** Adds the board or view as a tab (or updates its name). */
     remember(tab: BoardTab) {
       if (!import.meta.client) return
       load()
       const next = openBoardTab(tabs.value, tab)
       if (next !== tabs.value) save(next)
     },
-    /** Closes a tab; returns the id of the tab to show instead, if any. */
-    forget(id: string): string | null {
+    /** Closes a tab; returns the tab to show instead, if any. */
+    forget(id: string): BoardTab | null {
       if (!import.meta.client) return null
       load()
       const { tabs: rest, next } = closeBoardTab(tabs.value, id)

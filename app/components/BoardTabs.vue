@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { VueDraggable } from 'vue-draggable-plus'
-import type { BoardTab } from '~/utils/boardTabs'
+import { type BoardTab, boardTabPath } from '~/utils/boardTabs'
 
 /**
- * Tab strip of the boards open on this device (`useBoardTabs`), shown above the
- * board header once two or more are open. Middle-click or the x closes a tab;
+ * Tab strip of the boards and custom views open on this device (`useBoardTabs`),
+ * shown above the board or view header once two or more are open. Middle-click or the x closes a tab;
  * closing the current one opens its neighbour (or the home page). Tabs are
  * reordered by dragging them or with Alt+Shift+Left/Right on a focused tab.
  */
@@ -32,7 +32,7 @@ function onKeydown(e: KeyboardEvent, id: string) {
 
 function close(id: string) {
   const next = forget(id)
-  if (id === props.activeId) navigateTo(next ? `/boards/${next}` : '/')
+  if (id === props.activeId) navigateTo(next ? boardTabPath(next) : '/')
 }
 
 function onAuxClick(e: MouseEvent, id: string) {
@@ -72,16 +72,20 @@ onMounted(() => nextTick(() => {
           @auxclick="onAuxClick($event, tab.id)"
         >
           <NuxtLink
-            :to="`/boards/${tab.id}`"
+            :to="boardTabPath(tab)"
             :data-tab-id="tab.id"
             draggable="false"
-            class="truncate ps-3 py-1 focus-visible:outline-2 focus-visible:outline-primary rounded-sm"
+            class="flex items-center gap-1 min-w-0 ps-3 py-1 focus-visible:outline-2 focus-visible:outline-primary rounded-sm"
             :aria-current="tab.id === activeId ? 'page' : undefined"
             :aria-keyshortcuts="'Alt+Shift+ArrowLeft Alt+Shift+ArrowRight'"
             :title="`${tab.name}\n${t('boardTabs.moveHint')}`"
             @keydown="onKeydown($event, tab.id)"
           >
-            {{ tab.name }}
+            <template v-if="tab.kind === 'view'">
+              <UIcon name="i-lucide-columns-3" class="size-3.5 shrink-0" aria-hidden="true" />
+              <span class="sr-only">{{ t('boardTabs.view') }}</span>
+            </template>
+            <span class="truncate">{{ tab.name }}</span>
           </NuxtLink>
           <UButton
             icon="i-lucide-x"

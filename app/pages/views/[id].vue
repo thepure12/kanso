@@ -22,9 +22,24 @@ const toast = useToast()
 const requestFetch = useRequestFetch()
 const id = route.params.id as string
 
+const boardTabs = useBoardTabs()
 const { data: view, error, refresh: refreshView } = await useFetch<CustomView>(`/api/views/${id}`)
-if (error.value) throw createError({ statusCode: error.value.statusCode ?? 404, statusMessage: t('customViews.notFound'), fatal: true })
+if (error.value) {
+  boardTabs.forget(id)
+  throw createError({ statusCode: error.value.statusCode ?? 404, statusMessage: t('customViews.notFound'), fatal: true })
+}
 useHead({ title: () => view.value?.name ?? t('customViews.title') })
+
+// The view is a tab in the board tab strip (shown above the header), like boards.
+onMounted(() => watch(() => view.value?.name, (name) => {
+  if (name) boardTabs.remember({ id, name, kind: 'view' })
+}, { immediate: true }))
+defineShortcuts({
+  'g-t': () => {
+    const next = dialogOpen() ? null : stepBoardTab(boardTabs.tabs.value, id, 1)
+    if (next) navigateTo(boardTabPath(next))
+  },
+})
 
 // The view's own look, as on a board page: background (translucent panels over
 // it), accent colour while the page is open, and a default column outline that
@@ -404,6 +419,7 @@ async function remove() {
   if (!await confirm({ title: t('customViews.deleteConfirm', { name: view.value?.name }), confirmLabel: t('common.delete'), color: 'error' })) return
   try {
     await $fetch<unknown>(`/api/views/${id}`, { method: 'DELETE' as const })
+    boardTabs.forget(id)
     await navigateTo('/')
   }
   catch (err) { showError(err, t('customViews.errors.delete')) }
@@ -444,6 +460,7 @@ const menu = computed(() => [
 
 <template>
   <div v-if="view" class="flex flex-col flex-none min-h-0 h-[calc(100dvh-var(--ui-header-height)-env(safe-area-inset-bottom))]" :style="bgStyle">
+    <BoardTabs :active-id="id" :class="backed && 'bg-default/85 backdrop-blur-sm'" />
     <div class="flex flex-wrap items-center gap-3 px-4 py-3" :class="backed && 'bg-default/85 backdrop-blur-sm'">
       <UIcon name="i-lucide-columns-3" class="size-5 text-muted" />
       <h1 class="text-xl font-semibold truncate">

@@ -1,12 +1,19 @@
 /**
- * Board tabs: the boards a person has open on this device, shown as a tab strip
- * on the board page to switch between them quickly. Personal, kept in
- * localStorage `kanban:board-tabs` together with the user id, so another account
- * on the same browser starts with no tabs.
+ * Board tabs: the boards and custom views a person has open on this device,
+ * shown as a tab strip on the board and view pages to switch between them
+ * quickly. Personal, kept in localStorage `kanban:board-tabs` together with the
+ * user id, so another account on the same browser starts with no tabs.
  */
 export interface BoardTab {
   id: string
   name: string
+  /** `view` for a custom view (`/views/:id`); absent for a board. */
+  kind?: 'view'
+}
+
+/** The page a tab opens. */
+export function boardTabPath(tab: BoardTab): string {
+  return tab.kind === 'view' ? `/views/${tab.id}` : `/boards/${tab.id}`
 }
 
 export const boardTabsKey = 'kanban:board-tabs'
@@ -25,10 +32,10 @@ export function parseBoardTabs(raw: string | null, userId: string): BoardTab[] {
     const tabs: BoardTab[] = []
     for (const t of parsed.tabs as unknown[]) {
       if (!t || typeof t !== 'object') continue
-      const { id, name } = t as Record<string, unknown>
+      const { id, name, kind } = t as Record<string, unknown>
       if (typeof id !== 'string' || typeof name !== 'string' || seen.has(id)) continue
       seen.add(id)
-      tabs.push({ id, name })
+      tabs.push(kind === 'view' ? { id, name, kind } : { id, name })
     }
     return tabs.slice(-BOARD_TABS_MAX)
   }
@@ -45,7 +52,7 @@ export function serializeBoardTabs(tabs: BoardTab[], userId: string): string {
 export function openBoardTab(tabs: BoardTab[], tab: BoardTab, max = BOARD_TABS_MAX): BoardTab[] {
   const i = tabs.findIndex(t => t.id === tab.id)
   if (i >= 0) {
-    if (tabs[i]!.name === tab.name) return tabs
+    if (tabs[i]!.name === tab.name && tabs[i]!.kind === tab.kind) return tabs
     return tabs.map((t, j) => j === i ? { ...tab } : t)
   }
   const next = [...tabs, { ...tab }]
@@ -53,18 +60,18 @@ export function openBoardTab(tabs: BoardTab[], tab: BoardTab, max = BOARD_TABS_M
 }
 
 /** Removes a tab; `next` is the tab to show instead (the one to its right, else its left; null when none is left). */
-export function closeBoardTab(tabs: BoardTab[], id: string): { tabs: BoardTab[], next: string | null } {
+export function closeBoardTab(tabs: BoardTab[], id: string): { tabs: BoardTab[], next: BoardTab | null } {
   const i = tabs.findIndex(t => t.id === id)
   if (i < 0) return { tabs, next: null }
   const rest = tabs.filter(t => t.id !== id)
-  return { tabs: rest, next: (rest[i] ?? rest[i - 1])?.id ?? null }
+  return { tabs: rest, next: rest[i] ?? rest[i - 1] ?? null }
 }
 
 /** The tab `step` places from `id` (wrapping), or null with fewer than two tabs or an unknown id. */
-export function stepBoardTab(tabs: BoardTab[], id: string, step: number): string | null {
+export function stepBoardTab(tabs: BoardTab[], id: string, step: number): BoardTab | null {
   const i = tabs.findIndex(t => t.id === id)
   if (i < 0 || tabs.length < 2) return null
-  return tabs[((i + step) % tabs.length + tabs.length) % tabs.length]!.id
+  return tabs[((i + step) % tabs.length + tabs.length) % tabs.length]!
 }
 
 /**

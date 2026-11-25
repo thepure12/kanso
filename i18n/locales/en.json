@@ -140,7 +140,7 @@
     "assignMe": "Assign or unassign me",
     "toggleSelect": "Select or deselect for bulk changes",
     "moveCardColumn": "Move the card to the previous or next column",
-    "nextBoardTab": "Next open board tab",
+    "nextBoardTab": "Next open board or view tab",
     "pickAssignees": "Choose assignees",
     "pickTags": "Choose card tags",
     "pickDueDate": "Set the due date",
@@ -2322,7 +2322,8 @@
     }
   },
   "boardTabs": {
-    "label": "Open boards",
+    "label": "Open boards and views",
+    "view": "Custom view:",
     "close": "Close {name}",
     "moveHint": "Drag or press Alt+Shift+Left/Right to reorder"
   },

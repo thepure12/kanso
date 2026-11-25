@@ -420,7 +420,7 @@ defineShortcuts({
   'meta_shift_z': () => { redo() },
   'g-t': () => {
     const next = dialogOpen() ? null : stepBoardTab(boardTabs.tabs.value, id, 1)
-    if (next) navigateTo(`/boards/${next}`)
+    if (next) navigateTo(boardTabPath(next))
   },
 })
 
