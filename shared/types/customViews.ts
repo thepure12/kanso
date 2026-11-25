@@ -30,4 +30,7 @@ export interface CustomViewSummary {
   id: string
   name: string
   columnCount: number
+  /** For the home page tile, as on board tiles. */
+  background: BoardBackground | null
+  accent: BoardAccent | null
 }

@@ -2,6 +2,7 @@
 import type { BoardSummary, TeamSummary } from '#shared/types/board'
 import type { CustomView, CustomViewSummary } from '#shared/types/customViews'
 import { boardTemplates } from '#shared/boardTemplates'
+import { backgroundStyle } from '#shared/boardBackgrounds'
 import { csvHasIssueKeys, detectImportFormat, slimTrelloExport, type ImportFormat } from '#shared/import'
 
 const [{ data: boards, refresh: refreshBoards }, { data: teams, refresh: refreshTeams }, { data: views }] = await Promise.all([
@@ -274,16 +275,20 @@ async function onLeftTeam() {
         <UIcon name="i-lucide-columns-3" class="size-5 text-muted" />
         {{ t('customViews.title') }}
       </h2>
-      <div class="grid gap-3 grid-cols-[repeat(auto-fill,minmax(14rem,1fr))]">
-        <ULink
-          v-for="v in views"
-          :key="v.id"
-          :to="`/views/${v.id}`"
-          class="rounded-lg ring ring-default bg-elevated/50 px-4 py-3 hover:bg-elevated transition-colors"
-        >
-          <span class="block font-medium text-highlighted truncate">{{ v.name }}</span>
-          <span class="block text-sm text-muted">{{ t('customViews.columnCount', {}, v.columnCount) }}</span>
-        </ULink>
+      <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <NuxtLink v-for="v in views" :key="v.id" :to="`/views/${v.id}`" data-testid="custom-view-tile">
+          <UCard class="hover:ring-primary transition overflow-hidden" :ui="{ header: 'p-0 sm:px-0 h-14' }">
+            <template v-if="v.background" #header>
+              <div class="size-full" :style="backgroundStyle(v.background, { viewId: v.id }, true, basePath(), v.accent)" />
+            </template>
+            <h3 class="font-medium truncate">
+              {{ v.name }}
+            </h3>
+            <p class="text-sm text-muted mt-2 flex items-center gap-1">
+              <UIcon name="i-lucide-columns-3" /> {{ t('customViews.columnCount', {}, v.columnCount) }}
+            </p>
+          </UCard>
+        </NuxtLink>
       </div>
     </section>
 

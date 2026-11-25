@@ -18,7 +18,7 @@ export function loadViewableColumns(tx: Tx): Promise<ViewColumn[]> {
 
 /** The user's views by name, with the number of columns they can still see. */
 export function loadCustomViews(tx: Tx): Promise<CustomViewSummary[]> {
-  return tx.select({ id: v.id, name: v.name, columnCount: count(c.id) })
+  return tx.select({ id: v.id, name: v.name, columnCount: count(c.id), background: v.background, accent: v.accent })
     .from(v)
     .leftJoin(vc, eq(vc.viewId, v.id))
     .leftJoin(c, eq(c.id, vc.columnId))

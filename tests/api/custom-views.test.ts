@@ -97,7 +97,7 @@ describe('custom views', () => {
     expect(created.data.columns[0]).toMatchObject({ boardId: boardB.id, boardName: 'Views B', title: boardB.columns[0]!.title })
 
     const list = (await alice.req<CustomViewSummary[]>('/api/views')).data
-    expect(list.find(v => v.id === created.data.id)).toMatchObject({ name: 'Across', columnCount: 2 })
+    expect(list.find(v => v.id === created.data.id)).toMatchObject({ name: 'Across', columnCount: 2, background: null, accent: null })
     // Personal: Bob neither lists nor reads it.
     expect((await bob.req<CustomViewSummary[]>('/api/views')).data.some(v => v.id === created.data.id)).toBe(false)
     expect((await bob.req(`/api/views/${created.data.id}`)).status).toBe(404)
@@ -142,6 +142,9 @@ describe('custom views', () => {
     // logo: false is not stored.
     expect(set.data).toMatchObject({ background: { kind: 'color', value: '#0f766e' }, accent: 'violet', columnOutline: outline })
     expect(set.data.background).not.toHaveProperty('logo')
+    // The home page list carries the look for the tile.
+    expect((await alice.req<CustomViewSummary[]>('/api/views')).data.find(v => v.id === view.id))
+      .toMatchObject({ background: { kind: 'color', value: '#0f766e' }, accent: 'violet' })
     // Other fields stay when only one changes.
     expect((await alice.req<CustomView>(path, { method: 'PATCH', body: { accent: null } })).data).toMatchObject({ accent: null, columnOutline: outline })
 
