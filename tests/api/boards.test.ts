@@ -1319,6 +1319,8 @@ describe('board background', () => {
 
   it('owners set presets; unknown presets and editors are refused', async () => {
     const put = (who: typeof alice, body: unknown) => who.req(`/api/boards/${boardId}/background`, { method: 'PUT', body })
+    // The Kanso logo background (drawn in the board accent) is gradient 'kanso'.
+    expect((await put(alice, { kind: 'gradient', value: 'kanso' })).status).toBe(200)
     expect((await put(alice, { kind: 'gradient', value: 'sunset' })).status).toBe(200)
     expect((await put(alice, { kind: 'gradient', value: 'nope' })).status).toBe(400)
     expect((await put(alice, { kind: 'upload', value: 'abc' })).status).toBe(400)

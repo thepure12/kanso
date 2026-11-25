@@ -1652,6 +1652,8 @@
       "city": "Skyline",
       "desert": "Wüstenstraße"
     },
+    "logo": "Kanso-Logo",
+    "logoHint": "Kanso-Logo in der Akzentfarbe des Boards",
     "gradient": {
       "ocean": "Ozean",
       "sunset": "Sonnenuntergang",

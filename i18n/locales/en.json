@@ -1652,6 +1652,8 @@
       "city": "City skyline",
       "desert": "Desert road"
     },
+    "logo": "Kanso logo",
+    "logoHint": "Kanso logo in the board's accent colour",
     "gradient": {
       "ocean": "Ocean",
       "sunset": "Sunset",

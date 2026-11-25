@@ -14,7 +14,7 @@ const { t } = useI18n()
     <NuxtLink v-for="b in boards" :key="b.id" :to="`/boards/${b.id}`">
       <UCard class="hover:ring-primary transition overflow-hidden" :class="b.archivedAt && 'opacity-75'" :ui="{ header: 'p-0 sm:px-0 h-14' }">
         <template v-if="b.background" #header>
-          <div class="size-full" :style="backgroundStyle(b.background, b.id, true, basePath())" />
+          <div class="size-full" :style="backgroundStyle(b.background, b.id, true, basePath(), b.accent)" />
         </template>
         <div class="flex items-start justify-between gap-2">
           <h3 class="font-medium truncate">

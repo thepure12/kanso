@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import colors from 'tailwindcss/colors'
 import { type BoardAccent, boardAccents } from '#shared/boardAccents'
-import { type BoardBackground, backgroundColors, backgroundGradients, backgroundPhotos, backgroundStyle } from '#shared/boardBackgrounds'
+import { type BoardBackground, backgroundColors, backgroundGradients, backgroundPhotos, backgroundStyle, logoBackgroundId, logoBackgroundStyle } from '#shared/boardBackgrounds'
 import { type ColumnOutline, defaultColumnOutline } from '#shared/columnOutline'
 
 const props = defineProps<{
@@ -110,7 +110,18 @@ const ring = (current: boolean) => current ? 'ring-2 ring-primary' : 'hover:ring
           <h3 class="text-sm font-medium">
             {{ t('boardBackground.gradients') }}
           </h3>
-          <div class="grid grid-cols-4 sm:grid-cols-8 gap-2">
+          <div class="grid grid-cols-4 sm:grid-cols-9 gap-2">
+            <UTooltip :text="t('boardBackground.logoHint')">
+              <button
+                type="button"
+                class="aspect-square"
+                :class="[tile, ring(isCurrent('gradient', logoBackgroundId))]"
+                :style="logoBackgroundStyle(accent)"
+                :aria-label="t('boardBackground.logo')"
+                :aria-pressed="isCurrent('gradient', logoBackgroundId)"
+                @click="emit('set', { kind: 'gradient', value: logoBackgroundId })"
+              />
+            </UTooltip>
             <button
               v-for="g in backgroundGradients"
               :key="g.id"

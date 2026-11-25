@@ -46,7 +46,7 @@ onMounted(() => watch(() => board.value?.name, (name) => {
 
 const backgroundOpen = ref(false)
 const base = basePath()
-const bgStyle = computed(() => backgroundStyle(board.value?.background, id, false, base))
+const bgStyle = computed(() => backgroundStyle(board.value?.background, id, false, base, board.value?.accent))
 // Over a background, bars and panels get an opaque-ish backing to stay readable.
 const backed = computed(() => !!bgStyle.value)
 const panel = computed(() => backed.value ? 'bg-default/95 rounded-lg p-2 sm:p-3' : undefined)
