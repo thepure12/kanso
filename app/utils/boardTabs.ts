@@ -66,3 +66,33 @@ export function stepBoardTab(tabs: BoardTab[], id: string, step: number): string
   if (i < 0 || tabs.length < 2) return null
   return tabs[((i + step) % tabs.length + tabs.length) % tabs.length]!.id
 }
+
+/**
+ * Puts the tabs in the order of `ids` (a drag in the strip). Unknown ids are
+ * ignored; tabs missing from `ids` (opened meanwhile in another browser tab)
+ * keep their order after the others. Returns `tabs` itself when nothing moves.
+ */
+export function reorderBoardTabs(tabs: BoardTab[], ids: string[]): BoardTab[] {
+  const byId = new Map(tabs.map(t => [t.id, t]))
+  const seen = new Set<string>()
+  const next: BoardTab[] = []
+  for (const id of ids) {
+    const tab = byId.get(id)
+    if (!tab || seen.has(id)) continue
+    seen.add(id)
+    next.push(tab)
+  }
+  for (const tab of tabs) if (!seen.has(tab.id)) next.push(tab)
+  return next.every((t, i) => t === tabs[i]) ? tabs : next
+}
+
+/** Moves a tab `step` places left (negative) or right, stopping at the ends. Returns `tabs` itself when it cannot move. */
+export function moveBoardTab(tabs: BoardTab[], id: string, step: number): BoardTab[] {
+  const i = tabs.findIndex(t => t.id === id)
+  if (i < 0) return tabs
+  const to = Math.min(tabs.length - 1, Math.max(0, i + step))
+  if (to === i) return tabs
+  const next = tabs.filter(t => t.id !== id)
+  next.splice(to, 0, tabs[i]!)
+  return next
+}

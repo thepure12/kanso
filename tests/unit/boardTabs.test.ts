@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { BOARD_TABS_MAX, closeBoardTab, openBoardTab, parseBoardTabs, serializeBoardTabs, stepBoardTab } from '../../app/utils/boardTabs'
+import { BOARD_TABS_MAX, closeBoardTab, moveBoardTab, openBoardTab, parseBoardTabs, reorderBoardTabs, serializeBoardTabs, stepBoardTab } from '../../app/utils/boardTabs'
 
 const a = { id: 'a', name: 'A' }
 const b = { id: 'b', name: 'B' }
@@ -42,5 +42,21 @@ describe('board tabs', () => {
     expect(stepBoardTab([a, b, c], 'a', -1)).toBe('c')
     expect(stepBoardTab([a], 'a', 1)).toBeNull()
     expect(stepBoardTab([a, b], 'x', 1)).toBeNull()
+  })
+
+  it('reorders tabs by id, keeping tabs missing from the list at the end', () => {
+    const tabs = [a, b, c]
+    expect(reorderBoardTabs(tabs, ['c', 'a', 'b'])).toEqual([c, a, b])
+    expect(reorderBoardTabs(tabs, ['b', 'x', 'b', 'a'])).toEqual([b, a, c])
+    expect(reorderBoardTabs(tabs, ['a', 'b', 'c'])).toBe(tabs)
+  })
+
+  it('moves a tab left or right, stopping at the ends', () => {
+    const tabs = [a, b, c]
+    expect(moveBoardTab(tabs, 'a', 1)).toEqual([b, a, c])
+    expect(moveBoardTab(tabs, 'c', -2)).toEqual([c, a, b])
+    expect(moveBoardTab(tabs, 'b', 5)).toEqual([a, c, b])
+    expect(moveBoardTab(tabs, 'a', -1)).toBe(tabs)
+    expect(moveBoardTab(tabs, 'x', 1)).toBe(tabs)
   })
 })

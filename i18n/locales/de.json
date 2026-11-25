@@ -2310,7 +2310,8 @@
   },
   "boardTabs": {
     "label": "Geöffnete Boards",
-    "close": "{name} schließen"
+    "close": "{name} schließen",
+    "moveHint": "Ziehen oder Alt+Umschalt+Links/Rechts zum Umsortieren"
   },
   "bots": {
     "picture": "Bild von {name}",

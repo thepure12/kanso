@@ -1,5 +1,5 @@
 import type { BoardTab } from '~/utils/boardTabs'
-import { boardTabsKey, closeBoardTab, openBoardTab, parseBoardTabs, serializeBoardTabs } from '~/utils/boardTabs'
+import { boardTabsKey, closeBoardTab, moveBoardTab, openBoardTab, parseBoardTabs, reorderBoardTabs, serializeBoardTabs } from '~/utils/boardTabs'
 
 let listening = false
 
@@ -55,6 +55,20 @@ export function useBoardTabs() {
       const { tabs: rest, next } = closeBoardTab(tabs.value, id)
       save(rest)
       return next
+    },
+    /** Puts the tabs in the order of `ids` (drag and drop). */
+    reorder(ids: string[]) {
+      if (!import.meta.client) return
+      load()
+      const next = reorderBoardTabs(tabs.value, ids)
+      if (next !== tabs.value) save(next)
+    },
+    /** Moves a tab one or more places left (negative) or right. */
+    move(id: string, step: number) {
+      if (!import.meta.client) return
+      load()
+      const next = moveBoardTab(tabs.value, id, step)
+      if (next !== tabs.value) save(next)
     },
   }
 }

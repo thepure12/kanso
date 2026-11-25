@@ -2310,7 +2310,8 @@
   },
   "boardTabs": {
     "label": "Open boards",
-    "close": "Close {name}"
+    "close": "Close {name}",
+    "moveHint": "Drag or press Alt+Shift+Left/Right to reorder"
   },
   "bots": {
     "picture": "Picture of {name}",
