@@ -21,3 +21,11 @@ export function pruneCollapsedColumns(collapsed: Iterable<string>, columnIds: It
   const keep = new Set(columnIds)
   return [...new Set(collapsed)].filter(id => keep.has(id))
 }
+
+/**
+ * Classes of the collapse button in column headers. With a mouse it shows only while
+ * the column is hovered (or the button has keyboard focus) and takes no room before,
+ * so the count badge sits next to the menu. Kept at zero width rather than `hidden`
+ * so keyboard users can still tab to it. Touch always shows it, a bit bigger.
+ */
+export const collapseButtonClass = 'pointer-coarse:p-1.5 pointer-fine:w-0 pointer-fine:px-0 pointer-fine:overflow-hidden pointer-fine:opacity-0 pointer-fine:group-hover/col:w-auto pointer-fine:group-hover/col:px-1 pointer-fine:group-hover/col:opacity-100 pointer-fine:focus-visible:w-auto pointer-fine:focus-visible:px-1 pointer-fine:focus-visible:opacity-100'

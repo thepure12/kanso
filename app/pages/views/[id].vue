@@ -587,8 +587,7 @@ const menu = computed(() => [
                     size="xs"
                     color="neutral"
                     variant="ghost"
-                    class="pointer-coarse:p-1.5 pointer-fine:opacity-0 pointer-fine:group-hover/col:opacity-100 focus-visible:opacity-100"
-                    :class="col.color && 'text-inherit hover:bg-black/10'"
+                    :class="[collapseButtonClass, col.color && 'text-inherit hover:bg-black/10']"
                     :aria-label="t('board.column.collapse')"
                     @click="collapsedColumns.setCollapsed(col.columnId, true)"
                   />
