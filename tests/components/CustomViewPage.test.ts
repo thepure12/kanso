@@ -20,7 +20,7 @@ const card = (id: string, columnId: string, title: string) => ({
 }) as unknown as Card
 
 const board = (id: string, name: string, columns: [string, string][], cards: Card[]) => ({
-  id, name, role: 'editor', columns: columns.map(([cid, title], i) => ({ id: cid, title, position: i, color: null, wipLimit: null, outline: null })),
+  id, name, role: 'editor', columns: columns.map(([cid, title], i) => ({ id: cid, title, position: i, color: null, wipLimit: null, outline: null, rules: [] })),
   cards, tags: [], fields: [], members: [], buttons: [], buttonAlign: null,
 }) as unknown as BoardDetail
 
@@ -39,7 +39,13 @@ registerEndpoint('/api/views/v1', async (event) => {
 const b1Cards = [card('c1', 'b1c1', 'Hidden one'), card('c2', 'b1c2', 'Review me')]
 registerEndpoint('/api/boards/b1', () => board('b1', 'Alpha', [['b1c1', 'Todo'], ['b1c2', 'Review']], b1Cards))
 let viewerOnly = false
-registerEndpoint('/api/boards/b2', () => ({ ...board('b2', 'Beta', [['b2c1', 'Doing']], [card('c3', 'b2c1', 'Beta work')]), ...(viewerOnly ? { role: 'viewer' } : {}) }))
+// Appearance of Beta's column, set by the appearance test.
+let b2Column: Record<string, unknown> = {}
+registerEndpoint('/api/boards/b2', () => {
+  const b = board('b2', 'Beta', [['b2c1', 'Doing']], [card('c3', 'b2c1', 'Beta work')])
+  Object.assign(b.columns[0]!, b2Column)
+  return { ...b, ...(viewerOnly ? { role: 'viewer' } : {}) }
+})
 let posted: unknown
 registerEndpoint('/api/boards/b1/cards', async (event) => {
   const { readBody } = await import('h3')
@@ -84,6 +90,29 @@ describe('custom view page', () => {
     expect(w.text()).not.toContain('Hidden one')
     // Nothing to drag: no draggable lists.
     expect(w.find('[draggable="true"]').exists()).toBe(false)
+  })
+
+  it('draws columns as on their board: header colour, outline, WIP limit and stored width', async () => {
+    b2Column = { color: '#ff0000', wipLimit: 1, outline: { color: 'column', width: 3, glow: 0 } }
+    localStorage.setItem('kanban:column-widths:b2', JSON.stringify({ b2c1: 400 }))
+    try {
+      const w = await mountPage()
+      const section = w.find('[data-column-id="b2c1"]')
+      expect(section.attributes('style')).toContain('width: 400px')
+      // An outline replaces the default ring.
+      expect(section.classes()).not.toContain('ring')
+      expect(section.attributes('style')).toContain('outline-width: 3px')
+      expect(section.find('header').attributes('style')).toContain('background-color')
+      expect(section.find('header').text()).toContain('1/1')
+      // Alpha's column keeps the defaults.
+      const other = w.find('[data-column-id="b1c2"]')
+      expect(other.attributes('style')).toContain('width: 288px')
+      expect(other.classes()).toContain('ring')
+    }
+    finally {
+      b2Column = {}
+      localStorage.removeItem('kanban:column-widths:b2')
+    }
   })
 
   it('adds a card to a column of its board and shows it after the reload', async () => {

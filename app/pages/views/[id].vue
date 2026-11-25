@@ -3,6 +3,7 @@ import type { BoardDetail, Card, Column, Member } from '#shared/types/board'
 import type { BoardButton, ButtonRunResult } from '#shared/buttons'
 import type { CustomView } from '#shared/types/customViews'
 import { CARD_TITLE_MAX } from '#shared/cards'
+import { columnOutlineStyle, effectiveColumnOutline } from '#shared/columnOutline'
 
 // A custom view: the person's chosen columns from several boards side by side.
 // Each board loads through GET /api/boards/:id (RLS decides what shows); cards
@@ -10,6 +11,7 @@ import { CARD_TITLE_MAX } from '#shared/cards'
 // in the full card dialog of their board, but are not dragged here.
 const route = useRoute()
 const { t } = useI18n()
+const i18n = useI18nContext()
 const confirm = useConfirm()
 const showError = useApiError()
 const toast = useToast()
@@ -70,8 +72,32 @@ const columns = computed(() => (view.value?.columns ?? []).flatMap((vc) => {
   const board = boards.value[vc.boardId]
   const column = board?.columns.find(c => c.id === vc.columnId)
   if (!board || !column) return []
-  return [{ ...vc, title: column.title, color: column.color, board, cards: board.cards.filter(c => c.columnId === column.id) }]
+  return [{ ...vc, column, title: column.title, color: column.color, board, cards: board.cards.filter(c => c.columnId === column.id) }]
 }))
+type ViewCol = (typeof columns.value)[number]
+
+// Columns look as on their board: header colour, outline (column, else board
+// default), WIP limit, rules, points, time and the width set on the board
+// (localStorage `kanban:column-widths:<board>`, read after mount; resized there).
+const storedWidths = ref<Record<string, ColumnWidths>>({})
+onMounted(() => watch(boardIds, (ids) => {
+  try { storedWidths.value = Object.fromEntries(ids.map(b => [b, parseColumnWidths(localStorage.getItem(columnWidthsKey(b)))])) }
+  catch { /* storage unavailable */ }
+}, { immediate: true }))
+function wipState(col: ViewCol) {
+  const limit = col.column.wipLimit
+  if (!limit) return null
+  return col.cards.length > limit ? 'over' : col.cards.length === limit ? 'full' : 'ok'
+}
+function columnStyle(col: ViewCol) {
+  const width = storedWidths.value[col.boardId]?.[col.columnId] ?? COLUMN_WIDTH_DEFAULT
+  return [{ width: `${width}px`, maxWidth: 'calc(100vw - 3rem)' }, columnOutlineStyle(effectiveColumnOutline(col.column, col.board.columnOutline), wipState(col) === 'over', col.color) ?? {}]
+}
+function columnPoints(col: ViewCol) {
+  const estimates = col.cards.filter(c => c.estimate !== null).map(c => c.estimate!)
+  return estimates.length ? Number(estimates.reduce((a, b) => a + b, 0).toFixed(2)) : null
+}
+const columnTime = (col: ViewCol) => col.cards.reduce((sum, c) => sum + c.timeMinutes, 0)
 // Views like the board page (?view=, board when absent; the last one per custom
 // view kept in localStorage). List, calendar and timeline take the view's columns
 // of every board as one set; ids are unique across boards, so tags, fields and
@@ -320,22 +346,57 @@ const menu = computed(() => [[
       <section
         v-for="col in columns"
         :key="col.columnId"
-        class="flex w-72 max-w-[calc(100vw-3rem)] shrink-0 snap-start flex-col rounded-lg bg-elevated/50 ring ring-default"
+        class="flex shrink-0 snap-start flex-col rounded-lg bg-elevated/60 max-h-full"
+        :class="!effectiveColumnOutline(col.column, col.board.columnOutline) && ['ring', wipState(col) === 'over' ? 'ring-error' : 'ring-default']"
+        :style="columnStyle(col)"
         :data-column-id="col.columnId"
       >
-        <header class="px-3 pt-2 pb-1">
-          <div class="flex items-center gap-2">
-            <span v-if="col.color" class="size-2.5 shrink-0 rounded-full" :style="{ background: col.color }" />
-            <h2 class="font-semibold truncate" :style="col.color ? { color: col.color } : undefined">
+        <header
+          class="@container flex flex-col gap-1.5 px-3 py-2 rounded-t-lg"
+          :style="col.color ? { backgroundColor: col.color, color: contrastText(col.color) } : undefined"
+        >
+          <div class="flex items-start gap-2">
+            <h2 class="min-w-0 flex-1 font-medium leading-6 wrap-break-word">
               {{ col.title }}
             </h2>
-            <UBadge color="neutral" variant="subtle" size="sm" :label="String(col.cards.length)" class="ms-auto" />
+            <div class="flex items-center gap-0.5 shrink-0 min-h-6">
+              <UTooltip v-if="col.column.wipLimit" :text="wipState(col) === 'over' ? t('board.column.overWip', { limit: col.column.wipLimit }) : t('board.column.wip', { limit: col.column.wipLimit })">
+                <UBadge
+                  :color="wipState(col) === 'over' ? 'error' : wipState(col) === 'full' ? 'warning' : 'neutral'"
+                  :variant="wipState(col) === 'over' ? 'solid' : 'soft'"
+                  size="sm"
+                  :label="`${col.cards.length}/${col.column.wipLimit}`"
+                />
+              </UTooltip>
+              <UBadge v-else color="neutral" variant="soft" size="sm" :label="String(col.cards.length)" />
+            </div>
           </div>
-          <ULink :to="`/boards/${col.boardId}`" class="text-xs text-muted hover:underline truncate block">
+          <div
+            v-if="col.column.rules.length || columnPoints(col) !== null || columnTime(col)"
+            class="flex flex-wrap items-center gap-x-2.5 gap-y-1 -mt-1"
+            :class="col.color ? 'opacity-80' : 'text-muted'"
+          >
+            <UTooltip v-if="col.column.rules.length" :text="t('board.column.ruleCount', { count: col.column.rules.length }, col.column.rules.length)">
+              <span class="inline-flex items-center gap-0.5 text-xs font-medium tabular-nums">
+                <UIcon name="i-lucide-zap" class="size-3.5 shrink-0" />{{ col.column.rules.length }}
+              </span>
+            </UTooltip>
+            <UTooltip v-if="columnPoints(col) !== null" :text="formatPoints(columnPoints(col)!, i18n)">
+              <span class="inline-flex items-center gap-0.5 text-xs font-medium tabular-nums">
+                <UIcon name="i-lucide-sigma" class="size-3.5 shrink-0" />{{ columnPoints(col) }}
+              </span>
+            </UTooltip>
+            <UTooltip v-if="columnTime(col)" :text="t('board.column.timeLogged', { time: formatDuration(columnTime(col), t) })">
+              <span class="inline-flex items-center gap-0.5 text-xs font-medium tabular-nums">
+                <UIcon name="i-lucide-timer" class="size-3.5 shrink-0" />{{ formatDuration(columnTime(col), t) }}
+              </span>
+            </UTooltip>
+          </div>
+          <ULink :to="`/boards/${col.boardId}`" class="text-xs hover:underline truncate block" :class="col.color ? 'opacity-80' : 'text-muted'">
             {{ col.board.name }}
           </ULink>
         </header>
-        <div class="flex-1 min-h-0 overflow-y-auto px-2 pb-2 space-y-2">
+        <div class="flex flex-col gap-2 flex-1 min-h-0 overflow-y-auto px-3 py-2">
           <BoardCard
             v-for="card in col.cards"
             :key="card.id"
@@ -357,11 +418,11 @@ const menu = computed(() => [[
             @delete="deleteCard(col.boardId, card)"
             @run-button="b => runButton(col.boardId, b, card)"
           />
-          <p v-if="!col.cards.length" class="px-1 py-2 text-sm text-muted">
+          <p v-if="!col.cards.length" class="px-1 text-sm text-muted">
             {{ t('customViews.noCards') }}
           </p>
         </div>
-        <div v-if="canAddTo(col.board, col.columnId)" class="px-2 pb-2">
+        <div v-if="canAddTo(col.board, col.columnId)" class="px-3 pb-2">
           <InlineAdd :label="t('board.addCard')" :placeholder="t('board.cardTitle')" :maxlength="CARD_TITLE_MAX" openable @add="(title, openIt) => addCard(col.boardId, col.columnId, title, openIt)" />
         </div>
       </section>
