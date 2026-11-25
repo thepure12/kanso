@@ -1016,6 +1016,20 @@
       "when": 1795578137998,
       "tag": "0144_custom_view_appearance_rls",
       "breakpoints": true
+    },
+    {
+      "idx": 145,
+      "version": "7",
+      "when": 1795632893503,
+      "tag": "0145_agent_rule_settle",
+      "breakpoints": true
+    },
+    {
+      "idx": 146,
+      "version": "7",
+      "when": 1795632900222,
+      "tag": "0146_agent_rule_settle_rls",
+      "breakpoints": true
     }
   ]
 }

@@ -2179,6 +2179,14 @@
       "failure": "Nur Fehler",
       "always": "Immer"
     },
+    "settle": "Warten, bis die Karte unverändert bleibt (Sekunden)",
+    "settleHelp": "Der Lauf beginnt erst, wenn die Karte so lange nicht geändert wurde; jede Änderung startet die Wartezeit neu. Leer: --settle des Runners, sonst {seconds} s für dieses Ereignis.",
+    "settleText": {
+      "now": "beginnt sofort",
+      "seconds": "beginnt, wenn die Karte {seconds} s unverändert ist",
+      "default": "beginnt, wenn die Karte {seconds} s unverändert ist (Standard)",
+      "defaultNow": "beginnt sofort (Standard)"
+    },
     "events": {
       "card_created": "Karte erstellt",
       "card_moved": "Karte verschoben",
@@ -2260,6 +2268,10 @@
     "concurrency": "Läufe gleichzeitig",
     "timeout": "Zeitlimit (Minuten)",
     "noTimeout": "Keins",
+    "settle": "Ohne Änderung warten (s)",
+    "settleHelp": "Ein Lauf beginnt erst, wenn die Karte so lange nicht geändert wurde.",
+    "settleRulesHelp": "Für Regeln ohne eigene Wartezeit; leer: 60 s für erstellt, verschoben und Karten-Tag hinzugefügt, 0 für zugewiesen und erwähnt.",
+    "settleRuleDefault": "Je Ereignis",
     "comment": "Ergebnis kommentieren",
     "profile": "Login-Profil",
     "profileHelp": "Wo die CLI den Token des Bots speichert.",
@@ -2279,7 +2291,8 @@
       "activity": "Wähle Spalten oder Aktivität.",
       "cmd": "Gib einen Befehl ein.",
       "concurrency": "Läufe gleichzeitig: 1 bis 32.",
-      "timeout": "Zeitlimit: mehr als 0 Minuten."
+      "timeout": "Zeitlimit: mehr als 0 Minuten.",
+      "settle": "Die Wartezeit sind ganze Sekunden von 0 bis 3600."
     }
   },
   "reminders": {

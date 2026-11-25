@@ -121,6 +121,7 @@ describe('kanso agent setup', () => {
       'y', // log time
       '2', // concurrency
       '', // no timeout
+      '', // settle: the rules' own
       '', // name from the board: kanso
       '', // workdir
       '2', // dry run
@@ -151,6 +152,8 @@ describe('kanso agent setup', () => {
       './handle.sh "$KANSO_CARD_ID"',
       '', // concurrency 1
       '30', // timeout
+      '9999', // settle: too long, asked again
+      '90', // settle
       '2', // comment on failure
       'none', // plain kanso-agent
       '', // workdir
@@ -160,9 +163,9 @@ describe('kanso agent setup', () => {
     expect(h.left()).toBe(0)
     expect(h.out()).toContain('A bot\'s token is safer')
     expect(JSON.parse(await readFile(join(dir, 'config.json'), 'utf8'))).toEqual({ profiles: { default: { url: 'https://k.test/kanso', token: other } } })
-    expect(h.out()).toContain(`kanso agent install --profile default --board ${B1},${B2} --columns ${TODO} --activity moved,commented --cmd './handle.sh "$KANSO_CARD_ID"' --timeout 30 --comment failure\n`)
+    expect(h.out()).toContain(`kanso agent install --profile default --board ${B1},${B2} --columns ${TODO} --activity moved,commented --cmd './handle.sh "$KANSO_CARD_ID"' --timeout 30 --settle 90 --comment failure\n`)
     const unit = await h.unit('kanso-agent')
-    expect(unit).toContain(`agent run --board ${B1},${B2} --activity moved,commented --columns ${TODO} --cmd "./handle.sh \\"$$KANSO_CARD_ID\\"" --comment failure --timeout 30\n`)
+    expect(unit).toContain(`agent run --board ${B1},${B2} --activity moved,commented --columns ${TODO} --cmd "./handle.sh \\"$$KANSO_CARD_ID\\"" --comment failure --timeout 30 --settle 90\n`)
     expect(h.programs).toContain('systemctl --user restart kanso-agent.service')
     expect(h.err()).toContain('the token is Alice\'s own')
   })
@@ -186,7 +189,7 @@ describe('kanso agent setup', () => {
   })
 
   it('suggests the main checkout for worktrees', async () => {
-    const h = harness(['', '1', '', '', '2', '', '', '', '', '', '', '', '', '3'])
+    const h = harness(['', '1', '', '', '2', '', '', '', '', '', '', '', '', '', '3'])
     expect(await h.cli('agent', 'setup')).toBe(0)
     expect(h.programs).toContain(`git -C ${dir} rev-parse --path-format=absolute --git-common-dir`)
     expect(h.out()).toContain(`Git repository [${join(dir, 'repo')}]`)
@@ -196,7 +199,7 @@ describe('kanso agent setup', () => {
     const h = harness(['', '1'])
     expect(await h.cli('agent', 'setup')).toBe(1)
     expect(h.err()).toContain('Cancelled; nothing was changed.')
-    const s = harness(['', '2', '3', '', '', '', '', 'n', '', '', '', '', '', '', '3'])
+    const s = harness(['', '2', '3', '', '', '', '', 'n', '', '', '', '', '', '', '', '3'])
     expect(await s.cli('agent', 'setup')).toBe(0)
     expect(s.left()).toBe(0)
     expect(s.out()).toContain(`kanso agent install --profile default --board ${B2} --notifications --claude --name ops-board\n`)

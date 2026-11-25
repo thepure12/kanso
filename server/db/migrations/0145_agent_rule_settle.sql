@@ -1,0 +1,2 @@
+ALTER TABLE "board_agent_rules" ADD COLUMN "settle_seconds" integer;--> statement-breakpoint
+ALTER TABLE "board_agent_rules" ADD CONSTRAINT "board_agent_rules_settle_range" CHECK ("board_agent_rules"."settle_seconds" between 0 and 3600);

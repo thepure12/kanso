@@ -44,6 +44,11 @@ const timeout = computed({
   set: (v: number | undefined | null) => { options.value.timeout = v === undefined || v === null || Number.isNaN(v) ? null : v },
 })
 
+const settle = computed({
+  get: () => options.value.settle ?? undefined,
+  set: (v: number | undefined | null) => { options.value.settle = v === undefined || v === null || Number.isNaN(v) ? null : v },
+})
+
 const botItems = computed(() => props.bots.map(b => ({ label: b.name, value: b.id })))
 const triggerItems = computed(() => [
   ...props.boardId ? [
@@ -124,6 +129,9 @@ async function copy(text: string) {
       </UFormField>
       <UFormField :label="t('agentCommand.timeout')">
         <UInputNumber v-model="timeout" :min="1" :placeholder="t('agentCommand.noTimeout')" class="w-full" />
+      </UFormField>
+      <UFormField :label="t('agentCommand.settle')" :help="rules ? t('agentCommand.settleRulesHelp') : t('agentCommand.settleHelp')">
+        <UInputNumber v-model="settle" :min="0" :max="3600" :placeholder="rules ? t('agentCommand.settleRuleDefault') : '0'" class="w-full" data-testid="agent-settle" />
       </UFormField>
       <UFormField v-if="!rules" :label="t('agentCommand.comment')" class="col-span-2">
         <USelect v-model="options.comment" :items="commentItems" class="w-full" />

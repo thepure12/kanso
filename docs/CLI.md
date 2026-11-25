@@ -81,6 +81,7 @@ Options:
 | `--concurrency <n>` | Runs at once (1-32, default 1). Never two runs on the same card: later events of a busy card wait |
 | `--comment never\|failure\|always` | Comment the exit status on the card (default never) |
 | `--timeout <minutes>` | Stop a run after this long (SIGTERM to its process group, SIGKILL 10 s later) |
+| `--settle <seconds>` | Start a run only once the card has not changed for this long (0-3600, see [Settle](#settle)); agent rules: the rule's own wait wins, default 60 for created/moved/tag added and 0 for assigned/mentioned; otherwise default 0 |
 | `--claude` | Run `claude -p` (see below) instead of `--cmd` |
 | `--prompt <text>` | With `--claude`: the instructions part of the prompt |
 | `--permission-mode <mode>` | With `--claude`: `claude --permission-mode` (e.g. `auto`, `acceptEdits`); Claude keeps its usual tools besides the board |
@@ -104,8 +105,9 @@ to the runs in progress and waits for them (a second signal exits at once).
 Editors set agent rules on the board (board menu "Agent rules"): a name, the bot, the event (card created, card
 moved, card tag added, the bot assigned, the bot mentioned in a comment), optionally a column (the card is moved
 into / is in it) and a card tag (the card carries it; for "card tag added": the added tag), Markdown instructions,
-and what happens after the run: move the card to a column (only after a successful run) and comment the exit
-status (never, only failures, always).
+what happens after the run: move the card to a column (only after a successful run) and comment the exit
+status (never, only failures, always), and how long the card must stay unchanged before the run starts (see
+[Settle](#settle); empty = `--settle`, else the event's default).
 
 ```bash
 KANSO_TOKEN=kb_bot... kanso agent run --board $BOARD --claude
@@ -119,6 +121,21 @@ the one assigned or mentioned, and never an event the bot caused itself (so its 
 With `--claude` the rule's instructions replace `--prompt`; with `--cmd` they are `rule.instructions` on stdin. The
 runner's move goes to the end of the column (column rules run) and, like its comments, starts no run. `--comment`
 is refused in this mode (the rules set it). Rules are not copied with the board or exported.
+
+### Settle
+
+So that an agent does not take a card someone is still writing (a card is often created with a title only and
+described a moment later), a run starts only once the card has stayed unchanged for a while. When an event
+matches, the runner reads the card, waits, and reads it again: any new activity (renamed, described, tagged,
+commented, ...) by someone other than the runner's own user, or a changed checklist or attachment, starts the
+wait again. Then the card and the rule are checked as usual (and the rule is skipped if it was paused or deleted
+in the meantime). Several matching events on the same card during the wait end up in one run, for the newest
+event. The wait does not take a `--concurrency` slot.
+
+The wait is the rule's own (`settleSeconds`, set in the rule dialog), else `--settle`, else 60 s for `card_created`,
+`card_moved` and `tag_added` and 0 for `assigned` and `mentioned` (deliberate actions). Without agent rules
+(`--activity`, `--columns`, `--notifications`) it is `--settle`, default 0 (start at once). Text typed into an
+open card dialog but not saved yet is not a change the runner can see.
 
 ### --claude
 

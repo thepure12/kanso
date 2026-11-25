@@ -194,6 +194,12 @@ export async function agentWizard(input: WizardInput): Promise<WizardResult> {
     check: v => !v || +v > 0 ? null : 'A number of minutes above 0, or empty.',
   })
   if (timeout) argv.push('--timeout', timeout)
+  const settle = await p.text(trigger === 'rules'
+    ? 'Wait until the card has not changed for how many seconds? (empty = the rule\'s own, else 60 for created/moved/tagged, 0 for assigned/mentioned)'
+    : 'Wait until the card has not changed for how many seconds? (empty = start at once)', {
+    check: v => !v || (/^\d+$/.test(v) && +v <= 3600) ? null : 'Whole seconds from 0 to 3600, or empty.',
+  })
+  if (settle) argv.push('--settle', settle)
   if (trigger !== 'rules') {
     const comment = await p.pickOne('Comment the exit status on the card?', [
       { label: 'never', value: 'never' }, { label: 'only on failure', value: 'failure' }, { label: 'always', value: 'always' },

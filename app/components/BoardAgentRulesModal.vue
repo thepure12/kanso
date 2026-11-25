@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import {
-  AGENT_RULE_INSTRUCTIONS_MAX, AGENT_RULE_NAME_MAX, agentRuleComments, agentRuleEvents,
+  AGENT_RULE_INSTRUCTIONS_MAX, AGENT_RULE_NAME_MAX, AGENT_RULE_SETTLE_MAX, agentRuleComments, agentRuleEvents, agentRuleSettleDefaults,
   type AgentRule, type AgentRuleEvent, type Column, type Member, type NewAgentRule, type Tag,
 } from '#shared/types/board'
 
@@ -55,6 +55,15 @@ function thenText(r: NewAgentRule) {
     : t('agentRules.then.work', { bot })
 }
 
+/** How long the runner waits for the card to stay unchanged (null = its --settle, else the event's default). */
+function settleText(r: NewAgentRule) {
+  if (r.settleSeconds === null) {
+    const seconds = agentRuleSettleDefaults[r.event]
+    return seconds ? t('agentRules.settleText.default', { seconds }) : t('agentRules.settleText.defaultNow')
+  }
+  return r.settleSeconds ? t('agentRules.settleText.seconds', { seconds: r.settleSeconds }) : t('agentRules.settleText.now')
+}
+
 // ---------------------------------------------------------------- form
 
 // Select items cannot have a null or empty value, so NONE stands for "any" / "nothing".
@@ -66,7 +75,7 @@ const editing = ref<AgentRule | null>(null)
 function emptyRule(): NewAgentRule {
   return {
     name: '', botId: bots.value[0]?.userId ?? '', event: 'card_moved', columnId: null, tagId: null,
-    instructions: '', moveColumnId: null, comment: 'failure',
+    instructions: '', moveColumnId: null, comment: 'failure', settleSeconds: null,
   }
 }
 
@@ -93,12 +102,24 @@ function nullable<K extends 'columnId' | 'tagId' | 'moveColumnId'>(key: K) {
 const column = nullable('columnId')
 const tag = nullable('tagId')
 const moveColumn = nullable('moveColumnId')
+/** The settle field as text: empty = null (default). */
+const settle = computed({
+  get: () => draft.value.settleSeconds === null ? '' : String(draft.value.settleSeconds),
+  set: (v: string | number) => {
+    const text = String(v ?? '').trim()
+    draft.value.settleSeconds = text === '' ? null : Number(text)
+  },
+})
+const settleValid = computed(() => {
+  const s = draft.value.settleSeconds
+  return s === null || (Number.isInteger(s) && s >= 0 && s <= AGENT_RULE_SETTLE_MAX)
+})
 
 const result = computed<NewAgentRule>(() => ({ ...draft.value, name: draft.value.name.trim(), instructions: draft.value.instructions.trim() }))
 const valid = computed(() => {
   const r = result.value
   return r.name.length > 0 && r.name.length <= AGENT_RULE_NAME_MAX && r.instructions.length > 0
-    && r.instructions.length <= AGENT_RULE_INSTRUCTIONS_MAX && bots.value.some(b => b.userId === r.botId)
+    && r.instructions.length <= AGENT_RULE_INSTRUCTIONS_MAX && bots.value.some(b => b.userId === r.botId) && settleValid.value
 })
 
 const eventItems = computed(() => agentRuleEvents.map(e => ({ label: t(`agentRules.events.${e}`), value: e, icon: eventIcons[e] })))
@@ -142,6 +163,9 @@ function submit() {
               </template>
             </p>
             <p>{{ thenText(r) }}</p>
+            <p class="text-xs text-muted" data-testid="agent-rule-settle">
+              {{ settleText(r) }}
+            </p>
           </div>
           <USwitch
             :model-value="r.active"
@@ -198,6 +222,23 @@ function submit() {
                   <USelect v-model="tag" :items="[anyItem, ...tagItems]" class="w-full" />
                 </UFormField>
               </div>
+              <UFormField
+                :label="t('agentRules.settle')"
+                :help="t('agentRules.settleHelp', { seconds: agentRuleSettleDefaults[draft.event] })"
+                :error="!settleValid"
+              >
+                <UInput
+                  v-model="settle"
+                  type="number"
+                  inputmode="numeric"
+                  :min="0"
+                  :max="AGENT_RULE_SETTLE_MAX"
+                  step="1"
+                  :placeholder="String(agentRuleSettleDefaults[draft.event])"
+                  class="w-32"
+                  data-testid="agent-rule-settle-input"
+                />
+              </UFormField>
             </fieldset>
             <UFormField :label="t('agentRules.instructions')" :help="t('agentRules.instructionsHelp')">
               <UTextarea v-model="draft.instructions" :rows="6" autoresize :maxlength="AGENT_RULE_INSTRUCTIONS_MAX" class="w-full" />
@@ -222,6 +263,7 @@ function submit() {
                 </template>
               </p>
               <p>{{ thenText(result) }}</p>
+              <p>{{ settleText(result) }}</p>
             </div>
             <div class="flex gap-2">
               <UButton type="submit" :icon="editing ? 'i-lucide-check' : 'i-lucide-plus'" :label="editing ? t('common.save') : t('common.add')" :disabled="!valid" />

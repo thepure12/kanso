@@ -285,13 +285,14 @@ describe('kanso agent run against the API', () => {
     // Routes: validation, then a rule; the bot token reads it (token route).
     const bad = await alice.req(`/api/boards/${board.id}/agent-rules`, { method: 'POST', body: { name: 'x', botId: alice.id, event: 'card_moved', instructions: 'Go' } })
     expect(bad.status).toBe(403)
-    const created = await alice.req(`/api/boards/${board.id}/agent-rules`, {
-      method: 'POST',
-      body: { name: 'Pick up', botId: bot.id, event: 'card_moved', columnId: todo.id, instructions: 'Work on it.', moveColumnId: doing.id, comment: 'always' },
-    })
+    const body = { name: 'Pick up', botId: bot.id, event: 'card_moved', columnId: todo.id, instructions: 'Work on it.', moveColumnId: doing.id, comment: 'always' }
+    const tooLong = await alice.req(`/api/boards/${board.id}/agent-rules`, { method: 'POST', body: { ...body, settleSeconds: 3601 } })
+    expect(tooLong.status).toBe(400)
+    // A short settle wait (the default for card_moved is a minute).
+    const created = await alice.req(`/api/boards/${board.id}/agent-rules`, { method: 'POST', body: { ...body, settleSeconds: 1 } })
     expect(created.status).toBe(200)
-    const rule = await created.json() as { id: string, active: boolean, comment: string }
-    expect(rule).toMatchObject({ active: true, comment: 'always' })
+    const rule = await created.json() as { id: string, active: boolean, comment: string, settleSeconds: number | null }
+    expect(rule).toMatchObject({ active: true, comment: 'always', settleSeconds: 1 })
     const botGet = await globalThis.fetch(`${base}/api/boards/${board.id}/agent-rules`, { headers: { authorization: `Bearer ${botToken}`, 'x-forwarded-for': randomIp() } })
     expect((await botGet.json() as { id: string }[]).map(r => r.id)).toEqual([rule.id])
 
@@ -320,6 +321,7 @@ describe('kanso agent run against the API', () => {
     expect(result.code).toBe(0)
     const messages = result.out.trim().split('\n').map(l => (JSON.parse(l) as { message: string }).message)
     expect(messages.filter(m => m.startsWith('run '))).toHaveLength(1)
+    expect(messages.some(m => m.includes('stays unchanged for 1 s'))).toBe(true)
     expect(messages.some(m => m.includes('no active agent rules'))).toBe(true)
     expect((await alice.req(`/api/agent-rules/${rule.id}`, { method: 'DELETE' })).ok).toBe(true)
   })

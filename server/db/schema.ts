@@ -679,6 +679,9 @@ export const boardRuleEvents = pgTable('board_rule_events', {
 // with the bot's token follows them (cli/src/agent.ts): it runs the command or
 // Claude per matching event and afterwards optionally moves the card to
 // move_column_id (on success) and comments the exit status (`comment`).
+// settle_seconds: how long the card must stay unchanged before the run starts
+// (null = the runner's --settle, else 60 s for card_created/card_moved/tag_added
+// and 0 for assigned/mentioned).
 // assigned / mentioned mean the rule's bot was assigned / mentioned. Deleting the
 // bot, a named column or tag deletes the rule.
 export const boardAgentRules = pgTable('board_agent_rules', {
@@ -692,6 +695,7 @@ export const boardAgentRules = pgTable('board_agent_rules', {
   instructions: text('instructions').notNull(),
   moveColumnId: uuid('move_column_id'),
   comment: text('comment').notNull().default('never'),
+  settleSeconds: integer('settle_seconds'),
   active: boolean('active').notNull().default(true),
   createdBy: uuid('created_by').references(() => users.id, { onDelete: 'set null' }),
   createdAt: createdAt(),
@@ -703,6 +707,7 @@ export const boardAgentRules = pgTable('board_agent_rules', {
   check('board_agent_rules_name_length', sql`char_length(btrim(${t.name})) between 1 and 100`),
   check('board_agent_rules_instructions_length', sql`char_length(btrim(${t.instructions})) between 1 and 20000`),
   check('board_agent_rules_comment_known', sql`${t.comment} in ('never', 'failure', 'always')`),
+  check('board_agent_rules_settle_range', sql`${t.settleSeconds} between 0 and 3600`),
 ])
 
 // One-shot actions on a card, run on run_on by app.run_scheduled_card_actions()

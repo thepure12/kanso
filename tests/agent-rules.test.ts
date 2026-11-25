@@ -101,6 +101,12 @@ describe('agent rules', () => {
     await rejectsWith(addRule(editor.id, { instructions: '' }), '23514')
     await rejectsWith(addRule(editor.id, { comment: 'sometimes' }), '23514')
     await rejectsWith(addRule(editor.id, { event: 'commented' }), '22P02')
+    await rejectsWith(addRule(editor.id, { settle_seconds: -1 }), '23514')
+    await rejectsWith(addRule(editor.id, { settle_seconds: 3601 }), '23514')
+    // Editors set the wait like the rest of the rule.
+    const settled = await addRule(editor.id, { settle_seconds: 0 })
+    await as(editor.id, sql => sql`update board_agent_rules set settle_seconds = 90 where id = ${settled}`)
+    expect((await owner`select settle_seconds from board_agent_rules where id = ${settled}`)[0]!.settle_seconds).toBe(90)
     const [{ id: foreignColumn }] = await owner`insert into columns (board_id, title, position) values (${otherBoardId}, 'X', 1) returning id`
     await rejectsWith(addRule(editor.id, { move_column_id: foreignColumn }), '23503')
   })

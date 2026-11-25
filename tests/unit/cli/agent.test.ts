@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from 'vitest'
 import type { BoardDetail, CardDetail } from '../../../shared/types/board'
 import type { Inbox, Notification } from '../../../shared/types/notifications'
-import type { AgentRule } from '../../../shared/types/board'
-import { AGENT_CLIENT_ID, type AgentDeps, type AgentOptions, backoff, BoardGoneError, type CardContext, type ExecResult, type Job, ruleSkipReason, rulesForEvent, runAgent, statusComment, streamQuery } from '../../../cli/src/agent'
+import { type AgentRule, agentRuleSettleDefaults as sharedSettleDefaults } from '../../../shared/types/board'
+import { AGENT_CLIENT_ID, type AgentDeps, type AgentOptions, agentRuleSettleDefaults, backoff, changeMarker, BoardGoneError, type CardContext, type ExecResult, type Job, ruleSkipReason, rulesForEvent, runAgent, settleSeconds, statusComment, streamQuery } from '../../../cli/src/agent'
 import { createClient } from '../../../cli/src/client'
 import { claudePrompt, resolveColumns, splitList } from '../../../cli/src/commands/agent'
 import { readServerEvents } from '../../../cli/src/sse'
@@ -41,7 +41,7 @@ const until = async (fn: () => boolean) => {
   expect(fn()).toBe(true)
 }
 
-function harness(opts: Partial<AgentOptions> = {}, inbox: Notification[] = [], agentRules: AgentRule[] = [], details: Record<string, CardDetail> = {}) {
+function harness(opts: Partial<AgentOptions> = {}, inbox: Notification[] = [], agentRules: AgentRule[] = [], details: Record<string, CardDetail> = {}, sleep: AgentDeps['sleep'] = async () => {}) {
   const streams: ReturnType<typeof stream>[] = []
   const requests: { method: string, url: string, body?: unknown, clientId: string | null }[] = []
   const stop = new AbortController()
@@ -74,7 +74,7 @@ function harness(opts: Partial<AgentOptions> = {}, inbox: Notification[] = [], a
     client: createClient({ url: 'https://k.test', token: 'kb_x' }, fetch as unknown as typeof globalThis.fetch, AGENT_CLIENT_ID),
     fetch: fetch as unknown as typeof globalThis.fetch,
     log: () => {},
-    sleep: vi.fn(async () => {}),
+    sleep: vi.fn(sleep),
     signal: stop.signal,
     exec: (job, env, stdin) => new Promise(resolve => runs.push({ job, env, stdin, finish: r => resolve({ code: 0, signal: null, timedOut: false, ...r }) })),
   }
@@ -212,7 +212,7 @@ describe('kanso agent run', () => {
   it('follows the agent rules of its bot (rules mode)', async () => {
     const rule = (id: string, extra: Partial<AgentRule> = {}): AgentRule => ({
       id, name: `Rule ${id}`, botId: BOT, event: 'card_moved', columnId: TODO, tagId: null, instructions: `Do ${id}.`,
-      moveColumnId: null, comment: 'never', active: true, ...extra,
+      moveColumnId: null, comment: 'never', settleSeconds: null, active: true, ...extra,
     })
     const act = (id: string, kind: string, actorId: string, data: Record<string, unknown> = {}) => ({ id, kind, actorId, actorName: null, data, createdAt: '' })
     const rules = [
@@ -267,8 +267,68 @@ describe('kanso agent run', () => {
     expect(h.requests.filter(r => r.url.endsWith('/comments'))).toHaveLength(1)
   })
 
+  it('waits for the card to stay unchanged before a rule runs (settle)', async () => {
+    const act = (id: string, actorId: string, createdAt: string) => ({ id, kind: 'described', actorId, actorName: null, data: {}, createdAt })
+    const rule: AgentRule = {
+      id: 'r1', name: 'Rule r1', botId: BOT, event: 'card_moved', columnId: TODO, tagId: null, instructions: 'Do it.',
+      moveColumnId: null, comment: 'never', settleSeconds: 30, active: true,
+    }
+    const c1 = { ...detail, activity: [act('a1', 'u1', '2026-01-01T00:00:00Z')] } as unknown as CardDetail
+    const details: Record<string, CardDetail> = { c1 }
+    let sleeps = 0
+    let reloaded!: () => void
+    const gate = new Promise<void>((r) => { reloaded = r })
+    const h = harness({ rulesFor: BOT, activity: [], columnIds: [], concurrency: 4 }, [], [rule], details, async () => {
+      sleeps++
+      if (sleeps > 10) await gate
+      // Someone edits the card during the first wait; the bot's own change during the second does not count.
+      if (sleeps === 1) details.c1 = { ...c1, activity: [act('a2', 'u1', '2026-01-01T00:00:10Z'), ...c1.activity] } as unknown as CardDetail
+      if (sleeps === 2) details.c1 = { ...details.c1!, activity: [act('a3', BOT, '2026-01-01T00:00:20Z'), ...details.c1!.activity] } as unknown as CardDetail
+    })
+    await until(() => h.streams.length === 1)
+    const s = h.streams[0]!
+    s.send('ready')
+    await until(() => h.requests.some(r => r.url.endsWith('/agent-rules')))
+    s.send('activity', { a: 'a1', b: B, card: 'c1', kind: 'moved', column: TODO })
+    await until(() => h.runs.length === 1)
+    expect(h.deps.sleep).toHaveBeenCalledTimes(2)
+    expect(h.deps.sleep).toHaveBeenCalledWith(30_000, expect.anything())
+    h.runs[0]!.finish()
+
+    // A rule switched off during the wait does not run.
+    sleeps = 10
+    h.agentRules.splice(0, 1)
+    const reads = h.requests.filter(r => r.url.endsWith('/agent-rules')).length
+    s.send('activity', { a: 'a4', b: B, card: 'c2', kind: 'moved', column: TODO })
+    s.send('change', { b: B, c: '' })
+    await until(() => h.requests.filter(r => r.url.endsWith('/agent-rules')).length > reads)
+    await new Promise(r => setTimeout(r, 20))
+    reloaded()
+    await new Promise(r => setTimeout(r, 20))
+    h.stop()
+    await h.done
+    expect(h.runs).toHaveLength(1)
+  })
+
+  it('picks the settle time and marks card changes', () => {
+    expect(agentRuleSettleDefaults).toEqual(sharedSettleDefaults)
+    const r = { event: 'card_created', settleSeconds: null } as AgentRule
+    expect(settleSeconds(r, null)).toBe(60)
+    expect(settleSeconds({ ...r, event: 'mentioned' }, undefined)).toBe(0)
+    expect(settleSeconds(r, 5)).toBe(5)
+    expect(settleSeconds({ ...r, settleSeconds: 0 }, 5)).toBe(0)
+    expect(settleSeconds(undefined, null)).toBe(0)
+    expect(settleSeconds(undefined, 20)).toBe(20)
+    const a = (id: string, actorId: string, createdAt: string) => ({ id, actorId, createdAt })
+    const base = { activity: [a('a1', 'u', '2026-01-01T00:00:00Z')], checklists: [], attachments: [] } as unknown as CardDetail
+    const m = changeMarker(base, BOT)
+    expect(changeMarker({ ...base, activity: [a('a2', BOT, '2026-01-02T00:00:00Z'), ...base.activity] } as unknown as CardDetail, BOT)).toBe(m)
+    expect(changeMarker({ ...base, activity: [a('a2', 'u', '2026-01-02T00:00:00Z'), ...base.activity] } as unknown as CardDetail, BOT)).not.toBe(m)
+    expect(changeMarker({ ...base, checklists: [{ items: [{ id: 'i', text: 'x' }] }] } as unknown as CardDetail, BOT)).not.toBe(m)
+  })
+
   it('matches rules to events', () => {
-    const r = { id: 'r', name: 'R', botId: BOT, event: 'mentioned', columnId: null, tagId: null, instructions: 'x', moveColumnId: null, comment: 'never', active: true } as AgentRule
+    const r = { id: 'r', name: 'R', botId: BOT, event: 'mentioned', columnId: null, tagId: null, instructions: 'x', moveColumnId: null, comment: 'never', settleSeconds: null, active: true } as AgentRule
     expect(rulesForEvent([r], BOT, 'mentioned', TODO)).toEqual([r])
     expect(rulesForEvent([r], BOT, 'moved', TODO)).toEqual([])
     expect(rulesForEvent([{ ...r, active: false }], BOT, 'commented', TODO)).toEqual([])

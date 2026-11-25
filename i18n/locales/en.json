@@ -2179,6 +2179,14 @@
       "failure": "Only failures",
       "always": "Always"
     },
+    "settle": "Wait for the card to stay unchanged (seconds)",
+    "settleHelp": "The run starts once nobody has changed the card for this long; every change starts the wait again. Empty: the runner's --settle, else {seconds} s for this event.",
+    "settleText": {
+      "now": "starts at once",
+      "seconds": "starts once the card is unchanged for {seconds} s",
+      "default": "starts once the card is unchanged for {seconds} s (default)",
+      "defaultNow": "starts at once (default)"
+    },
     "events": {
       "card_created": "Card created",
       "card_moved": "Card moved",
@@ -2260,6 +2268,10 @@
     "concurrency": "Runs at once",
     "timeout": "Timeout (minutes)",
     "noTimeout": "None",
+    "settle": "Wait for no changes (s)",
+    "settleHelp": "A run starts once the card has not changed for this long.",
+    "settleRulesHelp": "For rules without their own wait; empty: 60 s for created, moved and tag added, 0 for assigned and mentioned.",
+    "settleRuleDefault": "Per event",
     "comment": "Comment the result",
     "profile": "Login profile",
     "profileHelp": "Where the CLI keeps the bot's token.",
@@ -2279,7 +2291,8 @@
       "activity": "Pick columns or activity.",
       "cmd": "Enter a command.",
       "concurrency": "Runs at once: 1 to 32.",
-      "timeout": "Timeout: more than 0 minutes."
+      "timeout": "Timeout: more than 0 minutes.",
+      "settle": "The wait takes whole seconds from 0 to 3600."
     }
   },
   "reminders": {

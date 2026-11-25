@@ -42,6 +42,8 @@ export interface AgentCommandOptions {
   concurrency: number
   /** Minutes; null = no limit. */
   timeout: number | null
+  /** --settle seconds (0-3600); null = the default (agent rules: the rule's own or the event's, else 0). */
+  settle: number | null
   /** Not with agent rules (they set their own). */
   comment: AgentCommentMode
   /** Working directory of the runs; '' = where the command is run. */
@@ -53,7 +55,7 @@ export function defaultAgentCommandOptions(site: string, botName: string, boardI
   return {
     site, profile: slug, name: slug, boardId, trigger: boardId ? 'rules' : 'notifications', columnIds: [], activity: [],
     runner: 'claude', cmd: '', permissionMode: '', worktree: '', setup: '', logTime: false, prompt: '',
-    concurrency: 1, timeout: null, comment: 'failure', workdir: '',
+    concurrency: 1, timeout: null, settle: null, comment: 'failure', workdir: '',
   }
 }
 
@@ -89,6 +91,7 @@ export function agentCommandProblems(o: AgentCommandOptions): string[] {
   if (o.runner === 'cmd' && !o.cmd.trim()) problems.push('cmd')
   if (!Number.isInteger(o.concurrency) || o.concurrency < 1 || o.concurrency > 32) problems.push('concurrency')
   if (o.timeout !== null && !(o.timeout > 0)) problems.push('timeout')
+  if (o.settle !== null && (!Number.isInteger(o.settle) || o.settle < 0 || o.settle > 3600)) problems.push('settle')
   return problems
 }
 
@@ -120,6 +123,7 @@ export function agentInstallArgs(o: AgentCommandOptions): string[] {
   if (o.concurrency !== 1) args.push('--concurrency', String(o.concurrency))
   if (o.trigger !== 'rules' && o.comment !== 'never') args.push('--comment', o.comment)
   if (o.timeout !== null) args.push('--timeout', String(o.timeout))
+  if (o.settle !== null) args.push('--settle', String(o.settle))
   return args
 }
 

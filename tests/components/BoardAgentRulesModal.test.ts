@@ -12,7 +12,7 @@ const member = (userId: string, name: string, isBot: boolean) =>
   ({ userId, name, email: `${name}@x`, avatarUrl: null, role: 'editor', boardRole: 'editor', teamRole: null, isBot, accountBot: false }) as Member
 const rule: AgentRule = {
   id: 'r1', name: 'Pick up', botId: 'bot1', event: 'card_moved', columnId: 'c1', tagId: null,
-  instructions: 'Work on it.', moveColumnId: 'c2', comment: 'failure', active: true,
+  instructions: 'Work on it.', moveColumnId: 'c2', comment: 'failure', settleSeconds: null, active: true,
 }
 
 async function mount(members: Member[], rules: AgentRule[] = []) {
@@ -31,6 +31,7 @@ describe('BoardAgentRulesModal', () => {
     expect(text).toContain('Pick up')
     expect(text).toContain('When a card is moved into To do')
     expect(text).toContain('? works on the card with the instructions, then moves it to Review')
+    expect(text).toContain('starts once the card is unchanged for 60 s (default)')
     expect(document.body.querySelector('[data-testid="no-bots"]')).not.toBeNull()
     w.unmount()
   })
@@ -44,12 +45,16 @@ describe('BoardAgentRulesModal', () => {
     const instructions = form.querySelector('textarea') as HTMLTextAreaElement
     instructions.value = 'Sort it out.'
     instructions.dispatchEvent(new Event('input'))
+    const settle = form.querySelector('[data-testid="agent-rule-settle-input"]') as HTMLInputElement
+    settle.value = '120'
+    settle.dispatchEvent(new Event('input'))
     await flushPromises()
+    expect(document.body.textContent).toContain('starts once the card is unchanged for 120 s')
     form.dispatchEvent(new Event('submit'))
     await flushPromises()
     expect(w.emitted('add')).toEqual([[{
       name: 'Triage', botId: 'bot1', event: 'card_moved', columnId: null, tagId: null,
-      instructions: 'Sort it out.', moveColumnId: null, comment: 'failure',
+      instructions: 'Sort it out.', moveColumnId: null, comment: 'failure', settleSeconds: 120,
     }]])
     w.unmount()
   })

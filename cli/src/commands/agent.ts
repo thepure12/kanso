@@ -89,6 +89,7 @@ export const agent: Command = {
     concurrency: { type: 'string', value: '<n>', description: 'Runs at once, 1-32 (default 1); never two on the same card' },
     comment: { type: 'string', value: '<when>', description: 'Comment the exit status on the card: never (default), failure, always (agent rules set their own)' },
     timeout: { type: 'string', value: '<minutes>', description: 'Stop a run after this long (SIGTERM, then SIGKILL after 10 s)' },
+    settle: { type: 'string', value: '<seconds>', description: 'Start a run only once the card has not changed for this long (0-3600); every change restarts the wait. Agent rules: the rule\'s own value wins; default 60 for created/moved/tagged, 0 for assigned/mentioned. Else default 0' },
     name: { type: 'string', value: '<name>', description: 'install/uninstall: the agent\'s name, for several agents (unit kanso-agent-<name>.service)' },
     workdir: { type: 'string', value: '<dir>', description: 'install: working directory of the runs (default: the current directory)' },
     'dry-run': { type: 'boolean', description: 'install: print the files and commands, change nothing' },
@@ -108,6 +109,12 @@ follows the agent rules set on the board in the UI (board menu "Agent rules") fo
 event it runs the command or Claude with the rule's instructions (KANSO_RULE_ID, KANSO_RULE_NAME; "rule" in the
 card JSON), then moves the card to the rule's column after a successful run and comments as the rule says. The
 rules are read again whenever the board changes; the bot's own changes never start a rule.
+
+Settle: so that the agent does not take a card someone is still writing, a run starts only once the card has
+had no new activity (and no checklist or attachment change) for a while; every change starts the wait again,
+then the card and the rule are checked once more. The wait is the rule's own (set in the UI), else --settle,
+else 60 s for card_created, card_moved and tag_added and 0 for assigned and mentioned. Without rules it is
+--settle, default 0. Text typed in an open card dialog but not saved yet does not count as a change.
 
 Install: "kanso agent install" takes the same options as "agent run", checks them and the token, then
 writes a systemd user unit (~/.config/systemd/user/kanso-agent[-<name>].service) and its environment file
@@ -142,7 +149,7 @@ Examples:
     if (sub === 'install') return installAgent(ctx, prepared)
     const {
       creds, client, boards, boardIds, columnIds, activity, notifications, rulesMode, rulesFor, cmd, concurrency, comment, timeoutMs,
-      worktree, setup, permissionMode, logTime,
+      settle, worktree, setup, permissionMode, logTime,
     } = prepared
     const v = ctx.values
 
@@ -210,7 +217,7 @@ Examples:
 
       const options: AgentOptions = {
         url: creds.url, token: creds.token, boardIds, activity, columnIds, notifications, concurrency,
-        comment: comment as AgentOptions['comment'], rulesFor,
+        comment: comment as AgentOptions['comment'], rulesFor, settle,
       }
       if (rulesMode) log(`following the agent rules of ${boards.map(b => `"${b.name}"`).join(', ')}`)
       else log(`following ${[
@@ -273,6 +280,8 @@ export interface PreparedRun {
   concurrency: number
   comment: AgentOptions['comment']
   timeoutMs: number
+  /** --settle in seconds; null = not given. */
+  settle: number | null
   /** --worktree: the repository's main checkout, absolute. */
   worktree: string | null
   setup: string
@@ -312,6 +321,8 @@ async function prepareRun(ctx: Context): Promise<PreparedRun> {
     if (!['never', 'failure', 'always'].includes(comment)) throw new UsageError('--comment takes never, failure or always.')
     const timeoutMs = v.timeout === undefined ? 0 : Number(v.timeout) * 60_000
     if (!(timeoutMs > 0) && v.timeout !== undefined) throw new UsageError('--timeout takes minutes (a number above 0).')
+    const settle = v.settle === undefined ? null : Number(v.settle)
+    if (settle !== null && (!Number.isInteger(settle) || settle < 0 || settle > 3600)) throw new UsageError('--settle takes whole seconds from 0 to 3600.')
 
     const creds = resolveCredentials(await loadConfig(ctx.configPath), ctx.profile, ctx.io.env)
     const client = createClient(creds, ctx.io.fetch, AGENT_CLIENT_ID)
@@ -328,7 +339,7 @@ async function prepareRun(ctx: Context): Promise<PreparedRun> {
     }
   return {
     creds, client, boards, boardIds, columnIds, columnNames, activity, notifications, rulesMode, rulesFor, me, cmd, concurrency,
-    comment: comment as AgentOptions['comment'], timeoutMs, worktree, setup, permissionMode, logTime: v['log-time'] === true,
+    comment: comment as AgentOptions['comment'], timeoutMs, settle, worktree, setup, permissionMode, logTime: v['log-time'] === true,
   }
 }
 
@@ -349,6 +360,7 @@ export function runArgsFor(p: PreparedRun, v: Context['values']): string[] {
   if (p.concurrency !== 1) args.push('--concurrency', String(p.concurrency))
   if (v.comment !== undefined) args.push('--comment', p.comment)
   if (v.timeout !== undefined) args.push('--timeout', String(v.timeout))
+  if (p.settle !== null) args.push('--settle', String(p.settle))
   return args
 }
 

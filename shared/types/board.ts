@@ -219,6 +219,22 @@ export const agentRuleComments = ['never', 'failure', 'always'] as const
 export type AgentRuleComment = (typeof agentRuleComments)[number]
 export const AGENT_RULE_NAME_MAX = 100
 export const AGENT_RULE_INSTRUCTIONS_MAX = 20000
+/** Longest wait an agent rule may set before its run starts (check board_agent_rules_settle_range). */
+export const AGENT_RULE_SETTLE_MAX = 3600
+
+/**
+ * Seconds the card must stay unchanged before a run starts, when neither the rule
+ * nor `kanso agent run --settle` says: a minute for events that usually come
+ * while someone is still writing the card, none for deliberate assignments and
+ * mentions.
+ */
+export const agentRuleSettleDefaults: Record<AgentRuleEvent, number> = {
+  card_created: 60,
+  card_moved: 60,
+  tag_added: 60,
+  assigned: 0,
+  mentioned: 0,
+}
 
 /**
  * Agent rule (0130_board_agent_rules_rls.sql): "when <event> (and the card is in
@@ -238,6 +254,11 @@ export interface NewAgentRule {
   instructions: string
   moveColumnId: string | null
   comment: AgentRuleComment
+  /**
+   * Seconds the card must stay unchanged (no new activity) before the run starts;
+   * null = the runner's --settle, else agentRuleSettleDefaults.
+   */
+  settleSeconds: number | null
   active?: boolean
 }
 

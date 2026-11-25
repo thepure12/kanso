@@ -29,6 +29,43 @@ export interface AgentOptions {
    * read at every (re)connect and whenever the board changes.
    */
   rulesFor?: string | null
+  /**
+   * Seconds the card must stay unchanged before a run starts (--settle); every
+   * change restarts the wait. A rule's own settleSeconds wins; without either,
+   * rules use agentRuleSettleDefaults and other triggers start at once.
+   */
+  settle?: number | null
+}
+
+/** Mirrors agentRuleSettleDefaults in shared/types/board.ts (the CLI imports only types from shared/). */
+export const agentRuleSettleDefaults: Record<AgentRuleEvent, number> = {
+  card_created: 60,
+  card_moved: 60,
+  tag_added: 60,
+  assigned: 0,
+  mentioned: 0,
+}
+
+/** Seconds a job waits for its card to stay unchanged: the rule's own, else --settle, else the rule event's default (0 without a rule). */
+export function settleSeconds(rule: AgentRule | undefined, settle: number | null | undefined): number {
+  if (rule && rule.settleSeconds !== null && rule.settleSeconds !== undefined) return rule.settleSeconds
+  if (settle !== null && settle !== undefined) return settle
+  return rule ? agentRuleSettleDefaults[rule.event] : 0
+}
+
+/**
+ * A marker of the card's state for the settle wait: the newest activity not made
+ * by `self` (the runner's own user), plus checklist items and attachments (adding
+ * checklist items logs no activity). A different marker = the card changed.
+ */
+export function changeMarker(detail: Pick<CardDetail, 'activity' | 'checklists' | 'attachments'>, self: string | null | undefined): string {
+  let newest: Activity | undefined
+  for (const a of detail.activity) {
+    if (self && a.actorId === self) continue
+    if (!newest || a.createdAt > newest.createdAt || (a.createdAt === newest.createdAt && a.id > newest.id)) newest = a
+  }
+  const items = (detail.checklists ?? []).flatMap(c => c.items.map(i => `${i.id}:${i.text}`)).join('|')
+  return JSON.stringify([newest?.id ?? null, items, (detail.attachments ?? []).length])
 }
 
 /** Activity kinds that can start an agent rule's event. */
@@ -214,9 +251,71 @@ export async function runAgent(o: AgentOptions, deps: AgentDeps): Promise<void> 
     }
   }
 
+  /** Jobs waiting for their card to stay unchanged, by card (+ rule); a newer event replaces the job. */
+  const settling = new Map<string, Job>()
+  const settlingDone = new Set<Promise<void>>()
+
   function enqueue(job: Job) {
-    pending.push(job)
     if (job.notificationId) active.add(job.notificationId)
+    const seconds = settleSeconds(job.rule, o.settle)
+    if (seconds <= 0) return queue(job)
+    const key = `${job.cardId}:${job.rule?.id ?? job.notificationId ?? ''}`
+    if (settling.has(key)) {
+      // The wait in progress sees the change and starts over; it then runs for the newest event.
+      settling.set(key, job)
+      return
+    }
+    settling.set(key, job)
+    const p = settle(key, seconds).finally(() => settlingDone.delete(p))
+    settlingDone.add(p)
+  }
+
+  /** The card's change marker; null when the card is gone (runJob then skips it). */
+  async function marker(cardId: string): Promise<string | null> {
+    try {
+      return changeMarker(await client.get<CardDetail>(`/api/cards/${cardId}`), o.rulesFor)
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 404) return null
+      throw err
+    }
+  }
+
+  /** Waits until the card has not changed for `seconds`, then queues the (newest) job. */
+  async function settle(key: string, seconds: number) {
+    const first = settling.get(key)!
+    log(`waiting until card ${first.cardId} stays unchanged for ${seconds} s${first.rule ? ` (agent rule "${first.rule.name}")` : ''}`,
+      { card: first.cardId, settle: seconds, ...(first.rule && { rule: first.rule.id }) })
+    try {
+      let mark = await marker(first.cardId)
+      while (mark !== null) {
+        await deps.sleep(seconds * 1000, signal)
+        if (signal.aborted) return
+        const now = await marker(first.cardId)
+        if (now === mark) break
+        log(`card ${first.cardId} changed; waiting another ${seconds} s`, { card: first.cardId, settle: seconds })
+        mark = now
+      }
+    } catch (err) {
+      log(`could not check card ${first.cardId} for changes: ${(err as Error).message}`, { card: first.cardId })
+    }
+    // Read at the end: a newer event may have replaced the job.
+    let job = settling.get(key)!
+    settling.delete(key)
+    if (signal.aborted) return
+    if (job.rule) {
+      // The rule may have been changed or switched off during the wait.
+      const rule = (rules.get(job.boardId) ?? []).find(r => r.id === job.rule!.id)
+      if (!rule) {
+        log(`skipped agent rule "${job.rule.name}" on card ${job.cardId}: the rule is no longer active`, { card: job.cardId, rule: job.rule.id })
+        return
+      }
+      job = { ...job, rule }
+    }
+    queue(job)
+  }
+
+  function queue(job: Job) {
+    pending.push(job)
     log(`queued ${job.event} on card ${job.cardId}${job.rule ? ` for agent rule "${job.rule.name}"` : ''}`,
       { board: job.boardId, card: job.cardId, event: job.event, source: job.source, ...(job.rule && { rule: job.rule.id }) })
     pump()
@@ -461,6 +560,7 @@ export async function runAgent(o: AgentOptions, deps: AgentDeps): Promise<void> 
   }
 
   pending.length = 0
+  if (settlingDone.size) await Promise.all([...settlingDone])
   if (running.size) log(`waiting for ${running.size} run(s) to finish`)
   await Promise.all([...running.values()])
   if (inboxBusy) await inboxBusy

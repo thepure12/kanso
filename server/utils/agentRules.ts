@@ -1,7 +1,7 @@
 import { asc, eq } from 'drizzle-orm'
 import { z } from 'zod'
 import {
-  AGENT_RULE_INSTRUCTIONS_MAX, AGENT_RULE_NAME_MAX, agentRuleComments, agentRuleEvents, type AgentRule,
+  AGENT_RULE_INSTRUCTIONS_MAX, AGENT_RULE_NAME_MAX, AGENT_RULE_SETTLE_MAX, agentRuleComments, agentRuleEvents, type AgentRule,
 } from '#shared/types/board'
 
 const r = schema.boardAgentRules
@@ -16,6 +16,7 @@ export const agentRuleFields = {
   instructions: r.instructions,
   moveColumnId: r.moveColumnId,
   comment: r.comment,
+  settleSeconds: r.settleSeconds,
   active: r.active,
 }
 
@@ -42,6 +43,7 @@ export const agentRuleBody = z.object({
   instructions: z.string().trim().min(1).max(AGENT_RULE_INSTRUCTIONS_MAX),
   moveColumnId: id.default(null),
   comment: z.enum(agentRuleComments).default('never'),
+  settleSeconds: z.number().int().min(0).max(AGENT_RULE_SETTLE_MAX).nullable().default(null),
   active: z.boolean().optional(),
 })
 
