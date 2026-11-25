@@ -2458,7 +2458,6 @@
     "tooMany": "Höchstens {max} Spalten.",
     "create": "Erstellen",
     "notFound": "Ansicht nicht gefunden",
-    "readOnlyHint": "Karten werden hier nicht verschoben; öffne eine für alles Weitere.",
     "emptyTitle": "Keine Spalten zum Anzeigen",
     "emptyDescription": "Wähle Spalten aus deinen Boards.",
     "unavailable": "Die Spalten dieser Ansicht sind für dich nicht (mehr) verfügbar.",

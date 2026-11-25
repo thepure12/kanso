@@ -270,7 +270,6 @@ const menu = computed(() => [[
       <h1 class="text-xl font-semibold truncate">
         {{ view.name }}
       </h1>
-      <span v-if="viewKind === 'board'" class="text-sm text-muted">{{ t('customViews.readOnlyHint') }}</span>
       <div class="ms-auto flex items-center gap-2">
         <UTabs v-model="viewKind" :items="viewItems" :content="false" size="sm" class="hidden sm:flex" :aria-label="t('board.viewLabel')" />
         <USelect

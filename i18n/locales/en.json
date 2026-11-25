@@ -2458,7 +2458,6 @@
     "tooMany": "At most {max} columns.",
     "create": "Create",
     "notFound": "View not found",
-    "readOnlyHint": "Cards are not dragged here; open one for everything else.",
     "emptyTitle": "No columns to show",
     "emptyDescription": "Pick columns from your boards.",
     "unavailable": "The columns of this view are not available to you (any more).",
