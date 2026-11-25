@@ -9,6 +9,9 @@ export const boardAccents = [
 
 export type BoardAccent = typeof boardAccents[number]
 
+/** The app's primary colour when a board has no accent (mirrors `ui.colors.primary` in app/app.config.ts). */
+export const defaultAccent: BoardAccent = 'indigo'
+
 export function isBoardAccent(v: unknown): v is BoardAccent {
   return typeof v === 'string' && (boardAccents as readonly string[]).includes(v)
 }

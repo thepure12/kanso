@@ -1652,8 +1652,9 @@
       "city": "Skyline",
       "desert": "Wüstenstraße"
     },
-    "logo": "Kanso-Logo",
-    "logoHint": "Kanso-Logo in der Akzentfarbe des Boards",
+    "logo": "Kanso-Logo anzeigen",
+    "logoHint": "Das Logo der App in der Akzentfarbe des Boards, über der Farbe oder dem Verlauf.",
+    "logoUnavailable": "Wähle eine Farbe oder einen Verlauf, um das Kanso-Logo hinzuzufügen.",
     "gradient": {
       "ocean": "Ozean",
       "sunset": "Sonnenuntergang",

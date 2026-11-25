@@ -1652,8 +1652,9 @@
       "city": "City skyline",
       "desert": "Desert road"
     },
-    "logo": "Kanso logo",
-    "logoHint": "Kanso logo in the board's accent colour",
+    "logo": "Show the Kanso logo",
+    "logoHint": "The app's logo in the board's accent colour, on top of the colour or gradient.",
+    "logoUnavailable": "Pick a colour or gradient to add the Kanso logo.",
     "gradient": {
       "ocean": "Ocean",
       "sunset": "Sunset",

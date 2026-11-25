@@ -1318,9 +1318,12 @@ describe('board background', () => {
   const png = Buffer.from('89504e470d0a1a0a0000000d49484452', 'hex')
 
   it('owners set presets; unknown presets and editors are refused', async () => {
-    const put = (who: typeof alice, body: unknown) => who.req(`/api/boards/${boardId}/background`, { method: 'PUT', body })
-    // The Kanso logo background (drawn in the board accent) is gradient 'kanso'.
-    expect((await put(alice, { kind: 'gradient', value: 'kanso' })).status).toBe(200)
+    const put = (who: typeof alice, body: unknown) => who.req<{ background: unknown }>(`/api/boards/${boardId}/background`, { method: 'PUT', body })
+    // The Kanso logo goes on colours and gradients, not photos.
+    const withLogo = await put(alice, { kind: 'gradient', value: 'ocean', logo: true })
+    expect(withLogo.status).toBe(200)
+    expect(withLogo.data.background).toEqual({ kind: 'gradient', value: 'ocean', logo: true })
+    expect((await put(alice, { kind: 'photo', value: 'alps', logo: true })).status).toBe(400)
     expect((await put(alice, { kind: 'gradient', value: 'sunset' })).status).toBe(200)
     expect((await put(alice, { kind: 'gradient', value: 'nope' })).status).toBe(400)
     expect((await put(alice, { kind: 'upload', value: 'abc' })).status).toBe(400)

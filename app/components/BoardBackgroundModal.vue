@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import colors from 'tailwindcss/colors'
 import { type BoardAccent, boardAccents } from '#shared/boardAccents'
-import { type BoardBackground, backgroundColors, backgroundGradients, backgroundPhotos, backgroundStyle, logoBackgroundId, logoBackgroundStyle } from '#shared/boardBackgrounds'
+import { type BoardBackground, backgroundColors, backgroundGradients, backgroundPhotos, backgroundStyle, canShowLogo, logoImage } from '#shared/boardBackgrounds'
 import { type ColumnOutline, defaultColumnOutline } from '#shared/columnOutline'
 
 const props = defineProps<{
@@ -47,9 +47,20 @@ async function onFile(e: Event) {
   finally { uploading.value = false }
 }
 
+// The logo stays on when another colour or gradient is picked.
+const logo = computed(() => canShowLogo(props.background) && !!props.background.logo)
+function pick(bg: { kind: 'color' | 'gradient', value: string }) {
+  emit('set', logo.value ? { ...bg, logo: true } : bg)
+}
+function setLogo(on: boolean) {
+  const bg = props.background
+  if (!canShowLogo(bg)) return
+  emit('set', on ? { kind: bg.kind, value: bg.value, logo: true } : { kind: bg.kind, value: bg.value })
+}
+
 function onColor(e: Event) {
   const value = (e.target as HTMLInputElement).value.toLowerCase()
-  if (/^#[0-9a-f]{6}$/.test(value)) emit('set', { kind: 'color', value })
+  if (/^#[0-9a-f]{6}$/.test(value)) pick({ kind: 'color', value })
 }
 
 const outline = computed({
@@ -110,18 +121,7 @@ const ring = (current: boolean) => current ? 'ring-2 ring-primary' : 'hover:ring
           <h3 class="text-sm font-medium">
             {{ t('boardBackground.gradients') }}
           </h3>
-          <div class="grid grid-cols-4 sm:grid-cols-9 gap-2">
-            <UTooltip :text="t('boardBackground.logoHint')">
-              <button
-                type="button"
-                class="aspect-square"
-                :class="[tile, ring(isCurrent('gradient', logoBackgroundId))]"
-                :style="logoBackgroundStyle(accent)"
-                :aria-label="t('boardBackground.logo')"
-                :aria-pressed="isCurrent('gradient', logoBackgroundId)"
-                @click="emit('set', { kind: 'gradient', value: logoBackgroundId })"
-              />
-            </UTooltip>
+          <div class="grid grid-cols-4 sm:grid-cols-8 gap-2">
             <button
               v-for="g in backgroundGradients"
               :key="g.id"
@@ -131,7 +131,7 @@ const ring = (current: boolean) => current ? 'ring-2 ring-primary' : 'hover:ring
               :style="{ backgroundImage: g.css }"
               :aria-label="t(`boardBackground.gradient.${g.id}`)"
               :aria-pressed="isCurrent('gradient', g.id)"
-              @click="emit('set', { kind: 'gradient', value: g.id })"
+              @click="pick({ kind: 'gradient', value: g.id })"
             />
           </div>
         </section>
@@ -150,7 +150,7 @@ const ring = (current: boolean) => current ? 'ring-2 ring-primary' : 'hover:ring
               :style="{ backgroundColor: c }"
               :aria-label="t('views.useColour', { colour: c })"
               :aria-pressed="isCurrent('color', c)"
-              @click="emit('set', { kind: 'color', value: c })"
+              @click="pick({ kind: 'color', value: c })"
             />
             <label
               class="aspect-square flex items-center justify-center cursor-pointer border border-dashed border-accented text-muted hover:text-default"
@@ -162,6 +162,21 @@ const ring = (current: boolean) => current ? 'ring-2 ring-primary' : 'hover:ring
               <input type="color" class="sr-only" :value="customColor ?? '#0f766e'" @change="onColor">
             </label>
           </div>
+        </section>
+
+        <section class="flex items-center gap-3">
+          <div
+            class="size-10 shrink-0 rounded-md bg-elevated bg-no-repeat bg-center bg-size-[auto_70%]"
+            :style="{ backgroundImage: logoImage(accent) }"
+            aria-hidden="true"
+          />
+          <USwitch
+            :model-value="logo"
+            :disabled="!canShowLogo(background)"
+            :label="t('boardBackground.logo')"
+            :description="t(canShowLogo(background) ? 'boardBackground.logoHint' : 'boardBackground.logoUnavailable')"
+            @update:model-value="setLogo"
+          />
         </section>
 
         <section class="space-y-2">
