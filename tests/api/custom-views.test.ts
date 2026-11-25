@@ -28,9 +28,9 @@ async function call<T = any>(path: string, init: { method?: string, body?: unkno
       'x-forwarded-for': init.ip ?? randomIp(),
       ...(init.cookie && { cookie: init.cookie }),
       ...(init.token !== undefined && { authorization: `Bearer ${init.token}` }),
-      ...(init.body !== undefined && { 'content-type': 'application/json' }),
+      ...(init.body !== undefined && !(init.body instanceof FormData) && { 'content-type': 'application/json' }),
     },
-    body: init.body === undefined ? undefined : JSON.stringify(init.body),
+    body: init.body === undefined ? undefined : init.body instanceof FormData ? init.body : JSON.stringify(init.body),
   })
   const data = (res.headers.get('content-type') ?? '').includes('json') ? await res.json() : await res.text()
   return { status: res.status, data: data as T, headers: res.headers }
@@ -129,5 +129,48 @@ describe('custom views', () => {
     const after = (await bob.req<CustomView>(`/api/views/${view.id}`)).data
     expect(after.columns).toEqual([])
     expect((await bob.req<CustomViewSummary[]>('/api/views')).data.find(v => v.id === view.id)?.columnCount).toBe(0)
+  })
+
+  it('sets the look of a view: background, accent, outline, uploaded image', async () => {
+    const view = (await alice.req<CustomView>('/api/views', { method: 'POST', body: { name: `Look ${randomUUID().slice(0, 6)}` } })).data
+    expect(view).toMatchObject({ background: null, accent: null, columnOutline: null })
+    const path = `/api/views/${view.id}`
+
+    const outline = { color: '#ff0000', width: 3, glow: 2 }
+    const set = await alice.req<CustomView>(path, { method: 'PATCH', body: { background: { kind: 'color', value: '#0f766e', logo: false }, accent: 'violet', columnOutline: outline } })
+    expect(set.status).toBe(200)
+    // logo: false is not stored.
+    expect(set.data).toMatchObject({ background: { kind: 'color', value: '#0f766e' }, accent: 'violet', columnOutline: outline })
+    expect(set.data.background).not.toHaveProperty('logo')
+    // Other fields stay when only one changes.
+    expect((await alice.req<CustomView>(path, { method: 'PATCH', body: { accent: null } })).data).toMatchObject({ accent: null, columnOutline: outline })
+
+    for (const body of [{ background: { kind: 'photo', value: 'nowhere' } }, { background: { kind: 'photo', value: 'alps', logo: true } }, { accent: 'mauve' }, { background: { kind: 'upload', value: 'abc' } }]) {
+      expect((await alice.req(path, { method: 'PATCH', body })).status).toBe(400)
+    }
+    expect((await bob.req(path, { method: 'PATCH', body: { accent: 'rose' } })).status).toBe(404)
+
+    const form = () => {
+      const f = new FormData()
+      f.append('file', new Blob([Buffer.from('89504e470d0a1a0a00', 'hex')], { type: 'image/png' }), 'bg.png')
+      return f
+    }
+    expect((await bob.req(`${path}/background`, { method: 'POST', body: form() })).status).toBe(404)
+    const up = await alice.req<{ background: { kind: string, value: string } }>(`${path}/background`, { method: 'POST', body: form() })
+    expect(up.status).toBe(200)
+    expect(up.data.background.kind).toBe('upload')
+    expect((await alice.req<CustomView>(path)).data.background).toEqual(up.data.background)
+    const img = await alice.req(`${path}/background?v=${up.data.background.value}`)
+    expect(img.status).toBe(200)
+    expect(img.headers.get('content-type')).toBe('image/png')
+    expect((await bob.req(`${path}/background`)).status).toBe(404)
+
+    const text = new FormData()
+    text.append('file', new Blob(['hello'], { type: 'image/png' }), 'x.png')
+    expect((await alice.req(`${path}/background`, { method: 'POST', body: text })).status).toBe(400)
+
+    // Clearing drops the image.
+    expect((await alice.req<CustomView>(path, { method: 'PATCH', body: { background: null } })).data.background).toBeNull()
+    expect((await alice.req(`${path}/background`)).status).toBe(404)
   })
 })

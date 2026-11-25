@@ -24,6 +24,13 @@ const outlineShape = (c: AnyPgColumn) => sql`${c} is null or (
     and ${c}->'width' in ('1', '2', '3', '4')
     and ${c}->'glow' in ('0', '1', '2', '3'))`
 
+// Shape of a background (shared/boardBackgrounds.ts).
+const backgroundShape = (c: AnyPgColumn) => sql`${c} is null
+    or (${c}->>'kind' = 'color' and ${c}->>'value' ~ '^#[0-9a-f]{6}$')
+    or (${c}->>'kind' in ('gradient', 'photo', 'upload') and ${c}->>'value' ~ '^[a-z0-9-]{1,40}$')`
+
+const accentKnown = (c: AnyPgColumn) => sql`${c} is null or ${c} in (${sql.raw(boardAccents.map(a => `'${a}'`).join(', '))})`
+
 const createdAt = () => timestamp('created_at', { withTimezone: true }).notNull().defaultNow()
 
 export const boardRole = pgEnum('board_role', ['owner', 'editor', 'commenter', 'viewer'])
@@ -207,10 +214,8 @@ export const boards = pgTable('boards', {
   buttonAlign: text('button_align').$type<ButtonAlign>(),
   createdAt: createdAt(),
 }, t => [
-  check('boards_background_shape', sql`${t.background} is null
-    or (${t.background}->>'kind' = 'color' and ${t.background}->>'value' ~ '^#[0-9a-f]{6}$')
-    or (${t.background}->>'kind' in ('gradient', 'photo', 'upload') and ${t.background}->>'value' ~ '^[a-z0-9-]{1,40}$')`),
-  check('boards_accent_known', sql`${t.accent} is null or ${t.accent} in (${sql.raw(boardAccents.map(a => `'${a}'`).join(', '))})`),
+  check('boards_background_shape', backgroundShape(t.background)),
+  check('boards_accent_known', accentKnown(t.accent)),
   check('boards_column_outline_shape', outlineShape(t.columnOutline)),
   check('boards_button_align_known', sql`${t.buttonAlign} is null or ${t.buttonAlign} in ('left', 'center', 'right')`),
 ])
@@ -1217,7 +1222,7 @@ export const boardMemberAccess = pgTable('board_member_access', {
   uniqueIndex('board_member_access_card_unique').on(t.boardId, t.userId, t.cardId).where(sql`${t.cardId} is not null`),
 ])
 
-// Custom views (see 0133_custom_views_rls.sql): a person's own named set of
+// Custom views (see 0137_custom_views_rls.sql): a person's own named set of
 // columns from any boards they can see, shown side by side on /views/:id.
 // Personal only. Columns the person can no longer see are left out by the
 // columns policies when the view is read; deleting a column removes it.
@@ -1225,10 +1230,30 @@ export const customViews = pgTable('custom_views', {
   id: uuid('id').primaryKey().defaultRandom(),
   userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
   name: text('name').notNull(),
+  // Look of the view, as on a board (0143): background (an upload lives in
+  // custom_view_backgrounds), accent and the default column outline.
+  background: jsonb('background').$type<BoardBackground>(),
+  accent: text('accent').$type<BoardAccent>(),
+  columnOutline: jsonb('column_outline').$type<ColumnOutline>(),
   createdAt: createdAt(),
 }, t => [
   uniqueIndex('custom_views_name_unique').on(t.userId, sql`lower(${t.name})`),
   check('custom_views_name_length', sql`char_length(${t.name}) between 1 and 100`),
+  check('custom_views_background_shape', backgroundShape(t.background)),
+  check('custom_views_accent_known', accentKnown(t.accent)),
+  check('custom_views_column_outline_shape', outlineShape(t.columnOutline)),
+])
+
+// The uploaded image of a custom view whose background kind is 'upload'. One per view.
+export const customViewBackgrounds = pgTable('custom_view_backgrounds', {
+  viewId: uuid('view_id').primaryKey().references(() => customViews.id, { onDelete: 'cascade' }),
+  contentType: text('content_type').notNull(),
+  size: integer('size').notNull(),
+  data: bytea('data').notNull(),
+  createdAt: createdAt(),
+}, t => [
+  check('custom_view_backgrounds_type', sql`${t.contentType} in ('image/png', 'image/jpeg', 'image/webp', 'image/gif')`),
+  check('custom_view_backgrounds_size', sql`${t.size} between 1 and 5242880 and octet_length(${t.data}) = ${t.size}`),
 ])
 
 export const customViewColumns = pgTable('custom_view_columns', {

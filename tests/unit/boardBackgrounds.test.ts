@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import colors from 'tailwindcss/colors'
-import { backgroundStyle, canShowLogo } from '../../shared/boardBackgrounds'
+import { backgroundStyle, canShowLogo, presetBackgroundSchema } from '../../shared/boardBackgrounds'
 
 const svg = (style: Record<string, string> | undefined) =>
   decodeURIComponent(style?.backgroundImage?.match(/data:image\/svg\+xml,([^"]*)/)?.[1] ?? '')
@@ -34,5 +34,23 @@ describe('Kanso logo on a background', () => {
     expect(backgroundStyle({ kind: 'gradient', value: 'ocean' }, 'b', false, '', 'teal'))
       .toEqual({ backgroundImage: expect.stringContaining('#0ea5e9') })
     expect(backgroundStyle({ kind: 'color', value: '#334155' }, 'b')).toEqual({ backgroundColor: '#334155' })
+  })
+})
+
+describe('uploaded backgrounds', () => {
+  it('point at the board or custom view image, under the base path', () => {
+    const bg = { kind: 'upload', value: 'a1b2' } as const
+    expect(backgroundStyle(bg, 'b1', false, '/kanso')!.backgroundImage).toBe('url("/kanso/api/boards/b1/background?v=a1b2")')
+    expect(backgroundStyle(bg, { viewId: 'v1' })!.backgroundImage).toBe('url("/api/views/v1/background?v=a1b2")')
+  })
+})
+
+describe('presetBackgroundSchema', () => {
+  it('takes offered colours, gradients and photos and keeps logo only when on', () => {
+    expect(presetBackgroundSchema.parse({ kind: 'gradient', value: 'ocean', logo: true })).toEqual({ kind: 'gradient', value: 'ocean', logo: true })
+    expect(presetBackgroundSchema.parse({ kind: 'color', value: '#0f766e', logo: false })).toEqual({ kind: 'color', value: '#0f766e' })
+    expect(presetBackgroundSchema.safeParse({ kind: 'photo', value: 'alps', logo: true }).success).toBe(false)
+    expect(presetBackgroundSchema.safeParse({ kind: 'photo', value: 'nowhere' }).success).toBe(false)
+    expect(presetBackgroundSchema.safeParse({ kind: 'upload', value: 'abc' }).success).toBe(false)
   })
 })

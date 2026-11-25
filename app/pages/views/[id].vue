@@ -2,8 +2,10 @@
 import type { BoardDetail, Card, Column, Member } from '#shared/types/board'
 import type { BoardButton, ButtonRunResult } from '#shared/buttons'
 import type { CustomView } from '#shared/types/customViews'
+import type { BoardAccent } from '#shared/boardAccents'
+import { type BoardBackground, backgroundStyle } from '#shared/boardBackgrounds'
 import { CARD_TITLE_MAX } from '#shared/cards'
-import { columnOutlineStyle, effectiveColumnOutline } from '#shared/columnOutline'
+import { type ColumnOutline, columnOutlineStyle, effectiveColumnOutline } from '#shared/columnOutline'
 import type { ViewColumnRequest } from '~/components/ViewColumnTools.vue'
 
 // A custom view: the person's chosen columns from several boards side by side.
@@ -23,6 +25,17 @@ const id = route.params.id as string
 const { data: view, error, refresh: refreshView } = await useFetch<CustomView>(`/api/views/${id}`)
 if (error.value) throw createError({ statusCode: error.value.statusCode ?? 404, statusMessage: t('customViews.notFound'), fatal: true })
 useHead({ title: () => view.value?.name ?? t('customViews.title') })
+
+// The view's own look, as on a board page: background (translucent panels over
+// it), accent colour while the page is open, and a default column outline that
+// replaces each board's (a column's own outline still wins).
+const base = basePath()
+const bgStyle = computed(() => backgroundStyle(view.value?.background, { viewId: id }, false, base, view.value?.accent))
+const backed = computed(() => !!bgStyle.value)
+const panel = computed(() => backed.value ? 'bg-default/95 rounded-lg p-2 sm:p-3' : undefined)
+useBoardAccent(() => view.value?.accent)
+const outlineOf = (col: { column: Column, board: BoardDetail }) =>
+  effectiveColumnOutline(col.column, view.value?.columnOutline ?? col.board.columnOutline)
 
 const boardIds = computed(() => [...new Set(view.value?.columns.map(c => c.boardId) ?? [])])
 
@@ -173,7 +186,7 @@ function wipState(col: ViewCol) {
 }
 function columnStyle(col: ViewCol) {
   const size = collapsedColumns.isCollapsed(col.columnId) ? { width: `${COLLAPSED_COLUMN_WIDTH}px` } : columnWidths.styleOf(col.columnId)
-  return [size, columnOutlineStyle(effectiveColumnOutline(col.column, col.board.columnOutline), wipState(col) === 'over', col.color) ?? {}]
+  return [size, columnOutlineStyle(outlineOf(col), wipState(col) === 'over', col.color) ?? {}]
 }
 function columnPoints(col: ViewCol) {
   const estimates = col.cards.filter(c => c.estimate !== null).map(c => c.estimate!)
@@ -353,6 +366,33 @@ function closeCard() {
 }
 
 const editOpen = ref(false)
+
+// Background, accent and outline: saved at once, undoable like on the board (not uploads).
+const appearanceOpen = ref(false)
+type Appearance = { background?: BoardBackground | null, accent?: BoardAccent | null, columnOutline?: ColumnOutline | null }
+async function patchAppearance(body: Appearance) {
+  view.value = await $fetch<CustomView>(`/api/views/${id}`, { method: 'PATCH', body })
+}
+async function setAppearance<K extends keyof Appearance>(key: K, value: Appearance[K], label: string) {
+  const before = view.value?.[key] ?? null
+  if (JSON.stringify(before) === JSON.stringify(value ?? null)) return
+  try {
+    await patchAppearance({ [key]: value })
+    if ((before as BoardBackground | null)?.kind !== 'upload') {
+      undoStack.push({ label, undo: () => patchAppearance({ [key]: before }), redo: () => patchAppearance({ [key]: value }) })
+    }
+  }
+  catch (err) { showError(err, t('customViews.errors.appearance')) }
+}
+async function uploadBackground(file: File) {
+  const form = new FormData()
+  form.append('file', file)
+  try {
+    const res = await $fetch<{ background: BoardBackground }>(`/api/views/${id}/background`, { method: 'POST', body: form })
+    if (view.value) view.value.background = res.background
+  }
+  catch (err) { showError(err, t('board.errors.backgroundUpload')) }
+}
 async function onSaved(saved: CustomView) {
   view.value = saved
   await Promise.all(boardIds.value.filter(b => !boards.value[b]).map(loadBoard))
@@ -367,13 +407,14 @@ async function remove() {
 }
 const menu = computed(() => [[
   { label: t('customViews.edit'), icon: 'i-lucide-pencil', onSelect: () => { editOpen.value = true } },
+  { label: t('customViews.appearance.menu'), icon: 'i-lucide-image', onSelect: () => { appearanceOpen.value = true } },
   { label: t('common.delete'), icon: 'i-lucide-trash', color: 'error' as const, onSelect: remove },
 ]])
 </script>
 
 <template>
-  <div v-if="view" class="flex flex-col flex-none min-h-0 h-[calc(100dvh-var(--ui-header-height)-env(safe-area-inset-bottom))]">
-    <div class="flex flex-wrap items-center gap-3 px-4 py-3">
+  <div v-if="view" class="flex flex-col flex-none min-h-0 h-[calc(100dvh-var(--ui-header-height)-env(safe-area-inset-bottom))]" :style="bgStyle">
+    <div class="flex flex-wrap items-center gap-3 px-4 py-3" :class="backed && 'bg-default/85 backdrop-blur-sm'">
       <UIcon name="i-lucide-columns-3" class="size-5 text-muted" />
       <h1 class="text-xl font-semibold truncate">
         {{ view.name }}
@@ -404,9 +445,11 @@ const menu = computed(() => [[
       :description="view.columns.length ? t('customViews.unavailable') : t('customViews.emptyDescription')"
       :actions="[{ label: t('customViews.editColumns'), icon: 'i-lucide-columns-3-cog', onClick: () => { editOpen = true } }]"
       class="m-4"
+      :class="panel"
     />
     <div v-else-if="viewKind === 'list'" class="flex-1 min-h-0 overflow-auto px-4 pb-4" data-testid="view-list">
       <BoardListView
+        :class="panel"
         :cards="mergedCards"
         :columns="mergedColumns"
         :members="mergedMembers"
@@ -419,17 +462,17 @@ const menu = computed(() => [[
       />
     </div>
     <div v-else-if="viewKind === 'calendar'" class="flex-1 min-h-0 overflow-auto px-4 pb-4" data-testid="view-calendar">
-      <BoardCalendarView :cards="mergedCards" :tags="mergedTags" :can-edit="false" :today="today" @open="openById" />
+      <BoardCalendarView :class="panel" :cards="mergedCards" :tags="mergedTags" :can-edit="false" :today="today" @open="openById" />
     </div>
     <div v-else-if="viewKind === 'timeline'" class="flex-1 min-h-0 overflow-auto px-4 pb-4" data-testid="view-timeline">
-      <BoardTimelineView :cards="mergedCards" :columns="mergedColumns" :today="today" @open="openById" />
+      <BoardTimelineView :class="panel" :cards="mergedCards" :columns="mergedColumns" :today="today" @open="openById" />
     </div>
-    <div v-else class="flex flex-1 min-h-0 items-start gap-3 overflow-x-auto px-4 pb-4 snap-x sm:snap-none" data-testid="view-columns">
+    <div v-else class="flex flex-1 min-h-0 items-start gap-3 overflow-x-auto px-4 pb-4 snap-x sm:snap-none" :class="backed && 'pt-4'" data-testid="view-columns">
       <section
         v-for="col in columns"
         :key="col.columnId"
-        class="group/col relative flex shrink-0 snap-start flex-col rounded-lg bg-elevated/60 max-h-full"
-        :class="!effectiveColumnOutline(col.column, col.board.columnOutline) && ['ring', wipState(col) === 'over' ? 'ring-error' : 'ring-default']"
+        class="group/col relative flex shrink-0 snap-start flex-col rounded-lg max-h-full"
+        :class="[!outlineOf(col) && ['ring', wipState(col) === 'over' ? 'ring-error' : 'ring-default'], backed ? 'bg-elevated/95 shadow-lg' : 'bg-elevated/60']"
         :style="columnStyle(col)"
         :data-column-id="col.columnId"
       >
@@ -584,6 +627,17 @@ const menu = computed(() => [[
     </div>
 
     <CustomViewModal v-model:open="editOpen" :view="view" @saved="onSaved" />
+    <BoardBackgroundModal
+      v-model:open="appearanceOpen"
+      :owner="{ viewId: id }"
+      :background="view.background"
+      :accent="view.accent"
+      :column-outline="view.columnOutline"
+      :upload="uploadBackground"
+      @set="bg => setAppearance('background', bg, t('board.undo.changedBackground'))"
+      @set-accent="a => setAppearance('accent', a, t('board.undo.changedAccent'))"
+      @set-column-outline="o => setAppearance('columnOutline', o, t('board.undo.changedColumnOutline'))"
+    />
     <Suspense v-for="(req, b) in toolRequests" :key="b">
       <ViewColumnTools :board-id="String(b)" :request="req" @changed="loadBoard(String(b))" @gone="toolsGone(String(b))" />
     </Suspense>

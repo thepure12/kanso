@@ -1,5 +1,7 @@
 // RLS for custom views (0137_custom_views_rls.sql): personal views of columns
 // from any boards; only visible columns go in, and reads skip lost ones.
+// Their look (0144_custom_view_appearance_rls.sql): background, accent, outline
+// and the uploaded image, all personal.
 import { randomUUID } from 'node:crypto'
 import postgres from 'postgres'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
@@ -116,5 +118,36 @@ describe('custom views', () => {
     await newView(alice, name)
     await rejectsWith(newView(alice, name.toUpperCase()), '23505')
     await newView(bob, name)
+  })
+
+  it('look: only their user sets it and reads the uploaded image', async () => {
+    const id = await newView(alice)
+    const outline = { color: 'accent', width: 2, glow: 1 }
+    await as(alice.id, sql => sql`update custom_views set accent = 'rose', column_outline = ${sql.json(outline)},
+      background = ${sql.json({ kind: 'gradient', value: 'ocean', logo: true })} where id = ${id}`)
+    expect(await as(alice.id, sql => sql`select accent, column_outline, background from custom_views where id = ${id}`))
+      .toEqual([{ accent: 'rose', column_outline: outline, background: { kind: 'gradient', value: 'ocean', logo: true } }])
+    expect((await as(bob.id, sql => sql`update custom_views set accent = 'blue' where id = ${id}`)).count).toBe(0)
+
+    // Shape checks as on boards.
+    await rejectsWith(as(alice.id, sql => sql`update custom_views set accent = 'mauve' where id = ${id}`), '23514')
+    await rejectsWith(as(alice.id, sql => sql`update custom_views set column_outline = ${sql.json({ color: 'accent', width: 9, glow: 0 })} where id = ${id}`), '23514')
+    await rejectsWith(as(alice.id, sql => sql`update custom_views set background = ${sql.json({ kind: 'color', value: 'red' })} where id = ${id}`), '23514')
+
+    // An upload background needs its image; only the view's user writes or reads it.
+    await rejectsWith(as(alice.id, sql => sql`update custom_views set background = ${sql.json({ kind: 'upload', value: 'abc' })} where id = ${id}`), 'KB009')
+    const png = Buffer.from('89504e470d0a1a0a', 'hex')
+    await rejectsWith(as(bob.id, sql => sql`insert into custom_view_backgrounds (view_id, content_type, size, data) values (${id}, 'image/png', ${png.length}, ${png})`), '42501')
+    await as(alice.id, async (sql) => {
+      await sql`insert into custom_view_backgrounds (view_id, content_type, size, data) values (${id}, 'image/png', ${png.length}, ${png})`
+      await sql`update custom_views set background = ${sql.json({ kind: 'upload', value: 'abc' })} where id = ${id}`
+    })
+    expect(await as(alice.id, sql => sql`select 1 from custom_view_backgrounds where view_id = ${id}`)).toHaveLength(1)
+    expect(await as(bob.id, sql => sql`select 1 from custom_view_backgrounds where view_id = ${id}`)).toHaveLength(0)
+    expect((await as(bob.id, sql => sql`delete from custom_view_backgrounds where view_id = ${id}`)).count).toBe(0)
+
+    // Another background drops the image.
+    await as(alice.id, sql => sql`update custom_views set background = null where id = ${id}`)
+    expect(await owner_`select 1 from custom_view_backgrounds where view_id = ${id}`).toHaveLength(0)
   })
 })

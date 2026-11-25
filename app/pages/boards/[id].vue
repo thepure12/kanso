@@ -1459,7 +1459,7 @@ const settingsOpen = computed({
     <BoardBackgroundModal
       v-if="isOwner"
       v-model:open="backgroundOpen"
-      :board-id="board.id"
+      :owner="board.id"
       :background="board.background"
       :accent="board.accent"
       :column-outline="board.columnOutline"

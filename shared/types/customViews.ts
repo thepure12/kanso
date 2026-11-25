@@ -1,3 +1,7 @@
+import type { BoardAccent } from '../boardAccents'
+import type { BoardBackground } from '../boardBackgrounds'
+import type { ColumnOutline } from '../columnOutline'
+
 /** A column offered for (or shown in) a custom view, with its board. */
 export interface ViewColumn {
   columnId: string
@@ -14,6 +18,11 @@ export interface CustomView {
   name: string
   /** In view order; only columns the person can still see. */
   columns: ViewColumn[]
+  /** The view's own look, as on a board (null = plain / app default / each board's outline). */
+  background: BoardBackground | null
+  accent: BoardAccent | null
+  /** Default frame of the view's columns; a column's own outline still wins. */
+  columnOutline: ColumnOutline | null
 }
 
 /** Entry of GET /api/views. */

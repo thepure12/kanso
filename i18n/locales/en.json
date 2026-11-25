@@ -2463,10 +2463,22 @@
     "unavailable": "The columns of this view are not available to you (any more).",
     "noCards": "No cards",
     "deleteConfirm": "Delete the view “{name}”?",
+    "appearance": {
+      "menu": "Background and accent",
+      "boardBackground": {
+        "description": "Only you see them, on this view. The boards keep their own.",
+        "logoHint": "The app's logo in the view's accent colour, on top of the colour or gradient.",
+        "accentHint": "Buttons, links and highlights while the view is open."
+      },
+      "columnOutline": {
+        "boardHint": "Frame around every column of the view, instead of its board's. A column with its own outline keeps it."
+      }
+    },
     "errors": {
       "columns": "Could not load columns",
       "save": "Could not save the view",
-      "delete": "Could not delete the view"
+      "delete": "Could not delete the view",
+      "appearance": "Could not change the look of the view"
     }
   },
   "stickers": {

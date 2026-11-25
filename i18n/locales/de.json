@@ -2463,10 +2463,22 @@
     "unavailable": "Die Spalten dieser Ansicht sind für dich nicht (mehr) verfügbar.",
     "noCards": "Keine Karten",
     "deleteConfirm": "Ansicht „{name}“ löschen?",
+    "appearance": {
+      "menu": "Hintergrund und Akzent",
+      "boardBackground": {
+        "description": "Nur du siehst sie, in dieser Ansicht. Die Boards behalten ihre eigenen.",
+        "logoHint": "Das Logo der App in der Akzentfarbe der Ansicht, über der Farbe oder dem Verlauf.",
+        "accentHint": "Schaltflächen, Links und Hervorhebungen, solange die Ansicht offen ist."
+      },
+      "columnOutline": {
+        "boardHint": "Rahmen um jede Spalte der Ansicht, statt dem ihres Boards. Eine Spalte mit eigenem Rahmen behält ihn."
+      }
+    },
     "errors": {
       "columns": "Spalten konnten nicht geladen werden",
       "save": "Ansicht konnte nicht gespeichert werden",
-      "delete": "Ansicht konnte nicht gelöscht werden"
+      "delete": "Ansicht konnte nicht gelöscht werden",
+      "appearance": "Das Aussehen der Ansicht konnte nicht geändert werden"
     }
   },
   "stickers": {

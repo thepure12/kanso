@@ -28,7 +28,7 @@ export function loadCustomViews(tx: Tx): Promise<CustomViewSummary[]> {
 
 /** One view of the user's (null when not theirs or gone); columns the user cannot see are left out by RLS. */
 export async function loadCustomView(tx: Tx, id: string): Promise<CustomView | null> {
-  const [row] = await tx.select({ id: v.id, name: v.name }).from(v).where(eq(v.id, id))
+  const [row] = await tx.select({ id: v.id, name: v.name, background: v.background, accent: v.accent, columnOutline: v.columnOutline }).from(v).where(eq(v.id, id))
   if (!row) return null
   const columns = await tx.select(columnFields).from(vc)
     .innerJoin(c, and(eq(c.id, vc.columnId), eq(c.boardId, vc.boardId)))

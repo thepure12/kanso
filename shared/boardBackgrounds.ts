@@ -5,6 +5,7 @@
 // accent colour on top (an extra JSON key, so no schema change).
 
 import colors from 'tailwindcss/colors'
+import { z } from 'zod'
 import { type BoardAccent, defaultAccent } from './boardAccents'
 
 export type BoardBackground =
@@ -59,6 +60,20 @@ export function isPresetBackground(bg: BoardBackground): boolean {
   }
 }
 
+/**
+ * A colour, gradient or stock photo as sent by the client (PUT /api/boards/:id/background,
+ * PATCH /api/views/:id); uploads go through their own POST routes.
+ */
+export const presetBackgroundSchema = z.object({
+  kind: z.enum(['color', 'gradient', 'photo']),
+  value: z.string().max(40),
+  // The Kanso logo on top: colours and gradients only.
+  logo: z.boolean().optional(),
+}).refine(bg => isPresetBackground(bg), 'Unknown background')
+  .refine(bg => !bg.logo || bg.kind !== 'photo', 'logo: Only on colours and gradients')
+  // Drop `logo: false` so stored backgrounds carry the key only when on.
+  .transform(({ logo, ...bg }) => (logo ? { ...bg, logo } : bg) as BoardBackground)
+
 // The app glyph (three bars, as in public/favicon.svg) in `colour`, slightly see-through.
 function logoSvg(colour: string) {
   return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="none" '
@@ -71,13 +86,21 @@ export function logoImage(accent: BoardAccent | null | undefined): string {
   return `url("data:image/svg+xml,${encodeURIComponent(logoSvg(colors[accent ?? defaultAccent][500]))}")`
 }
 
+/** Whose background it is: a board id, or a custom view (its uploaded image has its own URL). */
+export type BackgroundOwner = string | { viewId: string }
+
+/** URL path (below the base path) of the owner's uploaded image. */
+export function uploadedBackgroundPath(owner: BackgroundOwner): string {
+  return typeof owner === 'string' ? `/api/boards/${owner}/background` : `/api/views/${owner.viewId}/background`
+}
+
 /**
- * CSS for an element showing the background of board `boardId`, or undefined when plain.
+ * CSS for an element showing the background of `owner` (a board id or a custom view), or undefined when plain.
  * `base` is the app's base path ('' at the root; basePath() in the app); `accent` is the
  * board's accent, which colours the Kanso logo.
  */
 export function backgroundStyle(
-  bg: BoardBackground | null | undefined, boardId: string, thumb = false, base = '', accent: BoardAccent | null = null,
+  bg: BoardBackground | null | undefined, owner: BackgroundOwner, thumb = false, base = '', accent: BoardAccent | null = null,
 ): Record<string, string> | undefined {
   if (!bg) return undefined
   switch (bg.kind) {
@@ -92,7 +115,7 @@ export function backgroundStyle(
         ? imageStyle(`${base}/backgrounds/${bg.value}${thumb ? '-thumb' : ''}.jpg`)
         : undefined
     case 'upload':
-      return imageStyle(`${base}/api/boards/${boardId}/background?v=${encodeURIComponent(bg.value)}`)
+      return imageStyle(`${base}${uploadedBackgroundPath(owner)}?v=${encodeURIComponent(bg.value)}`)
   }
 }
 

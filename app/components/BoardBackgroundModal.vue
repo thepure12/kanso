@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import colors from 'tailwindcss/colors'
 import { type BoardAccent, boardAccents } from '#shared/boardAccents'
-import { type BoardBackground, backgroundColors, backgroundGradients, backgroundPhotos, backgroundStyle, canShowLogo, logoImage } from '#shared/boardBackgrounds'
+import { type BackgroundOwner, type BoardBackground, backgroundColors, backgroundGradients, backgroundPhotos, backgroundStyle, canShowLogo, logoImage } from '#shared/boardBackgrounds'
 import { type ColumnOutline, defaultColumnOutline } from '#shared/columnOutline'
 
 const props = defineProps<{
-  boardId: string
+  /** A board id, or `{ viewId }` for a custom view (its own look, seen only by its user). */
+  owner: BackgroundOwner
   background: BoardBackground | null
   accent: BoardAccent | null
   columnOutline: ColumnOutline | null
@@ -16,6 +17,8 @@ const emit = defineEmits<{ set: [bg: BoardBackground | null], setAccent: [accent
 const open = defineModel<boolean>('open', { required: true })
 const { t } = useI18n()
 const toast = useToast()
+const forView = computed(() => typeof props.owner !== 'string')
+const text = (key: string) => t(forView.value ? `customViews.appearance.${key}` : key)
 
 const MAX_BYTES = 5 * 1024 * 1024
 const IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/webp', 'image/gif']
@@ -73,7 +76,7 @@ const ring = (current: boolean) => current ? 'ring-2 ring-primary' : 'hover:ring
 </script>
 
 <template>
-  <UModal v-model:open="open" :title="t('boardBackground.title')" :description="t('boardBackground.description')" :ui="{ content: 'max-w-lg' }">
+  <UModal v-model:open="open" :title="t('boardBackground.title')" :description="text('boardBackground.description')" :ui="{ content: 'max-w-lg' }">
     <template #body>
       <div class="space-y-6">
         <section class="space-y-2">
@@ -87,7 +90,7 @@ const ring = (current: boolean) => current ? 'ring-2 ring-primary' : 'hover:ring
               type="button"
               class="aspect-[16/10] bg-cover bg-center"
               :class="[tile, ring(isCurrent('photo', p.id))]"
-              :style="backgroundStyle({ kind: 'photo', value: p.id }, boardId, true, basePath())"
+              :style="backgroundStyle({ kind: 'photo', value: p.id }, owner, true, basePath())"
               :aria-label="t(`boardBackground.photo.${p.id}`)"
               :aria-pressed="isCurrent('photo', p.id)"
               @click="emit('set', { kind: 'photo', value: p.id })"
@@ -96,7 +99,7 @@ const ring = (current: boolean) => current ? 'ring-2 ring-primary' : 'hover:ring
               v-if="background?.kind === 'upload'"
               class="aspect-[16/10] bg-cover bg-center"
               :class="[tile, ring(true)]"
-              :style="backgroundStyle(background, boardId, false, basePath())"
+              :style="backgroundStyle(background, owner, false, basePath())"
               role="img"
               :aria-label="t('boardBackground.uploaded')"
             />
@@ -174,7 +177,7 @@ const ring = (current: boolean) => current ? 'ring-2 ring-primary' : 'hover:ring
             :model-value="logo"
             :disabled="!canShowLogo(background)"
             :label="t('boardBackground.logo')"
-            :description="t(canShowLogo(background) ? 'boardBackground.logoHint' : 'boardBackground.logoUnavailable')"
+            :description="canShowLogo(background) ? text('boardBackground.logoHint') : t('boardBackground.logoUnavailable')"
             @update:model-value="setLogo"
           />
         </section>
@@ -209,7 +212,7 @@ const ring = (current: boolean) => current ? 'ring-2 ring-primary' : 'hover:ring
             </UTooltip>
           </div>
           <p class="text-xs text-muted">
-            {{ t('boardBackground.accentHint') }}
+            {{ text('boardBackground.accentHint') }}
           </p>
         </section>
 
@@ -230,7 +233,7 @@ const ring = (current: boolean) => current ? 'ring-2 ring-primary' : 'hover:ring
           </div>
           <ColumnOutlinePicker v-model="outline" />
           <p class="text-xs text-muted">
-            {{ t('columnOutline.boardHint') }}
+            {{ text('columnOutline.boardHint') }}
           </p>
         </section>
 
