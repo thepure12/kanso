@@ -31,7 +31,8 @@ members and fields (ids needed by the write tools), then get_card for one card's
 and links. Use search to find cards by text across boards and my_work for cards assigned to or watched by you.
 Board structure: columns, card tags (labels on cards), column tags (named sets of columns that filter the board view)
 and time-based automations; get_board lists them with their ids and colours.
-Everything runs as the token's user: you only see and change what they can. Dates are YYYY-MM-DD.`
+Everything runs as the token's user: you only see and change what they can. Dates are YYYY-MM-DD.
+To do many things at once (e.g. create dozens of cards with checklists), send them as one batch call instead of one call each.`
 
 const id = z.uuid()
 const color = z.string().regex(/^#[0-9a-fA-F]{6}$/).describe('#rrggbb')
@@ -71,6 +72,14 @@ export function createMcpServer(caller: McpCaller): McpServer {
       return { isError: true, content: [{ type: 'text', text: `${statusCode} ${message}${details}` }] }
     }
   }
+
+  /** Every registered tool's input shape and callback, so batch can run them in-process. */
+  const registry = new Map<string, { shape?: z.ZodRawShape, callback: (...args: unknown[]) => Promise<CallToolResult> | CallToolResult }>()
+  const registerTool = server.registerTool.bind(server)
+  server.registerTool = ((name: string, config: { inputSchema?: z.ZodRawShape }, callback: (...args: unknown[]) => Promise<CallToolResult>) => {
+    registry.set(name, { shape: config.inputSchema, callback })
+    return registerTool(name, config as never, callback as never)
+  }) as typeof server.registerTool
 
   const read = { readOnlyHint: true, openWorldHint: false } as const
   const write = { readOnlyHint: false, destructiveHint: false, openWorldHint: false } as const
@@ -114,7 +123,10 @@ export function createMcpServer(caller: McpCaller): McpServer {
     annotations: read,
   }, () => run(() => call('/api/notifications')))
 
-  if (!caller.canWrite) return server
+  if (!caller.canWrite) {
+    registerBatch(server, registry, false)
+    return server
+  }
 
   server.registerTool('mark_notifications_read', {
     description: 'Mark notifications read once handled (ids from list_notifications), so the next poll shows only new ones. Without ids, marks all read.',
@@ -357,5 +369,118 @@ export function createMcpServer(caller: McpCaller): McpServer {
     annotations: write,
   }, ({ boardId, accent }) => run(() => call(`/api/boards/${boardId}/accent`, { method: 'PUT', body: { accent } })))
 
+  registerBatch(server, registry, true)
   return server
+}
+
+/** Most calls one batch runs; the request body limit (256 KB) also caps it. */
+export const BATCH_MAX = 200
+
+type Registry = Map<string, { shape?: z.ZodRawShape, callback: (...args: unknown[]) => Promise<CallToolResult> | CallToolResult }>
+
+export type BatchResult =
+  | { tool: string, ok: true, result: unknown }
+  | { tool: string, ok: false, error: string }
+  | { tool: string, ok: false, skipped: true }
+
+const REFERENCE = /^\$(\d+)((?:\.[A-Za-z0-9_]+)*)$/
+
+/**
+ * Replaces every string argument of the form "$<n>" or "$<n>.<path>" by the
+ * result of call n (0-based, an earlier call that succeeded), e.g. "$0.id" for
+ * the id of a card created by the first call. Throws a ToolError otherwise.
+ */
+export function resolveReferences(value: unknown, results: readonly BatchResult[]): unknown {
+  if (typeof value === 'string') {
+    const m = REFERENCE.exec(value)
+    if (!m) return value
+    const index = Number(m[1])
+    const earlier = results[index]
+    if (!earlier) throw new ToolError(`${value}: call ${index} has not run before this one`)
+    if (!earlier.ok) throw new ToolError(`${value}: call ${index} failed`)
+    let current: unknown = earlier.result
+    for (const key of m[2]!.split('.').slice(1)) {
+      if (current === null || typeof current !== 'object' || !(key in current)) throw new ToolError(`${value}: call ${index} has no ${m[2]!.slice(1)}`)
+      current = (current as Record<string, unknown>)[key]
+    }
+    return current
+  }
+  if (Array.isArray(value)) return value.map(v => resolveReferences(v, results))
+  if (value !== null && typeof value === 'object') {
+    return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, resolveReferences(v, results)]))
+  }
+  return value
+}
+
+/**
+ * batch: runs up to BATCH_MAX calls of the other tools in one MCP request, in
+ * order, each exactly as if called alone (same validation, routes and
+ * permissions; each call is its own transaction, so a batch is not all or
+ * none). Only the tools this token sees can be called.
+ */
+function registerBatch(server: McpServer, registry: Registry, canWrite: boolean) {
+  const names = [...registry.keys()]
+  server.registerTool('batch', {
+    description: `Run up to ${BATCH_MAX} calls of the other tools in one request, in order (e.g. create many cards, then add checklist items to them). `
+      + 'Each call works exactly as when called alone and is saved on its own: a failed call does not undo earlier ones. '
+      + 'A string argument "$<n>.<path>" is replaced by a field of the result of earlier call n (0-based), e.g. {"cardId": "$0.id"} '
+      + 'for the card created by the first call. Returns one entry per call: {tool, ok, result} or {tool, ok: false, error}; '
+      + 'with stopOnError the calls after a failure are skipped. For one change to many cards of a board, bulk_update_cards is faster.',
+    inputSchema: {
+      calls: z.array(z.object({
+        tool: z.enum(names as [string, ...string[]]),
+        arguments: z.record(z.string(), z.unknown()).optional(),
+      })).min(1).max(BATCH_MAX),
+      stopOnError: z.boolean().optional(),
+    },
+    annotations: canWrite
+      ? { readOnlyHint: false, destructiveHint: false, openWorldHint: false }
+      : { readOnlyHint: true, openWorldHint: false },
+  }, async ({ calls, stopOnError }, extra) => {
+    const results: BatchResult[] = []
+    let failed = false
+    for (const { tool, arguments: args } of calls) {
+      if (failed && stopOnError) {
+        results.push({ tool, ok: false, skipped: true })
+        continue
+      }
+      const result = await runOne(registry.get(tool)!, args ?? {}, results, extra)
+      results.push({ tool, ...result } as BatchResult)
+      if (!result.ok) failed = true
+    }
+    const okCount = results.filter(r => r.ok).length
+    const summary = { succeeded: okCount, failed: results.filter(r => !r.ok && !('skipped' in r)).length, skipped: results.filter(r => 'skipped' in r).length, results }
+    return { isError: okCount < results.length, content: [{ type: 'text', text: JSON.stringify(summary) }] }
+  })
+}
+
+async function runOne(entry: NonNullable<ReturnType<Registry['get']>>, rawArgs: Record<string, unknown>, results: readonly BatchResult[], extra: unknown):
+Promise<{ ok: true, result: unknown } | { ok: false, error: string }> {
+  try {
+    const args = resolveReferences(rawArgs, results)
+    let out: CallToolResult
+    if (entry.shape) {
+      const parsed = z.object(entry.shape).safeParse(args)
+      if (!parsed.success) {
+        const issue = parsed.error.issues[0]!
+        return { ok: false, error: `400 ${issue.path.join('.') || 'arguments'}: ${issue.message}` }
+      }
+      out = await entry.callback(parsed.data, extra)
+    }
+    else {
+      out = await entry.callback(extra)
+    }
+    const text = out.content.map(c => (c.type === 'text' ? c.text : '')).join('')
+    if (out.isError) return { ok: false, error: text }
+    try {
+      return { ok: true, result: JSON.parse(text) }
+    }
+    catch {
+      return { ok: true, result: text }
+    }
+  }
+  catch (err) {
+    if (err instanceof ToolError) return { ok: false, error: err.message }
+    throw err
+  }
 }

@@ -231,6 +231,44 @@ describe('mcp endpoint', () => {
     const refused = await mcp(readToken, 'tools/call', { name: 'create_tag', arguments: { boardId: board.id, name: 'x' } })
     expect(refused.body.result?.isError ?? refused.body.error).toBeTruthy()
   })
+  it('runs many tool calls in one batch, with references to earlier results', async () => {
+    const [todo, doing] = board.columns
+    const out = await tool(writeToken, 'batch', {
+      calls: [
+        { tool: 'create_card', arguments: { boardId: board.id, columnId: todo!.id, title: 'Batch one' } },
+        { tool: 'create_card', arguments: { boardId: board.id, columnId: todo!.id, title: 'Batch two' } },
+        { tool: 'add_checklist_item', arguments: { cardId: '$0.id', text: 'First step' } },
+        { tool: 'move_card', arguments: { cardId: '$1.id', columnId: doing!.id } },
+        { tool: 'update_card', arguments: { cardId: '$0.id', startDate: '2031-01-01', dueDate: '2030-01-01' } },
+        { tool: 'add_comment', arguments: { cardId: '$4.id', body: 'never' } },
+        { tool: 'update_card', arguments: { cardId: 'not-a-uuid' } },
+        { tool: 'get_board', arguments: { boardId: board.id } },
+      ],
+    })
+    expect(out.isError).toBe(true)
+    const summary = out.json()
+    expect(summary).toMatchObject({ succeeded: 5, failed: 3, skipped: 0 })
+    const r = summary.results
+    expect(r.map((x: { ok: boolean }) => x.ok)).toEqual([true, true, true, true, false, false, false, true])
+    expect(r[2].result).toMatchObject({ text: 'First step', done: false })
+    expect(r[4].error).toMatch(/^400/)
+    expect(r[5].error).toMatch(/call 4 failed/)
+    expect(r[6].error).toMatch(/^400 cardId/)
+    const cards = r[7].result.columns.flatMap((c: { title: string, cards: { title: string }[] }) => c.cards.map(card => [c.title, card.title]))
+    expect(cards).toEqual(expect.arrayContaining([[todo!.title, 'Batch one'], [doing!.title, 'Batch two']]))
+
+    // stopOnError skips the rest; read tokens may batch read tools only.
+    const stopped = (await tool(writeToken, 'batch', {
+      stopOnError: true,
+      calls: [{ tool: 'get_card', arguments: { boardId: board.id, cardId: randomUUID() } }, { tool: 'list_boards' }],
+    })).json()
+    expect(stopped).toMatchObject({ succeeded: 0, failed: 1, skipped: 1 })
+    const reads = await tool(readToken, 'batch', { calls: [{ tool: 'list_boards' }, { tool: 'get_board', arguments: { boardId: board.id } }] })
+    expect(reads.json()).toMatchObject({ succeeded: 2, failed: 0 })
+    const refused = await mcp(readToken, 'tools/call', { name: 'batch', arguments: { calls: [{ tool: 'create_card', arguments: {} }] } })
+    expect(refused.body.result?.isError ?? refused.body.error).toBeTruthy()
+  })
+
   it('works with a bot token on the bot\'s board, acting as the bot', async () => {
     const bot = (await alice.req<{ id: string }>(`/api/boards/${board.id}/bots`, { method: 'POST', body: { name: 'Claude', role: 'editor' } })).data
     const { token } = (await alice.req<{ token: string }>(`/api/bots/${bot.id}/tokens`, { method: 'POST', body: { name: 'agent', scopes: ['read', 'write'] } })).data

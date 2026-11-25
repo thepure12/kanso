@@ -140,6 +140,12 @@ same permissions, validation and scope rules apply, and changes show up live on 
   `create_column`, `update_column` (title, description, colour, WIP limit, order), `create_tag`, `update_tag`, `create_column_tag`,
   `update_column_tag` (name, colour, columns), `create_assignee_group`, `update_assignee_group` (name, members), `create_automation` (board, column or card), `update_automation`, `create_rule`, `update_rule`, `schedule_card_action`, `set_board_accent`,
   `mark_notifications_read` (given ids, or all). There are no delete tools for these.
+- `batch` (every token, with the tools that token sees): up to 200 calls of the other tools in one request,
+  `{calls: [{tool, arguments}], stopOnError?}`, run in order, each exactly as when called alone and saved on its own (a
+  failed call does not undo earlier ones). A string argument `"$<n>.<path>"` takes a field of the result of earlier call
+  `n` (0-based), e.g. `{"tool": "add_checklist_item", "arguments": {"cardId": "$0.id", "text": "..."}}` after a
+  `create_card`. The result is `{succeeded, failed, skipped, results: [{tool, ok, result} | {tool, ok: false, error}]}`,
+  with `isError` when any call did not succeed.
 - API errors come back as tool results with `isError` and the status, e.g. `404 Board not found`.
 
 ```bash
