@@ -37,11 +37,13 @@ async function loadBoard(boardId: string) {
   if (b) boards.value[boardId] = b
   else delete boards.value[boardId]
 }
-await useAsyncData(`view-boards-${id}`, async () => {
+// The boards loaded during SSR come back through the payload: a plain ref is not
+// hydrated, so without seeding it from the data the columns vanished on reload.
+const { data: initialBoards } = await useAsyncData(`view-boards-${id}`, async () => {
   const loaded = await Promise.all(boardIds.value.map(async b => [b, await fetchBoard(b)] as const))
-  boards.value = Object.fromEntries(loaded.filter((e): e is [string, BoardDetail] => !!e[1]))
-  return true
+  return Object.fromEntries(loaded.filter((e): e is [string, BoardDetail] => !!e[1]))
 })
+boards.value = initialBoards.value ?? {}
 
 // Live updates per board: reload that board when someone else changes it.
 const live = useLiveEvents()

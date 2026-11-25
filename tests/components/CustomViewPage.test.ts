@@ -100,6 +100,23 @@ describe('custom view page', () => {
     expect(w.find('[draggable="true"]').exists()).toBe(false)
   })
 
+  it('keeps the boards loaded during SSR when hydrating (no refetch)', async () => {
+    // As after a reload: the payload holds the server's async data and the
+    // handler does not run again on the client.
+    const nuxtApp = useNuxtApp()
+    nuxtApp.payload.data['view-boards-v1'] = {
+      b1: board('b1', 'Alpha', [['b1c1', 'Todo'], ['b1c2', 'Review']], [card('c2', 'b1c2', 'From SSR')]),
+      b2: board('b2', 'Beta', [['b2c1', 'Doing']], []),
+    }
+    nuxtApp.isHydrating = true
+    try {
+      const w = await mountPage()
+      expect(w.findAll('[data-column-id]').map(s => s.attributes('data-column-id'))).toEqual(['b2c1', 'b1c2'])
+      expect(w.text()).toContain('From SSR')
+    }
+    finally { nuxtApp.isHydrating = false }
+  })
+
   it('draws columns as on their board: header colour, outline, WIP limit and stored width', async () => {
     b2Column = { color: '#ff0000', wipLimit: 1, outline: { color: 'column', width: 3, glow: 0 } }
     localStorage.setItem('kanban:column-widths:b2', JSON.stringify({ b2c1: 400 }))
