@@ -1,6 +1,6 @@
 import { mockNuxtImport, mountSuspended } from '@nuxt/test-utils/runtime'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { computed, defineComponent, h, nextTick, ref } from 'vue'
+import { computed, defineComponent, h, nextTick, ref, toRaw } from 'vue'
 import type { BoardDetail, Card } from '#shared/types/board'
 import { blockedCardIds, blockingCardIds } from '../../app/utils/cardLinks'
 
@@ -180,5 +180,34 @@ describe('useBoard undo', () => {
     expect(m.toastAdd).toHaveBeenLastCalledWith(expect.objectContaining({ title: 'Couldn\'t undo' }))
     expect(m.refresh).toHaveBeenCalled()
     expect(b.canUndo.value).toBe(false)
+  })
+})
+
+describe('useBoard reload', () => {
+  // useFetch's transform (shareStructure) keeps unchanged objects; the watcher keeps lists whose items stayed.
+  const reload = async (b: Board, change: (d: BoardDetail) => BoardDetail) => {
+    const data = m.board as { value: BoardDetail }
+    data.value = change(toRaw(data.value))
+    await nextTick()
+    return b
+  }
+
+  it('keeps the arrays of columns whose cards did not change', async () => {
+    const b = await mountBoard()
+    const c1 = b.lists.value.c1
+    const c2 = b.lists.value.c2
+    const tags = b.tags.value
+    await reload(b, d => ({ ...d, cards: [d.cards[0]!, d.cards[1]!, { ...d.cards[2]!, title: 'x2' }] }))
+    expect(b.lists.value.c1).toBe(c1)
+    expect(b.lists.value.c2).not.toBe(c2)
+    expect(b.lists.value.c2![0]!.title).toBe('x2')
+    expect(b.tags.value).toBe(tags)
+  })
+
+  it('still resets a list that a local change left out of step', async () => {
+    const b = await mountBoard()
+    b.lists.value.c1 = [b.lists.value.c1![1]!, b.lists.value.c1![0]!]
+    await reload(b, d => ({ ...d }))
+    expect(ids(b, 'c1')).toEqual(['a', 'b'])
   })
 })

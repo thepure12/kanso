@@ -170,7 +170,19 @@ export async function useBoard(id: string, opts: UseBoardOptions = {}) {
 
   // deep: mutations write board.value.name, archivedAt, background, starred directly. Watchers on
   // `board` still fire only when a reload replaces the object.
-  const { data: board, error, refresh } = await useFetch<BoardDetail>(`/api/boards/${id}`, { deep: true })
+  // transform: a reload keeps the objects of unchanged cards, tags, members, ... (shareStructure),
+  // so only what changed re-renders. The top level is always new, so the watcher below runs and
+  // resets local lists that an optimistic change left out of step.
+  let loaded: Ref<BoardDetail | undefined> | undefined
+  const { data: board, error, refresh } = await useFetch<BoardDetail>(`/api/boards/${id}`, {
+    deep: true,
+    transform: (next) => {
+      const prev = loaded?.value ? toRaw(loaded.value) : undefined
+      const shared = shareStructure(prev, next)
+      return shared === prev ? { ...shared } : shared
+    },
+  })
+  loaded = board
 
   // Archived boards are read-only for everyone (enforced by app.can_edit); owners can unarchive.
   // Offline, the board shows the service worker's cached copy and is read-only too.
@@ -215,22 +227,30 @@ export async function useBoard(id: string, opts: UseBoardOptions = {}) {
   const agentRules = ref<AgentRule[]>([])
   // One-shot actions on cards (card mode of BoardAutomationsModal).
   const scheduledActions = ref<ScheduledCardAction[]>([])
+  // Local copies of the board's lists. After a reload each keeps its old array when it still holds
+  // the very same items (shareStructure keeps unchanged ones), so props stay equal and cards whose
+  // data did not change do not re-render.
+  const keep = <T>(current: T[], next: T[]) => sameItems(current, next) ? current : [...next]
   watch(board, (b) => {
     if (!b) return
-    columns.value = [...b.columns]
-    tags.value = [...b.tags]
-    fields.value = [...b.fields]
+    columns.value = keep(columns.value, b.columns)
+    tags.value = keep(tags.value, b.tags)
+    fields.value = keep(fields.value, b.fields)
     columnGroups.value = b.columnGroups.map(g => ({ ...g, columnIds: [...g.columnIds] }))
     assigneeGroups.value = b.assigneeGroups.map(g => ({ ...g, userIds: [...g.userIds] }))
-    savedViews.value = [...b.savedViews]
-    buttons.value = [...b.buttons]
-    templates.value = [...b.templates]
-    recurrences.value = [...b.recurrences]
-    automations.value = [...b.automations]
-    rules.value = [...b.rules]
-    agentRules.value = [...b.agentRules]
-    scheduledActions.value = [...b.scheduledActions]
-    lists.value = Object.fromEntries(b.columns.map(c => [c.id, b.cards.filter(card => card.columnId === c.id)]))
+    savedViews.value = keep(savedViews.value, b.savedViews)
+    buttons.value = keep(buttons.value, b.buttons)
+    templates.value = keep(templates.value, b.templates)
+    recurrences.value = keep(recurrences.value, b.recurrences)
+    automations.value = keep(automations.value, b.automations)
+    rules.value = keep(rules.value, b.rules)
+    agentRules.value = keep(agentRules.value, b.agentRules)
+    scheduledActions.value = keep(scheduledActions.value, b.scheduledActions)
+    const old = lists.value
+    lists.value = Object.fromEntries(b.columns.map((c) => {
+      const cards = b.cards.filter(card => card.columnId === c.id)
+      return [c.id, old[c.id] && sameItems(old[c.id]!, cards) ? old[c.id]! : cards]
+    }))
   }, { immediate: true })
 
   /** Bumped after each reload caused by someone else, so open dialogs can refetch too. */
