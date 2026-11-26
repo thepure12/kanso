@@ -1065,6 +1065,13 @@
       "when": 1795640520751,
       "tag": "0151_board_indexes",
       "breakpoints": true
+    },
+    {
+      "idx": 152,
+      "version": "7",
+      "when": 1795658142484,
+      "tag": "0152_readable_board_ids",
+      "breakpoints": true
     }
   ]
 }

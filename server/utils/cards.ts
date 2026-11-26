@@ -12,31 +12,63 @@ export async function cardTagIds(tx: Tx, cardId: string): Promise<string[]> {
 
 type CardRow = Omit<Card, 'checklist' | 'createdAt' | 'completedAt'> & { checklistDone: number, checklistTotal: number, createdAt: Date | string, completedAt: Date | string | null }
 
-/** Cards matching `where` (a condition on alias c), in position order, with tags, assignees, field values and counts. */
+/**
+ * Cards matching `where` (a condition on alias c), in position order, with tags, assignees, field values and counts.
+ * Each child table is read once for all matched cards and grouped by card (not one subquery per card), so its
+ * select policy runs once per query rather than once per card.
+ */
 export async function loadCards(tx: Tx, where: SQL): Promise<Card[]> {
   const rows = await tx.execute<CardRow & Record<string, unknown>>(sql`
+    with c as materialized (
+      select c.id, c.column_id, c.title, c.description, c.position, c.start_date, c.due_date, c.priority,
+             c.estimate, c.cover_attachment_id, c.skip_automations, c.stickers, c.completed_at,
+             c.created_by, c.created_at
+      from cards c
+      where ${where}
+    ),
+    tg as (select ct.card_id, array_agg(ct.tag_id::text order by t.name) as ids
+           from card_tags ct join tags t on t.id = ct.tag_id
+           where ct.card_id in (select id from c) group by ct.card_id),
+    asg as (select card_id, array_agg(user_id::text order by user_id) as ids
+            from card_assignees where card_id in (select id from c) group by card_id),
+    ci as (select card_id, count(*) filter (where done)::int as done, count(*)::int as total
+           from checklist_items where card_id in (select id from c) group by card_id),
+    cm as (select card_id, count(*)::int as n from card_comments where card_id in (select id from c) group by card_id),
+    att as (select card_id, count(*)::int as n from card_attachments where card_id in (select id from c) group by card_id),
+    te as (select card_id, sum(minutes)::int as n from time_entries where card_id in (select id from c) group by card_id),
+    w as (select card_id from card_watchers where user_id = app.current_user_id() and card_id in (select id from c)),
+    bl as (select to_card_id as card_id, array_agg(from_card_id::text order by from_card_id) as ids
+           from card_links where kind = 'blocks' and to_card_id in (select id from c) group by to_card_id),
+    fv as (select card_id, jsonb_object_agg(field_id, value) as v
+           from card_field_values where card_id in (select id from c) group by card_id)
     select c.id, c.column_id as "columnId", c.title, c.description, c.position,
            c.start_date::text as "startDate", c.due_date::text as "dueDate", c.priority,
            c.estimate::float8 as estimate, c.cover_attachment_id as "coverAttachmentId",
            c.skip_automations as "skipAutomations", c.stickers,
            c.completed_at as "completedAt",
            c.created_by as "createdBy", c.created_at as "createdAt",
-           (select u.name from users u where u.id = c.created_by) as "createdByName",
-           array(select ct.tag_id::text from card_tags ct join tags t on t.id = ct.tag_id
-                 where ct.card_id = c.id order by t.name) as "tagIds",
-           array(select ca.user_id::text from card_assignees ca where ca.card_id = c.id order by ca.user_id) as "assigneeIds",
-           (select count(*) filter (where ci.done) from checklist_items ci where ci.card_id = c.id)::int as "checklistDone",
-           (select count(*) from checklist_items ci where ci.card_id = c.id)::int as "checklistTotal",
-           (select count(*) from card_comments cc where cc.card_id = c.id)::int as "commentCount",
-           (select count(*) from card_attachments a where a.card_id = c.id)::int as "attachmentCount",
-           (select coalesce(sum(te.minutes), 0) from time_entries te where te.card_id = c.id)::int as "timeMinutes",
-           exists(select 1 from card_watchers w where w.card_id = c.id and w.user_id = app.current_user_id()) as watching,
-           array(select l.from_card_id::text from card_links l where l.to_card_id = c.id and l.kind = 'blocks'
-                 order by l.from_card_id) as "blockerIds",
-           (select coalesce(jsonb_object_agg(v.field_id, v.value), '{}') from card_field_values v
-            where v.card_id = c.id) as fields
-    from cards c
-    where ${where}
+           u.name as "createdByName",
+           coalesce(tg.ids, '{}') as "tagIds",
+           coalesce(asg.ids, '{}') as "assigneeIds",
+           coalesce(ci.done, 0) as "checklistDone",
+           coalesce(ci.total, 0) as "checklistTotal",
+           coalesce(cm.n, 0) as "commentCount",
+           coalesce(att.n, 0) as "attachmentCount",
+           coalesce(te.n, 0) as "timeMinutes",
+           w.card_id is not null as watching,
+           coalesce(bl.ids, '{}') as "blockerIds",
+           coalesce(fv.v, '{}') as fields
+    from c
+    left join users u on u.id = c.created_by
+    left join tg on tg.card_id = c.id
+    left join asg on asg.card_id = c.id
+    left join ci on ci.card_id = c.id
+    left join cm on cm.card_id = c.id
+    left join att on att.card_id = c.id
+    left join te on te.card_id = c.id
+    left join w on w.card_id = c.id
+    left join bl on bl.card_id = c.id
+    left join fv on fv.card_id = c.id
     order by c.position
   `)
   return rows.map(({ checklistDone, checklistTotal, createdAt, completedAt, ...c }) => ({
